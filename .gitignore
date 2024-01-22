@@ -1,3 +1,14 @@
+Build/
+
+# Windows Installer files from build outputs
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# JetBrains Rider
+*.sln.iml
 # Prerequisites
 *.d
 
