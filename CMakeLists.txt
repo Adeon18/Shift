@@ -60,7 +60,6 @@ else()
     message(STATUS "Using glfw lib at: ${GLFW_LIB}")
 endif()
  
-#include_directories(Vendor)
  
 file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/Source/*.cpp)
  
@@ -69,6 +68,8 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
  
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/Build")
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE ZAP_ROOT="${PROJECT_SOURCE_DIR}")
  
 if (WIN32)
   message(STATUS "CREATING BUILD FOR WINDOWS")
@@ -84,6 +85,7 @@ if (WIN32)
  
   target_include_directories(${PROJECT_NAME} PUBLIC
     ${PROJECT_SOURCE_DIR}/Source
+    ${PROJECT_SOURCE_DIR}/Vendor/local
     ${Vulkan_INCLUDE_DIRS}
     ${GLFW_INCLUDE_DIRS}
     ${GLM_PATH}
@@ -99,6 +101,7 @@ elseif (UNIX)
     message(STATUS "CREATING BUILD FOR UNIX")
     target_include_directories(${PROJECT_NAME} PUBLIC
       ${PROJECT_SOURCE_DIR}/Source
+      ${PROJECT_SOURCE_DIR}/Vendor/local
     )
     target_link_libraries(${PROJECT_NAME} glfw ${Vulkan_LIBRARIES})
 endif()
