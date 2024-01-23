@@ -1,9 +1,11 @@
+#pragma once
+
 #include <string>
 
-namespace zp {
+namespace sft {
     namespace utl {
-        constexpr std::string GetZapRoot() {
-            return std::string{ZAP_ROOT} + "/";
+        constexpr std::string GetShiftRoot() {
+            return std::string{SHIFT_ROOT} + "/";
         }
     }
 }

@@ -3,7 +3,7 @@ message(STATUS "Local .env.cmake: ${LOCAL_ENV}")
  
 cmake_minimum_required(VERSION 3.11.0)
  
-set(NAME Zap)
+set(NAME Shift)
 
 get_filename_component(PROJECT_SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}" ABSOLUTE)
 
@@ -44,7 +44,7 @@ if (DEFINED GLFW_PATH)
   set(GLFW_INCLUDE_DIRS "${GLFW_PATH}/include")
   if (MSVC)
     set(GLFW_LIB "${GLFW_PATH}/lib-vc2022") # 2.1 Update lib-vc2022 to use same version as your visual studio
-  elseif (CMAKE_GENERATOR STREQUAL "MinGW Makefiles")
+  else()
     message(STATUS "USING MINGW")
     set(GLFW_LIB "${GLFW_PATH}/lib-mingw-w64") # 2.1 make sure matches glfw mingw subdirectory
   endif()
@@ -69,7 +69,7 @@ target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
  
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/Build")
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE ZAP_ROOT="${PROJECT_SOURCE_DIR}")
+target_compile_definitions(${PROJECT_NAME} PRIVATE SHIFT_ROOT="${PROJECT_SOURCE_DIR}")
  
 if (WIN32)
   message(STATUS "CREATING BUILD FOR WINDOWS")

@@ -1,4 +1,7 @@
 Build/
+cmake-build*/
+.idea/
+.vs/
 
 # Windows Installer files from build outputs
 *.cab

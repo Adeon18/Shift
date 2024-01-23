@@ -4,6 +4,7 @@
 #include "UniformBufferStructs.hpp"
 
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <cstdlib>
 #include <vector>
@@ -26,6 +27,8 @@
 #include <stb_image.h>
 
 #include "Utility/UtilFunctions.hpp"
+
+#include "Window/ShiftWindow.hpp"
 
 //! vkCreateDebugUtilsMessengerEXT is an extension function and we should load it before usage
 //! Returns nullptr if could not be loaded, else creates a DebugEXT object
@@ -130,18 +133,7 @@ private:
     };
 private:
     void initWindow() {
-        glfwInit();
-
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Because default is OpenGL so no API here
-
-        m_windowPtr = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Vulkan", nullptr, nullptr);
-        glfwSetWindowUserPointer(m_windowPtr, this);
-        glfwSetFramebufferSizeCallback(m_windowPtr, framebufferResizeCallback);
-    }
-
-    static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
-        auto app = reinterpret_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
-        app->m_framebufferResized = true;
+        m_winPtr = std::make_unique<sft::ShiftWindow>(WINDOW_WIDTH, WINDOW_HEIGHT, "Shift");
     }
 
     void initVulkan() {
@@ -502,7 +494,7 @@ private:
     }
 
     void createSurface() {
-        if (glfwCreateWindowSurface(m_vkInstance, m_windowPtr, nullptr, &m_vkSurface) != VK_SUCCESS) {
+        if (glfwCreateWindowSurface(m_vkInstance, m_winPtr->GetHandle(), nullptr, &m_vkSurface) != VK_SUCCESS) {
             throw std::runtime_error("failed to create window surface!");
         }
     }
@@ -582,8 +574,8 @@ private:
             return capabilities.currentExtent;
         }
         else {
-            int width, height;
-            glfwGetFramebufferSize(m_windowPtr, &width, &height);
+            int width = m_winPtr->GetWidth();
+            int height = m_winPtr->GetHeight();
 
             VkExtent2D actualExtent = {
                 static_cast<uint32_t>(width),
@@ -600,8 +592,6 @@ private:
     //! INFO WARNING UTILITY We don't recreate the renderpass here, even though we should because the windoe might be moving to another
     //! screen which might be HDR so the image format might change
     void recreateSwapChain() {
-        handleMinimizationLoop();
-
         // Wait for device to stop using resources
         vkDeviceWaitIdle(m_device);
 
@@ -623,16 +613,6 @@ private:
         }
 
         vkDestroySwapchainKHR(m_device, m_swapChain, nullptr);
-    }
-
-    // Loop that halts if the window is minimized
-    void handleMinimizationLoop() {
-        int width = 0, height = 0;
-        glfwGetFramebufferSize(m_windowPtr, &width, &height);
-        while (width == 0 || height == 0) {
-            glfwGetFramebufferSize(m_windowPtr, &width, &height);
-            glfwWaitEvents();
-        }
     }
 
     void createSwapChain() {
@@ -731,8 +711,8 @@ private:
 
     //! TODO: Be aware that you might need to clear vectors after module creation to free up memory
     void createGraphicsPipeline() {
-        auto vertShaderCode = readFile(zp::utl::GetZapRoot() + "Shaders/shader.vert.spv");
-        auto fragShaderCode = readFile(zp::utl::GetZapRoot() + "Shaders/shader.frag.spv");
+        auto vertShaderCode = readFile(sft::utl::GetShiftRoot() + "Shaders/shader.vert.spv");
+        auto fragShaderCode = readFile(sft::utl::GetShiftRoot() + "Shaders/shader.frag.spv");
 
         VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
         VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -1543,8 +1523,8 @@ private:
     }
 
     void mainLoop() {
-        while (!glfwWindowShouldClose(m_windowPtr)) {
-            glfwPollEvents();
+        while (m_winPtr->IsActive()) {
+            m_winPtr->Process();
             drawFrame();
         }
 
@@ -1617,8 +1597,8 @@ private:
         result = vkQueuePresentKHR(m_presentQueue, &presentInfo);
 
         // Screen resize handling
-        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_framebufferResized) {
-            m_framebufferResized = false;
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_winPtr->ShouldProcessResize()) {
+            m_winPtr->ProcessResize();
             recreateSwapChain();
         }
         else if (result != VK_SUCCESS) {
@@ -1700,10 +1680,6 @@ private:
 
         vkDestroySurfaceKHR(m_vkInstance, m_vkSurface, nullptr);
         vkDestroyInstance(m_vkInstance, nullptr); // Other resources should both be cleaned and destroyed
-
-        glfwDestroyWindow(m_windowPtr);
-
-        glfwTerminate();
     }
 
     // VKAPI_ATTR and VKAPI_ATTR ensure that Vulkan has the right signature to call the function
@@ -1744,7 +1720,7 @@ private:
     VkFormat m_swapChainImageFormat;
     VkExtent2D m_swapChainExtent;
 
-    GLFWwindow* m_windowPtr;
+    std::unique_ptr<sft::ShiftWindow> m_winPtr;
 
     std::vector<VkImage> m_swapChainImages;
     std::vector<VkImageView> m_swapChainImageViews;
@@ -1778,8 +1754,6 @@ private:
     std::vector<VkFence> m_inFlightFences;
 
     uint32_t m_currentFrame = 0;
-
-    bool m_framebufferResized = false;
 };
 
 int main() {
