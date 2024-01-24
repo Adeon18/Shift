@@ -1,4 +1,5 @@
-#pragma once
+#ifndef SHIFT_WINDOW_HPP
+#define SHIFT_WINDOW_HPP
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -10,8 +11,8 @@ namespace sft {
     public:
 		ShiftWindow(uint32_t width, uint32_t height, std::string name);
         ShiftWindow()=delete;
-		ShiftWindow(ShiftWindow&)=delete;
-		ShiftWindow& operator=(ShiftWindow&)=delete;
+		ShiftWindow(const ShiftWindow&)=delete;
+		ShiftWindow& operator=(const ShiftWindow&)=delete;
 
         //! Check whether the window is not requested to close
 		[[nodiscard]] bool IsActive();
@@ -46,3 +47,5 @@ namespace sft {
         bool m_shoudProcessResize = false;
 	};
 }
+
+#endif //SHIFT_WINDOW_HPP

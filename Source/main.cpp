@@ -29,6 +29,7 @@
 #include "Utility/UtilFunctions.hpp"
 
 #include "Window/ShiftWindow.hpp"
+#include "Graphics/Wrapper/WindowSurface.hpp"
 
 //! vkCreateDebugUtilsMessengerEXT is an extension function and we should load it before usage
 //! Returns nullptr if could not be loaded, else creates a DebugEXT object
@@ -428,7 +429,7 @@ private:
             
             // Fill presentation queue
             VkBool32 presentSupport = false;
-            vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_vkSurface, &presentSupport);
+            vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_surfacePtr->Get(), &presentSupport);
             if (presentSupport) {
                 indices.presentFamily = i;
 
@@ -494,9 +495,7 @@ private:
     }
 
     void createSurface() {
-        if (glfwCreateWindowSurface(m_vkInstance, m_winPtr->GetHandle(), nullptr, &m_vkSurface) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create window surface!");
-        }
+        m_surfacePtr = std::make_unique<sft::gfx::WindowSurface>(m_vkInstance, m_winPtr->GetHandle());
     }
 
     //! Check is all the device extensiona from the vector are supported
@@ -519,22 +518,22 @@ private:
     SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device) {
         SwapChainSupportDetails details;
         // Get surface capabilities
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, m_vkSurface, &details.capabilities);
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, m_surfacePtr->Get(), &details.capabilities);
 
         // Get Surface formats
         uint32_t formatCount;
-        vkGetPhysicalDeviceSurfaceFormatsKHR(device, m_vkSurface, &formatCount, nullptr);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(device, m_surfacePtr->Get(), &formatCount, nullptr);
         if (formatCount != 0) {
             details.formats.resize(formatCount);
-            vkGetPhysicalDeviceSurfaceFormatsKHR(device, m_vkSurface, &formatCount, details.formats.data());
+            vkGetPhysicalDeviceSurfaceFormatsKHR(device, m_surfacePtr->Get(), &formatCount, details.formats.data());
         }
         // Get present modes
         uint32_t presentModeCount;
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device, m_vkSurface, &presentModeCount, nullptr);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(device, m_surfacePtr->Get(), &presentModeCount, nullptr);
         
         if (presentModeCount != 0) {
             details.presentModes.resize(presentModeCount);
-            vkGetPhysicalDeviceSurfacePresentModesKHR(device, m_vkSurface, &presentModeCount, details.presentModes.data());
+            vkGetPhysicalDeviceSurfacePresentModesKHR(device, m_surfacePtr->Get(), &presentModeCount, details.presentModes.data());
         }
 
         return details;
@@ -632,7 +631,7 @@ private:
 
         VkSwapchainCreateInfoKHR createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-        createInfo.surface = m_vkSurface;
+        createInfo.surface = m_surfacePtr->Get();
         createInfo.minImageCount = imageCount;
         createInfo.imageFormat = surfaceFormat.format;
         createInfo.imageColorSpace = surfaceFormat.colorSpace;
@@ -1672,13 +1671,14 @@ private:
         vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
         vkDestroyRenderPass(m_device, m_renderPass, nullptr);
 
+        m_surfacePtr.reset();
+
         vkDestroyDevice(m_device, nullptr);
 
         if (ENABLE_VALIDATION_LAYERS) {
             DestroyDebugUtilsMessengerEXT(m_vkInstance, m_debugMessenger, nullptr);
         }
 
-        vkDestroySurfaceKHR(m_vkInstance, m_vkSurface, nullptr);
         vkDestroyInstance(m_vkInstance, nullptr); // Other resources should both be cleaned and destroyed
     }
 
@@ -1705,8 +1705,6 @@ private:
     VkQueue m_presentQueue;
     VkQueue m_transferQueue;
 
-    VkSurfaceKHR m_vkSurface;
-
     VkPipeline m_graphicsPipeline;
     VkRenderPass m_renderPass;
     // All describto binding are located here
@@ -1721,6 +1719,7 @@ private:
     VkExtent2D m_swapChainExtent;
 
     std::unique_ptr<sft::ShiftWindow> m_winPtr;
+    std::unique_ptr<sft::gfx::WindowSurface> m_surfacePtr;
 
     std::vector<VkImage> m_swapChainImages;
     std::vector<VkImageView> m_swapChainImageViews;

@@ -1,14 +1,11 @@
 include(./.env.cmake OPTIONAL RESULT_VARIABLE LOCAL_ENV)
 message(STATUS "Local .env.cmake: ${LOCAL_ENV}")
  
-cmake_minimum_required(VERSION 3.11.0)
+cmake_minimum_required(VERSION 3.4.0)
  
 set(NAME Shift)
 
 get_filename_component(PROJECT_SOURCE_DIR "${CMAKE_CURRENT_LIST_DIR}" ABSOLUTE)
-
-set(GLM_PATH ${PROJECT_SOURCE_DIR}/Vendor/glm)
-set(GLFW_PATH ${PROJECT_SOURCE_DIR}/Vendor/glfw/build/glfw-3.3.9.bin.WIN64)
 
 message(STATUS "using ${CMAKE_GENERATOR}")
 if (CMAKE_GENERATOR STREQUAL "MinGW Makefiles")
@@ -36,40 +33,33 @@ if (NOT Vulkan_FOUND)
 else()
     message(STATUS "Using vulkan lib at: ${Vulkan_LIBRARIES}")
 endif()
- 
 
-# 2. Set GLFW_PATH in .env.cmake to target specific glfw
-if (DEFINED GLFW_PATH)
-  message(STATUS "Using GLFW path specified in .env")
-  set(GLFW_INCLUDE_DIRS "${GLFW_PATH}/include")
-  if (MSVC)
-    set(GLFW_LIB "${GLFW_PATH}/lib-vc2022") # 2.1 Update lib-vc2022 to use same version as your visual studio
-  else()
-    message(STATUS "USING MINGW")
-    set(GLFW_LIB "${GLFW_PATH}/lib-mingw-w64") # 2.1 make sure matches glfw mingw subdirectory
-  endif()
-else()
-  find_package(glfw3 3.3 REQUIRED)
-  set(GLFW_LIB glfw)
-  message(STATUS "Found GLFW")
-endif()
+include(CMake/dependancies.cmake)
 
-if (NOT GLFW_LIB)
-    message(FATAL_ERROR "Could not find glfw library!")
-else()
-    message(STATUS "Using glfw lib at: ${GLFW_LIB}")
-endif()
- 
- 
+FetchContent_MakeAvailable(glfw)
+FetchContent_MakeAvailable(glm)
+FetchContent_MakeAvailable(assimp)
+FetchContent_MakeAvailable(spdlog)
+FetchContent_MakeAvailable(imgui)
+add_library(imgui
+        ${imgui_SOURCE_DIR}/imgui.cpp
+        ${imgui_SOURCE_DIR}/imgui_draw.cpp
+        ${imgui_SOURCE_DIR}/imgui_tables.cpp
+        ${imgui_SOURCE_DIR}/imgui_widgets.cpp)
+target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR})
+
 file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/Source/*.cpp)
  
 add_executable(${PROJECT_NAME} ${SOURCES})
- 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
- 
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/Build")
-
 target_compile_definitions(${PROJECT_NAME} PRIVATE SHIFT_ROOT="${PROJECT_SOURCE_DIR}")
+target_compile_definitions(
+        ${PROJECT_NAME}
+        PUBLIC
+        GLFW_INCLUDE_VULKAN
+        GLM_FORCE_RADIANS
+)
  
 if (WIN32)
   message(STATUS "CREATING BUILD FOR WINDOWS")
@@ -88,22 +78,33 @@ if (WIN32)
     ${PROJECT_SOURCE_DIR}/Vendor/local
     ${Vulkan_INCLUDE_DIRS}
     ${GLFW_INCLUDE_DIRS}
-    ${GLM_PATH}
     )
  
   target_link_directories(${PROJECT_NAME} PUBLIC
     ${Vulkan_LIBRARIES}
-    ${GLFW_LIB}
   )
  
-  target_link_libraries(${PROJECT_NAME} glfw3 vulkan-1)
+  target_link_libraries(${PROJECT_NAME}
+          glfw
+          vulkan-1
+          glm::glm
+          imgui
+          spdlog::spdlog
+  )
 elseif (UNIX)
     message(STATUS "CREATING BUILD FOR UNIX")
     target_include_directories(${PROJECT_NAME} PUBLIC
       ${PROJECT_SOURCE_DIR}/Source
       ${PROJECT_SOURCE_DIR}/Vendor/local
     )
-    target_link_libraries(${PROJECT_NAME} glfw ${Vulkan_LIBRARIES})
+    target_link_libraries(${PROJECT_NAME}
+            glfw
+            vulkan-1
+            glm::glm
+            imgui
+            spdlog::spdlog
+            ${Vulkan_LIBRARIES}
+    )
 endif()
  
  
@@ -142,3 +143,5 @@ add_custom_target(
     Shaders
     DEPENDS ${SPIRV_BINARY_FILES}
 )
+
+add_dependencies(${PROJECT_NAME} Shaders)

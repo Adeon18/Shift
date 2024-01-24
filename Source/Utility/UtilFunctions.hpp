@@ -1,4 +1,5 @@
-#pragma once
+#ifndef SHIFT_UTILITY_HPP
+#define SHIFT_UTILITY_HPP
 
 #include <string>
 
@@ -9,3 +10,5 @@ namespace sft {
         }
     }
 }
+
+#endif //SHIFT_UTILITY_HPP
