@@ -6,11 +6,43 @@
 
 #include <vector>
 #include <string>
+#include <vector>
+#include <map>
+#include <set>
 
 namespace sft {
     namespace gutil {
         const std::vector<const char*> VALIDATION_LAYERS = {
                 "VK_LAYER_KHRONOS_validation"
+        };
+
+        const std::vector<const char*> DEVICE_EXTENSIONS = {
+                VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        };
+
+        static constexpr float DEFAULT_QUEUE_PRIORITY = 1.0f;
+
+        //! This struct stores the resepctive queues for graphics, presentation and more
+        //! INFO: I use separate queue family for transfers just to practice Vulkan here, each graphics queue
+        //! has VK_QUEUE_GRAPHICS_BIT!
+        struct QueueFamilyIndices {
+            std::optional<uint32_t> graphicsFamily;
+            std::optional<uint32_t> presentFamily;
+            std::optional<uint32_t> transferFamily;
+
+            bool isComplete() {
+                return graphicsFamily.has_value() && presentFamily.has_value() && transferFamily.has_value();
+            }
+        };
+
+        struct SwapChainSupportDetails {
+            VkSurfaceCapabilitiesKHR capabilities;
+            std::vector<VkSurfaceFormatKHR> formats;
+            std::vector<VkPresentModeKHR> presentModes;
+
+            [[nodiscard]] bool isComplete() {
+                return !formats.empty() && !presentModes.empty();
+            }
         };
 
         bool CheckValidationLayerSupport();
@@ -30,7 +62,7 @@ namespace sft {
                 const VkAllocationCallbacks* pAllocator);
 
         //! Fill the needed debug messanger info, specify the layers
-        void fillDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
+        void FillDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 
         //! VKAPI_ATTR and VKAPI_ATTR ensure that Vulkan has the right signature to call the function
         //! Callback very similar to DirectX
@@ -60,17 +92,34 @@ namespace sft {
         }
 
         //! Get the extensions required for Vulkan Instance
-        std::vector<const char*> getRequiredExtensions();
+        std::vector<const char*> GetRequiredExtensions();
 
         //! Checks whether required GLFW extension is present in Vulkan and prints the info
         //! For now is stupid and expensive but is supposed to run at boot either way
-        bool checkForGLFWExtensionPresense(
+        bool CheckForGLFWExtensionPresense(
                 const char** glfwExtensions,
                 uint32_t glfwExtensionCount,
                 const std::vector<VkExtensionProperties>& vkExtensions);
 
         //! DEbug log all available extensions
-        void printAvailibleVkExtensions(const std::vector<VkExtensionProperties>& vkExtensions);
+        void PrintAvailibleVkExtensions(const std::vector<VkExtensionProperties>& vkExtensions);
+
+        void PrintAvailablePhysicalDevices(const std::vector<VkPhysicalDevice>& devices);
+
+        void PrintDeviceName(VkPhysicalDevice device, std::string prefix = "");
+
+        //! This function rates the GPU by what features it supports, for now only looks and whether it is discrete, can run graphics commands, etc.
+        int RateDeviceSuitability(VkPhysicalDevice device, VkSurfaceKHR surface);
+
+        //! Here we just find the queue that supports graphics commands
+        //! TODO: You can add logic to prefer a single queue family that supports the most features to increase performance
+        QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface);
+
+        //! Check is all the device extensiona from the vector are supported
+        bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
+
+        //!
+        SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface);
     } // gutil
 } //sft
 

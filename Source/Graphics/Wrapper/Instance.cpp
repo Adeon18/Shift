@@ -26,7 +26,7 @@ namespace sft {
             createInfo.pApplicationInfo = &appInfo;
 
             // Handle extensions
-            auto extensions = gutil::getRequiredExtensions();
+            auto extensions = gutil::GetRequiredExtensions();
 
             // This here specifies extension data for vulkan
             createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
@@ -38,7 +38,7 @@ namespace sft {
                 createInfo.enabledLayerCount = static_cast<uint32_t>(gutil::VALIDATION_LAYERS.size());
                 createInfo.ppEnabledLayerNames = gutil::VALIDATION_LAYERS.data();
 
-                gutil::fillDebugMessengerCreateInfo(debugCreateInfo);
+                gutil::FillDebugMessengerCreateInfo(debugCreateInfo);
                 createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
 #else
                 createInfo.enabledLayerCount = 0; // Validation layers
@@ -56,7 +56,7 @@ namespace sft {
         void Instance::setupDebugMessenger()  {
 
             VkDebugUtilsMessengerCreateInfoEXT createInfo{};
-            gutil::fillDebugMessengerCreateInfo(createInfo);
+            gutil::FillDebugMessengerCreateInfo(createInfo);
 
             if (gutil::CreateDebugUtilsMessengerEXT(m_instance, &createInfo, nullptr, &m_debugMessenger) != VK_SUCCESS) {
                 throw VulkanCreateResourceException("Failed to set up debug messenger!");
