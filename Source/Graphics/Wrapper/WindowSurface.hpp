@@ -1,7 +1,6 @@
 #ifndef SHIFT_WINDOWSURFACE_H
 #define SHIFT_WINDOWSURFACE_H
 
-#define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
 namespace sft {

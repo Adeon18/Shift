@@ -53,7 +53,12 @@ file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/Source/*.cpp)
 add_executable(${PROJECT_NAME} ${SOURCES})
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/Build")
-target_compile_definitions(${PROJECT_NAME} PRIVATE SHIFT_ROOT="${PROJECT_SOURCE_DIR}")
+target_compile_definitions(
+        ${PROJECT_NAME}
+        PRIVATE
+        SHIFT_ROOT="${PROJECT_SOURCE_DIR}"
+        SHIFT_VALIDATION=1
+)
 target_compile_definitions(
         ${PROJECT_NAME}
         PUBLIC

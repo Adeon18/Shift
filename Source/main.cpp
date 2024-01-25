@@ -26,39 +26,15 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-#include "Utility/UtilFunctions.hpp"
+#include "Utility/UtilStandard.hpp"
+#include "Utility/UtilVulkan.hpp"
 
 #include "Window/ShiftWindow.hpp"
 #include "Graphics/Wrapper/WindowSurface.hpp"
+#include "Graphics/Wrapper/Instance.hpp"
 
-//! vkCreateDebugUtilsMessengerEXT is an extension function and we should load it before usage
-//! Returns nullptr if could not be loaded, else creates a DebugEXT object
-VkResult CreateDebugUtilsMessengerEXT(
-    VkInstance instance,
-    const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
-    const VkAllocationCallbacks* pAllocator,
-    VkDebugUtilsMessengerEXT* pDebugMessenger)
-{
-    auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-    if (func != nullptr) {
-        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
-    }
-    else {
-        return VK_ERROR_EXTENSION_NOT_PRESENT;
-    }
-}
+#include <spdlog/spdlog.h>
 
-//! Function for debug handle destruction should be loaded too
-void DestroyDebugUtilsMessengerEXT(
-    VkInstance instance,
-    VkDebugUtilsMessengerEXT debugMessenger,
-    const VkAllocationCallbacks* pAllocator)
-{
-    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-    if (func != nullptr) {
-        func(instance, debugMessenger, pAllocator);
-    }
-}
 
 
 //! TODO: Can be optimized!
@@ -86,9 +62,6 @@ class HelloTriangleApplication {
 
     static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
-    const std::vector<const char*> VALIDATION_LAYERS = {
-        "VK_LAYER_KHRONOS_validation"
-    };
 
     const std::vector<const char*> DEVICE_EXTENSIONS = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -135,16 +108,20 @@ private:
 private:
     void initWindow() {
         m_winPtr = std::make_unique<sft::ShiftWindow>(WINDOW_WIDTH, WINDOW_HEIGHT, "Shift");
+        spdlog::set_level(spdlog::level::debug);
     }
 
     void initVulkan() {
         createVkInstance();
-        setupDebugMessenger();
+
         createSurface();
+
         pickPhysicalDevice();
         createLogicalDevice();
+
         createSwapChain();
         createImageViews();
+
         // MUST BE CREATED BEFORE PIPELINE
         createRenderPass();
         createDescriptorSetLayout();
@@ -167,161 +144,21 @@ private:
 
     //! Basically wer make an app info struct
     void createVkInstance() {
-        if (ENABLE_VALIDATION_LAYERS && !checkValidationLayerSupport(true)) {
-            throw std::runtime_error("Validation layers requested, but not available!");
-        }
-
-        // This struct is TECHNICALLY optional, just tells general info to driver
-        VkApplicationInfo appInfo{};
-        appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-        appInfo.pApplicationName = "Hello Triangle";
-        appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-        appInfo.pEngineName = "No Engine";
-        appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-        appInfo.apiVersion = VK_API_VERSION_1_0;
-
-        // This struct is NOT optional and tell about extensions and validation layers to use
-        VkInstanceCreateInfo createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-        createInfo.pApplicationInfo = &appInfo;
-
-        // Handle extensions
-        auto extensions = getRequiredExtensions();
-        
-        // This here specifies extension data for vulkan
-        createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-        createInfo.ppEnabledExtensionNames = extensions.data();
-
-        // Set validation layers
-        VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};   // Use this additional debug ext for instance creation
-        if (ENABLE_VALIDATION_LAYERS) {
-            createInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
-            createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
-
-            fillDebugMessengerCreateInfo(debugCreateInfo);
-            createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
-        } else {
-            createInfo.enabledLayerCount = 0; // Validation layers
-            createInfo.pNext = nullptr;
-        }
-
-        VkResult result = vkCreateInstance(&createInfo, nullptr, &m_vkInstance);
-        if (result != VK_SUCCESS) {
-            throw std::runtime_error("failed to create instance!");
-        }
+        m_instance = std::make_unique<sft::gfx::Instance>("TestApp", VK_MAKE_VERSION(1, 0, 0), "ShiftEngine",
+                                                          VK_MAKE_VERSION(1, 0, 0));
     }
 
-    std::vector<const char*> getRequiredExtensions() {
-        uint32_t glfwExtensionCount = 0;
-        const char** glfwExtensions;
-        glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-        // Check whether the extensions are avalible in vulkan
-        uint32_t vkExtensionCount = 0;
-        vkEnumerateInstanceExtensionProperties(nullptr, &vkExtensionCount, nullptr);
-        std::vector<VkExtensionProperties> vkExtensions(vkExtensionCount);
-        vkEnumerateInstanceExtensionProperties(nullptr, &vkExtensionCount, vkExtensions.data());
-        if (!checkForGLFWExtensionPresense(glfwExtensions, glfwExtensionCount, vkExtensions, true)) {
-            throw std::runtime_error("Needed GLFW Extensions are not supported by Vulkan!");
-        }
-        printAvailibleVkExtensions(vkExtensions);
-
-        std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
-
-        if (ENABLE_VALIDATION_LAYERS) {
-            extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-        }
-
-        return extensions;
-    }
-
-    bool checkValidationLayerSupport(bool shouldPrint = false) {
-        uint32_t layerCount;
-        vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-
-        std::vector<VkLayerProperties> availableLayers(layerCount);
-        vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
-
-        if (shouldPrint) {
-            std::cout << "Validation layer support:" << std::endl;
-        }
-
-        // Check if all validation layers exist
-        bool allLayersSupported = true;
-        for (const char* layerName : VALIDATION_LAYERS) {
-            bool layerFound = false;
-            for (const auto& layerProperties : availableLayers) {
-                if (strcmp(layerName, layerProperties.layerName) == 0) {
-                    layerFound = true;
-                    break;
-                }
-            }
-            if (shouldPrint) {
-                std::cout << "\t" << layerName << ((layerFound) ? ": Availible" : ": Not Availible") << std::endl;
-            }
-            if (!layerFound) { allLayersSupported = false; }
-        }
-
-        return allLayersSupported;
-    }
-
-    //! Checks whether required GLFW extension is present in Vulkan and prints the info
-    //! For now is stupid and expensive but is supposed to run at boot either way
-    bool checkForGLFWExtensionPresense(const char** glfwExtensions, uint32_t glfwExtensionCount, const std::vector<VkExtensionProperties>& vkExtensions, bool shouldPrint = false) {
-        if (shouldPrint) std::cout << "GLFW extension support:" << std::endl;
-        bool allExtSupported = true;
-        for (uint32_t i = 0; i < glfwExtensionCount; ++i) {
-            bool present = false;
-            for (auto& ext : vkExtensions) {
-                if (strcmp(ext.extensionName, glfwExtensions[i]) == 0) {
-                    present = true;
-                    break;
-                }
-            }
-            if (shouldPrint) {
-                std::cout << "\t" << glfwExtensions[i] << ((present) ? ": Supported" : ": Not Supported") << std::endl;
-            }
-            if (!present) { allExtSupported = false; }
-        }
-
-        return allExtSupported;
-    }
-
-    void printAvailibleVkExtensions(const std::vector<VkExtensionProperties>& vkExtensions) {
-        std::cout << "Available Vk extensions:\n";
-        for (const auto& extension : vkExtensions) {
-            std::cout << '\t' << extension.extensionName << '\n';
-        }
-    }
-
-    void setupDebugMessenger() {
-        if (!ENABLE_VALIDATION_LAYERS) return;
-
-        VkDebugUtilsMessengerCreateInfoEXT createInfo{};
-        fillDebugMessengerCreateInfo(createInfo);
-
-        if (CreateDebugUtilsMessengerEXT(m_vkInstance, &createInfo, nullptr, &m_debugMessenger) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to set up debug messenger!");
-        }
-    }
-
-    void fillDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
-        createInfo = {};
-        createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-        createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-        createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-        createInfo.pfnUserCallback = debugCallback;
-    }
 
     void pickPhysicalDevice() {
         uint32_t deviceCount = 0;
-        vkEnumeratePhysicalDevices(m_vkInstance, &deviceCount, nullptr);
+        vkEnumeratePhysicalDevices(m_instance->Get(), &deviceCount, nullptr);
         if (deviceCount == 0) {
             throw std::runtime_error("failed to find GPUs with Vulkan support!");
         }
 
         std::vector<VkPhysicalDevice> physicalDevices(deviceCount);
-        vkEnumeratePhysicalDevices(m_vkInstance, &deviceCount, physicalDevices.data());
+        vkEnumeratePhysicalDevices(m_instance->Get(), &deviceCount, physicalDevices.data());
 
         printAvailablePhysicalDevices(physicalDevices);
 
@@ -478,8 +315,8 @@ private:
         createInfo.ppEnabledExtensionNames = DEVICE_EXTENSIONS.data();
         // These are deprecated, the new vulkan implementation don't make a distinction between instance and device specific valid. layers
         if (ENABLE_VALIDATION_LAYERS) {
-            createInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
-            createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
+            createInfo.enabledLayerCount = static_cast<uint32_t>(sft::gutil::VALIDATION_LAYERS.size());
+            createInfo.ppEnabledLayerNames = sft::gutil::VALIDATION_LAYERS.data();
         }
         else {
             createInfo.enabledLayerCount = 0;
@@ -495,7 +332,7 @@ private:
     }
 
     void createSurface() {
-        m_surfacePtr = std::make_unique<sft::gfx::WindowSurface>(m_vkInstance, m_winPtr->GetHandle());
+        m_surfacePtr = std::make_unique<sft::gfx::WindowSurface>(m_instance->Get(), m_winPtr->GetHandle());
     }
 
     //! Check is all the device extensiona from the vector are supported
@@ -1674,30 +1511,8 @@ private:
         m_surfacePtr.reset();
 
         vkDestroyDevice(m_device, nullptr);
-
-        if (ENABLE_VALIDATION_LAYERS) {
-            DestroyDebugUtilsMessengerEXT(m_vkInstance, m_debugMessenger, nullptr);
-        }
-
-        vkDestroyInstance(m_vkInstance, nullptr); // Other resources should both be cleaned and destroyed
-    }
-
-    // VKAPI_ATTR and VKAPI_ATTR ensure that Vulkan has the right signature to call the function
-    // Callback very similar to DirectX
-    static VKAPI_ATTR VkBool32 VKAPI_ATTR debugCallback
-    (
-        VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,     // Severity of the message, verbose < info < warning < error
-        VkDebugUtilsMessageTypeFlagsEXT messageType,                // Basically General, Validation or Performance
-        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,  // Basically inportant stuff, like the message, object handles and size
-        void* pUserData                                             // Pointer that you can pass your own data to
-    ) {
-        std::cerr << "Validation layer: " << pCallbackData->pMessage << std::endl;
-
-        return VK_FALSE;
     }
 private:
-    VkInstance m_vkInstance;
-    VkDebugUtilsMessengerEXT m_debugMessenger;
     VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;     // Destroyed implicitly at vkInstance destruction
     VkDevice m_device;
 
@@ -1720,6 +1535,7 @@ private:
 
     std::unique_ptr<sft::ShiftWindow> m_winPtr;
     std::unique_ptr<sft::gfx::WindowSurface> m_surfacePtr;
+    std::unique_ptr<sft::gfx::Instance> m_instance;
 
     std::vector<VkImage> m_swapChainImages;
     std::vector<VkImageView> m_swapChainImageViews;
