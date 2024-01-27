@@ -34,6 +34,8 @@
 #include "Graphics/Device/Instance.hpp"
 #include "Graphics/Device/Device.hpp"
 #include "Graphics/Device/Swapchain.hpp"
+#include "Graphics/Synchronization/Fence.hpp"
+#include "Graphics/Synchronization/Semaphore.hpp"
 
 #include <spdlog/spdlog.h>
 
@@ -449,7 +451,7 @@ private:
 
     void createTextureImage() {
         int texWidth, texHeight, texChannels;
-        stbi_uc* pixels = stbi_load("../assets/nobitches.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        stbi_uc* pixels = stbi_load("../assets/skeleton.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         VkDeviceSize imageSize = texWidth * texHeight * 4; // 4 bytes per pixel
 
         if (!pixels) {
@@ -957,19 +959,14 @@ private:
         m_renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
         m_inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
 
-        VkSemaphoreCreateInfo semaphoreInfo{};
-        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
         VkFenceCreateInfo fenceInfo{};
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            if (vkCreateSemaphore(m_device->Get(), &semaphoreInfo, nullptr, &m_imageAvailableSemaphores[i]) != VK_SUCCESS ||
-                vkCreateSemaphore(m_device->Get(), &semaphoreInfo, nullptr, &m_renderFinishedSemaphores[i]) != VK_SUCCESS ||
-                vkCreateFence(m_device->Get(), &fenceInfo, nullptr, &m_inFlightFences[i]) != VK_SUCCESS) {
-                throw std::runtime_error("failed to create semaphores!");
-            }
+            m_imageAvailableSemaphores[i] = std::make_unique<sft::gfx::Semaphore>(*m_device);
+            m_renderFinishedSemaphores[i] = std::make_unique<sft::gfx::Semaphore>(*m_device);
+            m_inFlightFences[i] = std::make_unique<sft::gfx::Fence>(*m_device, true);
         }
     }
 
@@ -985,11 +982,11 @@ private:
 
     void drawFrame() {
         // Wait for end of previous frame and then reset it
-        vkWaitForFences(m_device->Get(), 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX);
+        m_inFlightFences[m_currentFrame]->Wait();
 
         // Aquire availible swapchain image index
         uint32_t imageIndex;
-        VkResult result = vkAcquireNextImageKHR(m_device->Get(), m_swapchain->Get(), UINT64_MAX, m_imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &imageIndex);
+        VkResult result = vkAcquireNextImageKHR(m_device->Get(), m_swapchain->Get(), UINT64_MAX, m_imageAvailableSemaphores[m_currentFrame]->Get(), VK_NULL_HANDLE, &imageIndex);
 
         // Screen resize handling
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -1001,7 +998,7 @@ private:
         }
 
         // Only reset fence if work is submitted
-        vkResetFences(m_device->Get(), 1, &m_inFlightFences[m_currentFrame]);
+        m_inFlightFences[m_currentFrame]->Reset();
 
         // Reset the command buffer
         vkResetCommandBuffer(m_commandBuffersGraphics[m_currentFrame], 0);
@@ -1013,7 +1010,7 @@ private:
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-        VkSemaphore waitSemaphores[] = { m_imageAvailableSemaphores[m_currentFrame] };
+        VkSemaphore waitSemaphores[] = { m_imageAvailableSemaphores[m_currentFrame]->Get() };
         VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
         submitInfo.waitSemaphoreCount = 1;
         submitInfo.pWaitSemaphores = waitSemaphores;
@@ -1023,11 +1020,11 @@ private:
         submitInfo.pCommandBuffers = &m_commandBuffersGraphics[m_currentFrame];
 
         // Which semaphores to wait for after render is finished
-        VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphores[m_currentFrame] };
+        VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphores[m_currentFrame]->Get() };
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = signalSemaphores;
 
-        if (vkQueueSubmit(m_device->GetGraphicsQueue(), 1, &submitInfo, m_inFlightFences[m_currentFrame]) != VK_SUCCESS) {
+        if (vkQueueSubmit(m_device->GetGraphicsQueue(), 1, &submitInfo, m_inFlightFences[m_currentFrame]->Get()) != VK_SUCCESS) {
             throw std::runtime_error("failed to submit draw command buffer!");
         }
 
@@ -1111,9 +1108,9 @@ private:
         vkFreeMemory(m_device->Get(), m_indexBufferMemory, nullptr);
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            vkDestroySemaphore(m_device->Get(), m_imageAvailableSemaphores[i], nullptr);
-            vkDestroySemaphore(m_device->Get(), m_renderFinishedSemaphores[i], nullptr);
-            vkDestroyFence(m_device->Get(), m_inFlightFences[i], nullptr);
+            m_imageAvailableSemaphores[i].reset();
+            m_renderFinishedSemaphores[i].reset();
+            m_inFlightFences[i].reset();
         }
         vkDestroyCommandPool(m_device->Get(), m_commandPoolGraphics, nullptr);
         vkDestroyCommandPool(m_device->Get(), m_commandPoolTransfer, nullptr);
@@ -1167,9 +1164,9 @@ private:
     std::vector<void*> m_uniformBuffersMapped;
 
     // Sync primitives to comtrol the rendering of a frame
-    std::vector<VkSemaphore> m_imageAvailableSemaphores;
-    std::vector<VkSemaphore> m_renderFinishedSemaphores;
-    std::vector<VkFence> m_inFlightFences;
+    std::vector<std::unique_ptr<sft::gfx::Semaphore>> m_imageAvailableSemaphores;
+    std::vector<std::unique_ptr<sft::gfx::Semaphore>> m_renderFinishedSemaphores;
+    std::vector<std::unique_ptr<sft::gfx::Fence>> m_inFlightFences;
 
     uint32_t m_currentFrame = 0;
 };

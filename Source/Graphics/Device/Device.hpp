@@ -20,6 +20,12 @@ namespace sft {
 
             [[nodiscard]] VkImageView CreateImageView(const VkImageViewCreateInfo& info) const;
 
+            [[nodiscard]] VkFence CreateFence(const VkFenceCreateInfo& info) const;
+            void DestroyFence(VkFence fence) const;
+
+            [[nodiscard]] VkSemaphore CreateSemaphore(const VkSemaphoreCreateInfo& info) const;
+            void DestroySemaphore(VkSemaphore fence) const;
+
             [[nodiscard]] VkDevice Get() const { return m_device; }
             [[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const { return m_physicalDevice; }
             [[nodiscard]] VkQueue GetGraphicsQueue() const { return m_graphicsQueue; }

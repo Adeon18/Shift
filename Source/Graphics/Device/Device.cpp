@@ -99,5 +99,32 @@ namespace sft {
 
             return imageView;
         }
+
+        VkFence Device::CreateFence(const VkFenceCreateInfo& info) const {
+            VkFence fence;
+            if (int res = vkCreateFence(m_device, &info, nullptr, &fence); res != VK_SUCCESS) {
+                spdlog::error("Failed to create VkFence! Code: {}", res);
+                return VK_NULL_HANDLE;
+            }
+            return fence;
+        }
+
+        void Device::DestroyFence(VkFence fence) const {
+            vkDestroyFence(m_device, fence, nullptr);
+        }
+
+        VkSemaphore Device::CreateSemaphore(const VkSemaphoreCreateInfo &info) const {
+            VkSemaphore semaphore;
+            if (int res = vkCreateSemaphore(m_device, &info, nullptr, &semaphore); res != VK_SUCCESS) {
+                spdlog::error("Failed to create VkSemaphore! Code: {}", res);
+                return VK_NULL_HANDLE;
+            }
+            return semaphore;
+        }
+
+        void Device::DestroySemaphore(VkSemaphore semaphore) const {
+            vkDestroySemaphore(m_device, semaphore, nullptr);
+        }
+
     } // gfx
 } // sft

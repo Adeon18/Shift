@@ -21,6 +21,12 @@ namespace sft {
                         .baseArrayLayer = 0,
                         .layerCount = 1
                 });
+
+        //! Create info for fence, signaled by default
+        VkFenceCreateInfo CreateFenceInfo(bool isSignaled = true);
+
+        //! Create info for semaphore, basically empty struct wrapper
+        VkSemaphoreCreateInfo CreateSemaphoreInfo();
     } // info
 }// sft
 
