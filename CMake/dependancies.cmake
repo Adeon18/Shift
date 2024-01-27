@@ -14,11 +14,9 @@ FetchContent_Declare(glfw
         FIND_PACKAGE_ARGS 3.3.8)
 
 # Math
-FetchContent_Declare(glm
-        GIT_REPOSITORY https://github.com/g-truc/glm.git
-        GIT_TAG 0.9.9.8
-        GIT_SHALLOW ON
-        GIT_PROGRESS ON)
+#FetchContent_Declare(glm
+#        GIT_REPOSITORY https://github.com/icaven/glm.git
+#        GIT_TAG 0.9.3.2)
 
 # GUI
 FetchContent_Declare(imgui

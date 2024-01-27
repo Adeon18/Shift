@@ -1,8 +1,8 @@
 #ifndef SHIFT_UTILVULKAN_HPP
 #define SHIFT_UTILVULKAN_HPP
 
-#include <GLFW/glfw3.h>
-#include <spdlog/spdlog.h>
+#include "GLFW/glfw3.h"
+#include "spdlog/spdlog.h"
 
 #include <vector>
 #include <string>
@@ -108,18 +108,30 @@ namespace sft {
 
         void PrintDeviceName(VkPhysicalDevice device, std::string prefix = "");
 
+        // TODO: Location of these functions is sus
         //! This function rates the GPU by what features it supports, for now only looks and whether it is discrete, can run graphics commands, etc.
         int RateDeviceSuitability(VkPhysicalDevice device, VkSurfaceKHR surface);
-
         //! Here we just find the queue that supports graphics commands
         //! TODO: You can add logic to prefer a single queue family that supports the most features to increase performance
         QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface);
-
         //! Check is all the device extensiona from the vector are supported
         bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
-
-        //!
         SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface);
+
+        //! UTILITY
+        //! Choose the surface format that you want
+        //! TODO: Can make this function rank the formats and choose the best one
+        VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+
+        //! UTILITY
+        //! Choose the swapchain present format(double or triple buffering)
+        //! TODO: Specific and can be modified
+        VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+
+        //! UTILITY
+        //! Couple of things here: if the capabilities are not the float limit - use them
+        //! If they are, get the glfw frame buffer size and clamp the value to min or max possible range
+        VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, int winWidth, int winHeight);
     } // gutil
 } //sft
 

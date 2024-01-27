@@ -5,7 +5,7 @@
 #ifndef SHIFT_DEVICE_HPP
 #define SHIFT_DEVICE_HPP
 
-#include "Utility/UtilVulkan.hpp"
+#include "Utility/Vulkan/UtilVulkan.hpp"
 
 #include "Instance.hpp"
 
@@ -18,11 +18,13 @@ namespace sft {
             Device(const Device&)=delete;
             Device& operator=(const Device&)=delete;
 
-            [[nodiscard]] VkDevice Get() { return m_device; }
-            [[nodiscard]] VkPhysicalDevice GetPhysicalDevice() { return m_physicalDevice; }
-            [[nodiscard]] VkQueue GetGraphicsQueue() { return m_graphicsQueue; }
-            [[nodiscard]] VkQueue GetPresentQueue() { return m_presentQueue; }
-            [[nodiscard]] VkQueue GetTransferQueue() { return m_transferQueue; }
+            [[nodiscard]] VkImageView CreateImageView(const VkImageViewCreateInfo& info) const;
+
+            [[nodiscard]] VkDevice Get() const { return m_device; }
+            [[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const { return m_physicalDevice; }
+            [[nodiscard]] VkQueue GetGraphicsQueue() const { return m_graphicsQueue; }
+            [[nodiscard]] VkQueue GetPresentQueue() const { return m_presentQueue; }
+            [[nodiscard]] VkQueue GetTransferQueue() const { return m_transferQueue; }
 
             ~Device();
         private:

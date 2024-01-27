@@ -37,7 +37,7 @@ endif()
 include(CMake/dependancies.cmake)
 
 FetchContent_MakeAvailable(glfw)
-FetchContent_MakeAvailable(glm)
+#FetchContent_MakeAvailable(glm)
 FetchContent_MakeAvailable(assimp)
 FetchContent_MakeAvailable(spdlog)
 FetchContent_MakeAvailable(imgui)
@@ -92,7 +92,6 @@ if (WIN32)
   target_link_libraries(${PROJECT_NAME}
           glfw
           vulkan-1
-          glm::glm
           imgui
           spdlog::spdlog
   )
@@ -105,7 +104,6 @@ elseif (UNIX)
     target_link_libraries(${PROJECT_NAME}
             glfw
             vulkan-1
-            glm::glm
             imgui
             spdlog::spdlog
             ${Vulkan_LIBRARIES}

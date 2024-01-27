@@ -1,3 +1,5 @@
+#include "spdlog/spdlog.h"
+
 #include "Device.hpp"
 
 namespace sft {
@@ -84,8 +86,18 @@ namespace sft {
                 gutil::PrintDeviceName(m_physicalDevice, "Chosen device: ");
             }
             else {
-                throw std::runtime_error("failed to find a suitable GPU!");
+                throw VulkanCreateResourceException("Failed to find a suitable GPU!");
             }
+        }
+
+        VkImageView Device::CreateImageView(const VkImageViewCreateInfo& info) const {
+            VkImageView imageView;
+            if (int res = vkCreateImageView(m_device, &info, nullptr, &imageView); res != VK_SUCCESS) {
+                spdlog::error("Failed to create VkImageView! Code: {}", res);
+                return VK_NULL_HANDLE;
+            }
+
+            return imageView;
         }
     } // gfx
 } // sft

@@ -1,6 +1,6 @@
 #include "Instance.hpp"
 
-#include "Utility/UtilVulkan.hpp"
+#include "Utility/Vulkan/UtilVulkan.hpp"
 #include "Config/EngineConfig.hpp"
 
 namespace sft {

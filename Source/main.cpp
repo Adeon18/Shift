@@ -16,7 +16,6 @@
 #include <algorithm>
 #include <fstream>
 
-#define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
@@ -27,16 +26,16 @@
 #include <stb_image.h>
 
 #include "Utility/UtilStandard.hpp"
-#include "Utility/UtilVulkan.hpp"
+#include "Utility/Vulkan/UtilVulkan.hpp"
+#include "Utility/Vulkan/InfoUtil.hpp"
 
 #include "Window/ShiftWindow.hpp"
-#include "Graphics/Wrapper/WindowSurface.hpp"
-#include "Graphics/Wrapper/Instance.hpp"
-#include "Graphics/Wrapper/Device.hpp"
+#include "Graphics/Device/WindowSurface.hpp"
+#include "Graphics/Device/Instance.hpp"
+#include "Graphics/Device/Device.hpp"
+#include "Graphics/Device/Swapchain.hpp"
 
 #include <spdlog/spdlog.h>
-
-
 
 //! TODO: Can be optimized!
 static std::vector<char> readFile(const std::string& filename) {
@@ -72,7 +71,10 @@ class HelloTriangleApplication {
 public:
     void run() {
         initWindow();
-        initVulkan();
+        if (!initVulkan()) {
+            cleanup();
+            return;
+        }
         mainLoop();
         cleanup();
     }
@@ -85,15 +87,14 @@ private:
         spdlog::set_level(spdlog::level::debug);
     }
 
-    void initVulkan() {
+    bool initVulkan() {
         createVkInstance();
 
         createSurface();
 
         m_device = std::make_unique<sft::gfx::Device>(*m_instance, m_surfacePtr->Get());
 
-        createSwapChain();
-        createImageViews();
+        if (!createSwapchain()) {return false;}
 
         // MUST BE CREATED BEFORE PIPELINE
         createRenderPass();
@@ -113,6 +114,7 @@ private:
 
         createCommandBuffers();
         createSyncObjects();
+        return true;
     }
 
     //! Basically wer make an app info struct
@@ -125,56 +127,12 @@ private:
         m_surfacePtr = std::make_unique<sft::gfx::WindowSurface>(m_instance->Get(), m_winPtr->GetHandle());
     }
 
-    //! UTILITY
-    //! Choose the surface format that you want
-    //! TODO: Can make this function rank the formats and choose the best one
-    VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
-        for (const auto& availableFormat : availableFormats) {
-            if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-                return availableFormat;
-            }
-        }
-
-        return availableFormats[0];
+    bool createSwapchain() {
+        m_swapchain = std::make_unique<sft::gfx::Swapchain>(*m_device, *m_surfacePtr, m_winPtr->GetWidth(), m_winPtr->GetHeight());
+        return m_swapchain->IsValid();
     }
 
-    //! UTILITY
-    //! Choose the swapchain present format(double or triple buffering)
-    //! TODO: Specific and can be modified
-    VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
-        for (const auto& availablePresentMode : availablePresentModes) {
-            if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
-                return availablePresentMode;
-            }
-        }
-
-        return VK_PRESENT_MODE_FIFO_KHR;
-    }
-
-    //! UTILITY
-    //! Couple of things here: if the capabilities are not the float limit - use them
-    //! If they are, get the glfw frame buffer size and clamp the value to min or max possible range
-    VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
-        if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
-            return capabilities.currentExtent;
-        }
-        else {
-            int width = m_winPtr->GetWidth();
-            int height = m_winPtr->GetHeight();
-
-            VkExtent2D actualExtent = {
-                static_cast<uint32_t>(width),
-                static_cast<uint32_t>(height)
-            };
-
-            actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-            actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
-
-            return actualExtent;
-        }
-    }
-
-    //! INFO WARNING UTILITY We don't recreate the renderpass here, even though we should because the windoe might be moving to another
+    //! INFO WARNING UTILITY TODO We don't recreate the renderpass here, even though we should because the windoe might be moving to another
     //! screen which might be HDR so the image format might change
     void recreateSwapChain() {
         // Wait for device to stop using resources
@@ -182,9 +140,7 @@ private:
 
         cleanupSwapChain();
 
-        // Recreate everything that is regarding the swap chain
-        createSwapChain();
-        createImageViews();
+        createSwapchain();
         createFramebuffers();
     }
 
@@ -192,80 +148,7 @@ private:
         for (size_t i = 0; i < m_swapChainFramebuffers.size(); i++) {
             vkDestroyFramebuffer(m_device->Get(), m_swapChainFramebuffers[i], nullptr);
         }
-
-        for (size_t i = 0; i < m_swapChainImageViews.size(); i++) {
-            vkDestroyImageView(m_device->Get(), m_swapChainImageViews[i], nullptr);
-        }
-
-        vkDestroySwapchainKHR(m_device->Get(), m_swapChain, nullptr);
-    }
-
-    void createSwapChain() {
-        sft::gutil::SwapChainSupportDetails swapChainSupport = sft::gutil::QuerySwapChainSupport(m_device->GetPhysicalDevice(), m_surfacePtr->Get());
-
-        VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
-        VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
-        m_swapChainImageFormat = surfaceFormat.format;
-        m_swapChainExtent = chooseSwapExtent(swapChainSupport.capabilities);
-
-        // This is basically getting the minimum amount of images for the swapchain, but +1 so we have a spare image
-        uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
-
-        if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
-            imageCount = swapChainSupport.capabilities.maxImageCount;
-        }
-
-        VkSwapchainCreateInfoKHR createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-        createInfo.surface = m_surfacePtr->Get();
-        createInfo.minImageCount = imageCount;
-        createInfo.imageFormat = surfaceFormat.format;
-        createInfo.imageColorSpace = surfaceFormat.colorSpace;
-        createInfo.imageExtent = m_swapChainExtent;
-        createInfo.imageArrayLayers = 1;
-        // This parameter is used for render on screen, if you want ofscreen rendering for postprocess => VK_IMAGE_USAGE_TRANSFER_DST_BIT 
-        createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-
-        sft::gutil::QueueFamilyIndices indices = sft::gutil::FindQueueFamilies(m_device->GetPhysicalDevice(), m_surfacePtr->Get());
-        std::array< uint32_t, 3 > queueFamilyIndices = { indices.graphicsFamily.value(), indices.presentFamily.value(), indices.transferFamily.value() };
-
-        //! INFO: Basically we have queue families that may be different but work on the same image.
-        //! This mens that they need to share the resource, the simpler way is to have the access to the resource be concurrent.
-        //! But you can make it exclusive, WHICH IS FASTER and explicitly transfer ownership from one family to another.
-        if (indices.graphicsFamily != indices.presentFamily) {
-            createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-            createInfo.queueFamilyIndexCount = queueFamilyIndices.size();
-            createInfo.pQueueFamilyIndices = queueFamilyIndices.data();
-        }
-        else {
-            createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-            createInfo.queueFamilyIndexCount = 0; // Optional
-            createInfo.pQueueFamilyIndices = nullptr; // Optional
-        }
-        // We use default transform(do nothing with image)
-        createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
-        // This is for blending with other windows, FUCKING HELL
-        createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-
-        createInfo.presentMode = presentMode;
-        createInfo.clipped = VK_TRUE;
-        createInfo.oldSwapchain = VK_NULL_HANDLE;
-
-        if (vkCreateSwapchainKHR(m_device->Get(), &createInfo, nullptr, &m_swapChain) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create swap chain!");
-        }
-
-        // Since we specify the minimum number of images in swapchain, vulkan can query more, hence this code
-        vkGetSwapchainImagesKHR(m_device->Get(), m_swapChain, &imageCount, nullptr);
-        m_swapChainImages.resize(imageCount);
-        vkGetSwapchainImagesKHR(m_device->Get(), m_swapChain, &imageCount, m_swapChainImages.data());
-    }
-
-    void createImageViews() {
-        m_swapChainImageViews.resize(m_swapChainImages.size());
-        for (size_t i = 0; i < m_swapChainImages.size(); i++) {
-            m_swapChainImageViews[i] = createImageView(m_swapChainImages[i], m_swapChainImageFormat);
-        }
+        m_swapchain.reset();
     }
 
     void createDescriptorSetLayout() {
@@ -337,14 +220,14 @@ private:
         VkViewport viewport{};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
-        viewport.width = static_cast<float>(m_swapChainExtent.width);
-        viewport.height = static_cast<float>(m_swapChainExtent.height);
+        viewport.width = static_cast<float>(m_swapchain->GetExtent().width);
+        viewport.height = static_cast<float>(m_swapchain->GetExtent().height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
 
         VkRect2D scissor{};
         scissor.offset = { 0, 0 };
-        scissor.extent = m_swapChainExtent;
+        scissor.extent = m_swapchain->GetExtent();
 
         //! This is basically most of the dunamic states that you can change at runtime
         std::vector<VkDynamicState> dynamicStates = {
@@ -467,7 +350,7 @@ private:
 
     void createRenderPass() {
         VkAttachmentDescription colorAttachment{};
-        colorAttachment.format = m_swapChainImageFormat;
+        colorAttachment.format = m_swapchain->GetFormat();
         colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;    // No multisampling
         colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;   // Clear before render
         colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE; // Store data after render
@@ -515,11 +398,12 @@ private:
     }
 
     void createFramebuffers() {
-        m_swapChainFramebuffers.resize(m_swapChainImageViews.size());
+        auto& swapImgViews = m_swapchain->GetImageViews();
+        m_swapChainFramebuffers.resize(swapImgViews.size());
 
-        for (size_t i = 0; i < m_swapChainImageViews.size(); i++) {
+        for (size_t i = 0; i < swapImgViews.size(); i++) {
             VkImageView attachments[] = {
-                m_swapChainImageViews[i]
+                    swapImgViews[i]
             };
 
             //! INFO: YOU CAN ONLY USE THE FRAMEBUFFER WITH THE COMPATIBLE RENDERPASS
@@ -528,8 +412,8 @@ private:
             framebufferInfo.renderPass = m_renderPass;
             framebufferInfo.attachmentCount = 1;
             framebufferInfo.pAttachments = attachments;
-            framebufferInfo.width = m_swapChainExtent.width;
-            framebufferInfo.height = m_swapChainExtent.height;
+            framebufferInfo.width = m_swapchain->GetExtent().width;
+            framebufferInfo.height = m_swapchain->GetExtent().height;
             framebufferInfo.layers = 1;
 
             if (vkCreateFramebuffer(m_device->Get(), &framebufferInfo, nullptr, &m_swapChainFramebuffers[i]) != VK_SUCCESS) {
@@ -605,7 +489,9 @@ private:
     }
 
     void createTextureImageView() {
-        m_textureImageView = createImageView(m_textureImage, VK_FORMAT_R8G8B8A8_SRGB);
+        m_textureImageView = m_device->CreateImageView(sft::info::CreateImageViewInfo(
+                m_textureImage, VK_IMAGE_VIEW_TYPE_2D, VK_FORMAT_R8G8B8A8_SRGB
+                ));
     }
 
     void createTextureSampler() {
@@ -637,26 +523,6 @@ private:
         if (vkCreateSampler(m_device->Get(), &samplerInfo, nullptr, &m_textureSampler) != VK_SUCCESS) {
             throw std::runtime_error("failed to create texture sampler!");
         }
-    }
-
-    VkImageView createImageView(VkImage image, VkFormat format) {
-        VkImageViewCreateInfo viewInfo{};
-        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewInfo.image = image;
-        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        viewInfo.format = format;
-        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        viewInfo.subresourceRange.baseMipLevel = 0;
-        viewInfo.subresourceRange.levelCount = 1;
-        viewInfo.subresourceRange.baseArrayLayer = 0;
-        viewInfo.subresourceRange.layerCount = 1;
-
-        VkImageView imageView;
-        if (vkCreateImageView(m_device->Get(), &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create texture image view!");
-        }
-
-        return imageView;
     }
 
     void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
@@ -1042,7 +908,7 @@ private:
         renderPassInfo.framebuffer = m_swapChainFramebuffers[imageIndex];
 
         renderPassInfo.renderArea.offset = { 0, 0 };
-        renderPassInfo.renderArea.extent = m_swapChainExtent;
+        renderPassInfo.renderArea.extent = m_swapchain->GetExtent();
 
         VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
         renderPassInfo.clearValueCount = 1;
@@ -1061,15 +927,15 @@ private:
         VkViewport viewport{};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
-        viewport.width = static_cast<float>(m_swapChainExtent.width);
-        viewport.height = static_cast<float>(m_swapChainExtent.height);
+        viewport.width = static_cast<float>(m_swapchain->GetExtent().width);
+        viewport.height = static_cast<float>(m_swapchain->GetExtent().height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
         vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
         VkRect2D scissor{};
         scissor.offset = { 0, 0 };
-        scissor.extent = m_swapChainExtent;
+        scissor.extent = m_swapchain->GetExtent();
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
         // Bind the descriptor sets
@@ -1123,7 +989,7 @@ private:
 
         // Aquire availible swapchain image index
         uint32_t imageIndex;
-        VkResult result = vkAcquireNextImageKHR(m_device->Get(), m_swapChain, UINT64_MAX, m_imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &imageIndex);
+        VkResult result = vkAcquireNextImageKHR(m_device->Get(), m_swapchain->Get(), UINT64_MAX, m_imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &imageIndex);
 
         // Screen resize handling
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -1172,7 +1038,7 @@ private:
         presentInfo.waitSemaphoreCount = 1;
         presentInfo.pWaitSemaphores = signalSemaphores;
 
-        VkSwapchainKHR swapChains[] = { m_swapChain };
+        VkSwapchainKHR swapChains[] = { m_swapchain->Get() };
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = swapChains;
         presentInfo.pImageIndices = &imageIndex;
@@ -1207,7 +1073,7 @@ private:
         pf.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         //pf.view = glm::mat4(1.0f);
 
-        pf.proj = glm::perspective(glm::radians(45.0f), static_cast<float>(m_swapChainExtent.width) / static_cast<float>(m_swapChainExtent.height), 0.1f, 10.0f);
+        pf.proj = glm::perspective(glm::radians(45.0f), static_cast<float>(m_swapchain->GetExtent().width) / static_cast<float>(m_swapchain->GetExtent().height), 0.1f, 10.0f);
         //pf.proj = glm::mat4(1.0f);
 
         // Y coordinate is fliped in Vulkan??
@@ -1252,7 +1118,6 @@ private:
         vkDestroyCommandPool(m_device->Get(), m_commandPoolGraphics, nullptr);
         vkDestroyCommandPool(m_device->Get(), m_commandPoolTransfer, nullptr);
 
-
         vkDestroyPipeline(m_device->Get(), m_graphicsPipeline, nullptr);
         vkDestroyPipelineLayout(m_device->Get(), m_pipelineLayout, nullptr);
         vkDestroyRenderPass(m_device->Get(), m_renderPass, nullptr);
@@ -1271,17 +1136,12 @@ private:
 
     VkPipelineLayout m_pipelineLayout;
 
-    VkSwapchainKHR m_swapChain;
-    VkFormat m_swapChainImageFormat;
-    VkExtent2D m_swapChainExtent;
-
     std::unique_ptr<sft::ShiftWindow> m_winPtr;
     std::unique_ptr<sft::gfx::Device> m_device;
     std::unique_ptr<sft::gfx::WindowSurface> m_surfacePtr;
     std::unique_ptr<sft::gfx::Instance> m_instance;
+    std::unique_ptr<sft::gfx::Swapchain> m_swapchain;
 
-    std::vector<VkImage> m_swapChainImages;
-    std::vector<VkImageView> m_swapChainImageViews;
     std::vector<VkFramebuffer> m_swapChainFramebuffers;
 
     // INFO: You have to record all draw operations in command buffers, for that you need a command pool
@@ -1317,13 +1177,7 @@ private:
 int main() {
     HelloTriangleApplication app;
 
-    try {
-        app.run();
-    }
-    catch (const std::exception& e) {
-        std::cerr << e.what() << std::endl;
-        return EXIT_FAILURE;
-    }
+    app.run();
 
     return EXIT_SUCCESS;
 }
