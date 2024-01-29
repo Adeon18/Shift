@@ -6,6 +6,8 @@
 #include "Device.hpp"
 #include "WindowSurface.hpp"
 
+#include "Graphics/Synchronization/Semaphore.hpp"
+
 #include "Window/ShiftWindow.hpp"
 
 namespace sft {
@@ -24,9 +26,13 @@ namespace sft {
             Swapchain(const Swapchain&) = delete;
             Swapchain& operator=(const Swapchain&) = delete;
 
-
-
             [[nodiscard]] bool IsValid() const;
+
+            //! Aquire next image index(with check for swapchain changed boolean)
+            //! Returns the image index or UINT32_MAX if error
+            [[nodiscard]] uint32_t AquireNextImageIndex(const Semaphore& semaphore, bool* wasChanged, uint64_t timeout = UINT64_MAX);
+            [[nodiscard]] bool Recreate(uint32_t width, uint32_t height);
+            [[nodiscard]] bool Present(const Semaphore& semaphore, uint32_t imageIdx, bool* isOld);
 
             [[nodiscard]] VkSwapchainKHR Get() const { return m_swapChain; }
             [[nodiscard]] const std::vector<VkImageView>& GetImageViews() const { return m_swapChainImageViews; }
@@ -41,6 +47,8 @@ namespace sft {
 
             void CreateSwapChain();
             void CreateImageViews();
+
+            void DestroyImageViews();
 
             const Device& m_device;
             const WindowSurface& m_windowSurface;

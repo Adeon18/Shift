@@ -32,6 +32,8 @@ namespace sft {
                 imageCount = m_swapChainSupportDetails.capabilities.maxImageCount;
             }
 
+            VkSwapchainKHR oldSwapchain = m_swapChain;
+
             VkSwapchainCreateInfoKHR createInfo{};
             createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
             createInfo.surface = m_windowSurface.Get();
@@ -65,14 +67,20 @@ namespace sft {
             createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
             createInfo.presentMode = m_swapchainDesc.presentMode;
             createInfo.clipped = VK_TRUE;
-            createInfo.oldSwapchain = VK_NULL_HANDLE;
+            createInfo.oldSwapchain = oldSwapchain;
 
             if (int res = vkCreateSwapchainKHR(m_device.Get(), &createInfo, nullptr, &m_swapChain); res != VK_SUCCESS) {
                 spdlog::error("Failed to create VkImageView! Code: {:d}", res);
                 return;
             }
 
+            if (oldSwapchain != VK_NULL_HANDLE) {
+                DestroyImageViews();
+                vkDestroySwapchainKHR(m_device.Get(), oldSwapchain, nullptr);
+            }
+
             // Since we specify the minimum number of images in swapchain, vulkan can query more, hence this code
+            m_swapChainImages.clear();
             vkGetSwapchainImagesKHR(m_device.Get(), m_swapChain, &imageCount, nullptr);
             m_swapChainImages.resize(imageCount);
             vkGetSwapchainImagesKHR(m_device.Get(), m_swapChain, &imageCount, m_swapChainImages.data());
@@ -87,6 +95,34 @@ namespace sft {
             }
         }
 
+        uint32_t Swapchain::AquireNextImageIndex(const Semaphore& semaphore, bool* wasChanged, uint64_t timeout) {
+            uint32_t imageIdx = 0;
+            VkResult result = vkAcquireNextImageKHR(m_device.Get(), m_swapChain, timeout, semaphore.Get(), VK_NULL_HANDLE, &imageIdx);
+
+            // Screen resize handling
+            if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+                *wasChanged = true;
+                return imageIdx;
+            }
+            else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+                spdlog::error("Failed to recreate swapchain! Code: {}", static_cast<int>(result));
+                return UINT32_MAX;
+            }
+
+            return imageIdx;
+        }
+
+        bool Swapchain::Recreate(uint32_t width, uint32_t height) {
+            FillSwapchainDescription(width, height);
+            CreateSwapChain();
+            CreateImageViews();
+            if (!IsValid()) {
+                return false;
+            }
+            spdlog::info("Recreated Swapchain");
+            return true;
+        }
+
         bool Swapchain::IsValid() const {
             return m_swapChain != VK_NULL_HANDLE &&
                 std::all_of(m_swapChainImageViews.begin(), m_swapChainImageViews.end(),
@@ -96,12 +132,45 @@ namespace sft {
                 });
         }
 
-        Swapchain::~Swapchain() {
+        void Swapchain::DestroyImageViews() {
             for (size_t i = 0; i < m_swapChainImageViews.size(); i++) {
                 vkDestroyImageView(m_device.Get(), m_swapChainImageViews[i], nullptr);
             }
+        }
+
+        Swapchain::~Swapchain() {
+            DestroyImageViews();
 
             vkDestroySwapchainKHR(m_device.Get(), m_swapChain, nullptr);
+        }
+
+        bool Swapchain::Present(const Semaphore &semaphore, uint32_t imageIdx, bool* isOld) {
+            VkPresentInfoKHR presentInfo{};
+            presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+            presentInfo.waitSemaphoreCount = 1;
+            VkSemaphore semaphores[] = {semaphore.Get()};
+            presentInfo.pWaitSemaphores = semaphores;
+
+            presentInfo.swapchainCount = 1;
+            VkSwapchainKHR swapchains[] = {m_swapChain};
+            presentInfo.pSwapchains = swapchains;
+            presentInfo.pImageIndices = &imageIdx;
+
+            presentInfo.pResults = nullptr; // Optional
+
+            VkResult result = vkQueuePresentKHR(m_device.GetPresentQueue(), &presentInfo);
+
+            // Screen resize handling
+            if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+                *isOld = true;
+                return true;
+            }
+            else if (result != VK_SUCCESS) {
+                spdlog::error("Failed to recreate swapchain! Code: {}", static_cast<int>(result));
+                return false;
+            }
+            return true;
         }
     }
 } // sft

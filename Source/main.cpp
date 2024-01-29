@@ -136,21 +136,21 @@ private:
 
     //! INFO WARNING UTILITY TODO We don't recreate the renderpass here, even though we should because the windoe might be moving to another
     //! screen which might be HDR so the image format might change
-    void recreateSwapChain() {
-        // Wait for device to stop using resources
+    bool recreateSwapChain() {
         vkDeviceWaitIdle(m_device->Get());
-
+        // Wait for device to stop using resources
         cleanupSwapChain();
 
-        createSwapchain();
+        if (!m_swapchain->Recreate(m_winPtr->GetWidth(), m_winPtr->GetHeight())) return false;
+
         createFramebuffers();
+        return true;
     }
 
     void cleanupSwapChain() {
         for (size_t i = 0; i < m_swapChainFramebuffers.size(); i++) {
             vkDestroyFramebuffer(m_device->Get(), m_swapChainFramebuffers[i], nullptr);
         }
-        m_swapchain.reset();
     }
 
     void createDescriptorSetLayout() {
@@ -973,28 +973,25 @@ private:
     void mainLoop() {
         while (m_winPtr->IsActive()) {
             m_winPtr->Process();
-            drawFrame();
+            if (!drawFrame()) break;
         }
 
         //! Wait for device to finish operations so we can clean everything properly
         vkDeviceWaitIdle(m_device->Get());
     }
 
-    void drawFrame() {
+    bool drawFrame() {
         // Wait for end of previous frame and then reset it
         m_inFlightFences[m_currentFrame]->Wait();
 
         // Aquire availible swapchain image index
-        uint32_t imageIndex;
-        VkResult result = vkAcquireNextImageKHR(m_device->Get(), m_swapchain->Get(), UINT64_MAX, m_imageAvailableSemaphores[m_currentFrame]->Get(), VK_NULL_HANDLE, &imageIndex);
+        bool changed = false;
+        uint32_t imageIndex = m_swapchain->AquireNextImageIndex(*m_imageAvailableSemaphores[m_currentFrame], &changed);
 
-        // Screen resize handling
-        if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-            recreateSwapChain();
-            return;
-        }
-        else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-            throw std::runtime_error("failed to acquire swap chain image!");
+        if (imageIndex == UINT32_MAX) return false;
+        if (changed) {
+            if (!recreateSwapChain()) return false;
+            return true;
         }
 
         // Only reset fence if work is submitted
@@ -1028,33 +1025,19 @@ private:
             throw std::runtime_error("failed to submit draw command buffer!");
         }
 
-        // We now need to present the image after the render semaphore is done
-        VkPresentInfoKHR presentInfo{};
-        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        bool isOld = false;
+        bool success = m_swapchain->Present(*m_renderFinishedSemaphores[m_currentFrame], imageIndex, &isOld);
+        if (!success) {return false;}
 
-        presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = signalSemaphores;
-
-        VkSwapchainKHR swapChains[] = { m_swapchain->Get() };
-        presentInfo.swapchainCount = 1;
-        presentInfo.pSwapchains = swapChains;
-        presentInfo.pImageIndices = &imageIndex;
-
-        presentInfo.pResults = nullptr; // Optional
-
-        result = vkQueuePresentKHR(m_device->GetPresentQueue(), &presentInfo);
-
-        // Screen resize handling
-        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_winPtr->ShouldProcessResize()) {
+        if (isOld || m_winPtr->ShouldProcessResize()) {
             m_winPtr->ProcessResize();
-            recreateSwapChain();
-        }
-        else if (result != VK_SUCCESS) {
-            throw std::runtime_error("failed to present swap chain image!");
+            if (!recreateSwapChain()) return false;
         }
 
         // Update the current frame
         m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+
+        return true;
     }
 
     void updateUniformBuffer(uint32_t currentImage) {
@@ -1084,6 +1067,7 @@ private:
     void cleanup() {
 
         cleanupSwapChain();
+        m_swapchain.reset();
 
         vkDestroySampler(m_device->Get(), m_textureSampler, nullptr);
 

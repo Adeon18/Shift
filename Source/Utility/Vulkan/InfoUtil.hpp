@@ -23,7 +23,7 @@ namespace sft {
                 });
 
         //! Create info for fence, signaled by default
-        VkFenceCreateInfo CreateFenceInfo(bool isSignaled = true);
+        [[nodiscard]] VkFenceCreateInfo CreateFenceInfo(bool isSignaled = true);
 
         //! Create info for semaphore, basically empty struct wrapper
         VkSemaphoreCreateInfo CreateSemaphoreInfo();
