@@ -26,11 +26,15 @@ namespace sft {
             [[nodiscard]] VkSemaphore CreateSemaphore(const VkSemaphoreCreateInfo& info) const;
             void DestroySemaphore(VkSemaphore fence) const;
 
+            [[nodiscard]] VkCommandPool CreateCommandPool(const VkCommandPoolCreateInfo& info) const;
+            [[nodiscard]] void DestroyCommandPool(VkCommandPool pool) const;
+
             [[nodiscard]] VkDevice Get() const { return m_device; }
             [[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const { return m_physicalDevice; }
             [[nodiscard]] VkQueue GetGraphicsQueue() const { return m_graphicsQueue; }
             [[nodiscard]] VkQueue GetPresentQueue() const { return m_presentQueue; }
             [[nodiscard]] VkQueue GetTransferQueue() const { return m_transferQueue; }
+            [[nodiscard]] gutil::QueueFamilyIndices GetQueueFamilyIndices() const { return m_queueFamilyIndices; }
 
             ~Device();
         private:
@@ -43,6 +47,8 @@ namespace sft {
             VkQueue m_graphicsQueue = VK_NULL_HANDLE;
             VkQueue m_presentQueue = VK_NULL_HANDLE;
             VkQueue m_transferQueue = VK_NULL_HANDLE;
+
+            gutil::QueueFamilyIndices m_queueFamilyIndices;
         };
     } // gfx
 } // sft

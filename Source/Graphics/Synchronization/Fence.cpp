@@ -19,5 +19,9 @@ namespace sft {
         void Fence::Reset() const {
             vkResetFences(m_device.Get(), 1, &m_fence);
         }
+
+        VkResult Fence::Status() const {
+            return vkGetFenceStatus(m_device.Get(), m_fence);
+        }
     } // gfx
 } // sft

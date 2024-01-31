@@ -14,12 +14,16 @@ namespace sft {
         }
 
         void Device::CreateLogicalDevice(VkSurfaceKHR surface) {
-            gutil::QueueFamilyIndices indices = gutil::FindQueueFamilies(m_physicalDevice, surface);
+            m_queueFamilyIndices = gutil::FindQueueFamilies(m_physicalDevice, surface);
 
             // You don't really need more than 1 queue for each queue family
             // That is because you can create all the command buffers on multiple threads and submit them at once to the main thread
             std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-            std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.presentFamily.value(), indices.transferFamily.value() };
+            std::set<uint32_t> uniqueQueueFamilies = {
+                    m_queueFamilyIndices.graphicsFamily.value(),
+                    m_queueFamilyIndices.presentFamily.value(),
+                    m_queueFamilyIndices.transferFamily.value()
+            };
 
             for (uint32_t queueFamily : uniqueQueueFamilies) {
                 VkDeviceQueueCreateInfo queueCreateInfo{};
@@ -124,6 +128,23 @@ namespace sft {
 
         void Device::DestroySemaphore(VkSemaphore semaphore) const {
             vkDestroySemaphore(m_device, semaphore, nullptr);
+        }
+
+        VkCommandPool Device::CreateCommandPool(const VkCommandPoolCreateInfo &info) const {
+            VkCommandPool vkPool;
+            //! INFO: Command buffers are executed by submitting them on one of the device queues, like the graphics
+            //! and presentation queues we retrieved.Each command pool can only allocate command buffers that are
+            //! submitted on a single type of queue.We're going to record commands for drawing, which is why we've chosen the graphics queue family.
+            if (int res = vkCreateCommandPool(m_device, &info, nullptr, &vkPool); res != VK_SUCCESS) {
+                spdlog::error("Failed to create VkCommandPool! Code: {}", res);
+                return VK_NULL_HANDLE;
+            }
+
+            return vkPool;
+        }
+
+        void Device::DestroyCommandPool(VkCommandPool pool) const {
+            vkDestroyCommandPool(m_device, pool, nullptr);
         }
 
     } // gfx

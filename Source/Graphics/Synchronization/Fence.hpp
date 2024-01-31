@@ -19,6 +19,8 @@ namespace sft {
             void Wait(uint64_t limit = UINT64_MAX) const;
             //! Reset the fence to be unsignaled
             void Reset() const;
+            //! Get Fence status as VkResult
+            [[nodiscard]] VkResult Status() const;
 
             Fence() = delete;
             Fence(const Fence&) = delete;

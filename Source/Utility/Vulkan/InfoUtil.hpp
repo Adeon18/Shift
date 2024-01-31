@@ -27,6 +27,11 @@ namespace sft {
 
         //! Create info for semaphore, basically empty struct wrapper
         VkSemaphoreCreateInfo CreateSemaphoreInfo();
+
+        //! TODO: Currently flags are hardcoded
+        VkCommandPoolCreateInfo CreateCommandPoolInfo(uint32_t queueFamilyIndex);
+
+        VkCommandBufferBeginInfo CreateBeginCommandBufferInfo(VkCommandBufferUsageFlags flags);
     } // info
 }// sft
 
