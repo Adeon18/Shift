@@ -4,45 +4,52 @@
 #include <vulkan/vulkan.h>
 
 #include <memory>
+#include <span>
 
 #include "Graphics/Device/Device.hpp"
 #include "Graphics/Synchronization/Fence.hpp"
 
 namespace sft {
     namespace gfx {
+        enum class POOL_TYPE {
+            GRAPHICS,
+            TRANSFER,
+        };
+
         class CommandBuffer {
         public:
-            CommandBuffer(const Device& device, const VkCommandPool commandPool);
+            CommandBuffer(const Device& device, const VkCommandPool commandPool, POOL_TYPE type);
 
             [[nodiscard]] bool IsAvailable() const { return m_fence->Status() == VK_SUCCESS; }
 
             //! Begin command buffer only for single time submit
-            const CommandBuffer& BeginCommandBufferSingleTime() const;
+            bool BeginCommandBufferSingleTime() const;
             //! Begins command buffer that can be used multiple times
-            const CommandBuffer& BeginCommandBuffer(VkCommandBufferUsageFlags flags = 0) const;
+            bool BeginCommandBuffer(VkCommandBufferUsageFlags flags = 0) const;
 
-            const CommandBuffer& EndCommandBuffer() const;
+            bool EndCommandBuffer() const;
 
-            const CommandBuffer& CopyBuffer(VkBuffer src, VkBuffer dest, VkDeviceSize size) const;
-            const CommandBuffer& CopyBuffer(VkBuffer src, VkBuffer dest, const VkBufferCopy copyRegion) const;
+            void CopyBuffer(VkBuffer src, VkBuffer dest, VkDeviceSize size) const;
+            void CopyBuffer(VkBuffer src, VkBuffer dest, const VkBufferCopy copyRegion) const;
 
-            const CommandBuffer& CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) const;
-            const CommandBuffer& CopyBufferToImage(VkBuffer buffer, VkImage image, const VkBufferImageCopy copyRegion) const;
+            void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) const;
+            void CopyBufferToImage(VkBuffer buffer, VkImage image, const VkBufferImageCopy copyRegion) const;
 
             //! This is just a utility wrapper, basically is needed can be called explicitly
-            const CommandBuffer &SetPipelineBarrier(const VkPipelineStageFlags srcStage,
-                                                                   const VkPipelineStageFlags dstStage,
-                                                                   const std::span<const VkImageMemoryBarrier> imgSpan,
-                                                                   const std::span<const VkMemoryBarrier> memSpan,
-                                                                   const std::span<const VkBufferMemoryBarrier> bufMemSpan,
-                                                                   const VkDependencyFlags flags) const;
+            void SetPipelineBarrier(const VkPipelineStageFlags srcStage,
+                                    const VkPipelineStageFlags dstStage,
+                                    const std::span<const VkImageMemoryBarrier> imgSpan,
+                                    const std::span<const VkMemoryBarrier> memSpan,
+                                    const std::span<const VkBufferMemoryBarrier> bufMemSpan,
+                                    const VkDependencyFlags flags) const;
 
-            const CommandBuffer &SetPipelineBarrierImage(const VkPipelineStageFlags srcStage,
-                                                                   const VkPipelineStageFlags dstStage,
-                                                                   const VkImageMemoryBarrier imgBarrier,
-                                                                   const VkDependencyFlags flags) const;
+            void SetPipelineBarrierImage(
+                    const VkPipelineStageFlags srcStage,
+                    const VkPipelineStageFlags dstStage,
+                    const VkImageMemoryBarrier imgBarrier,
+                    const VkDependencyFlags flags) const;
 
-            const CommandBuffer& TransferImageLayout(
+            void TransferImageLayout(
                     VkImage image,
                     VkImageLayout oldLayout,
                     VkImageLayout newLayout,
@@ -50,7 +57,7 @@ namespace sft {
                     VkPipelineStageFlags dstStage,
                     VkImageSubresourceRange subresourceRange) const;
 
-            const CommandBuffer& TransferImageLayout(
+            void TransferImageLayout(
                     VkImage image,
                     VkImageLayout oldLayout,
                     VkImageLayout newLayout,
@@ -58,12 +65,15 @@ namespace sft {
                     VkPipelineStageFlags dstStage) const;
 
             //! Buffer Submit Functions
-            const CommandBuffer& Submit();
-            const CommandBuffer& Submit(const VkSubmitInfo& info);
+            bool Submit() const;
+            bool Submit(const VkSubmitInfo& info) const;
 
-            const CommandBuffer& SubmitAndWait();
-            const CommandBuffer& SubmitAndWait(const VkSubmitInfo& info);
+            bool SubmitAndWait() const;
+            bool SubmitAndWait(const VkSubmitInfo& info) const;
 
+            // TODO: Temporary
+            VkCommandBuffer Get() const {return m_buffer;}
+            const VkCommandBuffer* Ptr() const {return &m_buffer;}
 
 
             //! Reset the buffer fence so we can know that it is free
@@ -78,6 +88,8 @@ namespace sft {
             const Device& m_device;
 
             VkCommandBuffer m_buffer;
+
+            POOL_TYPE m_poolType;
 
             std::unique_ptr<Fence> m_fence;
         };

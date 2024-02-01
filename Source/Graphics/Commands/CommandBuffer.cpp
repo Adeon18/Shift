@@ -4,7 +4,7 @@
 
 namespace sft {
     namespace gfx {
-        CommandBuffer::CommandBuffer(const sft::gfx::Device &device, const VkCommandPool commandPool): m_device{device} {
+        CommandBuffer::CommandBuffer(const sft::gfx::Device &device, const VkCommandPool commandPool, POOL_TYPE type): m_device{device}, m_poolType{type} {
             VkCommandBufferAllocateInfo allocInfoGraphics{};
             allocInfoGraphics.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
             allocInfoGraphics.commandPool = commandPool;
@@ -15,47 +15,51 @@ namespace sft {
                 spdlog::error("Failed to create VkCommandPool! Code: {}", res);
                 m_buffer = VK_NULL_HANDLE;
             }
+
+            m_fence = std::make_unique<Fence>(m_device, false);
         }
 
         void CommandBuffer::ResetFence() {
            m_fence->Reset();
         }
 
-        const CommandBuffer &CommandBuffer::BeginCommandBufferSingleTime() const {
+        bool CommandBuffer::BeginCommandBufferSingleTime() const {
             return BeginCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
         }
 
-        const CommandBuffer &CommandBuffer::BeginCommandBuffer(VkCommandBufferUsageFlags flags) const {
+        bool CommandBuffer::BeginCommandBuffer(VkCommandBufferUsageFlags flags) const {
             auto info = info::CreateBeginCommandBufferInfo(flags);
-            vkBeginCommandBuffer(m_buffer, &info);
+            if (int res = vkBeginCommandBuffer(m_buffer, &info); res != VK_SUCCESS) {
+                spdlog::error("Failed to begin command buffer! Code: {}", res);
+                return false;
+            }
 
-            return *this;
+            return true;
         }
 
-        const CommandBuffer &CommandBuffer::EndCommandBuffer() const {
-            vkEndCommandBuffer(m_buffer);
-            return *this;
+        bool CommandBuffer::EndCommandBuffer() const {
+            if (int res = vkEndCommandBuffer(m_buffer); res != VK_SUCCESS) {
+                spdlog::error("Failed to end command buffer! Code: {}", res);
+                return false;
+            }
+            return false;
         }
 
 
-        const CommandBuffer &
-        CommandBuffer::CopyBuffer(VkBuffer src, VkBuffer dest, const VkBufferCopy copyRegion) const {
+        void CommandBuffer::CopyBuffer(VkBuffer src, VkBuffer dest, const VkBufferCopy copyRegion) const {
             vkCmdCopyBuffer(m_buffer, src, dest, 1, &copyRegion);
-
-            return *this;
         }
 
-        const CommandBuffer &CommandBuffer::CopyBuffer(VkBuffer src, VkBuffer dest, VkDeviceSize size) const {
+        void CommandBuffer::CopyBuffer(VkBuffer src, VkBuffer dest, VkDeviceSize size) const {
             VkBufferCopy copyRegion{};
             copyRegion.srcOffset = 0; // Optional
             copyRegion.dstOffset = 0; // Optional
             copyRegion.size = size;
 
-            return CopyBuffer(src, dest, copyRegion);
+            CopyBuffer(src, dest, copyRegion);
         }
 
-        const CommandBuffer &
-        CommandBuffer::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) const {
+        void CommandBuffer::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) const {
             VkBufferImageCopy region{};
             region.bufferOffset = 0;
             region.bufferRowLength = 0;
@@ -73,11 +77,10 @@ namespace sft {
                     1
             };
 
-            return CopyBufferToImage(buffer, image, region);
+            CopyBufferToImage(buffer, image, region);
         }
 
-        const CommandBuffer &
-        CommandBuffer::CopyBufferToImage(VkBuffer buffer, VkImage image, const VkBufferImageCopy copyRegion) const {
+        void CommandBuffer::CopyBufferToImage(VkBuffer buffer, VkImage image, const VkBufferImageCopy copyRegion) const {
             vkCmdCopyBufferToImage(
                     m_buffer,
                     buffer,
@@ -86,14 +89,11 @@ namespace sft {
                     1,
                     &copyRegion
             );
-
-            return *this;
         }
 
-        const CommandBuffer &
-        CommandBuffer::TransferImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
-                                           VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage,
-                                           VkImageSubresourceRange subresourceRange) const {
+        void CommandBuffer::TransferImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
+                                                VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage,
+                                                VkImageSubresourceRange subresourceRange) const {
             VkImageMemoryBarrier barrier{};
             barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
             barrier.oldLayout = oldLayout;
@@ -154,12 +154,11 @@ namespace sft {
                     break;
             }
 
-            return SetPipelineBarrierImage(srcStage, dstStage, barrier, 0);
+            SetPipelineBarrierImage(srcStage, dstStage, barrier, 0);
         }
 
-        const CommandBuffer &
-        CommandBuffer::TransferImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
-                                           VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage) const {
+        void CommandBuffer::TransferImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
+                                                VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage) const {
 
             VkImageSubresourceRange subresourceRange{};
             subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -168,15 +167,14 @@ namespace sft {
             subresourceRange.baseArrayLayer = 0;
             subresourceRange.layerCount = 1;
 
-            return TransferImageLayout(image, oldLayout, newLayout, srcStage, dstStage, subresourceRange);
+            TransferImageLayout(image, oldLayout, newLayout, srcStage, dstStage, subresourceRange);
         }
 
-        const CommandBuffer &
-        CommandBuffer::SetPipelineBarrier(const VkPipelineStageFlags srcStage, const VkPipelineStageFlags dstStage,
-                                          const std::span<const VkImageMemoryBarrier> imgSpan,
-                                          const std::span<const VkMemoryBarrier> memSpan,
-                                          const std::span<const VkBufferMemoryBarrier> bufMemSpan,
-                                          const VkDependencyFlags flags) const {
+        void CommandBuffer::SetPipelineBarrier(const VkPipelineStageFlags srcStage, const VkPipelineStageFlags dstStage,
+                                               const std::span<const VkImageMemoryBarrier> imgSpan,
+                                               const std::span<const VkMemoryBarrier> memSpan,
+                                               const std::span<const VkBufferMemoryBarrier> bufMemSpan,
+                                               const VkDependencyFlags flags) const {
 
             vkCmdPipelineBarrier(
                     m_buffer,
@@ -186,15 +184,50 @@ namespace sft {
                     bufMemSpan.size(), bufMemSpan.data(),
                     imgSpan.size(), imgSpan.data()
             );
-
-            return *this;
         }
 
-        const CommandBuffer &
-        CommandBuffer::SetPipelineBarrierImage(const VkPipelineStageFlags srcStage, const VkPipelineStageFlags dstStage,
-                                               const VkImageMemoryBarrier imgBarrier,
-                                               const VkDependencyFlags flags) const {
-            return SetPipelineBarrier(srcStage, dstStage, {&imgBarrier, 1}, {}, {}, flags);
+        void CommandBuffer::SetPipelineBarrierImage(const VkPipelineStageFlags srcStage,
+                                                    const VkPipelineStageFlags dstStage,
+                                                    const VkImageMemoryBarrier imgBarrier,
+                                                    const VkDependencyFlags flags) const {
+            SetPipelineBarrier(srcStage, dstStage, {&imgBarrier, 1}, {}, {}, flags);
+        }
+
+        bool CommandBuffer::Submit() const {
+            return Submit(info::CreateSubmitInfo({}, {}, {&m_buffer, 1}, 0));
+        }
+
+        bool CommandBuffer::Submit(const VkSubmitInfo &info) const {
+            VkQueue submitQueue;
+            switch (m_poolType) {
+                case POOL_TYPE::GRAPHICS:
+                    submitQueue = m_device.GetGraphicsQueue();
+                    break;
+                case POOL_TYPE::TRANSFER:
+                    submitQueue = m_device.GetTransferQueue();
+                    break;
+            }
+
+            if (int res = vkQueueSubmit(submitQueue,
+                                        1,
+                                        &info,
+                                        m_fence->Get()); res != VK_SUCCESS) {
+                spdlog::error("Failed to submit to queue! Code: {}", res);
+                return false;
+            }
+            return true;
+        }
+
+        bool CommandBuffer::SubmitAndWait() const {
+            bool res = Submit();
+            m_fence->Wait();
+            return res;
+        }
+
+        bool CommandBuffer::SubmitAndWait(const VkSubmitInfo &info) const {
+            bool res = Submit(info);
+            m_fence->Wait();
+            return res;
         }
     } // gfx
 } // sft

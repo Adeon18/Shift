@@ -9,6 +9,8 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <cmath>
+#include <algorithm>
 
 namespace sft {
     namespace gutil {

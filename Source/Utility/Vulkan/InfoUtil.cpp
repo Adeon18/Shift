@@ -48,5 +48,28 @@ namespace sft {
 
             return beginInfo;
         }
+
+        VkSubmitInfo CreateSubmitInfo(
+                std::span<const VkSemaphore> waitSemSpan,
+                std::span<const VkSemaphore> sigSemSpan,
+                std::span<const VkCommandBuffer> cmdBufSpan,
+                const VkPipelineStageFlags* pipelineWaitStageMask
+                ) {
+            VkSubmitInfo submitInfo{};
+            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+            submitInfo.waitSemaphoreCount = waitSemSpan.size();
+            submitInfo.pWaitSemaphores = waitSemSpan.data();
+            submitInfo.pWaitDstStageMask = pipelineWaitStageMask;
+            // Which command buffer to use
+            submitInfo.commandBufferCount = cmdBufSpan.size();
+            submitInfo.pCommandBuffers = cmdBufSpan.data();
+
+            // Which semaphores to wait for after render is finished
+            submitInfo.signalSemaphoreCount = sigSemSpan.size();
+            submitInfo.pSignalSemaphores = sigSemSpan.data();
+
+            return submitInfo;
+        }
     } // info
 } // sft

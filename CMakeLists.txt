@@ -2,6 +2,7 @@ include(./.env.cmake OPTIONAL RESULT_VARIABLE LOCAL_ENV)
 message(STATUS "Local .env.cmake: ${LOCAL_ENV}")
  
 cmake_minimum_required(VERSION 3.4.0)
+set (CMAKE_CXX_STANDARD 20)
  
 set(NAME Shift)
 
@@ -77,6 +78,8 @@ if (WIN32)
       ${MINGW_PATH}/lib
     )
   endif()
+  set(THREADS_PREFER_PTHREAD_FLAG ON)
+  find_package(Threads REQUIRED)
  
   target_include_directories(${PROJECT_NAME} PUBLIC
     ${PROJECT_SOURCE_DIR}/Source
@@ -94,6 +97,7 @@ if (WIN32)
           vulkan-1
           imgui
           spdlog::spdlog
+          Threads::Threads
   )
 elseif (UNIX)
     message(STATUS "CREATING BUILD FOR UNIX")

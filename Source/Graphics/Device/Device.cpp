@@ -59,9 +59,9 @@ namespace sft {
             }
 
             // Pull the queue handles
-            vkGetDeviceQueue(m_device, indices.graphicsFamily.value(), 0, &m_graphicsQueue);
-            vkGetDeviceQueue(m_device, indices.presentFamily.value(), 0, &m_presentQueue);
-            vkGetDeviceQueue(m_device, indices.transferFamily.value(), 0, &m_transferQueue);
+            vkGetDeviceQueue(m_device, m_queueFamilyIndices.graphicsFamily.value(), 0, &m_graphicsQueue);
+            vkGetDeviceQueue(m_device, m_queueFamilyIndices.presentFamily.value(), 0, &m_presentQueue);
+            vkGetDeviceQueue(m_device, m_queueFamilyIndices.transferFamily.value(), 0, &m_transferQueue);
         }
 
         void Device::PickPhysicalDevice(VkInstance instance, VkSurfaceKHR surface) {

@@ -36,6 +36,8 @@
 #include "Graphics/Device/Swapchain.hpp"
 #include "Graphics/Synchronization/Fence.hpp"
 #include "Graphics/Synchronization/Semaphore.hpp"
+#include "Graphics/Commands/CommandPool.hpp"
+#include "Graphics/Commands/CommandBuffer.hpp"
 
 #include <spdlog/spdlog.h>
 
@@ -425,23 +427,14 @@ private:
     }
 
     void createCommandPools() {
-        sft::gutil::QueueFamilyIndices queueFamilyIndices = sft::gutil::FindQueueFamilies(m_device->GetPhysicalDevice(), m_surfacePtr->Get());
-
-
-
-        VkCommandPoolCreateInfo poolInfoTransfer{};
-        poolInfoTransfer.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        poolInfoTransfer.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        poolInfoTransfer.queueFamilyIndex = queueFamilyIndices.transferFamily.value();
-
-        if (vkCreateCommandPool(m_device->Get(), &poolInfoTransfer, nullptr, &m_commandPoolTransfer) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create command pool!");
-        }
+        m_graphicsPool = std::make_unique<sft::gfx::CommandPool>(*m_device, sft::gfx::POOL_TYPE::GRAPHICS);
+        m_transferPool = std::make_unique<sft::gfx::CommandPool>(*m_device, sft::gfx::POOL_TYPE::TRANSFER);
     }
 
     void createTextureImage() {
         int texWidth, texHeight, texChannels;
-        stbi_uc* pixels = stbi_load("../assets/skeleton.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        std::string a = sft::utl::GetShiftRoot() + "Assets/skeleton.png";
+        stbi_uc* pixels = stbi_load(a.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         VkDeviceSize imageSize = texWidth * texHeight * 4; // 4 bytes per pixel
 
         if (!pixels) {
@@ -471,10 +464,31 @@ private:
             m_textureImageMemory
         );
 
-        transitionImageLayout(m_commandPoolTransfer, m_device->GetTransferQueue(), m_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-        copyBufferToImage(m_commandPoolTransfer, m_device->GetTransferQueue(), stagingBuffer, m_textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+        auto& buffer = m_transferPool->RequestCommandBuffer();
+        buffer.TransferImageLayout(
+                m_textureImage,
+                VK_IMAGE_LAYOUT_UNDEFINED,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                VK_PIPELINE_STAGE_TRANSFER_BIT
+                );
 
-        transitionImageLayout(m_commandPoolGraphics, m_device->GetGraphicsQueue(), m_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        buffer.CopyBufferToImage(stagingBuffer, m_textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+        buffer.EndCommandBuffer();
+        buffer.SubmitAndWait();
+
+        auto& buffer2 = m_graphicsPool->RequestCommandBuffer();
+
+        buffer2.TransferImageLayout(
+                m_textureImage,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+        );
+
+        buffer2.EndCommandBuffer();
+        buffer2.SubmitAndWait();
 
         vkDestroyBuffer(m_device->Get(), stagingBuffer, nullptr);
         vkFreeMemory(m_device->Get(), stagingBufferMemory, nullptr);
@@ -571,7 +585,10 @@ private:
         // The vertex buffer can also be used as dest in memory transfer
         createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_vertexBuffer, m_vertexBufferMemory);
 
-        copyBuffer(stagingBuffer, m_vertexBuffer, bufferSize);
+        auto& buffer = m_transferPool->RequestCommandBuffer();
+        buffer.CopyBuffer(stagingBuffer, m_vertexBuffer, bufferSize);
+        buffer.EndCommandBuffer();
+        buffer.SubmitAndWait();
 
         // Destroy staging buffer
         vkDestroyBuffer(m_device->Get(), stagingBuffer, nullptr);
@@ -595,12 +612,14 @@ private:
         // The vertex buffer can also be used as dest in memory transfer
         createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_indexBuffer, m_indexBufferMemory);
 
-        copyBuffer(stagingBuffer, m_indexBuffer, bufferSize);
+        auto& buffer = m_transferPool->RequestCommandBuffer();
+        buffer.CopyBuffer(stagingBuffer, m_indexBuffer, bufferSize);
+        buffer.EndCommandBuffer();
+        buffer.SubmitAndWait();
 
         // Destroy staging buffer
         vkDestroyBuffer(m_device->Get(), stagingBuffer, nullptr);
         vkFreeMemory(m_device->Get(), stagingBufferMemory, nullptr);
-
     }
 
     void createUniformBuffers() {
@@ -692,6 +711,20 @@ private:
         }
     }
 
+    void createCommandBuffers() {
+        m_commandBuffersGraphics.resize(MAX_FRAMES_IN_FLIGHT);
+
+        VkCommandBufferAllocateInfo allocInfoGraphics{};
+        allocInfoGraphics.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfoGraphics.commandPool = m_graphicsPool->Get();
+        allocInfoGraphics.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;  // Primary can be submitted to the queue, secondary can be called from primary buffers and inversely
+        allocInfoGraphics.commandBufferCount = static_cast<uint32_t>(m_commandBuffersGraphics.size());
+
+        if (vkAllocateCommandBuffers(m_device->Get(), &allocInfoGraphics, m_commandBuffersGraphics.data()) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate command buffers!");
+        }
+    }
+
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
         VkBufferCreateInfo bufferInfo{};
         bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -720,33 +753,6 @@ private:
         vkBindBufferMemory(m_device->Get(), buffer, bufferMemory, 0);
     }
 
-    //D
-//    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
-//        // Create a temporary command pool for such commands
-//        VkCommandBuffer commandBuffer = beginSingleTimeCommands(m_commandPoolTransfer);
-//
-//
-//
-//        endSingleTimeCommands(commandBuffer, m_commandPoolTransfer, m_device->GetTransferQueue());
-//    }
-
-    //D
-//    void transitionImageLayout(VkCommandPool commandPool, VkQueue queue, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
-//        VkCommandBuffer commandBuffer = beginSingleTimeCommands(commandPool);
-//
-//
-//
-//        endSingleTimeCommands(commandBuffer, commandPool, queue);
-//    }
-////D
-//    void copyBufferToImage(VkCommandPool commandPool, VkQueue queue, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
-//        VkCommandBuffer commandBuffer = beginSingleTimeCommands(commandPool);
-//
-//
-//
-//        endSingleTimeCommands(commandBuffer, commandPool, queue);
-//    }
-
     //! INFO: GPUs can offer different memory types => we need to find the right one
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
         // Constaine memory types and memory heaps, heap is VRAM, type is types of memory in that VRAM
@@ -764,55 +770,8 @@ private:
         throw std::runtime_error("failed to find suitable memory type!");
     }
 
-    void createCommandBuffers() {
-        m_commandBuffersGraphics.resize(MAX_FRAMES_IN_FLIGHT);
-
-        VkCommandBufferAllocateInfo allocInfoGraphics{};
-        allocInfoGraphics.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        allocInfoGraphics.commandPool = m_commandPoolGraphics;
-        allocInfoGraphics.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;  // Primary can be submitted to the queue, secondary can be called from primary buffers and inversely
-        allocInfoGraphics.commandBufferCount = static_cast<uint32_t>(m_commandBuffersGraphics.size());
-
-        if (vkAllocateCommandBuffers(m_device->Get(), &allocInfoGraphics, m_commandBuffersGraphics.data()) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate command buffers!");
-        }
-    }
-// D
-//    VkCommandBuffer beginSingleTimeCommands(VkCommandPool commandPool) {
-//        VkCommandBufferAllocateInfo allocInfo{};
-//        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-//        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-//        allocInfo.commandPool = commandPool;
-//        allocInfo.commandBufferCount = 1;
-//
-//        VkCommandBuffer commandBuffer;
-//        vkAllocateCommandBuffers(m_device->Get(), &allocInfo, &commandBuffer);
-//
-//        VkCommandBufferBeginInfo beginInfo{};
-//        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-//        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-//
-//        vkBeginCommandBuffer(commandBuffer, &beginInfo);
-//
-//        return commandBuffer;
-//    }
-
-    // D
-//    void endSingleTimeCommands(VkCommandBuffer commandBuffer, VkCommandPool commandPool, VkQueue queue) {
-//        vkEndCommandBuffer(commandBuffer);
-//
-//        VkSubmitInfo submitInfo{};
-//        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-//        submitInfo.commandBufferCount = 1;
-//        submitInfo.pCommandBuffers = &commandBuffer;
-//
-//        vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
-//        vkQueueWaitIdle(queue);
-//
-//        vkFreeCommandBuffers(m_device->Get(), commandPool, 1, &commandBuffer);
-//    }
-
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
+
         //! Begin a command buffer
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -1016,8 +975,8 @@ private:
             m_renderFinishedSemaphores[i].reset();
             m_inFlightFences[i].reset();
         }
-        vkDestroyCommandPool(m_device->Get(), m_commandPoolGraphics, nullptr);
-        vkDestroyCommandPool(m_device->Get(), m_commandPoolTransfer, nullptr);
+        m_graphicsPool.reset();
+        m_transferPool.reset();
 
         vkDestroyPipeline(m_device->Get(), m_graphicsPipeline, nullptr);
         vkDestroyPipelineLayout(m_device->Get(), m_pipelineLayout, nullptr);
@@ -1043,11 +1002,11 @@ private:
     std::unique_ptr<sft::gfx::Instance> m_instance;
     std::unique_ptr<sft::gfx::Swapchain> m_swapchain;
 
+    std::unique_ptr<sft::gfx::CommandPool> m_graphicsPool;
+    std::unique_ptr<sft::gfx::CommandPool> m_transferPool;
+
     std::vector<VkFramebuffer> m_swapChainFramebuffers;
 
-    // INFO: You have to record all draw operations in command buffers, for that you need a command pool
-    VkCommandPool m_commandPoolGraphics;
-    VkCommandPool m_commandPoolTransfer;
     std::vector<VkCommandBuffer> m_commandBuffersGraphics;
 
     VkBuffer m_vertexBuffer;

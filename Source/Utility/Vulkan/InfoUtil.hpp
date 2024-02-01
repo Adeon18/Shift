@@ -7,6 +7,8 @@
 
 #include "GLFW/glfw3.h"
 
+#include <span>
+
 namespace sft {
     namespace info {
         //! Create Info for Image View, by default no array and no mip levels.
@@ -32,6 +34,14 @@ namespace sft {
         VkCommandPoolCreateInfo CreateCommandPoolInfo(uint32_t queueFamilyIndex);
 
         VkCommandBufferBeginInfo CreateBeginCommandBufferInfo(VkCommandBufferUsageFlags flags);
+
+        //! Create the info for submitting jobs to queue
+        VkSubmitInfo CreateSubmitInfo(
+                std::span<const VkSemaphore> waitSemSpan,
+                std::span<const VkSemaphore> sigSemSpan,
+                std::span<const VkCommandBuffer> cmdBufSpan,
+                const VkPipelineStageFlags* pipelineWaitStageMask
+        );
     } // info
 }// sft
 

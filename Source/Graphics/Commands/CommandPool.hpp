@@ -16,16 +16,19 @@ namespace sft {
     namespace gfx {
         class CommandPool {
         public:
-            enum TYPE {
-                GRAPHICS,
-                TRANSFER,
-            };
 
-            CommandPool(const Device& device, TYPE type);
+            CommandPool(const Device& device, POOL_TYPE type);
 
             [[nodiscard]] bool IsValid() const { return m_commandPool != VK_NULL_HANDLE; }
 
-            [[nodiscard]] const CommandBuffer&  RequestCommandBuffer();
+            // TODO:Temporary
+            VkCommandPool Get() {return m_commandPool;}
+
+            [[nodiscard]] const CommandBuffer& RequestCommandBuffer();
+            [[nodiscard]] const CommandBuffer& RequestCommandBufferManual();
+
+            //! Request a command buffer that is new and not stored in pool
+            [[nodiscard]] CommandBuffer  RequestCommandBufferNew();
 
             ~CommandPool();
 
@@ -37,7 +40,7 @@ namespace sft {
             const Device& m_device;
 
             VkCommandPool m_commandPool = VK_NULL_HANDLE;
-            TYPE m_type;
+            POOL_TYPE m_type;
 
             std::deque<CommandBuffer> m_commandBuffers;
         };

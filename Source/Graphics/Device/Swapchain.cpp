@@ -3,6 +3,7 @@
 //
 
 #include "Swapchain.hpp"
+#include <array>
 
 #include "Utility/Vulkan/InfoUtil.hpp"
 
