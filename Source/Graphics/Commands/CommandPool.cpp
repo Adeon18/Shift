@@ -1,6 +1,7 @@
 #include "CommandPool.hpp"
 
 #include "Utility/Vulkan/InfoUtil.hpp"
+#include "Utility/Vulkan/UtilVulkan.hpp"
 
 namespace sft {
     namespace gfx {
@@ -20,41 +21,39 @@ namespace sft {
             m_commandPool = m_device.CreateCommandPool(info::CreateCommandPoolInfo(queueFamilyIndex));
         }
 
-        const CommandBuffer& CommandPool::RequestCommandBuffer() {
-            for (auto& buff: m_commandBuffers) {
-                if (buff.IsAvailable()) {
-                    buff.ResetFence();
-                    buff.BeginCommandBuffer();
-                    return buff;
-                }
-            }
-
-            auto &buf = m_commandBuffers.emplace_back(m_device, m_commandPool, m_type);
-
+        const CommandBuffer& CommandPool::RequestCommandBuffer(BUFFER_TYPE type, uint32_t frameIdx) {
+            auto& buf = RequestCommandBufferManual(type, frameIdx);
             buf.BeginCommandBuffer();
-            spdlog::trace("Created new buffer. Number {}", m_commandBuffers.size());
-
-            return m_commandBuffers.back();
+            return buf;
         }
 
-        const CommandBuffer& CommandPool::RequestCommandBufferManual() {
-            for (auto& buff: m_commandBuffers) {
+        const CommandBuffer& CommandPool::RequestCommandBufferManual(BUFFER_TYPE type, uint32_t frameIdx) {
+            bool bufferInFlight = (type == BUFFER_TYPE::FLIGHT);
+
+            uint32_t flightBuffersTaken = 0;
+            for (auto& buff: m_commandBuffers[type]) {
                 if (buff.IsAvailable()) {
                     buff.ResetFence();
                     return buff;
+                } else if (bufferInFlight && !buff.IsAvailable()) {
+                    ++flightBuffersTaken;
                 }
             }
 
-            auto &buf = m_commandBuffers.emplace_back(m_device, m_commandPool, m_type);
+            // TODO: This is shit and should be moved to separate function
+            if (flightBuffersTaken == gutil::SHIFT_MAX_FRAMES_IN_FLIGHT) {
+                m_commandBuffers[type][frameIdx].Wait();
+                m_commandBuffers[type][frameIdx].ResetFence();
+                return m_commandBuffers[type][frameIdx];
+            }
 
-            spdlog::trace("Created new buffer. Number {}", m_commandBuffers.size());
+            auto& placedBuf = m_commandBuffers[type].emplace_back(m_device, m_commandPool, m_type);
 
-            return m_commandBuffers.back();
+            spdlog::debug("Created new buffer. Number {}, Type: {}", m_commandBuffers.size(), static_cast<int>(type));
+
+            return placedBuf;
         }
 
-        CommandBuffer CommandPool::RequestCommandBufferNew() {
-            return CommandBuffer{m_device, m_commandPool, m_type};
-        }
 
         CommandPool::~CommandPool() {
             m_device.DestroyCommandPool(m_commandPool);

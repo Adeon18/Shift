@@ -19,7 +19,7 @@ namespace sft {
             m_fence = std::make_unique<Fence>(m_device, false);
         }
 
-        void CommandBuffer::ResetFence() {
+        void CommandBuffer::ResetFence() const {
            m_fence->Reset();
         }
 
@@ -228,6 +228,56 @@ namespace sft {
             bool res = Submit(info);
             m_fence->Wait();
             return res;
+        }
+
+        void CommandBuffer::BindVertexBuffers(std::span<VkBuffer> buffers, std::span<VkDeviceSize> offsets,
+                                              uint32_t firstBind) const {
+            vkCmdBindVertexBuffers(
+                    m_buffer,
+                    firstBind,
+                    buffers.size(),
+                    buffers.data(),
+                    offsets.data());
+        }
+
+        void CommandBuffer::BindIndexBuffer(VkBuffer buffer, uint32_t offset, VkIndexType idxType) const {
+            vkCmdBindIndexBuffer(m_buffer, buffer, offset, idxType);
+        }
+
+        void CommandBuffer::BindPipeline(VkPipeline pipeline, VkPipelineBindPoint bindPoint) const {
+            vkCmdBindPipeline(m_buffer, bindPoint, pipeline);
+        }
+
+        void CommandBuffer::BeginRenderPass(const VkRenderPassBeginInfo &info, VkSubpassContents contents) const {
+            vkCmdBeginRenderPass(m_buffer, &info, contents);
+        }
+
+        void CommandBuffer::EndRenderPass() const {
+            vkCmdEndRenderPass(m_buffer);
+        }
+
+        void CommandBuffer::SetViewPort(VkViewport viewport) const {
+            vkCmdSetViewport(m_buffer, 0, 1, &viewport);
+        }
+
+        void CommandBuffer::SetScissor(VkRect2D scissor) const {
+            vkCmdSetScissor(m_buffer, 0, 1, &scissor);
+        }
+
+        void CommandBuffer::BindDescriptorSets(const std::span<VkDescriptorSet> descriptorSets,
+                                               const std::span<const std::uint32_t> dynamicOffsets,
+                                               const VkPipelineLayout layout, const VkPipelineBindPoint bindPoint,
+                                               std::uint32_t firstSet) const {
+            vkCmdBindDescriptorSets(m_buffer,
+                                    bindPoint,
+                                    layout, firstSet,
+                                    descriptorSets.size(),descriptorSets.data(),
+                                    dynamicOffsets.size(), dynamicOffsets.data());
+        }
+
+        void CommandBuffer::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex,
+                                        int32_t vertexOffset, uint32_t firstInstance) const {
+            vkCmdDrawIndexed(m_buffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
         }
     } // gfx
 } // sft

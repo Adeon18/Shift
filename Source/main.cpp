@@ -64,8 +64,6 @@ class HelloTriangleApplication {
     static constexpr uint32_t WINDOW_WIDTH = 800;
     static constexpr uint32_t WINDOW_HEIGHT = 600;
 
-    static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-
 #ifdef NDEBUG
     static constexpr bool ENABLE_VALIDATION_LAYERS = false;
 #else
@@ -625,11 +623,11 @@ private:
     void createUniformBuffers() {
         VkDeviceSize bufferSize = sizeof(PerFrame);
 
-        m_uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-        m_uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
-        m_uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+        m_uniformBuffers.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
+        m_uniformBuffersMemory.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
+        m_uniformBuffersMapped.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
 
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        for (size_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
             // The technique is called PERSISTENT MAPPING, the buffer is mapped during the entire duration and we do not map
             // it every frame, it is faster this way
             createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_uniformBuffers[i], m_uniformBuffersMemory[i]);
@@ -642,15 +640,15 @@ private:
         std::array<VkDescriptorPoolSize, 2> poolSizes{};
         // INFO: Btw the driver may not allocate the descrioptorCount amount of descriptors, but it is still the best practice to do so in infostruct
         poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+        poolSizes[0].descriptorCount = static_cast<uint32_t>(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
         poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+        poolSizes[1].descriptorCount = static_cast<uint32_t>(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
 
         VkDescriptorPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());;
         poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+        poolInfo.maxSets = static_cast<uint32_t>(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
 
         if (vkCreateDescriptorPool(m_device->Get(), &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS) {
             throw std::runtime_error("Failed to create descriptor pool!");
@@ -660,20 +658,20 @@ private:
     void createDescriptorSets() {
         // INFO: When allocating a descriptor set you neeed to: specify the pool to allocate from, the number of descriptor sets to allocate,
         // the descriptor layout to base them on
-        std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_descriptorSetLayout);
+        std::vector<VkDescriptorSetLayout> layouts(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT, m_descriptorSetLayout);
         VkDescriptorSetAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         allocInfo.descriptorPool = m_descriptorPool;
-        allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+        allocInfo.descriptorSetCount = static_cast<uint32_t>(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
         allocInfo.pSetLayouts = layouts.data();
 
-        m_descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+        m_descriptorSets.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
         if (vkAllocateDescriptorSets(m_device->Get(), &allocInfo, m_descriptorSets.data())) {
             throw std::runtime_error("Failed to allocate descriptor sets!");
         }
 
         // We now need to populate every descriptor set
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        for (size_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
             // This is the struct for the buffer information
             VkDescriptorBufferInfo bufferInfo{};
             bufferInfo.buffer = m_uniformBuffers[i];
@@ -712,17 +710,17 @@ private:
     }
 
     void createCommandBuffers() {
-        m_commandBuffersGraphics.resize(MAX_FRAMES_IN_FLIGHT);
-
-        VkCommandBufferAllocateInfo allocInfoGraphics{};
-        allocInfoGraphics.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        allocInfoGraphics.commandPool = m_graphicsPool->Get();
-        allocInfoGraphics.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;  // Primary can be submitted to the queue, secondary can be called from primary buffers and inversely
-        allocInfoGraphics.commandBufferCount = static_cast<uint32_t>(m_commandBuffersGraphics.size());
-
-        if (vkAllocateCommandBuffers(m_device->Get(), &allocInfoGraphics, m_commandBuffersGraphics.data()) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate command buffers!");
-        }
+//        m_commandBuffersGraphics.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
+//
+//        VkCommandBufferAllocateInfo allocInfoGraphics{};
+//        allocInfoGraphics.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+//        allocInfoGraphics.commandPool = m_graphicsPool->Get();
+//        allocInfoGraphics.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;  // Primary can be submitted to the queue, secondary can be called from primary buffers and inversely
+//        allocInfoGraphics.commandBufferCount = static_cast<uint32_t>(m_commandBuffersGraphics.size());
+//
+//        if (vkAllocateCommandBuffers(m_device->Get(), &allocInfoGraphics, m_commandBuffersGraphics.data()) != VK_SUCCESS) {
+//            throw std::runtime_error("failed to allocate command buffers!");
+//        }
     }
 
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
@@ -770,17 +768,7 @@ private:
         throw std::runtime_error("failed to find suitable memory type!");
     }
 
-    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
-
-        //! Begin a command buffer
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        beginInfo.flags = 0; // Optional
-        beginInfo.pInheritanceInfo = nullptr; // Optional
-
-        if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
-            throw std::runtime_error("failed to begin recording command buffer!");
-        }
+    void recordCommandBuffer(const sft::gfx::CommandBuffer& cmdBuf, uint32_t imageIndex) {
 
         //! Begin a render pass
         VkRenderPassBeginInfo renderPassInfo{};
@@ -795,14 +783,14 @@ private:
         renderPassInfo.clearValueCount = 1;
         renderPassInfo.pClearValues = &clearColor;
 
-        vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        cmdBuf.BeginRenderPass(renderPassInfo);
 
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+        cmdBuf.BindPipeline(m_graphicsPipeline, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-        VkBuffer vertexBuffers[] = { m_vertexBuffer };
-        VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-        vkCmdBindIndexBuffer(commandBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+        std::array<VkBuffer, 1> vertexBuffers{ m_vertexBuffer };
+        std::array<VkDeviceSize, 1> offsets{ 0 };
+        cmdBuf.BindVertexBuffers(vertexBuffers, offsets, 0);
+        cmdBuf.BindIndexBuffer(m_indexBuffer, 0);
 
         // Since the viewport and scissor are dynamic, we must set them here
         VkViewport viewport{};
@@ -812,37 +800,36 @@ private:
         viewport.height = static_cast<float>(m_swapchain->GetExtent().height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
-        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+        cmdBuf.SetViewPort(viewport);
 
         VkRect2D scissor{};
         scissor.offset = { 0, 0 };
         scissor.extent = m_swapchain->GetExtent();
-        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+        cmdBuf.SetScissor(scissor);
 
         // Bind the descriptor sets
         // INFO: The sets are not unique to pipelines, so we need to specify whether to bind it to compute pipeline or the graphics one
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSets[m_currentFrame], 0, nullptr);
+        std::array<VkDescriptorSet, 1> sets{ m_descriptorSets[m_currentFrame] };
+        cmdBuf.BindDescriptorSets(sets, {}, m_pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, 0);
 
         // DRAW THE FUCKING TRIANGLE
-        vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+        cmdBuf.DrawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
-        vkCmdEndRenderPass(commandBuffer);
+        cmdBuf.EndRenderPass();
 
-        if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-            throw std::runtime_error("failed to record command buffer!");
-        }
+        cmdBuf.EndCommandBuffer();
     }
 
     void createSyncObjects() {
-        m_imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-        m_renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-        m_inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+        m_imageAvailableSemaphores.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
+        m_renderFinishedSemaphores.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
+        m_inFlightFences.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
 
         VkFenceCreateInfo fenceInfo{};
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        for (size_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
             m_imageAvailableSemaphores[i] = std::make_unique<sft::gfx::Semaphore>(*m_device);
             m_renderFinishedSemaphores[i] = std::make_unique<sft::gfx::Semaphore>(*m_device);
             m_inFlightFences[i] = std::make_unique<sft::gfx::Fence>(*m_device, true);
@@ -860,49 +847,31 @@ private:
     }
 
     bool drawFrame() {
-        // Wait for end of previous frame and then reset it
-        m_inFlightFences[m_currentFrame]->Wait();
+        auto& buff = m_graphicsPool->RequestCommandBuffer(sft::gfx::BUFFER_TYPE::FLIGHT, m_currentFrame);
 
-        // Aquire availible swapchain image index
+        /// Aquire availible swapchain image index
         bool changed = false;
         uint32_t imageIndex = m_swapchain->AquireNextImageIndex(*m_imageAvailableSemaphores[m_currentFrame], &changed);
-
         if (imageIndex == UINT32_MAX) return false;
         if (changed) {
             if (!recreateSwapChain()) return false;
             return true;
         }
 
-        // Only reset fence if work is submitted
-        m_inFlightFences[m_currentFrame]->Reset();
-
-        // Reset the command buffer
-        vkResetCommandBuffer(m_commandBuffersGraphics[m_currentFrame], 0);
-
-        recordCommandBuffer(m_commandBuffersGraphics[m_currentFrame], imageIndex);
+        recordCommandBuffer(buff, imageIndex);
 
         updateUniformBuffer(m_currentFrame);
 
-        VkSubmitInfo submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-        VkSemaphore waitSemaphores[] = { m_imageAvailableSemaphores[m_currentFrame]->Get() };
-        VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-        submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = waitSemaphores;
-        submitInfo.pWaitDstStageMask = waitStages;
-        // Which command buffer to use
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &m_commandBuffersGraphics[m_currentFrame];
-
-        // Which semaphores to wait for after render is finished
-        VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphores[m_currentFrame]->Get() };
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = signalSemaphores;
-
-        if (vkQueueSubmit(m_device->GetGraphicsQueue(), 1, &submitInfo, m_inFlightFences[m_currentFrame]->Get()) != VK_SUCCESS) {
-            throw std::runtime_error("failed to submit draw command buffer!");
-        }
+        std::array<VkSemaphore, 1> waitSem{ m_imageAvailableSemaphores[m_currentFrame]->Get() };
+        std::array<VkSemaphore, 1> sigSem{ m_renderFinishedSemaphores[m_currentFrame]->Get() };
+        std::array<VkCommandBuffer, 1> cmdBuf{ buff.Get() };
+        std::array<VkPipelineStageFlags, 1> waitStages{ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+        buff.Submit(sft::info::CreateSubmitInfo(
+                    waitSem,
+                    sigSem,
+                    cmdBuf,
+                    waitStages.data()
+                ));
 
         bool isOld = false;
         bool success = m_swapchain->Present(*m_renderFinishedSemaphores[m_currentFrame], imageIndex, &isOld);
@@ -914,7 +883,7 @@ private:
         }
 
         // Update the current frame
-        m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+        m_currentFrame = (m_currentFrame + 1) % sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT;
 
         return true;
     }
@@ -954,7 +923,7 @@ private:
         vkDestroyImage(m_device->Get(), m_textureImage, nullptr);
         vkFreeMemory(m_device->Get(), m_textureImageMemory, nullptr);
 
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        for (size_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
             vkDestroyBuffer(m_device->Get(), m_uniformBuffers[i], nullptr);
             vkFreeMemory(m_device->Get(), m_uniformBuffersMemory[i], nullptr);
         }
@@ -970,7 +939,7 @@ private:
         vkDestroyBuffer(m_device->Get(), m_indexBuffer, nullptr);
         vkFreeMemory(m_device->Get(), m_indexBufferMemory, nullptr);
 
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        for (size_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
             m_imageAvailableSemaphores[i].reset();
             m_renderFinishedSemaphores[i].reset();
             m_inFlightFences[i].reset();
@@ -1007,7 +976,7 @@ private:
 
     std::vector<VkFramebuffer> m_swapChainFramebuffers;
 
-    std::vector<VkCommandBuffer> m_commandBuffersGraphics;
+    //std::vector<VkCommandBuffer> m_commandBuffersGraphics;
 
     VkBuffer m_vertexBuffer;
     VkDeviceMemory m_vertexBufferMemory;

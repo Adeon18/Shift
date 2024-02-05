@@ -16,6 +16,13 @@ namespace sft {
             TRANSFER,
         };
 
+        //! For now there can be buffers dedicated just to handling frames in flight, all the others are default and
+        //! Can have infinite count
+        enum class BUFFER_TYPE {
+            DEFAULT,
+            FLIGHT
+        };
+
         class CommandBuffer {
         public:
             CommandBuffer(const Device& device, const VkCommandPool commandPool, POOL_TYPE type);
@@ -64,6 +71,33 @@ namespace sft {
                     VkPipelineStageFlags srcStage,
                     VkPipelineStageFlags dstStage) const;
 
+            void BindVertexBuffers(std::span<VkBuffer> buffers, std::span<VkDeviceSize> offsets, uint32_t firstBind) const;
+
+            void BindIndexBuffer(VkBuffer buffers, uint32_t offset, VkIndexType idxType = VK_INDEX_TYPE_UINT16) const;
+
+            void BindPipeline(VkPipeline pipeline, VkPipelineBindPoint bindPoint) const;
+
+            void BeginRenderPass(const VkRenderPassBeginInfo& info, VkSubpassContents contents = VK_SUBPASS_CONTENTS_INLINE) const;
+
+            void EndRenderPass() const;
+
+            //! Set viewport, we don't support multiple
+            void SetViewPort(VkViewport viewport) const;
+
+            void SetScissor(VkRect2D scissor) const;
+
+            void BindDescriptorSets(std::span<VkDescriptorSet> descriptorSets,
+                                    std::span<const std::uint32_t> dynamicOffsets,
+                                    VkPipelineLayout layout,
+                                    VkPipelineBindPoint bindPoint,
+                                    std::uint32_t firstSet) const;
+
+            void DrawIndexed(uint32_t indexCount,
+                             uint32_t instanceCount,
+                             uint32_t firstIndex,
+                             int32_t vertexOffset,
+                             uint32_t firstInstance) const;
+
             //! Buffer Submit Functions
             bool Submit() const;
             bool Submit(const VkSubmitInfo& info) const;
@@ -71,13 +105,15 @@ namespace sft {
             bool SubmitAndWait() const;
             bool SubmitAndWait(const VkSubmitInfo& info) const;
 
+            void Wait() const { m_fence->Wait(); };
+
             // TODO: Temporary
-            VkCommandBuffer Get() const {return m_buffer;}
-            const VkCommandBuffer* Ptr() const {return &m_buffer;}
+            VkCommandBuffer Get() const { return m_buffer; }
+            const VkCommandBuffer* Ptr() const { return &m_buffer; }
 
 
             //! Reset the buffer fence so we can know that it is free
-            void ResetFence();
+            void ResetFence() const;
 
             ~CommandBuffer() = default;
 

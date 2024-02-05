@@ -8,6 +8,7 @@
 #include <vulkan/vulkan.h>
 
 #include <deque>
+#include <unordered_map>
 
 #include "Graphics/Device/Device.hpp"
 #include "Graphics/Commands/CommandBuffer.hpp"
@@ -24,11 +25,11 @@ namespace sft {
             // TODO:Temporary
             VkCommandPool Get() {return m_commandPool;}
 
-            [[nodiscard]] const CommandBuffer& RequestCommandBuffer();
-            [[nodiscard]] const CommandBuffer& RequestCommandBufferManual();
-
-            //! Request a command buffer that is new and not stored in pool
-            [[nodiscard]] CommandBuffer  RequestCommandBufferNew();
+            //! Request command buffer, if type is specified, will look only in the respetive type, calls begin on buffer
+            //! If buffer type is FLIGHT and frameIdx is UINT32_MAX the behaviour is undefined
+            [[nodiscard]] const CommandBuffer& RequestCommandBuffer(BUFFER_TYPE type = BUFFER_TYPE::DEFAULT, uint32_t frameIdx = UINT32_MAX);
+            //! The same, but does not call begin on buffer
+            [[nodiscard]] const CommandBuffer& RequestCommandBufferManual(BUFFER_TYPE type = BUFFER_TYPE::DEFAULT, uint32_t frameIdx = UINT32_MAX);
 
             ~CommandPool();
 
@@ -42,7 +43,7 @@ namespace sft {
             VkCommandPool m_commandPool = VK_NULL_HANDLE;
             POOL_TYPE m_type;
 
-            std::deque<CommandBuffer> m_commandBuffers;
+            std::unordered_map<BUFFER_TYPE, std::deque<CommandBuffer>> m_commandBuffers;
         };
     } // gfx
 } // sft
