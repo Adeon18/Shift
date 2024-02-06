@@ -35,6 +35,12 @@ namespace sft {
             [[nodiscard]] VkRenderPass CreateRenderPass(const VkRenderPassCreateInfo& info) const;
             [[nodiscard]] void DestroyRenderPass(VkRenderPass pass) const;
 
+            [[nodiscard]] VkPipeline CreateGraphicsPipeline(const VkGraphicsPipelineCreateInfo& info) const;
+            [[nodiscard]] void DestroyPipeline(VkPipeline pipeline) const;
+
+            [[nodiscard]] VkPipelineLayout CreatePipelineLayout(const VkPipelineLayoutCreateInfo& info) const;
+            [[nodiscard]] void DestroyPipelineLayout(VkPipelineLayout layout) const;
+
             [[nodiscard]] VkDevice Get() const { return m_device; }
             [[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const { return m_physicalDevice; }
             [[nodiscard]] VkQueue GetGraphicsQueue() const { return m_graphicsQueue; }

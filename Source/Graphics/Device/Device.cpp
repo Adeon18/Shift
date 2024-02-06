@@ -175,5 +175,29 @@ namespace sft {
             vkDestroyShaderModule(m_device, module, nullptr);
         }
 
+        VkPipeline Device::CreateGraphicsPipeline(const VkGraphicsPipelineCreateInfo &info) const {
+            VkPipeline pipeline;
+            if (int res = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &info, nullptr, &pipeline); res != VK_SUCCESS) {
+                spdlog::error("Failed to create VkPipeline! Code: {}", res);
+                return VK_NULL_HANDLE;
+            }
+            return pipeline;
+        }
+
+        void Device::DestroyPipeline(VkPipeline pipeline) const {
+            vkDestroyPipeline(m_device, pipeline, nullptr);
+        }
+
+        VkPipelineLayout Device::CreatePipelineLayout(const VkPipelineLayoutCreateInfo& info) const {
+            VkPipelineLayout pipelineLayout;
+            if (int res = vkCreatePipelineLayout(m_device, &info, nullptr, &pipelineLayout); res != VK_SUCCESS) {
+                spdlog::error("Failed to create VkPipelineLayout! Code: {}", res);
+                return VK_NULL_HANDLE;
+            }
+            return pipelineLayout;
+        }
+        void Device::DestroyPipelineLayout(VkPipelineLayout layout) const {
+            vkDestroyPipelineLayout(m_device, layout, nullptr);
+        }
     } // gfx
 } // sft

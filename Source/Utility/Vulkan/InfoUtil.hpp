@@ -45,6 +45,20 @@ namespace sft {
         );
 
         VkShaderModuleCreateInfo CreateShaderModuleInfo(const std::span<char>& code);
+
+        VkPipelineVertexInputStateCreateInfo CreateInputStateInfo(const std::span<VkVertexInputAttributeDescription>& attDesc, const std::span<VkVertexInputBindingDescription>& bindDesc);
+
+        // TODO: No args for now
+        VkPipelineRasterizationStateCreateInfo CreateRasterStateInfo();
+
+        // TODO: No args for now
+        VkPipelineMultisampleStateCreateInfo CreateMultisampleStateInfo();
+
+        // TODO: No args for now
+        VkPipelineColorBlendAttachmentState CreateBlendAttachmentState();
+
+        // TODO: No args for now
+        VkPipelineColorBlendStateCreateInfo CreateBlendStateInfo(VkPipelineColorBlendAttachmentState att);
     } // info
 }// sft
 
