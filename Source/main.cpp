@@ -38,27 +38,9 @@
 #include "Graphics/Synchronization/Semaphore.hpp"
 #include "Graphics/Commands/CommandPool.hpp"
 #include "Graphics/Commands/CommandBuffer.hpp"
+#include "Graphics/RenderPass/RenderPass.hpp"
 
 #include <spdlog/spdlog.h>
-
-//! TODO: Can be optimized!
-static std::vector<char> readFile(const std::string& filename) {
-    // We start reading at the end in order to get the file size
-    std::ifstream file(filename, std::ios::ate | std::ios::binary);
-
-    if (!file.is_open()) {
-        throw std::runtime_error("failed to open file!");
-    }
-
-    size_t fileSize = static_cast<size_t>(file.tellg());
-    std::vector<char> buffer(fileSize);
-
-    file.seekg(0);
-    file.read(buffer.data(), fileSize);
-
-    file.close();
-    return buffer;
-}
 
 class HelloTriangleApplication {
     static constexpr uint32_t WINDOW_WIDTH = 800;
@@ -99,7 +81,7 @@ private:
         if (!createSwapchain()) {return false;}
 
         // MUST BE CREATED BEFORE PIPELINE
-        createRenderPass();
+        if (!createRenderPass()) { return false; }
         createDescriptorSetLayout();
         createGraphicsPipeline();
         createFramebuffers();
@@ -114,7 +96,6 @@ private:
         createDescriptorPool();
         createDescriptorSets();
 
-        createCommandBuffers();
         createSyncObjects();
         return true;
     }
@@ -181,8 +162,8 @@ private:
 
     //! TODO: Be aware that you might need to clear vectors after module creation to free up memory
     void createGraphicsPipeline() {
-        auto vertShaderCode = readFile(sft::utl::GetShiftRoot() + "Shaders/shader.vert.spv");
-        auto fragShaderCode = readFile(sft::utl::GetShiftRoot() + "Shaders/shader.frag.spv");
+        auto vertShaderCode = sft::util::ReadFile(sft::util::GetShiftRoot() + "Shaders/shader.vert.spv");
+        auto fragShaderCode = sft::util::ReadFile(sft::util::GetShiftRoot() + "Shaders/shader.frag.spv");
 
         VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
         VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -320,7 +301,7 @@ private:
         pipelineInfo.pDynamicState = &dynamicState;
 
         pipelineInfo.layout = m_pipelineLayout; // Specify the layout of the pipeline
-        pipelineInfo.renderPass = m_renderPass;
+        pipelineInfo.renderPass = m_renderPass->Get();
         pipelineInfo.subpass = 0;               // Which subpass is this pipeline suitable for
 
         // You can derive pipelines with the help of these parameters
@@ -350,53 +331,19 @@ private:
         return shaderModule;
     }
 
-    void createRenderPass() {
-        VkAttachmentDescription colorAttachment{};
-        colorAttachment.format = m_swapchain->GetFormat();
-        colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;    // No multisampling
-        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;   // Clear before render
-        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE; // Store data after render
+    bool createRenderPass() {
+        m_renderPass = std::make_unique<sft::gfx::RenderPass>(*m_device);
 
-        colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;    // Defines what to do with stencil data
-        colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        sft::gfx::Attachment att{m_swapchain->GetFormat(), sft::gfx::Attachment::Type::Swapchain, 0};
 
-        colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;          // We will clear the image so initial layout does not matter
-        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;      // Images to be presented in the swap chain
+        sft::gfx::Subpass sub;
+        sub.AddDependency(att);
+        sub.BuildDescription();
 
-        //! INFO: Basically here we create an attachment that we render out output into via layout command
-        //! As for the subpasses, if we had a deferred rendered, we could make it consist of 2 subpasses
-        //! but right now we only have a single subpass
-        VkAttachmentReference colorAttachmentRef{};
-        colorAttachmentRef.attachment = 0;
-        colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        m_renderPass->AddAttachment(att);
+        m_renderPass->AddSubpass(sub);
 
-        VkSubpassDescription subpass{};
-        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        subpass.colorAttachmentCount = 1;
-        subpass.pColorAttachments = &colorAttachmentRef;
-
-        // NEED TODO: UNDERSTAND THIS
-        VkSubpassDependency dependency{};
-        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-        dependency.dstSubpass = 0;
-        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        dependency.srcAccessMask = 0;
-        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-        VkRenderPassCreateInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        renderPassInfo.attachmentCount = 1;
-        renderPassInfo.pAttachments = &colorAttachment;
-        renderPassInfo.subpassCount = 1;
-        renderPassInfo.pSubpasses = &subpass;
-
-        renderPassInfo.dependencyCount = 1;
-        renderPassInfo.pDependencies = &dependency;
-
-        if (vkCreateRenderPass(m_device->Get(), &renderPassInfo, nullptr, &m_renderPass) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create render pass!");
-        }
+        return m_renderPass->BuildPass();
     }
 
     void createFramebuffers() {
@@ -411,7 +358,7 @@ private:
             //! INFO: YOU CAN ONLY USE THE FRAMEBUFFER WITH THE COMPATIBLE RENDERPASS
             VkFramebufferCreateInfo framebufferInfo{};
             framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            framebufferInfo.renderPass = m_renderPass;
+            framebufferInfo.renderPass = m_renderPass->Get();
             framebufferInfo.attachmentCount = 1;
             framebufferInfo.pAttachments = attachments;
             framebufferInfo.width = m_swapchain->GetExtent().width;
@@ -431,7 +378,7 @@ private:
 
     void createTextureImage() {
         int texWidth, texHeight, texChannels;
-        std::string a = sft::utl::GetShiftRoot() + "Assets/skeleton.png";
+        std::string a = sft::util::GetShiftRoot() + "Assets/skeleton.png";
         stbi_uc* pixels = stbi_load(a.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         VkDeviceSize imageSize = texWidth * texHeight * 4; // 4 bytes per pixel
 
@@ -709,20 +656,6 @@ private:
         }
     }
 
-    void createCommandBuffers() {
-//        m_commandBuffersGraphics.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
-//
-//        VkCommandBufferAllocateInfo allocInfoGraphics{};
-//        allocInfoGraphics.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-//        allocInfoGraphics.commandPool = m_graphicsPool->Get();
-//        allocInfoGraphics.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;  // Primary can be submitted to the queue, secondary can be called from primary buffers and inversely
-//        allocInfoGraphics.commandBufferCount = static_cast<uint32_t>(m_commandBuffersGraphics.size());
-//
-//        if (vkAllocateCommandBuffers(m_device->Get(), &allocInfoGraphics, m_commandBuffersGraphics.data()) != VK_SUCCESS) {
-//            throw std::runtime_error("failed to allocate command buffers!");
-//        }
-    }
-
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
         VkBufferCreateInfo bufferInfo{};
         bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -773,7 +706,7 @@ private:
         //! Begin a render pass
         VkRenderPassBeginInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = m_renderPass;
+        renderPassInfo.renderPass = m_renderPass->Get();
         renderPassInfo.framebuffer = m_swapChainFramebuffers[imageIndex];
 
         renderPassInfo.renderArea.offset = { 0, 0 };
@@ -949,7 +882,8 @@ private:
 
         vkDestroyPipeline(m_device->Get(), m_graphicsPipeline, nullptr);
         vkDestroyPipelineLayout(m_device->Get(), m_pipelineLayout, nullptr);
-        vkDestroyRenderPass(m_device->Get(), m_renderPass, nullptr);
+
+        m_renderPass.reset();
 
         m_surfacePtr.reset();
         m_device.reset();
@@ -957,7 +891,6 @@ private:
 private:
 
     VkPipeline m_graphicsPipeline;
-    VkRenderPass m_renderPass;
     // All descriptor binding are located here
     VkDescriptorSetLayout m_descriptorSetLayout;
     VkDescriptorPool m_descriptorPool;
@@ -973,6 +906,8 @@ private:
 
     std::unique_ptr<sft::gfx::CommandPool> m_graphicsPool;
     std::unique_ptr<sft::gfx::CommandPool> m_transferPool;
+
+    std::unique_ptr<sft::gfx::RenderPass> m_renderPass;
 
     std::vector<VkFramebuffer> m_swapChainFramebuffers;
 

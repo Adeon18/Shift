@@ -29,6 +29,9 @@ namespace sft {
             [[nodiscard]] VkCommandPool CreateCommandPool(const VkCommandPoolCreateInfo& info) const;
             [[nodiscard]] void DestroyCommandPool(VkCommandPool pool) const;
 
+            [[nodiscard]] VkRenderPass CreateRenderPass(const VkRenderPassCreateInfo& info) const;
+            [[nodiscard]] void DestroyRenderPass(VkRenderPass pass) const;
+
             [[nodiscard]] VkDevice Get() const { return m_device; }
             [[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const { return m_physicalDevice; }
             [[nodiscard]] VkQueue GetGraphicsQueue() const { return m_graphicsQueue; }

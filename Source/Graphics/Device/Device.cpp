@@ -147,5 +147,19 @@ namespace sft {
             vkDestroyCommandPool(m_device, pool, nullptr);
         }
 
+        VkRenderPass Device::CreateRenderPass(const VkRenderPassCreateInfo &info) const {
+            VkRenderPass pass;
+            if (int res = vkCreateRenderPass(m_device, &info, nullptr, &pass); res != VK_SUCCESS) {
+                spdlog::error("Failed to create VkRenderPass! Code: {}", res);
+                return VK_NULL_HANDLE;
+            }
+
+            return pass;
+        }
+
+        void Device::DestroyRenderPass(VkRenderPass pass) const {
+            vkDestroyRenderPass(m_device, pass, nullptr);
+        }
+
     } // gfx
 } // sft

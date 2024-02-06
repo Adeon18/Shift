@@ -2,12 +2,17 @@
 #define SHIFT_UTILITY_HPP
 
 #include <string>
+#include <vector>
+#include <fstream>
 
 namespace sft {
-    namespace utl {
+    namespace util {
         constexpr std::string GetShiftRoot() {
             return std::string{SHIFT_ROOT} + "/";
         }
+
+        //! TODO: Can be optimized!
+        [[nodiscard]] std::vector<char> ReadFile(const std::string& filename);
     }
 }
 
