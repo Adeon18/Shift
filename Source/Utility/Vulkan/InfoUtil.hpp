@@ -8,6 +8,7 @@
 #include "GLFW/glfw3.h"
 
 #include <span>
+#include <vector>
 
 namespace sft {
     namespace info {
@@ -42,6 +43,8 @@ namespace sft {
                 std::span<const VkCommandBuffer> cmdBufSpan,
                 const VkPipelineStageFlags* pipelineWaitStageMask
         );
+
+        VkShaderModuleCreateInfo CreateShaderModuleInfo(const std::span<char>& code);
     } // info
 }// sft
 

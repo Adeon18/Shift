@@ -71,5 +71,15 @@ namespace sft {
 
             return submitInfo;
         }
+
+        VkShaderModuleCreateInfo CreateShaderModuleInfo(const std::span<char>& code) {
+            VkShaderModuleCreateInfo createInfo{};
+            createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+            createInfo.codeSize = code.size();
+            // The pointer to bytecode is a pointer to const uint32_t
+            createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+
+            return createInfo;
+        }
     } // info
 } // sft

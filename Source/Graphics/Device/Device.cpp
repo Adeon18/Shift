@@ -161,5 +161,19 @@ namespace sft {
             vkDestroyRenderPass(m_device, pass, nullptr);
         }
 
+        VkShaderModule Device::CreateShaderModule(const VkShaderModuleCreateInfo& info) const {
+            VkShaderModule shaderModule;
+            if (int res = vkCreateShaderModule(m_device, &info, nullptr, &shaderModule); res != VK_SUCCESS) {
+                spdlog::error("Failed to create VkShaderModule! Code: {}", res);
+                return VK_NULL_HANDLE;
+            }
+
+            return shaderModule;
+        }
+
+        void Device::DestroyShaderModule(VkShaderModule module) const {
+            vkDestroyShaderModule(m_device, module, nullptr);
+        }
+
     } // gfx
 } // sft

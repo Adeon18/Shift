@@ -29,6 +29,9 @@ namespace sft {
             [[nodiscard]] VkCommandPool CreateCommandPool(const VkCommandPoolCreateInfo& info) const;
             [[nodiscard]] void DestroyCommandPool(VkCommandPool pool) const;
 
+            [[nodiscard]] VkShaderModule CreateShaderModule(const VkShaderModuleCreateInfo& info) const;
+            [[nodiscard]] void DestroyShaderModule(VkShaderModule module) const;
+
             [[nodiscard]] VkRenderPass CreateRenderPass(const VkRenderPassCreateInfo& info) const;
             [[nodiscard]] void DestroyRenderPass(VkRenderPass pass) const;
 

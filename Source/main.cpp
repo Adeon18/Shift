@@ -39,6 +39,7 @@
 #include "Graphics/Commands/CommandPool.hpp"
 #include "Graphics/Commands/CommandBuffer.hpp"
 #include "Graphics/RenderPass/RenderPass.hpp"
+#include "Graphics/Pipeline/Shader.hpp"
 
 #include <spdlog/spdlog.h>
 
@@ -162,27 +163,13 @@ private:
 
     //! TODO: Be aware that you might need to clear vectors after module creation to free up memory
     void createGraphicsPipeline() {
-        auto vertShaderCode = sft::util::ReadFile(sft::util::GetShiftRoot() + "Shaders/shader.vert.spv");
-        auto fragShaderCode = sft::util::ReadFile(sft::util::GetShiftRoot() + "Shaders/shader.frag.spv");
+        sft::gfx::Shader vert{*m_device, sft::util::GetShiftRoot() + "Shaders/shader.vert.spv", sft::gfx::Shader::Type::Vertex};
+        vert.CreateStage();
 
-        VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
-        VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+        sft::gfx::Shader frag{*m_device, sft::util::GetShiftRoot() + "Shaders/shader.frag.spv", sft::gfx::Shader::Type::Fragment};
+        frag.CreateStage();
 
-        VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-        vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-        vertShaderStageInfo.module = vertShaderModule;
-        vertShaderStageInfo.pName = "main";
-        // You can set constant explicitly whic alloes vulkan to optimize shader code based on the constants
-        vertShaderStageInfo.pSpecializationInfo = nullptr;
-
-        VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-        fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-        fragShaderStageInfo.module = fragShaderModule;
-        fragShaderStageInfo.pName = "main";
-
-        VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+        VkPipelineShaderStageCreateInfo shaderStages[] = { vert.GetStageInfo(), frag.GetStageInfo() };
 
         auto bindingDescription = Vertex::getBindingDescription();
         auto attributeDescriptions = Vertex::getAttributeDescriptions();
@@ -199,7 +186,7 @@ private:
         inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         inputAssembly.primitiveRestartEnable = VK_FALSE;
 
-        // Same as in DX yooooooooo
+        // S
         VkViewport viewport{};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
@@ -207,7 +194,7 @@ private:
         viewport.height = static_cast<float>(m_swapchain->GetExtent().height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
-
+        // S
         VkRect2D scissor{};
         scissor.offset = { 0, 0 };
         scissor.extent = m_swapchain->GetExtent();
@@ -222,6 +209,7 @@ private:
         dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
         dynamicState.pDynamicStates = dynamicStates.data();
 
+        // S
         VkPipelineViewportStateCreateInfo viewportState{};
         viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
         viewportState.viewportCount = 1;
@@ -311,24 +299,6 @@ private:
         if (vkCreateGraphicsPipelines(m_device->Get(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_graphicsPipeline) != VK_SUCCESS) {
             throw std::runtime_error("failed to create graphics pipeline!");
         }
-
-        vkDestroyShaderModule(m_device->Get(), fragShaderModule, nullptr);
-        vkDestroyShaderModule(m_device->Get(), vertShaderModule, nullptr);
-    }
-
-    VkShaderModule createShaderModule(const std::vector<char>& code) {
-        VkShaderModuleCreateInfo createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        createInfo.codeSize = code.size();
-        // The pointer to bytecode is a pointer to const uint32_t
-        createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
-
-        VkShaderModule shaderModule;
-        if (vkCreateShaderModule(m_device->Get(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create shader module!");
-        }
-
-        return shaderModule;
     }
 
     bool createRenderPass() {
