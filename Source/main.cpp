@@ -41,6 +41,7 @@
 #include "Graphics/Abstraction/RenderPass/RenderPass.hpp"
 #include "Graphics/Abstraction/Pipeline/Shader.hpp"
 #include "Graphics/Abstraction/Pipeline/Pipeline.hpp"
+#include "Graphics/Abstraction/Descriptors/DescriptorManagement.hpp"
 
 #include <spdlog/spdlog.h>
 
@@ -94,7 +95,7 @@ private:
         createVertexBuffer();
         createIndexBuffer();
         createUniformBuffers();
-        createDescriptorPool();
+        if (!createDescriptorPool()) {return false;}
         createDescriptorSets();
 
         if (!createGraphicsPipeline()) {return false;}
@@ -138,29 +139,33 @@ private:
     }
 
     void createDescriptorSetLayout() {
-        VkDescriptorSetLayoutBinding uboLayoutBinding{};
-        uboLayoutBinding.binding = 0;
-        uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        uboLayoutBinding.descriptorCount = 1;   // It is possible for the shader to represent an array of UBOs
-        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;   // Shader type, can specify all
-        uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-        VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-        samplerLayoutBinding.binding = 1;
-        samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        samplerLayoutBinding.descriptorCount = 1;   // It is possible for the shader to represent an array of UBOs
-        samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;   // Shader type, can specify all
-        samplerLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-        std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
-        VkDescriptorSetLayoutCreateInfo layoutInfo{};
-        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-        layoutInfo.pBindings = bindings.data();
-
-        if (vkCreateDescriptorSetLayout(m_device->Get(), &layoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create descriptor set layout!");
-        }
+//        m_descriptorSets.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
+//
+//        for (auto &st: m_descriptorSets)
+//
+//        VkDescriptorSetLayoutBinding uboLayoutBinding{};
+//        uboLayoutBinding.binding = 0;
+//        uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+//        uboLayoutBinding.descriptorCount = 1;   // It is possible for the shader to represent an array of UBOs
+//        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;   // Shader type, can specify all
+//        uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+//
+//        VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+//        samplerLayoutBinding.binding = 1;
+//        samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+//        samplerLayoutBinding.descriptorCount = 1;   // It is possible for the shader to represent an array of UBOs
+//        samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;   // Shader type, can specify all
+//        samplerLayoutBinding.pImmutableSamplers = nullptr; // Optional
+//
+//        std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
+//        VkDescriptorSetLayoutCreateInfo layoutInfo{};
+//        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+//        layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+//        layoutInfo.pBindings = bindings.data();
+//
+//        if (vkCreateDescriptorSetLayout(m_device->Get(), &layoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS) {
+//            throw std::runtime_error("Failed to create descriptor set layout!");
+//        }
     }
 
     bool createGraphicsPipeline() {
@@ -195,7 +200,7 @@ private:
         m_pipeline->SetBlendAttachment(blendState);
         m_pipeline->SetBlendState(sft::info::CreateBlendStateInfo(blendState));
 
-        m_pipeline->BuildLayout({&m_descriptorSetLayout, 1});
+        m_pipeline->BuildLayout({m_descriptorSets[m_currentFrame]->GetLayoutPtr(), 1});
 
         return m_pipeline->Build(*m_renderPass);
     }
@@ -452,76 +457,22 @@ private:
         }
     }
 
-    void createDescriptorPool() {
-        std::array<VkDescriptorPoolSize, 2> poolSizes{};
-        // INFO: Btw the driver may not allocate the descrioptorCount amount of descriptors, but it is still the best practice to do so in infostruct
-        poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        poolSizes[0].descriptorCount = static_cast<uint32_t>(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
-        poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        poolSizes[1].descriptorCount = static_cast<uint32_t>(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
-
-        VkDescriptorPoolCreateInfo poolInfo{};
-        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());;
-        poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = static_cast<uint32_t>(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
-
-        if (vkCreateDescriptorPool(m_device->Get(), &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create descriptor pool!");
-        }
+    bool createDescriptorPool() {
+        m_descriptorPool = std::make_unique<sft::gfx::DescriptorPool>(*m_device);
+        m_descriptorPool->AddUBOSize(10);
+        m_descriptorPool->AddSamplerSize(10);
+        m_descriptorPool->SetMaxSets(10);
+        return m_descriptorPool->Build();
     }
 
     void createDescriptorSets() {
-        // INFO: When allocating a descriptor set you neeed to: specify the pool to allocate from, the number of descriptor sets to allocate,
-        // the descriptor layout to base them on
-        std::vector<VkDescriptorSetLayout> layouts(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT, m_descriptorSetLayout);
-        VkDescriptorSetAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = m_descriptorPool;
-        allocInfo.descriptorSetCount = static_cast<uint32_t>(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
-        allocInfo.pSetLayouts = layouts.data();
-
         m_descriptorSets.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
-        if (vkAllocateDescriptorSets(m_device->Get(), &allocInfo, m_descriptorSets.data())) {
-            throw std::runtime_error("Failed to allocate descriptor sets!");
-        }
 
-        // We now need to populate every descriptor set
         for (size_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
-            // This is the struct for the buffer information
-            VkDescriptorBufferInfo bufferInfo{};
-            bufferInfo.buffer = m_uniformBuffers[i];
-            bufferInfo.offset = 0;
-            bufferInfo.range = sizeof(PerFrame);    // INFO: If we are entirely rewriting the buffer, it is possible to use the VK_WHOLE_SIZE
-            // This is the struct for the image information
-            VkDescriptorImageInfo imageInfo{};
-            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.imageView = m_textureImageView;
-            imageInfo.sampler = m_textureSampler;
-
-            // To update the sets we need this struct
-            std::array<VkWriteDescriptorSet, 2> descriptorWrites{};;
-            descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites[0].dstSet = m_descriptorSets[i];
-            descriptorWrites[0].dstBinding = 0;
-            descriptorWrites[0].dstArrayElement = 0;
-
-            descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            descriptorWrites[0].descriptorCount = 1;    // How many(if usiing array) of array elements to update
-
-            descriptorWrites[0].pBufferInfo = &bufferInfo;  // Buffer data descriptors
-            descriptorWrites[0].pImageInfo = nullptr; // Optional: Image Data
-            descriptorWrites[0].pTexelBufferView = nullptr; // Optional: View Data
-
-            descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites[1].dstSet = m_descriptorSets[i];
-            descriptorWrites[1].dstBinding = 1;
-            descriptorWrites[1].dstArrayElement = 0;
-            descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptorWrites[1].descriptorCount = 1;
-            descriptorWrites[1].pImageInfo = &imageInfo;
-
-            vkUpdateDescriptorSets(m_device->Get(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+            m_descriptorSets[i] = std::make_unique<sft::gfx::DescriptorSet>(*m_device);
+            m_descriptorSets[i]->AddUBO<PerFrame>(m_uniformBuffers[i], 0, 0, VK_SHADER_STAGE_VERTEX_BIT);
+            m_descriptorSets[i]->AddImage(m_textureImageView, m_textureSampler, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+            m_descriptorSets[i]->Build(m_descriptorPool->Get());
         }
     }
 
@@ -611,7 +562,7 @@ private:
 
         // Bind the descriptor sets
         // INFO: The sets are not unique to pipelines, so we need to specify whether to bind it to compute pipeline or the graphics one
-        std::array<VkDescriptorSet, 1> sets{ m_descriptorSets[m_currentFrame] };
+        std::array<VkDescriptorSet, 1> sets{ m_descriptorSets[m_currentFrame]->Get() };
         cmdBuf.BindDescriptorSets(sets, {}, m_pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 0);
 
         // DRAW THE FUCKING TRIANGLE
@@ -730,10 +681,7 @@ private:
             vkFreeMemory(m_device->Get(), m_uniformBuffersMemory[i], nullptr);
         }
 
-        // INFO: The descriptor sets are destroyed with the descriptor pool
-        vkDestroyDescriptorPool(m_device->Get(), m_descriptorPool, nullptr);
-
-        vkDestroyDescriptorSetLayout(m_device->Get(), m_descriptorSetLayout, nullptr);
+        m_descriptorPool.reset();
 
         vkDestroyBuffer(m_device->Get(), m_vertexBuffer, nullptr);
         vkFreeMemory(m_device->Get(), m_vertexBufferMemory, nullptr);
@@ -742,6 +690,7 @@ private:
         vkFreeMemory(m_device->Get(), m_indexBufferMemory, nullptr);
 
         for (size_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
+            m_descriptorSets[i].reset();
             m_imageAvailableSemaphores[i].reset();
             m_renderFinishedSemaphores[i].reset();
             m_inFlightFences[i].reset();
@@ -757,11 +706,8 @@ private:
         m_device.reset();
     }
 private:
-
-    // All descriptor binding are located here
-    VkDescriptorSetLayout m_descriptorSetLayout;
-    VkDescriptorPool m_descriptorPool;
-    std::vector<VkDescriptorSet> m_descriptorSets;
+    std::unique_ptr<sft::gfx::DescriptorPool> m_descriptorPool;
+    std::vector<std::unique_ptr<sft::gfx::DescriptorSet>> m_descriptorSets;
 
     std::unique_ptr<sft::ShiftWindow> m_winPtr;
     std::unique_ptr<sft::gfx::Device> m_device;

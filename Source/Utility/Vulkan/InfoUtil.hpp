@@ -59,6 +59,7 @@ namespace sft {
 
         // TODO: No args for now
         VkPipelineColorBlendStateCreateInfo CreateBlendStateInfo(VkPipelineColorBlendAttachmentState att);
+
     } // info
 }// sft
 

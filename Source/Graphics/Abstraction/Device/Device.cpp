@@ -199,5 +199,41 @@ namespace sft {
         void Device::DestroyPipelineLayout(VkPipelineLayout layout) const {
             vkDestroyPipelineLayout(m_device, layout, nullptr);
         }
+
+        VkDescriptorSetLayout Device::CreateDescriptorSetLayout(const VkDescriptorSetLayoutCreateInfo &info) const {
+            VkDescriptorSetLayout layout;
+            if (int res = vkCreateDescriptorSetLayout(m_device, &info, nullptr, &layout); res != VK_SUCCESS) {
+                spdlog::error("Failed to create VkDescriptorSetLayout! Code: {}", res);
+                return VK_NULL_HANDLE;
+            }
+
+            return layout;
+        }
+
+        void Device::DestroyDescriptorSetLayout(VkDescriptorSetLayout layout) const {
+            vkDestroyDescriptorSetLayout(m_device, layout, nullptr);
+        }
+
+        VkDescriptorPool Device::CreateDescriptorPool(const VkDescriptorPoolCreateInfo &info) const {
+            VkDescriptorPool pool;
+            if (int res = vkCreateDescriptorPool(m_device, &info, nullptr, &pool); res != VK_SUCCESS) {
+                spdlog::error("Failed to create VkDescriptorPool! Code: {}", res);
+                return VK_NULL_HANDLE;
+            }
+            return pool;
+        }
+
+        void Device::DestroyDescriptorPool(VkDescriptorPool pool) const {
+            vkDestroyDescriptorPool(m_device, pool, nullptr);
+        }
+
+        VkDescriptorSet Device::AllocateDescriptorSet(const VkDescriptorSetAllocateInfo &info) const {
+            VkDescriptorSet dset;
+            if (int res = vkAllocateDescriptorSets(m_device, &info, &dset); res != VK_SUCCESS) {
+                spdlog::error("Failed to allocate VkDescriptorSet! Code: {}", res);
+                return VK_NULL_HANDLE;
+            }
+            return dset;
+        }
     } // gfx
 } // sft

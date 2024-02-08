@@ -41,6 +41,15 @@ namespace sft {
             [[nodiscard]] VkPipelineLayout CreatePipelineLayout(const VkPipelineLayoutCreateInfo& info) const;
             void DestroyPipelineLayout(VkPipelineLayout layout) const;
 
+            [[nodiscard]] VkDescriptorSetLayout CreateDescriptorSetLayout(const VkDescriptorSetLayoutCreateInfo& info) const;
+            void DestroyDescriptorSetLayout(VkDescriptorSetLayout layout) const;
+
+            [[nodiscard]] VkDescriptorPool CreateDescriptorPool(const VkDescriptorPoolCreateInfo& info) const;
+            void DestroyDescriptorPool(VkDescriptorPool pool) const;
+
+            [[nodiscard]] VkDescriptorSet AllocateDescriptorSet(const VkDescriptorSetAllocateInfo& info) const;
+
+
             [[nodiscard]] VkDevice Get() const { return m_device; }
             [[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const { return m_physicalDevice; }
             [[nodiscard]] VkQueue GetGraphicsQueue() const { return m_graphicsQueue; }
