@@ -30,17 +30,17 @@
 #include "Utility/Vulkan/InfoUtil.hpp"
 
 #include "Window/ShiftWindow.hpp"
-#include "Graphics/Device/WindowSurface.hpp"
-#include "Graphics/Device/Instance.hpp"
-#include "Graphics/Device/Device.hpp"
-#include "Graphics/Device/Swapchain.hpp"
-#include "Graphics/Synchronization/Fence.hpp"
-#include "Graphics/Synchronization/Semaphore.hpp"
-#include "Graphics/Commands/CommandPool.hpp"
-#include "Graphics/Commands/CommandBuffer.hpp"
-#include "Graphics/RenderPass/RenderPass.hpp"
-#include "Graphics/Pipeline/Shader.hpp"
-#include "Graphics/Pipeline/Pipeline.hpp"
+#include "Graphics/Abstraction/Device/WindowSurface.hpp"
+#include "Graphics/Abstraction/Device/Instance.hpp"
+#include "Graphics/Abstraction/Device/Device.hpp"
+#include "Graphics/Abstraction/Device/Swapchain.hpp"
+#include "Graphics/Abstraction/Synchronization/Fence.hpp"
+#include "Graphics/Abstraction/Synchronization/Semaphore.hpp"
+#include "Graphics/Abstraction/Commands/CommandPool.hpp"
+#include "Graphics/Abstraction/Commands/CommandBuffer.hpp"
+#include "Graphics/Abstraction/RenderPass/RenderPass.hpp"
+#include "Graphics/Abstraction/Pipeline/Shader.hpp"
+#include "Graphics/Abstraction/Pipeline/Pipeline.hpp"
 
 #include <spdlog/spdlog.h>
 
@@ -85,7 +85,6 @@ private:
         // MUST BE CREATED BEFORE PIPELINE
         if (!createRenderPass()) { return false; }
         createDescriptorSetLayout();
-        if (!createGraphicsPipeline()) {return false;}
         createFramebuffers();
         createCommandPools();
 
@@ -97,6 +96,8 @@ private:
         createUniformBuffers();
         createDescriptorPool();
         createDescriptorSets();
+
+        if (!createGraphicsPipeline()) {return false;}
 
         createSyncObjects();
         return true;
@@ -699,10 +700,10 @@ private:
         pf.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         //pf.model = glm::mat4(1.0f);
 
-        pf.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        pf.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         //pf.view = glm::mat4(1.0f);
 
-        pf.proj = glm::perspective(glm::radians(45.0f), static_cast<float>(m_swapchain->GetExtent().width) / static_cast<float>(m_swapchain->GetExtent().height), 0.1f, 10.0f);
+        pf.proj = glm::perspective(glm::radians(45.0f), static_cast<float>(m_swapchain->GetExtent().width) / static_cast<float>(m_swapchain->GetExtent().height), 0.1f, 100.0f);
         //pf.proj = glm::mat4(1.0f);
 
         // Y coordinate is fliped in Vulkan??

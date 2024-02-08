@@ -1,7 +1,7 @@
 #ifndef SHIFT_WINDOWSURFACE_H
 #define SHIFT_WINDOWSURFACE_H
 
-#include <GLFW/glfw3.h>
+#include "GLFW/glfw3.h"
 
 namespace sft {
     namespace gfx {

@@ -6,8 +6,8 @@
 #include <memory>
 #include <span>
 
-#include "Graphics/Device/Device.hpp"
-#include "Graphics/Synchronization/Fence.hpp"
+#include "Graphics/Abstraction/Device/Device.hpp"
+#include "Graphics/Abstraction/Synchronization/Fence.hpp"
 
 namespace sft {
     namespace gfx {

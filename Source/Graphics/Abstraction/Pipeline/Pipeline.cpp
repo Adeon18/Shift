@@ -55,7 +55,7 @@ namespace sft {
         bool Pipeline::BuildLayout(const std::span<VkDescriptorSetLayout> &descSetLayout) {
             VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
             pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-            // You can specify mode than 1 layouts, why tho
+            // You can specify mode than 1 layouts, why tho? - Because we can have multiple sets per pipeline
             pipelineLayoutInfo.setLayoutCount = descSetLayout.size(); // Optional
             pipelineLayoutInfo.pSetLayouts = descSetLayout.data(); // Optional
             pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional

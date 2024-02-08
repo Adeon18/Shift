@@ -10,8 +10,8 @@
 #include <deque>
 #include <unordered_map>
 
-#include "Graphics/Device/Device.hpp"
-#include "Graphics/Commands/CommandBuffer.hpp"
+#include "Graphics/Abstraction/Device/Device.hpp"
+#include "CommandBuffer.hpp"
 
 namespace sft {
     namespace gfx {

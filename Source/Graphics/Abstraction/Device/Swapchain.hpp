@@ -6,7 +6,7 @@
 #include "Device.hpp"
 #include "WindowSurface.hpp"
 
-#include "Graphics/Synchronization/Semaphore.hpp"
+#include "Graphics/Abstraction/Synchronization/Semaphore.hpp"
 
 #include "Window/ShiftWindow.hpp"
 

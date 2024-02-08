@@ -5,7 +5,7 @@
 #ifndef SHIFT_INSTANCE_HPP
 #define SHIFT_INSTANCE_HPP
 
-#include <GLFW/glfw3.h>
+#include "GLFW/glfw3.h"
 
 #include <string>
 

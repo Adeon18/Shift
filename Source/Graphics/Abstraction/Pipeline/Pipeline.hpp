@@ -2,10 +2,11 @@
 #define SHIFT_PIPELINE_HPP
 
 #include <optional>
+#include <span>
 
-#include "Graphics/Device/Device.hpp"
-#include "Graphics/Pipeline/Shader.hpp"
-#include "Graphics/RenderPass/RenderPass.hpp"
+#include "Graphics/Abstraction/Device/Device.hpp"
+#include "Shader.hpp"
+#include "Graphics/Abstraction/RenderPass/RenderPass.hpp"
 
 namespace sft {
     namespace gfx {

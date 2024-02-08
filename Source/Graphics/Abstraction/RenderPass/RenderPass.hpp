@@ -3,7 +3,7 @@
 
 #include "PassPrimitives.hpp"
 
-#include "Graphics/Device/Device.hpp"
+#include "Graphics/Abstraction/Device/Device.hpp"
 
 namespace sft {
     namespace gfx {

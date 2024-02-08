@@ -3,7 +3,7 @@
 
 #include <vulkan/vulkan.h>
 
-#include "Graphics/Device/Device.hpp"
+#include "Graphics/Abstraction/Device/Device.hpp"
 
 #include "Utility/UtilStandard.hpp"
 

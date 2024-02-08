@@ -27,19 +27,19 @@ namespace sft {
             void DestroySemaphore(VkSemaphore fence) const;
 
             [[nodiscard]] VkCommandPool CreateCommandPool(const VkCommandPoolCreateInfo& info) const;
-            [[nodiscard]] void DestroyCommandPool(VkCommandPool pool) const;
+            void DestroyCommandPool(VkCommandPool pool) const;
 
             [[nodiscard]] VkShaderModule CreateShaderModule(const VkShaderModuleCreateInfo& info) const;
-            [[nodiscard]] void DestroyShaderModule(VkShaderModule module) const;
+            void DestroyShaderModule(VkShaderModule module) const;
 
             [[nodiscard]] VkRenderPass CreateRenderPass(const VkRenderPassCreateInfo& info) const;
-            [[nodiscard]] void DestroyRenderPass(VkRenderPass pass) const;
+            void DestroyRenderPass(VkRenderPass pass) const;
 
             [[nodiscard]] VkPipeline CreateGraphicsPipeline(const VkGraphicsPipelineCreateInfo& info) const;
-            [[nodiscard]] void DestroyPipeline(VkPipeline pipeline) const;
+            void DestroyPipeline(VkPipeline pipeline) const;
 
             [[nodiscard]] VkPipelineLayout CreatePipelineLayout(const VkPipelineLayoutCreateInfo& info) const;
-            [[nodiscard]] void DestroyPipelineLayout(VkPipelineLayout layout) const;
+            void DestroyPipelineLayout(VkPipelineLayout layout) const;
 
             [[nodiscard]] VkDevice Get() const { return m_device; }
             [[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const { return m_physicalDevice; }
