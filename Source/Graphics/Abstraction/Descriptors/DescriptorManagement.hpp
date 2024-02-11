@@ -30,7 +30,7 @@ namespace sft::gfx {
 
         std::vector<VkDescriptorSetLayoutBinding> m_bindings;
 
-        VkDescriptorSetLayout m_layout;
+        VkDescriptorSetLayout m_layout = VK_NULL_HANDLE;
     };
 
     class DescriptorPool {
@@ -63,7 +63,7 @@ namespace sft::gfx {
 
     class DescriptorSet {
     public:
-        DescriptorSet(const Device& device);
+        explicit DescriptorSet(const Device& device);
 
         //! Add UBO(need to know buffer type) - NEED TO ALLOCATE BEFORE
         template<typename T>
@@ -74,6 +74,9 @@ namespace sft::gfx {
         //! Allocate set TODO: SET dst set
         bool Build(VkDescriptorPool pool);
 
+        //! SHOULD BE SED ONLY FOR FIF! Set MUST BE initialized with m_device!
+        void CopyForFlight(DescriptorSet& set) const;
+
         [[nodiscard]] VkDescriptorSet Get() const { return m_set; }
         [[nodiscard]] VkDescriptorSetLayout GetLayout() const { return m_layout->Get(); }
         [[nodiscard]] VkDescriptorSetLayout* GetLayoutPtr() { return m_layout->Ptr(); }
@@ -81,12 +84,12 @@ namespace sft::gfx {
         ~DescriptorSet();
 
         DescriptorSet() = delete;
+        DescriptorSet& operator=(const DescriptorSet&)=delete;
         DescriptorSet(const DescriptorSet&) = delete;
-        DescriptorSet& operator=(const DescriptorSet&) = delete;
     private:
         const Device& m_device;
 
-        std::unique_ptr<DescriptorLayout> m_layout;
+        std::shared_ptr<DescriptorLayout> m_layout;
 
         std::vector<VkDescriptorBufferInfo> m_bufferInfos;
         std::vector<VkDescriptorImageInfo> m_imageInfos;

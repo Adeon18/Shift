@@ -3,6 +3,8 @@
 #include "Utility/Vulkan/InfoUtil.hpp"
 #include "Utility/Vulkan/UtilVulkan.hpp"
 
+#include <iostream>
+
 namespace sft {
     namespace gfx {
         CommandPool::CommandPool(const sft::gfx::Device &device, POOL_TYPE type): m_device{device}, m_type{type} {
@@ -30,12 +32,24 @@ namespace sft {
         const CommandBuffer& CommandPool::RequestCommandBufferManual(BUFFER_TYPE type, uint32_t frameIdx) {
             bool bufferInFlight = (type == BUFFER_TYPE::FLIGHT);
 
+
             uint32_t flightBuffersTaken = 0;
-            for (auto& buff: m_commandBuffers[type]) {
-                if (buff.IsAvailable()) {
-                    buff.ResetFence();
-                    return buff;
-                } else if (bufferInFlight && !buff.IsAvailable()) {
+            // BIIIIIIG TODO: A HUGE PIECE OF ASS AND THIS IS JUST FOR CORRECT DEVELOPMENT WHILE I AM STUPID
+            for (uint32_t i = 0; i < m_commandBuffers[type].size(); ++i) {
+                if (bufferInFlight) {
+                    if (frameIdx >= m_commandBuffers[type].size()) {
+                        auto& placedBuf = m_commandBuffers[BUFFER_TYPE::FLIGHT].emplace_back(m_device, m_commandPool, m_type);
+                        return placedBuf;
+                    }
+                    if (!m_commandBuffers[type][frameIdx].IsAvailable()) m_commandBuffers[type][frameIdx].Wait();
+                    m_commandBuffers[type][frameIdx].ResetFence();
+                    return m_commandBuffers[type][frameIdx];
+                }
+
+                if (m_commandBuffers[type][i].IsAvailable()) {
+                    m_commandBuffers[type][i].ResetFence();
+                    return m_commandBuffers[type][i];
+                } else if (bufferInFlight && !m_commandBuffers[type][i].IsAvailable()) {
                     ++flightBuffersTaken;
                 }
             }

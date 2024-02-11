@@ -62,7 +62,7 @@ namespace sft::gfx {
     }
 
     DescriptorSet::DescriptorSet(const sft::gfx::Device &device): m_device{device} {
-        m_layout = std::make_unique<DescriptorLayout>(device);
+        m_layout = std::make_shared<DescriptorLayout>(device);
     }
 
     void DescriptorSet::AddImage(VkImageView view, VkSampler sampler, uint32_t bind, VkShaderStageFlags stages) {
@@ -83,7 +83,7 @@ namespace sft::gfx {
     }
 
     bool DescriptorSet::Build(VkDescriptorPool pool) {
-        m_layout->Build();
+        if (m_layout->Get() == VK_NULL_HANDLE) m_layout->Build();
 
         VkDescriptorSetAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -99,6 +99,14 @@ namespace sft::gfx {
         }
 
         vkUpdateDescriptorSets(m_device.Get(), static_cast<uint32_t>(m_writeSets.size()), m_writeSets.data(), 0, nullptr);
+    }
+
+    void DescriptorSet::CopyForFlight(DescriptorSet& set) const {
+        set.m_layout = m_layout;
+        set.m_bufferInfos = m_bufferInfos;
+        set.m_imageInfos = m_imageInfos;
+        set.m_maxSets = m_maxSets;
+        set.m_writeSets = m_writeSets;
     }
 
     DescriptorSet::~DescriptorSet() {

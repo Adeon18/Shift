@@ -41,7 +41,7 @@
 #include "Graphics/Abstraction/RenderPass/RenderPass.hpp"
 #include "Graphics/Abstraction/Pipeline/Shader.hpp"
 #include "Graphics/Abstraction/Pipeline/Pipeline.hpp"
-#include "Graphics/Abstraction/Descriptors/DescriptorManagement.hpp"
+#include "Graphics/Abstraction/Descriptors/DescriptorManager.hpp"
 
 #include <spdlog/spdlog.h>
 
@@ -95,7 +95,7 @@ private:
         createIndexBuffer();
         createUniformBuffers();
         if (!createDescriptorPool()) {return false;}
-        createDescriptorSets();
+        if (!createDescriptorSets()) {return false;}
 
         if (!createGraphicsPipeline()) {return false;}
 
@@ -170,7 +170,7 @@ private:
         m_pipeline->SetBlendAttachment(blendState);
         m_pipeline->SetBlendState(sft::info::CreateBlendStateInfo(blendState));
 
-        m_pipeline->BuildLayout({m_descriptorSets[m_currentFrame]->GetLayoutPtr(), 1});
+        if (!m_pipeline->BuildLayout({m_descriptorManager->GetPerFrameSet(m_currentFrame).GetLayoutPtr(), 1})) {return false;}
 
         return m_pipeline->Build(*m_renderPass);
     }
@@ -428,22 +428,17 @@ private:
     }
 
     bool createDescriptorPool() {
-        m_descriptorPool = std::make_unique<sft::gfx::DescriptorPool>(*m_device);
-        m_descriptorPool->AddUBOSize(10);
-        m_descriptorPool->AddSamplerSize(10);
-        m_descriptorPool->SetMaxSets(10);
-        return m_descriptorPool->Build();
+        m_descriptorManager = std::make_unique<sft::gfx::DescriptorManager>(*m_device);
+        return m_descriptorManager->AllocatePools();
     }
 
-    void createDescriptorSets() {
-        m_descriptorSets.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
+    bool createDescriptorSets() {
+        auto& perFrameSet = m_descriptorManager->CreatePerFrameSet();
 
-        for (size_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
-            m_descriptorSets[i] = std::make_unique<sft::gfx::DescriptorSet>(*m_device);
-            m_descriptorSets[i]->AddUBO<PerFrame>(m_uniformBuffers[i], 0, 0, VK_SHADER_STAGE_VERTEX_BIT);
-            m_descriptorSets[i]->AddImage(m_textureImageView, m_textureSampler, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
-            m_descriptorSets[i]->Build(m_descriptorPool->Get());
-        }
+        perFrameSet.AddUBO<PerFrame>(m_uniformBuffers[0], 0, 0, VK_SHADER_STAGE_VERTEX_BIT);
+        perFrameSet.AddImage(m_textureImageView, m_textureSampler, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+
+        return m_descriptorManager->Build();
     }
 
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
@@ -532,7 +527,7 @@ private:
 
         // Bind the descriptor sets
         // INFO: The sets are not unique to pipelines, so we need to specify whether to bind it to compute pipeline or the graphics one
-        std::array<VkDescriptorSet, 1> sets{ m_descriptorSets[m_currentFrame]->Get() };
+        std::array<VkDescriptorSet, 1> sets{ m_descriptorManager->GetPerFrameSet(m_currentFrame).Get() };
         cmdBuf.BindDescriptorSets(sets, {}, m_pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 0);
 
         // DRAW THE FUCKING TRIANGLE
@@ -645,7 +640,7 @@ private:
             vkFreeMemory(m_device->Get(), m_uniformBuffersMemory[i], nullptr);
         }
 
-        m_descriptorPool.reset();
+        m_descriptorManager.reset();
 
         vkDestroyBuffer(m_device->Get(), m_vertexBuffer, nullptr);
         vkFreeMemory(m_device->Get(), m_vertexBufferMemory, nullptr);
@@ -654,7 +649,6 @@ private:
         vkFreeMemory(m_device->Get(), m_indexBufferMemory, nullptr);
 
         for (size_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
-            m_descriptorSets[i].reset();
             m_imageAvailableSemaphores[i].reset();
             m_renderFinishedSemaphores[i].reset();
         }
@@ -669,8 +663,7 @@ private:
         m_device.reset();
     }
 private:
-    std::unique_ptr<sft::gfx::DescriptorPool> m_descriptorPool;
-    std::vector<std::unique_ptr<sft::gfx::DescriptorSet>> m_descriptorSets;
+    std::unique_ptr<sft::gfx::DescriptorManager> m_descriptorManager;
 
     std::unique_ptr<sft::ShiftWindow> m_winPtr;
     std::unique_ptr<sft::gfx::Device> m_device;
@@ -686,8 +679,6 @@ private:
     std::unique_ptr<sft::gfx::Pipeline> m_pipeline;
 
     std::vector<VkFramebuffer> m_swapChainFramebuffers;
-
-    //std::vector<VkCommandBuffer> m_commandBuffersGraphics;
 
     VkBuffer m_vertexBuffer;
     VkDeviceMemory m_vertexBufferMemory;
