@@ -85,7 +85,6 @@ private:
 
         // MUST BE CREATED BEFORE PIPELINE
         if (!createRenderPass()) { return false; }
-        createDescriptorSetLayout();
         createFramebuffers();
         createCommandPools();
 
@@ -138,35 +137,6 @@ private:
         }
     }
 
-    void createDescriptorSetLayout() {
-//        m_descriptorSets.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
-//
-//        for (auto &st: m_descriptorSets)
-//
-//        VkDescriptorSetLayoutBinding uboLayoutBinding{};
-//        uboLayoutBinding.binding = 0;
-//        uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-//        uboLayoutBinding.descriptorCount = 1;   // It is possible for the shader to represent an array of UBOs
-//        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;   // Shader type, can specify all
-//        uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-//
-//        VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-//        samplerLayoutBinding.binding = 1;
-//        samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-//        samplerLayoutBinding.descriptorCount = 1;   // It is possible for the shader to represent an array of UBOs
-//        samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;   // Shader type, can specify all
-//        samplerLayoutBinding.pImmutableSamplers = nullptr; // Optional
-//
-//        std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
-//        VkDescriptorSetLayoutCreateInfo layoutInfo{};
-//        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-//        layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-//        layoutInfo.pBindings = bindings.data();
-//
-//        if (vkCreateDescriptorSetLayout(m_device->Get(), &layoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS) {
-//            throw std::runtime_error("Failed to create descriptor set layout!");
-//        }
-    }
 
     bool createGraphicsPipeline() {
         sft::gfx::Shader vert{*m_device, sft::util::GetShiftRoot() + "Shaders/shader.vert.spv", sft::gfx::Shader::Type::Vertex};
@@ -576,16 +546,10 @@ private:
     void createSyncObjects() {
         m_imageAvailableSemaphores.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
         m_renderFinishedSemaphores.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
-        m_inFlightFences.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
-
-        VkFenceCreateInfo fenceInfo{};
-        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-        fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
         for (size_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
             m_imageAvailableSemaphores[i] = std::make_unique<sft::gfx::Semaphore>(*m_device);
             m_renderFinishedSemaphores[i] = std::make_unique<sft::gfx::Semaphore>(*m_device);
-            m_inFlightFences[i] = std::make_unique<sft::gfx::Fence>(*m_device, true);
         }
     }
 
@@ -693,7 +657,6 @@ private:
             m_descriptorSets[i].reset();
             m_imageAvailableSemaphores[i].reset();
             m_renderFinishedSemaphores[i].reset();
-            m_inFlightFences[i].reset();
         }
         m_graphicsPool.reset();
         m_transferPool.reset();
@@ -746,7 +709,6 @@ private:
     // Sync primitives to comtrol the rendering of a frame
     std::vector<std::unique_ptr<sft::gfx::Semaphore>> m_imageAvailableSemaphores;
     std::vector<std::unique_ptr<sft::gfx::Semaphore>> m_renderFinishedSemaphores;
-    std::vector<std::unique_ptr<sft::gfx::Fence>> m_inFlightFences;
 
     uint32_t m_currentFrame = 0;
 };

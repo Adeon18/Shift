@@ -58,7 +58,7 @@ namespace sft::gfx {
         std::vector<VkDescriptorPoolSize> m_sizes;
         uint32_t m_maxSets = 1;
 
-        VkDescriptorPool m_pool;
+        VkDescriptorPool m_pool = VK_NULL_HANDLE;
     };
 
     class DescriptorSet {
