@@ -67,19 +67,18 @@ namespace sft::gfx {
 
         //! Add UBO(need to know buffer type) - NEED TO ALLOCATE BEFORE
         template<typename T>
-        void AddUBO(VkBuffer buffer, uint32_t offset, uint32_t bind, VkShaderStageFlags stages);
+        void UpdateUBO(uint32_t bind, VkBuffer buffer, uint32_t offset);
         //! Add image sampler for read optimal read - NEED TO ALLOCATE BEFORE
-        void AddImage(VkImageView view, VkSampler sampler, uint32_t bind, VkShaderStageFlags stages);
+        void UpdateImage(uint32_t bind, VkImageView view, VkSampler sampler);
 
-        //! Allocate set TODO: SET dst set
-        bool Build(VkDescriptorPool pool);
+        //! Allocate set
+        bool Allocate(VkDescriptorPool pool);
 
-        //! SHOULD BE SED ONLY FOR FIF! Set MUST BE initialized with m_device!
-        void CopyForFlight(DescriptorSet& set) const;
+        //! Process updates in descriptor write sets, clears all logged sets after update
+        void ProcessUpdates();
 
         [[nodiscard]] VkDescriptorSet Get() const { return m_set; }
-        [[nodiscard]] VkDescriptorSetLayout GetLayout() const { return m_layout->Get(); }
-        [[nodiscard]] VkDescriptorSetLayout* GetLayoutPtr() { return m_layout->Ptr(); }
+        [[nodiscard]] DescriptorLayout& GetLayout() { return *m_layout; }
 
         ~DescriptorSet();
 
@@ -100,15 +99,14 @@ namespace sft::gfx {
     };
 
     template<typename T>
-    void DescriptorSet::AddUBO(VkBuffer buffer, uint32_t offset, uint32_t bind, VkShaderStageFlags stages) {
-        m_layout->AddUBOBinding(bind, stages);
-
+    void DescriptorSet::UpdateUBO(uint32_t bind, VkBuffer buffer, uint32_t offset) {
         m_bufferInfos.emplace_back(buffer, offset, sizeof(T));
 
         VkWriteDescriptorSet writeSet{};
 
         writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writeSet.dstBinding = bind;
+        writeSet.dstSet = m_set;
         writeSet.dstArrayElement = 0;
         writeSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         writeSet.descriptorCount = 1;

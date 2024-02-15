@@ -170,7 +170,7 @@ private:
         m_pipeline->SetBlendAttachment(blendState);
         m_pipeline->SetBlendState(sft::info::CreateBlendStateInfo(blendState));
 
-        if (!m_pipeline->BuildLayout({m_descriptorManager->GetPerFrameSet(m_currentFrame).GetLayoutPtr(), 1})) {return false;}
+        if (!m_pipeline->BuildLayout({m_descriptorManager->GetPerFrameSet(m_currentFrame).GetLayout().Ptr(), 1})) {return false;}
 
         return m_pipeline->Build(*m_renderPass);
     }
@@ -433,12 +433,25 @@ private:
     }
 
     bool createDescriptorSets() {
-        auto& perFrameSet = m_descriptorManager->CreatePerFrameSet();
+        for (uint32_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
+            auto& perFrameSet = m_descriptorManager->CreatePerFrameSet(i);
 
-        perFrameSet.AddUBO<PerFrame>(m_uniformBuffers[0], 0, 0, VK_SHADER_STAGE_VERTEX_BIT);
-        perFrameSet.AddImage(m_textureImageView, m_textureSampler, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+            perFrameSet.GetLayout().AddUBOBinding(0, VK_SHADER_STAGE_VERTEX_BIT);
+            perFrameSet.GetLayout().AddSamplerBinding(1, VK_SHADER_STAGE_FRAGMENT_BIT);
+            perFrameSet.GetLayout().Build();
+        }
 
-        return m_descriptorManager->Build();
+        if (!m_descriptorManager->AllocateAll()) { return false; }
+
+        for (uint32_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
+            auto& perFrameSet = m_descriptorManager->GetPerFrameSet(i);
+
+            perFrameSet.UpdateUBO<PerFrame>(0, m_uniformBuffers[i], 0);
+            perFrameSet.UpdateImage(1, m_textureImageView, m_textureSampler);
+            perFrameSet.ProcessUpdates();
+        }
+
+        return true;
     }
 
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {

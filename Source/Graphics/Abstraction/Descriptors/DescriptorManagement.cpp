@@ -8,7 +8,7 @@ namespace sft::gfx {
         uboLayoutBinding.descriptorCount = 1;
         uboLayoutBinding.stageFlags = stages;
 
-        m_bindings.push_back(std::move(uboLayoutBinding));
+        m_bindings.push_back(uboLayoutBinding);
     }
 
     void DescriptorLayout::AddSamplerBinding(uint32_t bind, VkShaderStageFlags stages) {
@@ -18,7 +18,7 @@ namespace sft::gfx {
         uboLayoutBinding.descriptorCount = 1;
         uboLayoutBinding.stageFlags = stages;
 
-        m_bindings.push_back(std::move(uboLayoutBinding));
+        m_bindings.push_back(uboLayoutBinding);
     }
 
     bool DescriptorLayout::Build() {
@@ -65,14 +65,13 @@ namespace sft::gfx {
         m_layout = std::make_shared<DescriptorLayout>(device);
     }
 
-    void DescriptorSet::AddImage(VkImageView view, VkSampler sampler, uint32_t bind, VkShaderStageFlags stages) {
-        m_layout->AddSamplerBinding(bind, stages);
-
+    void DescriptorSet::UpdateImage(uint32_t bind, VkImageView view, VkSampler sampler) {
         m_imageInfos.emplace_back(sampler, view,VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         VkWriteDescriptorSet writeSet{};
 
         writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeSet.dstSet = m_set;
         writeSet.dstBinding = bind;
         writeSet.dstArrayElement = 0;
         writeSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -82,7 +81,7 @@ namespace sft::gfx {
         m_writeSets.push_back(writeSet);
     }
 
-    bool DescriptorSet::Build(VkDescriptorPool pool) {
+    bool DescriptorSet::Allocate(VkDescriptorPool pool) {
         if (m_layout->Get() == VK_NULL_HANDLE) m_layout->Build();
 
         VkDescriptorSetAllocateInfo allocInfo{};
@@ -92,21 +91,14 @@ namespace sft::gfx {
         allocInfo.pSetLayouts = m_layout->Ptr();
 
         m_set = m_device.AllocateDescriptorSet(allocInfo);
-        if (m_set == VK_NULL_HANDLE) { return false; }
-
-        for (auto& wr: m_writeSets) {
-            wr.dstSet = m_set;
-        }
-
-        vkUpdateDescriptorSets(m_device.Get(), static_cast<uint32_t>(m_writeSets.size()), m_writeSets.data(), 0, nullptr);
+        return m_set != VK_NULL_HANDLE;
     }
 
-    void DescriptorSet::CopyForFlight(DescriptorSet& set) const {
-        set.m_layout = m_layout;
-        set.m_bufferInfos = m_bufferInfos;
-        set.m_imageInfos = m_imageInfos;
-        set.m_maxSets = m_maxSets;
-        set.m_writeSets = m_writeSets;
+    void DescriptorSet::ProcessUpdates() {
+        vkUpdateDescriptorSets(m_device.Get(), static_cast<uint32_t>(m_writeSets.size()), m_writeSets.data(), 0, nullptr);
+        m_writeSets.clear();
+        m_imageInfos.clear();
+        m_bufferInfos.clear();
     }
 
     DescriptorSet::~DescriptorSet() {

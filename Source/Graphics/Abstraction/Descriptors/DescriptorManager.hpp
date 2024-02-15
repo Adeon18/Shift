@@ -29,13 +29,13 @@ namespace sft::gfx {
         [[nodiscard]] bool AllocatePools();
 
         //! Creates a set entry perframe set that you can externally configure
-        [[nodiscard]] DescriptorSet& CreatePerFrameSet();
+        [[nodiscard]] DescriptorSet& CreatePerFrameSet(uint32_t frameIdx);
         //! Creates a set entry per view set that you can externally configure
-        [[nodiscard]] DescriptorSet& CreatePerViewSet(uint32_t viewID);
+        [[nodiscard]] DescriptorSet& CreatePerViewSet(uint32_t viewID, uint32_t frameIdx);
         //! Creates a set entry per material set that you can externally configure
-        [[nodiscard]] DescriptorSet& CreatePerMaterialSet(MaterialType type);
+        [[nodiscard]] DescriptorSet& CreatePerMaterialSet(MaterialType type, uint32_t frameIdx);
         //! Creates a set entry per object set that you can externally configure
-        [[nodiscard]] DescriptorSet& CreatePerObjectSet(ObjectType type);
+        [[nodiscard]] DescriptorSet& CreatePerObjectSet(ObjectType type, uint32_t frameIdx);
 
         //! Get reference to the respective frame index of the per frame set
         [[nodiscard]] DescriptorSet& GetPerFrameSet(uint32_t frameIdx) { return *m_perFrameSets[frameIdx]; }
@@ -46,7 +46,8 @@ namespace sft::gfx {
         //! Get reference to the respective frame index of the per object sets
         [[nodiscard]] DescriptorSet& GetPerObjectSet(ObjectType type, uint32_t frameIdx) { return *m_perObjectSets[type][frameIdx]; }
 
-        [[nodiscard]] bool Build();
+        //! Calls allocate on all available descriptors
+        [[nodiscard]] bool AllocateAll();
 
         ~DescriptorManager() = default;
 
@@ -54,13 +55,15 @@ namespace sft::gfx {
         DescriptorManager(const DescriptorManager&) = delete;
         DescriptorManager& operator=(const DescriptorManager&) = delete;
     private:
+        using DescriptorSetsInFlight = std::array<std::unique_ptr<DescriptorSet>, gutil::SHIFT_MAX_FRAMES_IN_FLIGHT>;
+
         const Device& m_device;
 
         //! The storage of stats
-        std::vector<std::unique_ptr<DescriptorSet>> m_perFrameSets;
-        std::unordered_map<uint32_t, std::vector<std::unique_ptr<DescriptorSet>>> m_perViewSets;
-        std::unordered_map<MaterialType, std::vector<std::unique_ptr<DescriptorSet>>> m_perMaterialSets;
-        std::unordered_map<ObjectType, std::vector<std::unique_ptr<DescriptorSet>>> m_perObjectSets;
+        DescriptorSetsInFlight m_perFrameSets;
+        std::unordered_map<uint32_t, DescriptorSetsInFlight> m_perViewSets;
+        std::unordered_map<MaterialType, DescriptorSetsInFlight> m_perMaterialSets;
+        std::unordered_map<ObjectType, DescriptorSetsInFlight> m_perObjectSets;
 
 
         //! I have a pool for different set types
