@@ -5,6 +5,8 @@
 #ifndef SHIFT_DEVICE_HPP
 #define SHIFT_DEVICE_HPP
 
+#include "vk_mem_alloc.h"
+
 #include "Utility/Vulkan/UtilVulkan.hpp"
 
 #include "Instance.hpp"
@@ -52,6 +54,7 @@ namespace sft {
 
             [[nodiscard]] VkDevice Get() const { return m_device; }
             [[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const { return m_physicalDevice; }
+            [[nodiscard]] VmaAllocator GetAllocator() const { return m_allocator; }
             [[nodiscard]] VkQueue GetGraphicsQueue() const { return m_graphicsQueue; }
             [[nodiscard]] VkQueue GetPresentQueue() const { return m_presentQueue; }
             [[nodiscard]] VkQueue GetTransferQueue() const { return m_transferQueue; }
@@ -61,9 +64,11 @@ namespace sft {
         private:
             void CreateLogicalDevice(VkSurfaceKHR surface);
             void PickPhysicalDevice(VkInstance instance, VkSurfaceKHR surface);
+            void CreateAllocator(VkInstance instance);
 
             VkDevice m_device = VK_NULL_HANDLE;
             VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;     // Destroyed implicitly at vkInstance destruction
+            VmaAllocator m_allocator = VK_NULL_HANDLE;
 
             VkQueue m_graphicsQueue = VK_NULL_HANDLE;
             VkQueue m_presentQueue = VK_NULL_HANDLE;

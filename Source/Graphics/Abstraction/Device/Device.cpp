@@ -1,5 +1,7 @@
 #include "spdlog/spdlog.h"
 
+#include "Config/EngineConfig.hpp"
+
 #include "Device.hpp"
 
 namespace sft {
@@ -10,6 +12,7 @@ namespace sft {
         }
 
         Device::~Device() {
+            vmaDestroyAllocator(m_allocator);
             vkDestroyDevice(m_device, nullptr);
         }
 
@@ -234,6 +237,17 @@ namespace sft {
                 return VK_NULL_HANDLE;
             }
             return dset;
+        }
+
+        void Device::CreateAllocator(VkInstance instance) {
+            VmaAllocatorCreateInfo allocatorCreateInfo{};
+            allocatorCreateInfo.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
+            allocatorCreateInfo.vulkanApiVersion = cfg::VULKAN_VERSION;
+            allocatorCreateInfo.physicalDevice = m_physicalDevice;
+            allocatorCreateInfo.device = m_device;
+            allocatorCreateInfo.instance = instance;
+
+            vmaCreateAllocator(&allocatorCreateInfo, &m_allocator);
         }
     } // gfx
 } // sft
