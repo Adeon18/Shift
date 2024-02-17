@@ -12,7 +12,7 @@
 
 namespace sft {
     namespace info {
-        //! Create Info for Image View, by default no array and no mip levels.
+        //! Create Info for Images View, by default no array and no mip levels.
         VkImageViewCreateInfo CreateImageViewInfo(
                 VkImage image,
                 VkImageViewType viewType,

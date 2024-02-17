@@ -9,6 +9,7 @@ namespace sft {
         Device::Device(const Instance &inst, VkSurfaceKHR surface) {
             PickPhysicalDevice(inst.Get(), surface);
             CreateLogicalDevice(surface);
+            CreateAllocator(inst.Get());
         }
 
         Device::~Device() {

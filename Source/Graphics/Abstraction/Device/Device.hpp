@@ -51,7 +51,6 @@ namespace sft {
 
             [[nodiscard]] VkDescriptorSet AllocateDescriptorSet(const VkDescriptorSetAllocateInfo& info) const;
 
-
             [[nodiscard]] VkDevice Get() const { return m_device; }
             [[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const { return m_physicalDevice; }
             [[nodiscard]] VmaAllocator GetAllocator() const { return m_allocator; }

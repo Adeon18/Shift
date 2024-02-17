@@ -677,21 +677,21 @@ typedef VkFlags VmaAllocationCreateFlags;
 /// Flags to be passed as VmaPoolCreateInfo::flags.
 typedef enum VmaPoolCreateFlagBits
 {
-    /** \brief Use this flag if you always allocate only buffers and linear images or only optimal images out of this pool and so Buffer-Image Granularity can be ignored.
+    /** \brief Use this flag if you always allocate only buffers and linear images or only optimal images out of this pool and so Buffer-Images Granularity can be ignored.
 
     This is an optional optimization flag.
 
     If you always allocate using vmaCreateBuffer(), vmaCreateImage(),
     vmaAllocateMemoryForBuffer(), then you don't need to use it because allocator
-    knows exact type of your allocations so it can handle Buffer-Image Granularity
+    knows exact type of your allocations so it can handle Buffer-Images Granularity
     in the optimal way.
 
     If you also allocate using vmaAllocateMemoryForImage() or vmaAllocateMemory(),
     exact type of such allocations is not known, so allocator must be conservative
-    in handling Buffer-Image Granularity, which can lead to suboptimal allocation
+    in handling Buffer-Images Granularity, which can lead to suboptimal allocation
     (wasted memory). In that case, if you can make sure you always allocate only
     buffers and linear images or only optimal images out of this pool, use this flag
-    to make allocator disregard Buffer-Image Granularity and so make allocations
+    to make allocator disregard Buffer-Images Granularity and so make allocations
     faster and more optimal.
     */
     VMA_POOL_CREATE_IGNORE_BUFFER_IMAGE_GRANULARITY_BIT = 0x00000002,
@@ -3605,7 +3605,7 @@ Returns true if two memory blocks occupy overlapping pages.
 ResourceA must be in less memory offset than ResourceB.
 
 Algorithm is based on "Vulkan 1.0.39 - A Specification (with all registered Vulkan extensions)"
-chapter 11.6 "Resource Memory Association", paragraph "Buffer-Image Granularity".
+chapter 11.6 "Resource Memory Association", paragraph "Buffer-Images Granularity".
 */
 static inline bool VmaBlocksOnSamePage(
     VkDeviceSize resourceAOffset,

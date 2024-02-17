@@ -42,6 +42,7 @@
 #include "Graphics/Abstraction/Pipeline/Shader.hpp"
 #include "Graphics/Abstraction/Pipeline/Pipeline.hpp"
 #include "Graphics/Abstraction/Descriptors/DescriptorManager.hpp"
+#include "Graphics/Abstraction/Buffers/BasicBuffers.hpp"
 
 #include <spdlog/spdlog.h>
 
@@ -230,15 +231,19 @@ private:
             throw std::runtime_error("Failed to load texture image!");
         }
 
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
+        sft::gfx::StagingBuffer stagingBuff{*m_device, imageSize};
 
-        createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-        // Copy data to staging buffer
-        void* data;
-        vkMapMemory(m_device->Get(), stagingBufferMemory, 0, imageSize, 0, &data);
-        memcpy(data, pixels, static_cast<size_t>(imageSize));
-        vkUnmapMemory(m_device->Get(), stagingBufferMemory);
+//        VkBuffer stagingBuffer;
+//        VkDeviceMemory stagingBufferMemory;
+//
+//        createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+//        // Copy data to staging buffer
+//        void* data;
+//        vkMapMemory(m_device->Get(), stagingBufferMemory, 0, imageSize, 0, &data);
+//        memcpy(data, pixels, static_cast<size_t>(imageSize));
+//        vkUnmapMemory(m_device->Get(), stagingBufferMemory);
+
+        memcpy(stagingBuff.GetMappedBuffer(), pixels, static_cast<size_t>(imageSize));
 
         stbi_image_free(pixels);
 
@@ -262,7 +267,7 @@ private:
                 VK_PIPELINE_STAGE_TRANSFER_BIT
                 );
 
-        buffer.CopyBufferToImage(stagingBuffer, m_textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+        buffer.CopyBufferToImage(stagingBuff.Get(), m_textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
         buffer.EndCommandBuffer();
         buffer.SubmitAndWait();
 
@@ -279,8 +284,8 @@ private:
         buffer2.EndCommandBuffer();
         buffer2.SubmitAndWait();
 
-        vkDestroyBuffer(m_device->Get(), stagingBuffer, nullptr);
-        vkFreeMemory(m_device->Get(), stagingBufferMemory, nullptr);
+//        vkDestroyBuffer(m_device->Get(), stagingBuffer, nullptr);
+//        vkFreeMemory(m_device->Get(), stagingBufferMemory, nullptr);
     }
 
     void createTextureImageView() {
