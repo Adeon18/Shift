@@ -1,0 +1,8 @@
+//
+// Created by otrush on 2/17/2024.
+//
+
+#ifndef SHIFT_TEXTURESYSTEM_HPP
+#define SHIFT_TEXTURESYSTEM_HPP
+
+#endif //SHIFT_TEXTURESYSTEM_HPP
