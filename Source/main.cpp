@@ -331,9 +331,9 @@ private:
         // Since the viewport and scissor are dynamic, we must set them here
         VkViewport viewport{};
         viewport.x = 0.0f;
-        viewport.y = 0.0f;
+        viewport.y = static_cast<float>(m_swapchain->GetExtent().height);
         viewport.width = static_cast<float>(m_swapchain->GetExtent().width);
-        viewport.height = static_cast<float>(m_swapchain->GetExtent().height);
+        viewport.height = -static_cast<float>(m_swapchain->GetExtent().height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
         cmdBuf.SetViewPort(viewport);
@@ -469,18 +469,13 @@ private:
         pf.proj = m_cameraController.GetCamera().GetProjectionMatrix();
 
         // Y coordinate is fliped in Vulkan??
-        pf.proj[1][1] *= -1;
+        //pf.proj[1][1] *= -1;
 
         m_uniformBuffers[currentImage]->Fill(&pf, sizeof(pf));
-
-//        std::cout << "Front: " << glm::to_string(m_cameraController.GetDirection() ) << std::endl;
-//        std::cout << "Side: " << glm::to_string(m_cameraController.GetRightDir() ) << std::endl;
-//        std::cout << "UP: " << glm::to_string(m_cameraController.GetUpDir() ) << std::endl;
     }
 
     void createCamera() {
-        m_cameraController = ctrl::FlyingCameraController{90.0f, {m_winPtr->GetWidth(), m_winPtr->GetHeight()}, glm::vec3(0.0f, 0.0f, 2.0f)};
-        m_cameraController.GetCamera().AddRotation({glm::pi<float>() / 6.0f, glm::pi<float>() / 6.0f, 0.0f});
+        m_cameraController = ctrl::FlyingCameraController{90.0f, {m_winPtr->GetWidth(), m_winPtr->GetHeight()}, glm::vec3(0.0f, 0.0f, -2.0f)};
     }
 
     void cleanup() {

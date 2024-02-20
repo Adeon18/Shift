@@ -35,7 +35,6 @@ namespace sft::inp {
         int GetKeyAction(int key) { return m_keyStatus[key]; }
 
         void SetKeyAction(int key, int action) {
-            std::cout << "KEEEEy" << std::endl;
             m_keyStatus[key] = (action == GLFW_PRESS || action == GLFW_REPEAT);
         }
 

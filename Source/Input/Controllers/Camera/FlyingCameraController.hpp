@@ -5,6 +5,7 @@
 #include <memory>
 #include <unordered_map>
 #include <vector>
+#include <array>
 
 #include <glm/glm.hpp>
 
@@ -15,6 +16,16 @@
 namespace sft::ctrl {
     class FlyingCameraController {
         static constexpr float ROTATION_SPEED = 0.001f;
+        static constexpr float MOVEMENT_SPEED = 0.001f;
+
+        inline static std::unordered_map<int, glm::vec3> MOVEMENT_BIND_MAP{
+                {GLFW_KEY_A, {-1.0f, 0.0f, 0.0f}},
+                {GLFW_KEY_D, {1.0f, 0.0f, 0.0f}},
+                {GLFW_KEY_W, {0.0f, 0.0f, 1.0f}},
+                {GLFW_KEY_S, {0.0f, 0.0f, -1.0f}},
+                {GLFW_KEY_Q, {0.0f, -1.0f, 0.0f}},
+                {GLFW_KEY_E, {0.0f, 1.0f, 0.0f}},
+        };
     public:
         FlyingCameraController(float fovDeg, std::pair<uint32_t, uint32_t> screenWH,
                                const glm::vec3 &position);
@@ -53,6 +64,9 @@ namespace sft::ctrl {
     private:
         //! Handle Camera rotation
         void HandleRotation();
+
+        //! Handle Camera rotation
+        void HandleMovement();
     };
 } // sft::ctrl
 #endif //SHIFT_FLYINGCAMERACONTROLLER_HPP
