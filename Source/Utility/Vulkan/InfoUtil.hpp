@@ -60,6 +60,9 @@ namespace sft {
         // TODO: No args for now
         VkPipelineColorBlendStateCreateInfo CreateBlendStateInfo(VkPipelineColorBlendAttachmentState att);
 
+        // TODO: Only basic args here
+        VkSamplerCreateInfo CreateSamplerInfo(VkFilter minFilter, VkFilter magFilter, VkSamplerAddressMode addressMode);
+
     } // info
 }// sft
 

@@ -51,6 +51,34 @@ namespace sft::gfx {
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT)
         {}
     };
+
+    class VertexBuffer: public Buffer {
+    public:
+        VertexBuffer(
+                const Device& device,
+                uint64_t size
+        ):
+                Buffer(
+                        device,
+                        size,
+                        0,
+                        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
+        {}
+    };
+
+    class IndexBuffer: public Buffer {
+    public:
+        IndexBuffer(
+                const Device& device,
+                uint64_t size
+        ):
+                Buffer(
+                        device,
+                        size,
+                        0,
+                        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT)
+        {}
+    };
 } // sft::gfx
 
 #endif //SHIFT_BASICBUFFERS_HPP

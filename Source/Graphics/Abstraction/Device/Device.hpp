@@ -21,6 +21,10 @@ namespace sft {
             Device& operator=(const Device&)=delete;
 
             [[nodiscard]] VkImageView CreateImageView(const VkImageViewCreateInfo& info) const;
+            void DestroyImageView(VkImageView view) const;
+
+            [[nodiscard]] VkSampler CreateImageSampler(const VkSamplerCreateInfo& info) const;
+            void DestroyImageSampler(VkSampler sampler) const;
 
             [[nodiscard]] VkFence CreateFence(const VkFenceCreateInfo& info) const;
             void DestroyFence(VkFence fence) const;

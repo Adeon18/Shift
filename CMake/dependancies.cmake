@@ -41,4 +41,3 @@ FetchContent_Declare(assimp
         GIT_SHALLOW ON
         GIT_PROGRESS ON
         FIND_PACKAGE_ARGS 5.3.1)
-

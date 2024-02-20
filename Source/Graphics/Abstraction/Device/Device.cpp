@@ -250,5 +250,22 @@ namespace sft {
 
             vmaCreateAllocator(&allocatorCreateInfo, &m_allocator);
         }
+
+        void Device::DestroyImageView(VkImageView view) const {
+            vkDestroyImageView(m_device, view, nullptr);
+        }
+
+        VkSampler Device::CreateImageSampler(const VkSamplerCreateInfo &info) const {
+            VkSampler sampler;
+            if (int res = vkCreateSampler(m_device, &info, nullptr, &sampler); res != VK_SUCCESS) {
+                spdlog::error("Failed to create VkSampler! Code: {}", res);
+                return VK_NULL_HANDLE;
+            }
+            return sampler;
+        }
+
+        void Device::DestroyImageSampler(VkSampler sampler) const {
+            vkDestroySampler(m_device, sampler, nullptr);
+        }
     } // gfx
 } // sft
