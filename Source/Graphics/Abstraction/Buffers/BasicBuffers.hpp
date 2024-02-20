@@ -1,6 +1,8 @@
 #ifndef SHIFT_BASICBUFFERS_HPP
 #define SHIFT_BASICBUFFERS_HPP
 
+#include <span>
+
 #include "Graphics/Abstraction/Device/Device.hpp"
 
 namespace sft::gfx {
@@ -25,6 +27,10 @@ namespace sft::gfx {
         [[nodiscard]] void* Map();
         void Unmap();
 
+        //! Fill buffer with data, works on MAPPED BUFFERS ONLY
+        template<typename T>
+        void Fill(T* data, size_t size);
+
         ~Buffer();
 
         Buffer() = delete;
@@ -36,7 +42,14 @@ namespace sft::gfx {
         VkBuffer m_buffer = VK_NULL_HANDLE;
         VmaAllocation m_allocation = VK_NULL_HANDLE;
         VmaAllocationInfo m_allocationInfo;
+
+        uint64_t m_size;
     };
+
+    template<typename T>
+    void Buffer::Fill(T *data, size_t size) {
+        memcpy(m_allocationInfo.pMappedData, data, size);
+    }
 
     class StagingBuffer: public Buffer {
     public:
@@ -77,6 +90,20 @@ namespace sft::gfx {
                         size,
                         0,
                         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT)
+        {}
+    };
+
+    class UniformBuffer: public Buffer {
+    public:
+        UniformBuffer(
+                const Device& device,
+                uint64_t size
+        ):
+                Buffer(
+                        device,
+                        size,
+                        VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
+                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
         {}
     };
 } // sft::gfx

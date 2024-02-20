@@ -252,7 +252,7 @@ private:
         VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
 
         sft::gfx::StagingBuffer stagingBuffer{*m_device, bufferSize};
-        memcpy(stagingBuffer.GetMappedBuffer(), indices.data(), static_cast<size_t>(bufferSize));
+        stagingBuffer.Fill(indices.data(), static_cast<size_t>(bufferSize));
 
         m_indexBuffer = std::make_unique<sft::gfx::IndexBuffer>(*m_device, bufferSize);
 
@@ -264,17 +264,9 @@ private:
 
     void createUniformBuffers() {
         VkDeviceSize bufferSize = sizeof(PerFrame);
-
         m_uniformBuffers.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
-        m_uniformBuffersMemory.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
-        m_uniformBuffersMapped.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
-
         for (size_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
-            // The technique is called PERSISTENT MAPPING, the buffer is mapped during the entire duration and we do not map
-            // it every frame, it is faster this way
-            createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_uniformBuffers[i], m_uniformBuffersMemory[i]);
-
-            vkMapMemory(m_device->Get(), m_uniformBuffersMemory[i], 0, bufferSize, 0, &m_uniformBuffersMapped[i]);
+            m_uniformBuffers[i] = std::make_unique<sft::gfx::UniformBuffer>(*m_device, bufferSize);
         }
     }
 
@@ -299,57 +291,12 @@ private:
 
             auto* tex = m_textureSystem->GetTexture(m_textureIDs[0]);
 
-            perFrameSet.UpdateUBO<PerFrame>(0, m_uniformBuffers[i], 0);
+            perFrameSet.UpdateUBO<PerFrame>(0, m_uniformBuffers[i]->Get(), 0);
             perFrameSet.UpdateImage(1, tex->GetView(), tex->GetSampler());
             perFrameSet.ProcessUpdates();
         }
 
         return true;
-    }
-
-    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
-        VkBufferCreateInfo bufferInfo{};
-        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        bufferInfo.size = size;
-        bufferInfo.usage = usage;
-        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;         // No need to share the buffer
-
-        if (vkCreateBuffer(m_device->Get(), &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create vertex buffer!");
-        }
-
-        // We need to allocate memory for the buffer
-        VkMemoryRequirements memRequirements;
-        vkGetBufferMemoryRequirements(m_device->Get(), buffer, &memRequirements);
-
-        // Get the memorytypes size and reauirements and check if we can map it and write to it
-        VkMemoryAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        allocInfo.allocationSize = memRequirements.size;
-        allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
-
-        if (vkAllocateMemory(m_device->Get(), &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate vertex buffer memory!");
-        }
-
-        vkBindBufferMemory(m_device->Get(), buffer, bufferMemory, 0);
-    }
-
-    //! INFO: GPUs can offer different memory types => we need to find the right one
-    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
-        // Constaine memory types and memory heaps, heap is VRAM, type is types of memory in that VRAM
-        VkPhysicalDeviceMemoryProperties memProperties;
-        vkGetPhysicalDeviceMemoryProperties(m_device->GetPhysicalDevice(), &memProperties);
-
-        // Out memory is shosen by index and we need for it to support specific properties
-        // bitwise & because we need to have ALL desired properties
-        for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-            if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-                return i;
-            }
-        }
-
-        throw std::runtime_error("failed to find suitable memory type!");
     }
 
     void recordCommandBuffer(const sft::gfx::CommandBuffer& cmdBuf, uint32_t imageIndex) {
@@ -504,20 +451,15 @@ private:
 
         PerFrame pf{};
         pf.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        //pf.model = glm::mat4(1.0f);
 
         pf.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        //pf.view = glm::mat4(1.0f);
 
         pf.proj = glm::perspective(glm::radians(45.0f), static_cast<float>(m_swapchain->GetExtent().width) / static_cast<float>(m_swapchain->GetExtent().height), 0.1f, 100.0f);
-        //pf.proj = glm::mat4(1.0f);
 
         // Y coordinate is fliped in Vulkan??
         pf.proj[1][1] *= -1;
 
-        memcpy(m_uniformBuffersMapped[currentImage], &pf, sizeof(pf));
-
-        // INFO: Actually a more efficient way to use these buffers are not mapping them during the entire runtime, but rather using push constants
+        m_uniformBuffers[currentImage]->Fill(&pf, sizeof(pf));
     }
 
     void cleanup() {
@@ -528,8 +470,7 @@ private:
         m_textureSystem.reset();
 
         for (size_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
-            vkDestroyBuffer(m_device->Get(), m_uniformBuffers[i], nullptr);
-            vkFreeMemory(m_device->Get(), m_uniformBuffersMemory[i], nullptr);
+            m_uniformBuffers[i].reset();
         }
 
         m_descriptorManager.reset();
@@ -579,9 +520,7 @@ private:
 
     // We need a couple of uniform buffers because we have multiple frames in fright so that we do not write to a frame that
     // the GPU is reading from currently
-    std::vector<VkBuffer> m_uniformBuffers;
-    std::vector<VkDeviceMemory> m_uniformBuffersMemory;
-    std::vector<void*> m_uniformBuffersMapped;
+    std::vector<std::unique_ptr<sft::gfx::UniformBuffer>> m_uniformBuffers;
 
     // Sync primitives to comtrol the rendering of a frame
     std::vector<std::unique_ptr<sft::gfx::Semaphore>> m_imageAvailableSemaphores;

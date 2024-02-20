@@ -2,7 +2,7 @@
 
 namespace sft::gfx {
     Buffer::Buffer(const sft::gfx::Device &device, uint64_t size, VmaAllocationCreateFlags allocFlags,
-                   VkBufferUsageFlags usage): m_device{device} {
+                   VkBufferUsageFlags usage): m_device{device}, m_size{size} {
         VkBufferCreateInfo bufCreateInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
         bufCreateInfo.size = size;
         bufCreateInfo.usage = usage;
