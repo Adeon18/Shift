@@ -44,10 +44,13 @@
 #include "Graphics/Abstraction/Descriptors/DescriptorManager.hpp"
 #include "Graphics/Abstraction/Buffers/BasicBuffers.hpp"
 #include "Graphics/Abstraction/Images/Images.hpp"
+#include "Input/Controllers/Camera/FlyingCameraController.hpp"
 
 #include "Graphics/Systems/TextureSystem.hpp"
 
 #include <spdlog/spdlog.h>
+
+using namespace sft;
 
 class HelloTriangleApplication {
     static constexpr uint32_t WINDOW_WIDTH = 800;
@@ -103,6 +106,8 @@ private:
         if (!createGraphicsPipeline()) {return false;}
 
         createSyncObjects();
+
+        createCamera();
         return true;
     }
 
@@ -364,7 +369,10 @@ private:
     void mainLoop() {
         while (m_winPtr->IsActive()) {
             m_winPtr->Process();
+            m_cameraController.CaptureInputAndApply();
             if (!drawFrame()) break;
+            inp::Keyboard::GetInstance().UpdateKeys();
+            inp::Mouse::GetInstance().UpdatePos();
         }
 
         //! Wait for device to finish operations so we can clean everything properly
@@ -434,6 +442,7 @@ private:
 
         if (isOld || m_winPtr->ShouldProcessResize()) {
             m_winPtr->ProcessResize();
+            m_cameraController.UpdateScreenSize(m_winPtr->GetWidth(), m_winPtr->GetHeight());
             if (!recreateSwapChain()) return false;
         }
 
@@ -444,22 +453,34 @@ private:
     }
 
     void updateUniformBuffer(uint32_t currentImage) {
+
         static auto startTime = std::chrono::high_resolution_clock::now();
 
         auto currentTime = std::chrono::high_resolution_clock::now();
         float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
         PerFrame pf{};
-        pf.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        pf.model = glm::mat4(1.0f);
 
-        pf.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        //pf.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        pf.view = m_cameraController.GetCamera().GetViewMatrix();
 
-        pf.proj = glm::perspective(glm::radians(45.0f), static_cast<float>(m_swapchain->GetExtent().width) / static_cast<float>(m_swapchain->GetExtent().height), 0.1f, 100.0f);
+        //pf.proj = glm::perspective(glm::radians(45.0f), static_cast<float>(m_swapchain->GetExtent().width) / static_cast<float>(m_swapchain->GetExtent().height), 0.1f, 100.0f);
+        pf.proj = m_cameraController.GetCamera().GetProjectionMatrix();
 
         // Y coordinate is fliped in Vulkan??
         pf.proj[1][1] *= -1;
 
         m_uniformBuffers[currentImage]->Fill(&pf, sizeof(pf));
+
+//        std::cout << "Front: " << glm::to_string(m_cameraController.GetDirection() ) << std::endl;
+//        std::cout << "Side: " << glm::to_string(m_cameraController.GetRightDir() ) << std::endl;
+//        std::cout << "UP: " << glm::to_string(m_cameraController.GetUpDir() ) << std::endl;
+    }
+
+    void createCamera() {
+        m_cameraController = ctrl::FlyingCameraController{90.0f, {m_winPtr->GetWidth(), m_winPtr->GetHeight()}, glm::vec3(0.0f, 0.0f, 2.0f)};
+        m_cameraController.GetCamera().AddRotation({glm::pi<float>() / 6.0f, glm::pi<float>() / 6.0f, 0.0f});
     }
 
     void cleanup() {
@@ -493,10 +514,11 @@ private:
         m_device.reset();
     }
 private:
+    ctrl::FlyingCameraController m_cameraController;
+
     std::vector<sft::SGUID> m_textureIDs;
 
     std::unique_ptr<sft::gfx::TextureSystem> m_textureSystem;
-
 
     std::unique_ptr<sft::gfx::DescriptorManager> m_descriptorManager;
 

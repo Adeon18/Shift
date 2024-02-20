@@ -5,6 +5,8 @@
 
 #include <string>
 
+#include "Input/Mouse.hpp"
+
 namespace sft {
 	class ShiftWindow {
     public:
@@ -22,6 +24,29 @@ namespace sft {
         static void FramebufferResizeCallback(GLFWwindow* window, int width, int height) {
             auto app = reinterpret_cast<ShiftWindow*>(glfwGetWindowUserPointer(window));
             app->m_shoudProcessResize = true;
+        }
+
+        static void KeyCallback(GLFWwindow *window, int key, int scancode,
+                                     int action, int mods) {
+            inp::Keyboard &keyboard = inp::Keyboard::GetInstance();
+            keyboard.SetKeyAction(key, action);
+        }
+
+        static void MouseButtonCallback(GLFWwindow *window, int button, int action,
+                                             int mods) {
+            inp::Keyboard &keyboard = inp::Keyboard::GetInstance();
+            keyboard.SetKeyAction(button, action);
+        }
+
+        static void MouseCursorCallback(GLFWwindow *window, double xpos,
+                                             double ypos) {
+            inp::Mouse &mouse = inp::Mouse::GetInstance();
+            mouse.SetPos(xpos, ypos);
+        }
+
+        void SetCaptureCursor(bool capture) {
+            glfwSetInputMode(m_window, GLFW_CURSOR,
+                             capture ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
         }
 
         //! Get whether the window was resized and we should process it

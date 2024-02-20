@@ -64,7 +64,6 @@ target_compile_definitions(
         ${PROJECT_NAME}
         PUBLIC
         GLFW_INCLUDE_VULKAN
-        GLM_FORCE_RADIANS
         GLM_FORCE_DEPTH_ZERO_TO_ONE
 )
  
