@@ -39,6 +39,7 @@
 #include "Graphics/Abstraction/Commands/CommandPool.hpp"
 #include "Graphics/Abstraction/Commands/CommandBuffer.hpp"
 #include "Graphics/Abstraction/RenderPass/RenderPass.hpp"
+#include "Graphics/Abstraction/RenderPass/FrameBuffer.hpp"
 #include "Graphics/Abstraction/Pipeline/Shader.hpp"
 #include "Graphics/Abstraction/Pipeline/Pipeline.hpp"
 #include "Graphics/Abstraction/Descriptors/DescriptorManager.hpp"
@@ -141,7 +142,7 @@ private:
 
     void cleanupSwapChain() {
         for (size_t i = 0; i < m_swapChainFramebuffers.size(); i++) {
-            vkDestroyFramebuffer(m_device->Get(), m_swapChainFramebuffers[i], nullptr);
+            m_swapChainFramebuffers[i].reset();
         }
     }
 
@@ -171,6 +172,7 @@ private:
         m_pipeline->SetDynamicState(dynamicStates);
 
         m_pipeline->SetRasterizerInfo(sft::info::CreateRasterStateInfo());
+        m_pipeline->SetDepthStencilInfo(sft::info::CreateDepthStencilStateInfo());
 
         m_pipeline->SetMultisampleInfo(sft::info::CreateMultisampleStateInfo());
 
@@ -187,12 +189,15 @@ private:
         m_renderPass = std::make_unique<sft::gfx::RenderPass>(*m_device);
 
         sft::gfx::Attachment att{m_swapchain->GetFormat(), sft::gfx::Attachment::Type::Swapchain, 0};
+        sft::gfx::Attachment attDepth{m_swapchain->GetDepthBufferFormat(), sft::gfx::Attachment::Type::Depth, 1};
 
         sft::gfx::Subpass sub;
         sub.AddDependency(att);
+        sub.AddDependency(attDepth);
         sub.BuildDescription();
 
         m_renderPass->AddAttachment(att);
+        m_renderPass->AddAttachment(attDepth);
         m_renderPass->AddSubpass(sub);
 
         return m_renderPass->BuildPass();
@@ -203,23 +208,12 @@ private:
         m_swapChainFramebuffers.resize(swapImgViews.size());
 
         for (size_t i = 0; i < swapImgViews.size(); i++) {
-            VkImageView attachments[] = {
-                    swapImgViews[i]
+            std::vector<VkImageView> attachments = {
+                    swapImgViews[i],
+                    m_swapchain->GetDepthBufferView()
             };
 
-            //! INFO: YOU CAN ONLY USE THE FRAMEBUFFER WITH THE COMPATIBLE RENDERPASS
-            VkFramebufferCreateInfo framebufferInfo{};
-            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-            framebufferInfo.renderPass = m_renderPass->Get();
-            framebufferInfo.attachmentCount = 1;
-            framebufferInfo.pAttachments = attachments;
-            framebufferInfo.width = m_swapchain->GetExtent().width;
-            framebufferInfo.height = m_swapchain->GetExtent().height;
-            framebufferInfo.layers = 1;
-
-            if (vkCreateFramebuffer(m_device->Get(), &framebufferInfo, nullptr, &m_swapChainFramebuffers[i]) != VK_SUCCESS) {
-                throw std::runtime_error("failed to create framebuffer!");
-            }
+            m_swapChainFramebuffers[i] = std::make_unique<gfx::FrameBuffer>(*m_device, m_renderPass->Get(), m_swapchain->GetExtent(), attachments);
         }
     }
 
@@ -310,14 +304,16 @@ private:
         VkRenderPassBeginInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         renderPassInfo.renderPass = m_renderPass->Get();
-        renderPassInfo.framebuffer = m_swapChainFramebuffers[imageIndex];
+        renderPassInfo.framebuffer = m_swapChainFramebuffers[imageIndex]->Get();
 
         renderPassInfo.renderArea.offset = { 0, 0 };
         renderPassInfo.renderArea.extent = m_swapchain->GetExtent();
 
-        VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = &clearColor;
+        std::array<VkClearValue, 2> clearValues{};
+        clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+        clearValues[1].depthStencil = {1.0f, 0};
+        renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+        renderPassInfo.pClearValues = clearValues.data();
 
         cmdBuf.BeginRenderPass(renderPassInfo);
 
@@ -530,7 +526,7 @@ private:
 
     std::unique_ptr<sft::gfx::Pipeline> m_pipeline;
 
-    std::vector<VkFramebuffer> m_swapChainFramebuffers;
+    std::vector<std::unique_ptr<gfx::FrameBuffer>> m_swapChainFramebuffers;
 
     std::unique_ptr<sft::gfx::VertexBuffer> m_vertexBuffer;
     std::unique_ptr<sft::gfx::IndexBuffer> m_indexBuffer;

@@ -65,6 +65,7 @@ target_compile_definitions(
         PUBLIC
         GLFW_INCLUDE_VULKAN
         GLM_FORCE_DEPTH_ZERO_TO_ONE
+        GLM_FORCE_RADIANS
 )
  
 if (WIN32)

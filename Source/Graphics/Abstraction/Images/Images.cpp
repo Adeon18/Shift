@@ -11,8 +11,9 @@ namespace sft::gfx {
                      uint32_t levels,
                      VkFormat format,
                      VkImageUsageFlags usage,
-                     sft::gfx::TextureDim dim):
-     m_device{device}, m_width{width}, m_height{height}, m_mipCount{mips}, m_levels{levels}, m_format{format}, m_dim{dim}
+                     TextureDim dim,
+                     TextureType texType):
+     m_device{device}, m_width{width}, m_height{height}, m_mipCount{mips}, m_levels{levels}, m_format{format}, m_dim{dim}, m_texType{texType}
     {
         VkImageCreateInfo imageInfo{};
         imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -62,9 +63,19 @@ namespace sft::gfx {
                 break;
         }
 
+        VkImageAspectFlags textureType;
+        switch (m_texType) {
+            case TextureType::Color:
+                textureType = VK_IMAGE_ASPECT_COLOR_BIT;
+                break;
+            case TextureType::Depth:
+                textureType = VK_IMAGE_ASPECT_DEPTH_BIT;
+                break;
+        }
+
         //! TODO: handle for depth
         VkImageSubresourceRange sRange{
-            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .aspectMask = textureType,
             .baseMipLevel = 0,
             .levelCount = m_mipCount,
             .baseArrayLayer = 0,

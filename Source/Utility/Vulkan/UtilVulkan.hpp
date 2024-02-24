@@ -135,6 +135,8 @@ namespace sft {
         //! Couple of things here: if the capabilities are not the float limit - use them
         //! If they are, get the glfw frame buffer size and clamp the value to min or max possible range
         VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, int winWidth, int winHeight);
+
+        VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features, VkPhysicalDevice physicalDevice);
     } // gutil
 } //sft
 

@@ -63,6 +63,9 @@ namespace sft {
         // TODO: Only basic args here
         VkSamplerCreateInfo CreateSamplerInfo(VkFilter minFilter, VkFilter magFilter, VkSamplerAddressMode addressMode);
 
+        // TODO: Only basic args for now
+        VkPipelineDepthStencilStateCreateInfo CreateDepthStencilStateInfo();
+
     } // info
 }// sft
 

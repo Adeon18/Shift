@@ -10,6 +10,12 @@ namespace sft::gfx {
         T_3D,
     };
 
+    enum class TextureType {
+        Color,
+        Depth,
+    };
+
+
     //! A RAII Wrapper for texture creation/destriction logic, it not mean to be used raw as has a ton of configs
     //! Meant to be used as a base class
     //! Constructor just creates image, view and allocation, everything else should be explicit
@@ -25,7 +31,8 @@ namespace sft::gfx {
                 uint32_t levels,
                 VkFormat format,
                 VkImageUsageFlags usage,
-                TextureDim dim
+                TextureDim dim,
+                TextureType texType = TextureType::Color
             );
 
         bool CreateSampler(VkSamplerCreateInfo info);
@@ -68,6 +75,7 @@ namespace sft::gfx {
         uint32_t m_levels;
 
         TextureDim m_dim;
+        TextureType m_texType;
         VkFormat m_format;
     };
 
@@ -81,6 +89,20 @@ namespace sft::gfx {
                 VkImageUsageFlags usage,
                 uint32_t mips = 1
         ) : TextureBase(device, width, height, 1, mips, 1, format, usage, TextureDim::T_2D)
+        {
+
+        }
+    };
+
+    class DepthTexture: public TextureBase {
+    public:
+        DepthTexture(
+                const Device& device,
+                uint32_t width,
+                uint32_t height,
+                VkFormat format,
+                uint32_t mips = 1
+        ) : TextureBase(device, width, height, 1, 1, 1, format, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, TextureDim::T_2D, TextureType::Depth)
         {
 
         }

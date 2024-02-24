@@ -7,6 +7,7 @@
 #include "WindowSurface.hpp"
 
 #include "Graphics/Abstraction/Synchronization/Semaphore.hpp"
+#include "Graphics/Abstraction/Images/Images.hpp"
 
 #include "Window/ShiftWindow.hpp"
 
@@ -36,9 +37,11 @@ namespace sft {
 
             [[nodiscard]] VkSwapchainKHR Get() const { return m_swapChain; }
             [[nodiscard]] const std::vector<VkImageView>& GetImageViews() const { return m_swapChainImageViews; }
+            [[nodiscard]] VkImageView GetDepthBufferView() const { return m_depthBuffer->GetView(); }
             [[nodiscard]] const SwapchainDescription& GetDesc() const { return m_swapchainDesc; }
             [[nodiscard]] VkExtent2D GetExtent() const { return m_swapchainDesc.swapChainExtent; }
             [[nodiscard]] VkFormat GetFormat() const { return m_swapchainDesc.swapChainImageFormat; }
+            [[nodiscard]] VkFormat GetDepthBufferFormat() const { return m_depthBuffer->GetFormat(); }
 
             ~Swapchain();
 
@@ -61,6 +64,8 @@ namespace sft {
 
             std::vector<VkImage> m_swapChainImages;
             std::vector<VkImageView> m_swapChainImageViews;
+
+            std::unique_ptr<DepthTexture> m_depthBuffer;
         };
     } // gfx
 } // sft

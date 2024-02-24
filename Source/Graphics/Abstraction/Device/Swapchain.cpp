@@ -15,6 +15,7 @@ namespace sft {
             FillSwapchainDescription(width, height);
             CreateSwapChain();
             CreateImageViews();
+            m_depthBuffer = std::make_unique<DepthTexture>(m_device, width, height, m_device.FindSupportedDepthFormat());
         }
 
         void Swapchain::FillSwapchainDescription(uint32_t width, uint32_t height) {

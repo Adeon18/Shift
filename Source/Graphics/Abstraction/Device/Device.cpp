@@ -100,8 +100,8 @@ namespace sft {
 
         VkImageView Device::CreateImageView(const VkImageViewCreateInfo& info) const {
             VkImageView imageView;
-            if (int res = vkCreateImageView(m_device, &info, nullptr, &imageView); res != VK_SUCCESS) {
-                spdlog::error("Failed to create VkImageView! Code: {}", res);
+            if (vkCreateImageView(m_device, &info, nullptr, &imageView) != VK_SUCCESS) {
+                spdlog::error("Failed to create VkImageView!");
                 return VK_NULL_HANDLE;
             }
 
@@ -110,8 +110,8 @@ namespace sft {
 
         VkFence Device::CreateFence(const VkFenceCreateInfo& info) const {
             VkFence fence;
-            if (int res = vkCreateFence(m_device, &info, nullptr, &fence); res != VK_SUCCESS) {
-                spdlog::error("Failed to create VkFence! Code: {}", res);
+            if (vkCreateFence(m_device, &info, nullptr, &fence) != VK_SUCCESS) {
+                spdlog::error("Failed to create VkFence!");
                 return VK_NULL_HANDLE;
             }
             return fence;
@@ -123,8 +123,8 @@ namespace sft {
 
         VkSemaphore Device::CreateSemaphore(const VkSemaphoreCreateInfo &info) const {
             VkSemaphore semaphore;
-            if (int res = vkCreateSemaphore(m_device, &info, nullptr, &semaphore); res != VK_SUCCESS) {
-                spdlog::error("Failed to create VkSemaphore! Code: {}", res);
+            if (vkCreateSemaphore(m_device, &info, nullptr, &semaphore) != VK_SUCCESS) {
+                spdlog::error("Failed to create VkSemaphore!");
                 return VK_NULL_HANDLE;
             }
             return semaphore;
@@ -139,8 +139,8 @@ namespace sft {
             //! INFO: Command buffers are executed by submitting them on one of the device queues, like the graphics
             //! and presentation queues we retrieved.Each command pool can only allocate command buffers that are
             //! submitted on a single type of queue.We're going to record commands for drawing, which is why we've chosen the graphics queue family.
-            if (int res = vkCreateCommandPool(m_device, &info, nullptr, &vkPool); res != VK_SUCCESS) {
-                spdlog::error("Failed to create VkCommandPool! Code: {}", res);
+            if (vkCreateCommandPool(m_device, &info, nullptr, &vkPool) != VK_SUCCESS) {
+                spdlog::error("Failed to create VkCommandPool!");
                 return VK_NULL_HANDLE;
             }
 
@@ -153,8 +153,8 @@ namespace sft {
 
         VkRenderPass Device::CreateRenderPass(const VkRenderPassCreateInfo &info) const {
             VkRenderPass pass;
-            if (int res = vkCreateRenderPass(m_device, &info, nullptr, &pass); res != VK_SUCCESS) {
-                spdlog::error("Failed to create VkRenderPass! Code: {}", res);
+            if (vkCreateRenderPass(m_device, &info, nullptr, &pass) != VK_SUCCESS) {
+                spdlog::error("Failed to create VkRenderPass!");
                 return VK_NULL_HANDLE;
             }
 
@@ -167,8 +167,8 @@ namespace sft {
 
         VkShaderModule Device::CreateShaderModule(const VkShaderModuleCreateInfo& info) const {
             VkShaderModule shaderModule;
-            if (int res = vkCreateShaderModule(m_device, &info, nullptr, &shaderModule); res != VK_SUCCESS) {
-                spdlog::error("Failed to create VkShaderModule! Code: {}", res);
+            if (vkCreateShaderModule(m_device, &info, nullptr, &shaderModule) != VK_SUCCESS) {
+                spdlog::error("Failed to create VkShaderModule!");
                 return VK_NULL_HANDLE;
             }
 
@@ -181,8 +181,8 @@ namespace sft {
 
         VkPipeline Device::CreateGraphicsPipeline(const VkGraphicsPipelineCreateInfo &info) const {
             VkPipeline pipeline;
-            if (int res = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &info, nullptr, &pipeline); res != VK_SUCCESS) {
-                spdlog::error("Failed to create VkPipeline! Code: {}", res);
+            if (vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &info, nullptr, &pipeline) != VK_SUCCESS) {
+                spdlog::error("Failed to create VkPipeline!");
                 return VK_NULL_HANDLE;
             }
             return pipeline;
@@ -194,8 +194,8 @@ namespace sft {
 
         VkPipelineLayout Device::CreatePipelineLayout(const VkPipelineLayoutCreateInfo& info) const {
             VkPipelineLayout pipelineLayout;
-            if (int res = vkCreatePipelineLayout(m_device, &info, nullptr, &pipelineLayout); res != VK_SUCCESS) {
-                spdlog::error("Failed to create VkPipelineLayout! Code: {}", res);
+            if (vkCreatePipelineLayout(m_device, &info, nullptr, &pipelineLayout) != VK_SUCCESS) {
+                spdlog::error("Failed to create VkPipelineLayout!");
                 return VK_NULL_HANDLE;
             }
             return pipelineLayout;
@@ -206,8 +206,8 @@ namespace sft {
 
         VkDescriptorSetLayout Device::CreateDescriptorSetLayout(const VkDescriptorSetLayoutCreateInfo &info) const {
             VkDescriptorSetLayout layout;
-            if (int res = vkCreateDescriptorSetLayout(m_device, &info, nullptr, &layout); res != VK_SUCCESS) {
-                spdlog::error("Failed to create VkDescriptorSetLayout! Code: {}", res);
+            if (vkCreateDescriptorSetLayout(m_device, &info, nullptr, &layout) != VK_SUCCESS) {
+                spdlog::error("Failed to create VkDescriptorSetLayout!");
                 return VK_NULL_HANDLE;
             }
 
@@ -220,8 +220,8 @@ namespace sft {
 
         VkDescriptorPool Device::CreateDescriptorPool(const VkDescriptorPoolCreateInfo &info) const {
             VkDescriptorPool pool;
-            if (int res = vkCreateDescriptorPool(m_device, &info, nullptr, &pool); res != VK_SUCCESS) {
-                spdlog::error("Failed to create VkDescriptorPool! Code: {}", res);
+            if (vkCreateDescriptorPool(m_device, &info, nullptr, &pool) != VK_SUCCESS) {
+                spdlog::error("Failed to create VkDescriptorPool!");
                 return VK_NULL_HANDLE;
             }
             return pool;
@@ -233,8 +233,8 @@ namespace sft {
 
         VkDescriptorSet Device::AllocateDescriptorSet(const VkDescriptorSetAllocateInfo &info) const {
             VkDescriptorSet dset;
-            if (int res = vkAllocateDescriptorSets(m_device, &info, &dset); res != VK_SUCCESS) {
-                spdlog::error("Failed to allocate VkDescriptorSet! Code: {}", res);
+            if (vkAllocateDescriptorSets(m_device, &info, &dset) != VK_SUCCESS) {
+                spdlog::error("Failed to allocate VkDescriptorSet!");
                 return VK_NULL_HANDLE;
             }
             return dset;
@@ -257,8 +257,8 @@ namespace sft {
 
         VkSampler Device::CreateImageSampler(const VkSamplerCreateInfo &info) const {
             VkSampler sampler;
-            if (int res = vkCreateSampler(m_device, &info, nullptr, &sampler); res != VK_SUCCESS) {
-                spdlog::error("Failed to create VkSampler! Code: {}", res);
+            if (vkCreateSampler(m_device, &info, nullptr, &sampler) != VK_SUCCESS) {
+                spdlog::error("Failed to create VkSampler!");
                 return VK_NULL_HANDLE;
             }
             return sampler;
@@ -266,6 +266,28 @@ namespace sft {
 
         void Device::DestroyImageSampler(VkSampler sampler) const {
             vkDestroySampler(m_device, sampler, nullptr);
+        }
+
+        VkFormat Device::FindSupportedDepthFormat() const {
+            return gutil::FindSupportedFormat(
+                    {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
+                    VK_IMAGE_TILING_OPTIMAL,
+                    VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                    m_physicalDevice
+            );
+        }
+
+        VkFramebuffer Device::CreateFrameBuffer(const VkFramebufferCreateInfo& info) const {
+            VkFramebuffer buf;
+            if (vkCreateFramebuffer(m_device, &info, nullptr, &buf) != VK_SUCCESS) {
+                spdlog::error("Failed to create VkFramebuffer!");
+                return VK_NULL_HANDLE;
+            }
+            return buf;
+        }
+
+        void Device::DestroyFrameBuffer(VkFramebuffer buf) const {
+            vkDestroyFramebuffer(m_device, buf, nullptr);
         }
     } // gfx
 } // sft

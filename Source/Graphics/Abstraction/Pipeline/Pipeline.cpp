@@ -76,7 +76,7 @@ namespace sft {
             pipelineInfo.pViewportState = (m_viewPortStateInfo.has_value()) ? &m_viewPortStateInfo.value(): nullptr;
             pipelineInfo.pRasterizationState = (m_rasterizerInfo.has_value()) ? &m_rasterizerInfo.value(): nullptr;
             pipelineInfo.pMultisampleState = (m_multisampleInfo.has_value()) ? &m_multisampleInfo.value(): nullptr;
-            pipelineInfo.pDepthStencilState = nullptr;
+            pipelineInfo.pDepthStencilState = (m_depthStencilStateInfo.has_value()) ? &m_depthStencilStateInfo.value(): nullptr;;
             pipelineInfo.pColorBlendState = (m_coloBlendStateInfo.has_value()) ? &m_coloBlendStateInfo.value(): nullptr;
             pipelineInfo.pDynamicState = (m_dynamicStateInfo.has_value()) ? &m_dynamicStateInfo.value(): nullptr;
 
@@ -95,6 +95,10 @@ namespace sft {
         Pipeline::~Pipeline() {
             m_device.DestroyPipeline(m_pipeline);
             m_device.DestroyPipelineLayout(m_layout);
+        }
+
+        void Pipeline::SetDepthStencilInfo(VkPipelineDepthStencilStateCreateInfo info) {
+            m_depthStencilStateInfo = info;
         }
     } // gfx
 } // sft

@@ -64,15 +64,25 @@ namespace sft {
                     break;
             }
 
-            dependencies.emplace_back(std::move(dep));
+            dependencies.emplace_back(dep);
 
-            attachmentRefs.emplace_back(att.reference);
+            switch (att.type) {
+                case Attachment::Type::Color:
+                    colorAttachmentRefs.emplace_back(att.reference);
+                case Attachment::Type::Depth:
+                    depthAttachmentRef = att.reference;
+                    break;
+                case Attachment::Type::Swapchain:
+                    colorAttachmentRefs.emplace_back(att.reference);
+                    break;
+            }
         }
 
         void Subpass::BuildDescription() {
             description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-            description.colorAttachmentCount = attachmentRefs.size();
-            description.pColorAttachments = attachmentRefs.data();
+            description.colorAttachmentCount = colorAttachmentRefs.size();
+            description.pColorAttachments = colorAttachmentRefs.data();
+            description.pDepthStencilAttachment = &depthAttachmentRef;
         }
     } // gfx
 } // sft

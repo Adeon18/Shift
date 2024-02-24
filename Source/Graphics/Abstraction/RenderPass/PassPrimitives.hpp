@@ -30,7 +30,8 @@ namespace sft {
             //! Builds the subpass description, has to be called before creating the renderpass!
             void BuildDescription();
 
-            std::vector<VkAttachmentReference> attachmentRefs;
+            std::vector<VkAttachmentReference> colorAttachmentRefs;
+            VkAttachmentReference depthAttachmentRef;
             std::vector<VkSubpassDependency> dependencies;
 
             VkSubpassDescription description{};

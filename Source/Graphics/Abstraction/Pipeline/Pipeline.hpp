@@ -29,6 +29,8 @@ namespace sft {
 
             void SetMultisampleInfo(VkPipelineMultisampleStateCreateInfo info);
 
+            void SetDepthStencilInfo(VkPipelineDepthStencilStateCreateInfo info);
+
             void SetBlendAttachment(VkPipelineColorBlendAttachmentState info);
 
             void SetBlendState(VkPipelineColorBlendStateCreateInfo info);
@@ -62,6 +64,7 @@ namespace sft {
             std::optional<VkPipelineMultisampleStateCreateInfo> m_multisampleInfo;
             std::optional<VkPipelineColorBlendAttachmentState> m_coloBlendAttInfo;
             std::optional<VkPipelineColorBlendStateCreateInfo> m_coloBlendStateInfo;
+            std::optional<VkPipelineDepthStencilStateCreateInfo> m_depthStencilStateInfo;
         };
     } // gfx
 } // sft

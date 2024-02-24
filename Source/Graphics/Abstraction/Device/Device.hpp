@@ -20,6 +20,8 @@ namespace sft {
             Device(const Device&)=delete;
             Device& operator=(const Device&)=delete;
 
+            [[nodiscard]] VkFormat FindSupportedDepthFormat() const;
+
             [[nodiscard]] VkImageView CreateImageView(const VkImageViewCreateInfo& info) const;
             void DestroyImageView(VkImageView view) const;
 
@@ -54,6 +56,9 @@ namespace sft {
             void DestroyDescriptorPool(VkDescriptorPool pool) const;
 
             [[nodiscard]] VkDescriptorSet AllocateDescriptorSet(const VkDescriptorSetAllocateInfo& info) const;
+
+            [[nodiscard]] VkFramebuffer CreateFrameBuffer(const VkFramebufferCreateInfo& info) const;
+            [[nodiscard]] void DestroyFrameBuffer(VkFramebuffer buf) const;
 
             [[nodiscard]] VkDevice Get() const { return m_device; }
             [[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const { return m_physicalDevice; }
