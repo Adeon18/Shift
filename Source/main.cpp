@@ -1,6 +1,6 @@
 // #include <vulkan/vulkan.h> This is fine for offscreen rendering but for window rendering we do as below
 
-#include "VertexStructures.hpp"
+#include "Graphics/Objects/VertexStructures.hpp"
 #include "UniformBufferStructs.hpp"
 
 #include <iostream>
@@ -48,6 +48,7 @@
 #include "Input/Controllers/Camera/FlyingCameraController.hpp"
 
 #include "Graphics/Systems/TextureSystem.hpp"
+#include "Graphics/Systems/ModelManager.hpp"
 
 #include <spdlog/spdlog.h>
 
@@ -83,6 +84,7 @@ private:
     }
 
     bool initVulkan() {
+
         createVkInstance();
 
         createSurface();
@@ -159,8 +161,8 @@ private:
         m_pipeline->AddShaderStage(vert);
         m_pipeline->AddShaderStage(frag);
 
-        auto bindingDescription = Vertex::getBindingDescription();
-        auto attributeDescriptions = Vertex::getAttributeDescriptions();
+        auto bindingDescription = gfx::Vertex::getBindingDescription();
+        auto attributeDescriptions = gfx::Vertex::getAttributeDescriptions();
         m_pipeline->SetInputStateInfo(sft::info::CreateInputStateInfo(attributeDescriptions, {&bindingDescription, 1}),VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
         m_pipeline->SetViewPortState();
@@ -225,6 +227,9 @@ private:
     void CreateTextureSystem() {
         m_textureSystem = std::make_unique<sft::gfx::TextureSystem>(*m_device, *m_graphicsPool, *m_transferPool);
 
+        m_modelManager = std::make_unique<sft::gfx::ModelManager>(*m_device, *m_transferPool, *m_textureSystem);
+        m_amogus = m_modelManager->GetModel(sft::util::GetShiftRoot() + "Assets/Models/SimpleAmogusPink/scene.gltf");
+
         m_textureIDs.push_back(m_textureSystem->LoadTexture(sft::util::GetShiftRoot() + "Assets/skeleton.png", VK_FORMAT_R8G8B8A8_SRGB));
         m_textureSystem->GetTexture(m_textureIDs[0])->CreateSampler(sft::info::CreateSamplerInfo(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT));
 
@@ -237,28 +242,27 @@ private:
         VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
         m_vertexBuffer = std::make_unique<sft::gfx::VertexBuffer>(*m_device, bufferSize);
 
-        sft::gfx::StagingBuffer stagingBuffer{*m_device, bufferSize};
+        sft::gfx::StagingBuffer stagingBuffer{*m_device, m_vertexBuffer->GetAllocInfo().size};
 
-        memcpy(stagingBuffer.GetMappedBuffer(), vertices.data(), static_cast<size_t>(bufferSize));
+        stagingBuffer.Fill(vertices.data(), static_cast<size_t>(bufferSize));
 
         auto& buffer = m_transferPool->RequestCommandBuffer();
         buffer.CopyBuffer(stagingBuffer.Get(), m_vertexBuffer->Get(), bufferSize);
+
+        VkDeviceSize bufferSizeIndex = sizeof(indices[0]) * indices.size();
+
+        sft::gfx::StagingBuffer stagingBufferIndex{*m_device, bufferSizeIndex};
+        stagingBufferIndex.Fill(indices.data(), static_cast<size_t>(bufferSizeIndex));
+
+        m_indexBuffer = std::make_unique<sft::gfx::IndexBuffer>(*m_device, bufferSizeIndex);
+
+        buffer.CopyBuffer(stagingBufferIndex.Get(), m_indexBuffer->Get(), bufferSizeIndex);
         buffer.EndCommandBuffer();
         buffer.SubmitAndWait();
     }
 
     void createIndexBuffer() {
-        VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
 
-        sft::gfx::StagingBuffer stagingBuffer{*m_device, bufferSize};
-        stagingBuffer.Fill(indices.data(), static_cast<size_t>(bufferSize));
-
-        m_indexBuffer = std::make_unique<sft::gfx::IndexBuffer>(*m_device, bufferSize);
-
-        auto& buffer = m_transferPool->RequestCommandBuffer();
-        buffer.CopyBuffer(stagingBuffer.Get(), m_indexBuffer->Get(), bufferSize);
-        buffer.EndCommandBuffer();
-        buffer.SubmitAndWait();
     }
 
     void createUniformBuffers() {
@@ -319,10 +323,10 @@ private:
 
         cmdBuf.BindPipeline(m_pipeline->Get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-        std::array<VkBuffer, 1> vertexBuffers{ m_vertexBuffer->Get() };
+        std::array<VkBuffer, 1> vertexBuffers{ m_amogus->GetVertexBufferPtr().Get() };
         std::array<VkDeviceSize, 1> offsets{ 0 };
         cmdBuf.BindVertexBuffers(vertexBuffers, offsets, 0);
-        cmdBuf.BindIndexBuffer(m_indexBuffer->Get(), 0);
+        cmdBuf.BindIndexBuffer(m_amogus->GetIndexBufferRef().Get(), 0);
 
         // Since the viewport and scissor are dynamic, we must set them here
         VkViewport viewport{};
@@ -345,7 +349,7 @@ private:
         cmdBuf.BindDescriptorSets(sets, {}, m_pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 0);
 
         // DRAW THE FUCKING TRIANGLE
-        cmdBuf.DrawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+        cmdBuf.DrawIndexed(m_amogus->GetRanges()[0].indexNum, 1, 0, 0, 0);
 
         cmdBuf.EndRenderPass();
 
@@ -399,7 +403,7 @@ private:
         if (framesUpdated < 2) {
             auto &perFrameSet = m_descriptorManager->GetPerFrameSet(m_currentFrame);
 
-            auto* tex = m_textureSystem->GetTexture(m_textureIDs[index]);
+            auto* tex = m_textureSystem->GetTexture(m_amogus->GetMeshes()[0].texturePaths[gfx::MeshTextureType::DIFFUSE]);
 
             //perFrameSet.UpdateUBO<PerFrame>(0, m_uniformBuffers[i], 0);
             perFrameSet.UpdateImage(1, tex->GetView(), tex->GetSampler());
@@ -480,6 +484,8 @@ private:
         m_swapchain.reset();
 
         m_textureSystem.reset();
+        m_amogus.reset();
+        m_modelManager.reset();
 
         for (size_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
             m_uniformBuffers[i].reset();
@@ -505,11 +511,14 @@ private:
         m_device.reset();
     }
 private:
+    std::shared_ptr<gfx::Model> m_amogus;
+
     ctrl::FlyingCameraController m_cameraController;
 
     std::vector<sft::SGUID> m_textureIDs;
 
     std::unique_ptr<sft::gfx::TextureSystem> m_textureSystem;
+    std::unique_ptr<sft::gfx::ModelManager> m_modelManager;
 
     std::unique_ptr<sft::gfx::DescriptorManager> m_descriptorManager;
 

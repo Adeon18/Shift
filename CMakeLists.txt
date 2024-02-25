@@ -87,6 +87,7 @@ if (WIN32)
     ${PROJECT_SOURCE_DIR}/Vendor/local
     ${Vulkan_INCLUDE_DIRS}
     ${GLFW_INCLUDE_DIRS}
+      ${assimp_INCLUDE_DIRS}
     )
  
   target_link_directories(${PROJECT_NAME} PUBLIC
@@ -99,6 +100,7 @@ if (WIN32)
           imgui
           spdlog::spdlog
           Threads::Threads
+          assimp
   )
 elseif (UNIX)
     message(STATUS "CREATING BUILD FOR UNIX")

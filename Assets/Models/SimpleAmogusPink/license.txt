@@ -1,0 +1,11 @@
+Model Information:
+* title:	Among Us Character
+* source:	https://sketchfab.com/3d-models/among-us-character-c153f5c9971b49e58a28872b53244dba
+* author:	rogerreyes582 (https://sketchfab.com/rogerreyes582)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Among Us Character" (https://sketchfab.com/3d-models/among-us-character-c153f5c9971b49e58a28872b53244dba) by rogerreyes582 (https://sketchfab.com/rogerreyes582) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

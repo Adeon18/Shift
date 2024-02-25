@@ -1,5 +1,7 @@
 #include "UtilStandard.hpp"
 
+#include <filesystem>
+
 namespace sft {
     namespace util {
         std::vector<char> ReadFile(const std::string& filename) {
@@ -19,6 +21,23 @@ namespace sft {
 
             file.close();
             return buffer;
+        }
+
+        std::string GetDirectoryFromPath(const std::string& path)
+        {
+            return std::filesystem::path{ path }.parent_path().string() + "/";
+        }
+
+        namespace ass {
+            glm::vec3 ToGlm(const aiVector3D& vec)
+            {
+                return { vec.x, vec.y, vec.z };
+            }
+
+            glm::mat4 ToGlm(const aiMatrix4x4& mat)
+            {
+                return glm::transpose(glm::make_mat4(&mat.a1));
+            }
         }
     } // util
 } // sft

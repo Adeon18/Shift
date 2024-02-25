@@ -8,7 +8,10 @@ namespace sft {
     //! Shift GUID
     class SGUID {
     public:
+        SGUID() = default;
         SGUID(uint64_t id): m_id{id} {}
+        SGUID(const SGUID& guid) = default;
+        SGUID& operator=(const SGUID& guid) = default;
 
         operator uint64_t() const { return m_id; }
     private:
