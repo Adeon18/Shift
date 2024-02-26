@@ -191,5 +191,17 @@ namespace sft {
 
             return depthStencil;
         }
+
+        VkRenderingAttachmentInfoKHR CreateRenderingAttachmentInfo(VkImageView view, bool isColor, VkClearValue val) {
+            VkRenderingAttachmentInfoKHR colorAttachmentInfo{};
+            colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+            colorAttachmentInfo.imageView = view;
+            colorAttachmentInfo.imageLayout = (isColor) ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL: VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            colorAttachmentInfo.clearValue = val;
+
+            return colorAttachmentInfo;
+        }
     } // info
 } // sft

@@ -18,12 +18,13 @@ namespace sft {
         class CommandPool {
         public:
 
-            CommandPool(const Device& device, POOL_TYPE type);
+            CommandPool(const sft::gfx::Device &device, const Instance& ins, POOL_TYPE type);
 
             [[nodiscard]] bool IsValid() const { return m_commandPool != VK_NULL_HANDLE; }
 
             // TODO:Temporary
             VkCommandPool Get() {return m_commandPool;}
+            const Instance& GetGlobalInstance() {return m_instance;}
 
             //! Request command buffer, if type is specified, will look only in the respetive type, calls begin on buffer
             //! If buffer type is FLIGHT and frameIdx is UINT32_MAX the behaviour is undefined
@@ -39,6 +40,7 @@ namespace sft {
 
         private:
             const Device& m_device;
+            const Instance& m_instance;
 
             VkCommandPool m_commandPool = VK_NULL_HANDLE;
             POOL_TYPE m_type;

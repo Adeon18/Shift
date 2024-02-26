@@ -1,10 +1,11 @@
 #include "CommandBuffer.hpp"
 
 #include "Utility/Vulkan/InfoUtil.hpp"
+#include <iostream>
 
 namespace sft {
     namespace gfx {
-        CommandBuffer::CommandBuffer(const sft::gfx::Device &device, const VkCommandPool commandPool, POOL_TYPE type): m_device{device}, m_poolType{type} {
+        CommandBuffer::CommandBuffer(const Device& device, const Instance& ins, const VkCommandPool commandPool, POOL_TYPE type): m_device{device}, m_ins{ins}, m_poolType{type} {
             VkCommandBufferAllocateInfo allocInfoGraphics{};
             allocInfoGraphics.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
             allocInfoGraphics.commandPool = commandPool;
@@ -149,6 +150,9 @@ namespace sft {
                     }
                     barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
                     break;
+                case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+                    barrier.dstAccessMask = 0;
+                    break;
                 default:
                     spdlog::error("Unsupported destination layout!");
                     break;
@@ -278,6 +282,14 @@ namespace sft {
         void CommandBuffer::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex,
                                         int32_t vertexOffset, uint32_t firstInstance) const {
             vkCmdDrawIndexed(m_buffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+        }
+
+        void CommandBuffer::BeginRendering(VkRenderingInfoKHR info) const {
+            m_ins.CallBeginRenderingExternal(m_buffer, info);
+        }
+
+        void CommandBuffer::EndRendering() const {
+            m_ins.CallEndRenderingExternal(m_buffer);
         }
     } // gfx
 } // sft

@@ -118,6 +118,7 @@ namespace sft {
             FillSwapchainDescription(width, height);
             CreateSwapChain();
             CreateImageViews();
+            m_depthBuffer = std::make_unique<DepthTexture>(m_device, width, height, m_device.FindSupportedDepthFormat());
             if (!IsValid()) {
                 return false;
             }
@@ -173,6 +174,10 @@ namespace sft {
                 return false;
             }
             return true;
+        }
+
+        void Swapchain::CleanUp() {
+            m_depthBuffer.reset();
         }
     }
 } // sft

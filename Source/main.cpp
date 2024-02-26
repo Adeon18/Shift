@@ -182,9 +182,19 @@ private:
         m_pipeline->SetBlendAttachment(blendState);
         m_pipeline->SetBlendState(sft::info::CreateBlendStateInfo(blendState));
 
+        VkFormat colF = m_swapchain->GetFormat();
+        VkFormat depthF = m_swapchain->GetDepthBufferFormat();
+        VkPipelineRenderingCreateInfoKHR pipelineRenderingCreateInfo{};
+        pipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+        pipelineRenderingCreateInfo.colorAttachmentCount = 1;
+        pipelineRenderingCreateInfo.pColorAttachmentFormats = &colF;
+        pipelineRenderingCreateInfo.depthAttachmentFormat = depthF;
+
+        m_pipeline->SetDynamicRenderingInfo(pipelineRenderingCreateInfo);
+
         if (!m_pipeline->BuildLayout({m_descriptorManager->GetPerFrameSet(m_currentFrame).GetLayout().Ptr(), 1})) {return false;}
 
-        return m_pipeline->Build(*m_renderPass);
+        return m_pipeline->Build();
     }
 
     bool createRenderPass() {
@@ -215,13 +225,13 @@ private:
                     m_swapchain->GetDepthBufferView()
             };
 
-            m_swapChainFramebuffers[i] = std::make_unique<gfx::FrameBuffer>(*m_device, m_renderPass->Get(), m_swapchain->GetExtent(), attachments);
+            //m_swapChainFramebuffers[i] = std::make_unique<gfx::FrameBuffer>(*m_device, m_renderPass->Get(), m_swapchain->GetExtent(), attachments);
         }
     }
 
     void createCommandPools() {
-        m_graphicsPool = std::make_unique<sft::gfx::CommandPool>(*m_device, sft::gfx::POOL_TYPE::GRAPHICS);
-        m_transferPool = std::make_unique<sft::gfx::CommandPool>(*m_device, sft::gfx::POOL_TYPE::TRANSFER);
+        m_graphicsPool = std::make_unique<sft::gfx::CommandPool>(*m_device, *m_instance, sft::gfx::POOL_TYPE::GRAPHICS);
+        m_transferPool = std::make_unique<sft::gfx::CommandPool>(*m_device, *m_instance, sft::gfx::POOL_TYPE::TRANSFER);
     }
 
     void CreateTextureSystem() {
@@ -304,22 +314,20 @@ private:
 
     void recordCommandBuffer(const sft::gfx::CommandBuffer& cmdBuf, uint32_t imageIndex) {
 
-        //! Begin a render pass
-        VkRenderPassBeginInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = m_renderPass->Get();
-        renderPassInfo.framebuffer = m_swapChainFramebuffers[imageIndex]->Get();
+        cmdBuf.TransferImageLayout(m_swapchain->GetImages()[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 
-        renderPassInfo.renderArea.offset = { 0, 0 };
-        renderPassInfo.renderArea.extent = m_swapchain->GetExtent();
+        auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_swapchain->GetImageViews()[imageIndex]);
+        auto depthAttInfo = info::CreateRenderingAttachmentInfo(m_swapchain->GetDepthBufferView(), false, {1.0f, 0});
 
-        std::array<VkClearValue, 2> clearValues{};
-        clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
-        clearValues[1].depthStencil = {1.0f, 0};
-        renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-        renderPassInfo.pClearValues = clearValues.data();
+        VkRenderingInfoKHR renderInfo{};
+        renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
+        renderInfo.renderArea = {.offset = {0, 0}, .extent = m_swapchain->GetExtent()};
+        renderInfo.layerCount = 1;
+        renderInfo.colorAttachmentCount = 1;
+        renderInfo.pColorAttachments = &colorAttInfo;
+        renderInfo.pDepthAttachment = &depthAttInfo;
 
-        cmdBuf.BeginRenderPass(renderPassInfo);
+        cmdBuf.BeginRendering(renderInfo);
 
         cmdBuf.BindPipeline(m_pipeline->Get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
 
@@ -351,7 +359,9 @@ private:
         // DRAW THE FUCKING TRIANGLE
         cmdBuf.DrawIndexed(m_amogus->GetRanges()[0].indexNum, 1, 0, 0, 0);
 
-        cmdBuf.EndRenderPass();
+        cmdBuf.EndRendering();
+
+        cmdBuf.TransferImageLayout(m_swapchain->GetImages()[imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 
         cmdBuf.EndCommandBuffer();
     }
@@ -467,9 +477,6 @@ private:
 
         //pf.proj = glm::perspective(glm::radians(45.0f), static_cast<float>(m_swapchain->GetExtent().width) / static_cast<float>(m_swapchain->GetExtent().height), 0.1f, 100.0f);
         pf.proj = m_cameraController.GetCamera().GetProjectionMatrix();
-
-        // Y coordinate is fliped in Vulkan??
-        //pf.proj[1][1] *= -1;
 
         m_uniformBuffers[currentImage]->Fill(&pf, sizeof(pf));
     }

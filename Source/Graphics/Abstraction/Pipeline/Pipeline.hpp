@@ -35,9 +35,11 @@ namespace sft {
 
             void SetBlendState(VkPipelineColorBlendStateCreateInfo info);
 
+            void SetDynamicRenderingInfo(VkPipelineRenderingCreateInfoKHR info);
+
             bool BuildLayout(const std::span<VkDescriptorSetLayout>& descSetLayout);
 
-            bool Build(const RenderPass& pass, uint32_t subpassIdx = 0);
+            bool Build(uint32_t subpassIdx = 0);
 
             [[nodiscard]] VkPipeline Get() const { return m_pipeline; }
             [[nodiscard]] VkPipelineLayout GetLayout() const { return m_layout; }
@@ -65,6 +67,7 @@ namespace sft {
             std::optional<VkPipelineColorBlendAttachmentState> m_coloBlendAttInfo;
             std::optional<VkPipelineColorBlendStateCreateInfo> m_coloBlendStateInfo;
             std::optional<VkPipelineDepthStencilStateCreateInfo> m_depthStencilStateInfo;
+            std::optional<VkPipelineRenderingCreateInfoKHR> m_dynamicRenderingInfo;
         };
     } // gfx
 } // sft

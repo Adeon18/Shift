@@ -14,7 +14,7 @@ namespace sft {
         glfwSetKeyCallback(m_window, KeyCallback);
         glfwSetMouseButtonCallback(m_window, MouseButtonCallback);
         glfwSetCursorPosCallback(m_window, MouseCursorCallback);
-        SetCaptureCursor(true);
+        //SetCaptureCursor(true);
     }
 
     ShiftWindow::ShiftWindow(uint32_t width, uint32_t height,  std::string  name):

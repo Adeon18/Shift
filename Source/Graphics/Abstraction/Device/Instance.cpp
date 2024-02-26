@@ -50,6 +50,8 @@ namespace sft {
                 throw VulkanCreateResourceException("Failed to create instance!");
             }
 
+            PollDynamicRenderingFunctions();
+
             setupDebugMessenger();
         }
 
@@ -61,6 +63,16 @@ namespace sft {
             if (gutil::CreateDebugUtilsMessengerEXT(m_instance, &createInfo, nullptr, &m_debugMessenger) != VK_SUCCESS) {
                 throw VulkanCreateResourceException("Failed to set up debug messenger!");
             }
+        }
+
+        void Instance::PollDynamicRenderingFunctions() {
+            vkCmdBeginRenderingKHR = (PFN_vkCmdBeginRenderingKHR) vkGetInstanceProcAddr(m_instance, "vkCmdBeginRenderingKHR");
+            vkCmdEndRenderingKHR   = (PFN_vkCmdEndRenderingKHR) vkGetInstanceProcAddr(m_instance, "vkCmdEndRenderingKHR");
+            if (!vkCmdBeginRenderingKHR || !vkCmdEndRenderingKHR)
+            {
+                spdlog::error("Failed polling vkCmdBeginRenderingKHR and vkCmdEndRenderingKHR functions!");
+            }
+            spdlog::info("Polled vkCmdBeginRenderingKHR and vkCmdEndRenderingKHR functions!");
         }
 
         Instance::~Instance() {

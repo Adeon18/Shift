@@ -25,7 +25,7 @@ namespace sft {
 
         class CommandBuffer {
         public:
-            CommandBuffer(const Device& device, const VkCommandPool commandPool, POOL_TYPE type);
+            CommandBuffer(const Device& device, const Instance& ins, const VkCommandPool commandPool, POOL_TYPE type);
 
             [[nodiscard]] bool IsAvailable() const { return m_fence->Status() == VK_SUCCESS; }
 
@@ -81,6 +81,12 @@ namespace sft {
 
             void EndRenderPass() const;
 
+            //! Dynamic rendering extennsion integration
+            void BeginRendering(VkRenderingInfoKHR info) const;
+
+            //! Dynamic rendering extension integration
+            void EndRendering() const;
+
             //! Set viewport, we don't support multiple
             void SetViewPort(VkViewport viewport) const;
 
@@ -122,6 +128,7 @@ namespace sft {
             CommandBuffer& operator=(const CommandBuffer&) = delete;
         private:
             const Device& m_device;
+            const Instance& m_ins;
 
             VkCommandBuffer m_buffer;
 

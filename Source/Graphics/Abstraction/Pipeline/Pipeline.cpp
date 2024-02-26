@@ -65,9 +65,10 @@ namespace sft {
             return m_layout != VK_NULL_HANDLE;
         }
 
-        bool Pipeline::Build(const RenderPass& pass, uint32_t subpassIdx) {
+        bool Pipeline::Build(uint32_t subpassIdx) {
             VkGraphicsPipelineCreateInfo pipelineInfo{};
             pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+            pipelineInfo.pNext = (m_dynamicRenderingInfo.has_value()) ? &m_dynamicRenderingInfo.value(): nullptr;
             pipelineInfo.stageCount = m_shaderStages.size();
             pipelineInfo.pStages = m_shaderStages.data();
             // Fixed function stage
@@ -81,7 +82,7 @@ namespace sft {
             pipelineInfo.pDynamicState = (m_dynamicStateInfo.has_value()) ? &m_dynamicStateInfo.value(): nullptr;
 
             pipelineInfo.layout = m_layout;
-            pipelineInfo.renderPass = pass.Get();
+            pipelineInfo.renderPass = VK_NULL_HANDLE;
             pipelineInfo.subpass = subpassIdx;
 
             pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
@@ -99,6 +100,10 @@ namespace sft {
 
         void Pipeline::SetDepthStencilInfo(VkPipelineDepthStencilStateCreateInfo info) {
             m_depthStencilStateInfo = info;
+        }
+
+        void Pipeline::SetDynamicRenderingInfo(VkPipelineRenderingCreateInfoKHR info) {
+            m_dynamicRenderingInfo = info;
         }
     } // gfx
 } // sft

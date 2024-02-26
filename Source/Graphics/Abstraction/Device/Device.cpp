@@ -45,8 +45,14 @@ namespace sft {
             // We want an anisotropic sampler
             deviceFeatures.samplerAnisotropy = VK_TRUE;
 
+            const VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature {
+                    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
+                    .dynamicRendering = VK_TRUE
+            };
+
             VkDeviceCreateInfo createInfo{};
             createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+            createInfo.pNext = &dynamicRenderingFeature;
             createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
             createInfo.pQueueCreateInfos = queueCreateInfos.data();
             createInfo.pEnabledFeatures = &deviceFeatures;

@@ -34,9 +34,11 @@ namespace sft {
             [[nodiscard]] uint32_t AquireNextImageIndex(const Semaphore& semaphore, bool* wasChanged, uint64_t timeout = UINT64_MAX);
             [[nodiscard]] bool Recreate(uint32_t width, uint32_t height);
             [[nodiscard]] bool Present(const Semaphore& semaphore, uint32_t imageIdx, bool* isOld);
+            void CleanUp();
 
             [[nodiscard]] VkSwapchainKHR Get() const { return m_swapChain; }
             [[nodiscard]] const std::vector<VkImageView>& GetImageViews() const { return m_swapChainImageViews; }
+            [[nodiscard]] const std::vector<VkImage>& GetImages() const { return m_swapChainImages; }
             [[nodiscard]] VkImageView GetDepthBufferView() const { return m_depthBuffer->GetView(); }
             [[nodiscard]] const SwapchainDescription& GetDesc() const { return m_swapchainDesc; }
             [[nodiscard]] VkExtent2D GetExtent() const { return m_swapchainDesc.swapChainExtent; }

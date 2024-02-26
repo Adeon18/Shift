@@ -7,7 +7,7 @@
 
 namespace sft {
     namespace gfx {
-        CommandPool::CommandPool(const sft::gfx::Device &device, POOL_TYPE type): m_device{device}, m_type{type} {
+        CommandPool::CommandPool(const sft::gfx::Device &device, const Instance& ins, POOL_TYPE type): m_device{device}, m_instance{ins}, m_type{type} {
             uint32_t queueFamilyIndex = 0;
             auto queueFamiliIndices = m_device.GetQueueFamilyIndices();
 
@@ -38,7 +38,7 @@ namespace sft {
             for (uint32_t i = 0; i < m_commandBuffers[type].size(); ++i) {
                 if (bufferInFlight) {
                     if (frameIdx >= m_commandBuffers[type].size()) {
-                        auto& placedBuf = m_commandBuffers[BUFFER_TYPE::FLIGHT].emplace_back(m_device, m_commandPool, m_type);
+                        auto& placedBuf = m_commandBuffers[BUFFER_TYPE::FLIGHT].emplace_back(m_device, m_instance, m_commandPool, m_type);
                         return placedBuf;
                     }
                     if (!m_commandBuffers[type][frameIdx].IsAvailable()) m_commandBuffers[type][frameIdx].Wait();
@@ -61,7 +61,7 @@ namespace sft {
                 return m_commandBuffers[type][frameIdx];
             }
 
-            auto& placedBuf = m_commandBuffers[type].emplace_back(m_device, m_commandPool, m_type);
+            auto& placedBuf = m_commandBuffers[type].emplace_back(m_device, m_instance, m_commandPool, m_type);
 
             spdlog::debug("Created new buffer. Number {}, Type: {}", m_commandBuffers.size(), static_cast<int>(type));
 

@@ -22,12 +22,19 @@ namespace sft {
 
             [[nodiscard]] VkInstance Get() const { return m_instance; }
 
+            void CallBeginRenderingExternal(VkCommandBuffer buff, VkRenderingInfoKHR info) const {vkCmdBeginRenderingKHR(buff, &info);}
+            void CallEndRenderingExternal(VkCommandBuffer buff) const {vkCmdEndRenderingKHR(buff);}
+
             ~Instance();
         private:
             void setupDebugMessenger();
+            void PollDynamicRenderingFunctions();
 
             VkInstance m_instance;
             VkDebugUtilsMessengerEXT m_debugMessenger;
+
+            PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR{VK_NULL_HANDLE};
+            PFN_vkCmdEndRenderingKHR   vkCmdEndRenderingKHR{VK_NULL_HANDLE};
         };
     } // gfx
 } // sft
