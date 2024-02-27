@@ -2,7 +2,7 @@
 
 #include <utility>
 
-namespace sft {
+namespace shift {
 
     void ShiftWindow::InitWindow() {
         glfwInit();

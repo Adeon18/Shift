@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-namespace sft::gfx {
+namespace shift::gfx {
     void Model::InitWithMeshData(const Device& device, const CommandBuffer& buffer) {
         uint32_t totalVerticeCount = 0;
         uint32_t totalIndiceCount = 0;
@@ -36,16 +36,16 @@ namespace sft::gfx {
         // TODO: Move this responsibility to the abstraction
 
         auto vertexBufferSize = sizeof(vertices[0]) * vertices.size();
-        sft::gfx::StagingBuffer stagingBufferVertex{device, vertexBufferSize};
+        shift::gfx::StagingBuffer stagingBufferVertex{device, vertexBufferSize};
         stagingBufferVertex.Fill(vertices.data(), vertexBufferSize);
         buffer.CopyBuffer(stagingBufferVertex.Get(), m_vertexBuffer->Get(), vertexBufferSize);
 
         auto indexBufferSize = sizeof(indices[0]) * indices.size();
-        sft::gfx::StagingBuffer stagingBufferIndex{device, indexBufferSize};
+        shift::gfx::StagingBuffer stagingBufferIndex{device, indexBufferSize};
         stagingBufferIndex.Fill(indices.data(), indexBufferSize);
         buffer.CopyBuffer(stagingBufferIndex.Get(), m_indexBuffer->Get(), indexBufferSize);
 
         buffer.EndCommandBuffer();
         buffer.SubmitAndWait();
     }
-} // sft::gfx
+} // shift::gfx

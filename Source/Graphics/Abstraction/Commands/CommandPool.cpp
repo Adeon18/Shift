@@ -5,9 +5,9 @@
 
 #include <iostream>
 
-namespace sft {
+namespace shift {
     namespace gfx {
-        CommandPool::CommandPool(const sft::gfx::Device &device, const Instance& ins, POOL_TYPE type): m_device{device}, m_instance{ins}, m_type{type} {
+        CommandPool::CommandPool(const shift::gfx::Device &device, const Instance& ins, POOL_TYPE type): m_device{device}, m_instance{ins}, m_type{type} {
             uint32_t queueFamilyIndex = 0;
             auto queueFamiliIndices = m_device.GetQueueFamilyIndices();
 

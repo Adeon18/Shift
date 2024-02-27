@@ -5,7 +5,7 @@
 
 #include "Graphics/Abstraction/Device/Device.hpp"
 
-namespace sft::gfx {
+namespace shift::gfx {
     class Buffer {
     public:
         Buffer(
@@ -106,6 +106,6 @@ namespace sft::gfx {
                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
         {}
     };
-} // sft::gfx
+} // shift::gfx
 
 #endif //SHIFT_BASICBUFFERS_HPP

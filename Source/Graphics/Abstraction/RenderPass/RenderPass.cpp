@@ -1,12 +1,12 @@
 #include "RenderPass.hpp"
 
-namespace sft {
+namespace shift {
     namespace gfx {
-        void RenderPass::AddAttachment(const sft::gfx::Attachment &attachment) {
+        void RenderPass::AddAttachment(const shift::gfx::Attachment &attachment) {
             m_attachmentData.push_back(attachment);
         }
 
-        void RenderPass::AddSubpass(const sft::gfx::Subpass &pass) {
+        void RenderPass::AddSubpass(const shift::gfx::Subpass &pass) {
             m_subpassData.push_back(pass);
         }
 
@@ -45,4 +45,4 @@ namespace sft {
             m_device.DestroyRenderPass(m_pass);
         }
     } // gfx
-} // sft
+} // shift

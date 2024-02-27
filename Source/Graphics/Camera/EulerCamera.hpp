@@ -6,7 +6,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-namespace sft::gfx {
+namespace shift::gfx {
     class EulerCamera {
     public:
         EulerCamera(float fov, uint32_t screenWidth, uint32_t screenHeight,
@@ -59,6 +59,6 @@ namespace sft::gfx {
         uint32_t m_height;
         float m_ratio;
     };
-} // sft::gfx
+} // shift::gfx
 
 #endif //SHIFT_EULERCAMERA_HPP

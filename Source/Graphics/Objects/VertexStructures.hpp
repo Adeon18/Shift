@@ -7,7 +7,7 @@
 #include <array>
 #include <vector>
 
-namespace sft::gfx {
+namespace shift::gfx {
     struct Vertex {
         glm::vec3 pos;
         glm::vec3 color;
@@ -61,9 +61,9 @@ namespace sft::gfx {
             return attributeDescriptions;
         }
     };
-} // sft::gfx
+} // shift::gfx
 
-const std::vector<sft::gfx::Vertex> vertices = {
+const std::vector<shift::gfx::Vertex> vertices = {
     {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
     {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
     {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},

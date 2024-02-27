@@ -5,7 +5,7 @@
 #include <iostream>
 
 
-namespace sft::tool {
+namespace shift::tool {
     using namespace std::chrono_literals;
 
     class FPSTimer {
@@ -50,6 +50,6 @@ namespace sft::tool {
         // FPS we print to debug
         float m_ActualFPS;
     };
-} // sft::tool
+} // shift::tool
 
 #endif //SHIFT_FPSTIMER_HPP

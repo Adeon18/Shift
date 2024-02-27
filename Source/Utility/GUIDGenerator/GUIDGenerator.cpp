@@ -1,6 +1,6 @@
 #include "GUIDGenerator.hpp"
 
-namespace sft {
+namespace shift {
     namespace {
         std::random_device s_randDevice;
         std::mt19937_64 s_randEngine{s_randDevice()};

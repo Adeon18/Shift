@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-namespace sft::ctrl {
+namespace shift::ctrl {
     FlyingCameraController::FlyingCameraController(float fovDeg,
                                                    std::pair<uint32_t, uint32_t> screenWH,
                                                    const glm::vec3 &position)
@@ -65,4 +65,4 @@ namespace sft::ctrl {
     glm::vec3 FlyingCameraController::GetUpDir() {
         return m_camera.GetUpDirection();
     }
-} // sft::ctrl
+} // shift::ctrl

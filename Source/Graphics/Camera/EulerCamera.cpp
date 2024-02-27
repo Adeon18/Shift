@@ -6,7 +6,7 @@
 #include "glm/ext/scalar_constants.hpp"
 #include "glm/gtx/string_cast.hpp"
 
-namespace sft::gfx {
+namespace shift::gfx {
     EulerCamera::EulerCamera(float fov, uint32_t screenWidth, uint32_t screenHeight,
                    const glm::vec3 &position)
             : m_fov{fov}, m_position{position}, m_rotation{0.0f, 0.0f, 0.0f}, m_width{screenWidth}, m_height{screenHeight} {
@@ -56,4 +56,4 @@ namespace sft::gfx {
 
         m_view = glm::lookAt(m_position, m_position + m_frontDir, m_upDir);
     }
-} // sft::gfx
+} // shift::gfx

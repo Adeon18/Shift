@@ -13,12 +13,12 @@
 #include "Graphics/Abstraction/Device/Device.hpp"
 #include "CommandBuffer.hpp"
 
-namespace sft {
+namespace shift {
     namespace gfx {
         class CommandPool {
         public:
 
-            CommandPool(const sft::gfx::Device &device, const Instance& ins, POOL_TYPE type);
+            CommandPool(const shift::gfx::Device &device, const Instance& ins, POOL_TYPE type);
 
             [[nodiscard]] bool IsValid() const { return m_commandPool != VK_NULL_HANDLE; }
 
@@ -48,6 +48,6 @@ namespace sft {
             std::unordered_map<BUFFER_TYPE, std::deque<CommandBuffer>> m_commandBuffers;
         };
     } // gfx
-} // sft
+} // shift
 
 #endif //SHIFT_COMMANDPOOL_HPP

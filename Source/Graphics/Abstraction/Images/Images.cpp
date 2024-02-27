@@ -2,8 +2,8 @@
 
 #include "Utility/Vulkan/InfoUtil.hpp"
 
-namespace sft::gfx {
-    TextureBase::TextureBase(const sft::gfx::Device &device,
+namespace shift::gfx {
+    TextureBase::TextureBase(const shift::gfx::Device &device,
                      uint32_t width,
                      uint32_t height,
                      uint32_t depth,
@@ -95,4 +95,4 @@ namespace sft::gfx {
         m_device.DestroyImageView(m_imageView);
         vmaDestroyImage(m_device.GetAllocator(), m_image, m_allocation);
     }
-} // sft::gfx
+} // shift::gfx

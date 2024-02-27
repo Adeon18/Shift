@@ -1,6 +1,6 @@
 #include "UtilVulkan.hpp"
 
-namespace sft {
+namespace shift {
     namespace gutil {
         bool CheckValidationLayerSupport() {
             uint32_t layerCount;
@@ -286,4 +286,4 @@ namespace sft {
             spdlog::error("Failed to find supported depth format!");
         }
     } // gfx
-} // sft
+} // shift

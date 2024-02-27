@@ -3,7 +3,7 @@
 #include "Utility/Vulkan/InfoUtil.hpp"
 #include <iostream>
 
-namespace sft {
+namespace shift {
     namespace gfx {
         CommandBuffer::CommandBuffer(const Device& device, const Instance& ins, const VkCommandPool commandPool, POOL_TYPE type): m_device{device}, m_ins{ins}, m_poolType{type} {
             VkCommandBufferAllocateInfo allocInfoGraphics{};
@@ -292,4 +292,4 @@ namespace sft {
             m_ins.CallEndRenderingExternal(m_buffer);
         }
     } // gfx
-} // sft
+} // shift

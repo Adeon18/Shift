@@ -2,7 +2,7 @@
 
 #include "Utility/Vulkan/InfoUtil.hpp"
 
-namespace sft {
+namespace shift {
     namespace gfx {
         bool Shader::CreateStage() {
             auto code = util::ReadFile(m_path);
@@ -34,4 +34,4 @@ namespace sft {
             m_device.DestroyShaderModule(m_module);
         }
     } // gfx
-} // sft
+} // shift

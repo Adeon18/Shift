@@ -1,6 +1,6 @@
 #include "DescriptorManagement.hpp"
 
-namespace sft::gfx {
+namespace shift::gfx {
     void DescriptorLayout::AddUBOBinding(uint32_t bind, VkShaderStageFlags stages) {
         VkDescriptorSetLayoutBinding uboLayoutBinding{};
         uboLayoutBinding.binding = bind;
@@ -61,7 +61,7 @@ namespace sft::gfx {
         m_device.DestroyDescriptorPool(m_pool);
     }
 
-    DescriptorSet::DescriptorSet(const sft::gfx::Device &device): m_device{device} {
+    DescriptorSet::DescriptorSet(const shift::gfx::Device &device): m_device{device} {
         m_layout = std::make_shared<DescriptorLayout>(device);
     }
 
@@ -104,4 +104,4 @@ namespace sft::gfx {
     DescriptorSet::~DescriptorSet() {
         m_layout.reset();
     }
-} // sft::gfx
+} // shift::gfx

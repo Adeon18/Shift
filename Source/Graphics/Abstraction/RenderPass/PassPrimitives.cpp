@@ -1,6 +1,6 @@
 #include "PassPrimitives.hpp"
 
-namespace sft {
+namespace shift {
     namespace gfx {
         Attachment::Attachment(VkFormat format, Type tp, uint32_t bind): type{tp} {
             description.format = format;
@@ -85,4 +85,4 @@ namespace sft {
             description.pDepthStencilAttachment = &depthAttachmentRef;
         }
     } // gfx
-} // sft
+} // shift

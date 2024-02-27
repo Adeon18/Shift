@@ -4,7 +4,7 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 
-namespace sft {
+namespace shift {
     namespace gfx {
         struct Attachment {
         public:
@@ -37,6 +37,6 @@ namespace sft {
             VkSubpassDescription description{};
         };
     } // gfx
-} // sft
+} // shift
 
 #endif //SHIFT_PASSPRIMITIVES_HPP

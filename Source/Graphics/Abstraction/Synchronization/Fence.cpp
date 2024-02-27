@@ -2,7 +2,7 @@
 
 #include "Utility/Vulkan/InfoUtil.hpp"
 
-namespace sft {
+namespace shift {
     namespace gfx {
         Fence::Fence(const Device& device, bool isSignaled): m_device{device} {
             m_fence = m_device.CreateFence(info::CreateFenceInfo(isSignaled));
@@ -24,4 +24,4 @@ namespace sft {
             return vkGetFenceStatus(m_device.Get(), m_fence);
         }
     } // gfx
-} // sft
+} // shift

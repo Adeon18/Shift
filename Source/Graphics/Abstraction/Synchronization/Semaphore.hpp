@@ -5,7 +5,7 @@
 
 #include "Graphics/Abstraction/Device/Device.hpp"
 
-namespace sft {
+namespace shift {
     namespace gfx {
         class Semaphore {
         public:
@@ -25,6 +25,6 @@ namespace sft {
             VkSemaphore m_semaphore;
         };
     } // gfx
-} // sft
+} // shift
 
 #endif //SHIFT_SEMAPHORE_HPP

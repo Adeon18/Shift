@@ -1,6 +1,6 @@
 #include "Pipeline.hpp"
 
-namespace sft {
+namespace shift {
     namespace gfx {
 
         void Pipeline::AddShaderStage(const Shader &shader) {
@@ -106,4 +106,4 @@ namespace sft {
             m_dynamicRenderingInfo = info;
         }
     } // gfx
-} // sft
+} // shift

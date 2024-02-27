@@ -8,7 +8,7 @@
 #include "Shader.hpp"
 #include "Graphics/Abstraction/RenderPass/RenderPass.hpp"
 
-namespace sft {
+namespace shift {
     namespace gfx {
         class Pipeline {
         public:
@@ -70,6 +70,6 @@ namespace sft {
             std::optional<VkPipelineRenderingCreateInfoKHR> m_dynamicRenderingInfo;
         };
     } // gfx
-} // sft
+} // shift
 
 #endif //SHIFT_PIPELINE_HPP

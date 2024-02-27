@@ -7,7 +7,7 @@
 
 #include "Utility/UtilStandard.hpp"
 
-namespace sft {
+namespace shift {
     namespace gfx {
         class Shader {
         public:
@@ -41,6 +41,6 @@ namespace sft {
             VkPipelineShaderStageCreateInfo m_stageInfo{};
         };
     } // gfx
-} // sft
+} // shift
 
 #endif //SHIFT_SHADER_HPP

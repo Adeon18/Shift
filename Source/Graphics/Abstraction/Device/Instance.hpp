@@ -11,7 +11,7 @@
 
 #include "Utility/Exceptions/VulkanExceptions.hpp"
 
-namespace sft {
+namespace shift {
     namespace gfx {
         class Instance {
         public:
@@ -37,6 +37,6 @@ namespace sft {
             PFN_vkCmdEndRenderingKHR   vkCmdEndRenderingKHR{VK_NULL_HANDLE};
         };
     } // gfx
-} // sft
+} // shift
 
 #endif //SHIFT_INSTANCE_HPP

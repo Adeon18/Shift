@@ -1,7 +1,7 @@
 #include "BasicBuffers.hpp"
 
-namespace sft::gfx {
-    Buffer::Buffer(const sft::gfx::Device &device, uint64_t size, VmaAllocationCreateFlags allocFlags,
+namespace shift::gfx {
+    Buffer::Buffer(const shift::gfx::Device &device, uint64_t size, VmaAllocationCreateFlags allocFlags,
                    VkBufferUsageFlags usage): m_device{device}, m_size{size} {
         VkBufferCreateInfo bufCreateInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
         bufCreateInfo.size = size;
@@ -34,4 +34,4 @@ namespace sft::gfx {
     Buffer::~Buffer() {
         vmaDestroyBuffer(m_device.GetAllocator(), m_buffer, m_allocation);
     }
-} // sft::gfx
+} // shift::gfx

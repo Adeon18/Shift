@@ -5,7 +5,7 @@
 #include <GLFW/glfw3.h>
 #include <utility>
 
-namespace sft::inp {
+namespace shift::inp {
     class Mouse {
     public:
         static Mouse &GetInstance() {
@@ -65,6 +65,6 @@ namespace sft::inp {
         double m_xpos, m_ypos;
         double m_prevXpos, m_prevYpos;
     };
-} // sft::inp
+} // shift::inp
 
 #endif //SHIFT_MOUSE_H

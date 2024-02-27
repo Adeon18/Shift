@@ -3,7 +3,7 @@
 
 #include "GLFW/glfw3.h"
 
-namespace sft {
+namespace shift {
     namespace gfx {
         class WindowSurface {
         public:
@@ -22,6 +22,6 @@ namespace sft {
             VkSurfaceKHR m_surface;
         };
     } // gfx
-} // sft
+} // shift
 
 #endif //SHIFT_WINDOWSURFACE_H

@@ -11,7 +11,7 @@
 
 #include "Window/ShiftWindow.hpp"
 
-namespace sft {
+namespace shift {
     namespace gfx {
         struct SwapchainDescription {
             VkSurfaceFormatKHR surfaceFormat;
@@ -34,7 +34,6 @@ namespace sft {
             [[nodiscard]] uint32_t AquireNextImageIndex(const Semaphore& semaphore, bool* wasChanged, uint64_t timeout = UINT64_MAX);
             [[nodiscard]] bool Recreate(uint32_t width, uint32_t height);
             [[nodiscard]] bool Present(const Semaphore& semaphore, uint32_t imageIdx, bool* isOld);
-            void CleanUp();
 
             [[nodiscard]] VkSwapchainKHR Get() const { return m_swapChain; }
             [[nodiscard]] const std::vector<VkImageView>& GetImageViews() const { return m_swapChainImageViews; }
@@ -70,6 +69,6 @@ namespace sft {
             std::unique_ptr<DepthTexture> m_depthBuffer;
         };
     } // gfx
-} // sft
+} // shift
 
 #endif //SHIFT_SWAPCHAIN_HPP

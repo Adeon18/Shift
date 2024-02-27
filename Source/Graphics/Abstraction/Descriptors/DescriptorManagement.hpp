@@ -6,7 +6,7 @@
 #ifndef SHIFT_DESCRIPTORMANAGEMENT_HPP
 #define SHIFT_DESCRIPTORMANAGEMENT_HPP
 
-namespace sft::gfx {
+namespace shift::gfx {
     class DescriptorLayout {
     public:
         DescriptorLayout(const Device& device): m_device{device} {}
@@ -114,6 +114,6 @@ namespace sft::gfx {
 
         m_writeSets.push_back(writeSet);
     }
-} // sft::gfx
+} // shift::gfx
 
 #endif //SHIFT_DESCRIPTORMANAGEMENT_HPP

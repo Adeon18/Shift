@@ -9,7 +9,7 @@
 #include "Graphics/Abstraction/Commands/CommandPool.hpp"
 #include "Graphics/Abstraction/Images/Images.hpp"
 
-namespace sft::gfx {
+namespace shift::gfx {
     class TextureSystem {
     public:
         TextureSystem(

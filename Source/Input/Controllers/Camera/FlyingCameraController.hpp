@@ -13,7 +13,7 @@
 #include "Input/Mouse.hpp"
 #include "Graphics/Camera/EulerCamera.hpp"
 
-namespace sft::ctrl {
+namespace shift::ctrl {
     class FlyingCameraController {
         static constexpr float ROTATION_SPEED = 0.001f;
         static constexpr float MOVEMENT_SPEED = 0.001f;
@@ -68,5 +68,5 @@ namespace sft::ctrl {
         //! Handle Camera rotation
         void HandleMovement();
     };
-} // sft::ctrl
+} // shift::ctrl
 #endif //SHIFT_FLYINGCAMERACONTROLLER_HPP

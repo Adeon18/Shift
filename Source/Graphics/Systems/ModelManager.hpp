@@ -10,7 +10,7 @@
 #include "Graphics/Objects/Model.hpp"
 #include "TextureSystem.hpp"
 
-namespace sft::gfx {
+namespace shift::gfx {
     class ModelManager {
     public:
         static constexpr uint32_t IMPORT_FLAGS = uint32_t(
@@ -63,6 +63,6 @@ namespace sft::gfx {
                 aiTextureType_UNKNOWN
         };
     };
-} // sft::gfx
+} // shift::gfx
 
 #endif //SHIFT_MODELMANAGER_HPP

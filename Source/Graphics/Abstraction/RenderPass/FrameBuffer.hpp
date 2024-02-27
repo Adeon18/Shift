@@ -5,7 +5,7 @@
 
 #include "Graphics/Abstraction/Device/Device.hpp"
 
-namespace sft::gfx {
+namespace shift::gfx {
     //! A simple RAII wrapper over a framebuffer as a separate object
     class FrameBuffer {
     public:
@@ -25,6 +25,6 @@ namespace sft::gfx {
 
         VkFramebuffer m_frameBuffer;
     };
-} // sft::gfx
+} // shift::gfx
 
 #endif //SHIFT_FRAMEBUFFER_HPP

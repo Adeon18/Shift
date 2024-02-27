@@ -2,7 +2,7 @@
 
 #include "WindowSurface.hpp"
 
-namespace sft {
+namespace shift {
     namespace gfx {
         WindowSurface::WindowSurface(const VkInstance ins, GLFWwindow *win): m_instance{ins} {
             if (const auto result = glfwCreateWindowSurface(ins, win, nullptr, &m_surface); result != VK_SUCCESS) {
@@ -14,4 +14,4 @@ namespace sft {
             vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
         };
     } // gfx
-} // sft
+} // shift

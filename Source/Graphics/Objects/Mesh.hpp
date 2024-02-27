@@ -9,7 +9,7 @@
 #include "Utility/GUIDGenerator/GUIDGenerator.hpp"
 #include "VertexStructures.hpp"
 
-namespace sft::gfx {
+namespace shift::gfx {
     enum class MeshTextureType {
         DIFFUSE
     };
@@ -28,6 +28,6 @@ namespace sft::gfx {
         glm::mat4 meshToModel;
         glm::mat4 meshToModelInv;
     };
-} // sft::gfx
+} // shift::gfx
 
 #endif //SHIFT_MESH_HPP

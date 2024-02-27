@@ -3,7 +3,7 @@
 #include "Utility/Vulkan/UtilVulkan.hpp"
 #include "Config/EngineConfig.hpp"
 
-namespace sft {
+namespace shift {
     namespace gfx {
         Instance::Instance(std::string appName, uint32_t appVersion, std::string engName, uint32_t engVersion)
         {
@@ -83,4 +83,4 @@ namespace sft {
             vkDestroyInstance(m_instance, nullptr); // Other resources should both be cleaned and destroyed
         }
     } // gfx
-} // sft
+} // shift

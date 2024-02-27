@@ -2,7 +2,7 @@
 
 #include <filesystem>
 
-namespace sft {
+namespace shift {
     namespace util {
         std::vector<char> ReadFile(const std::string& filename) {
             // We start reading at the end in order to get the file size
@@ -40,4 +40,4 @@ namespace sft {
             }
         }
     } // util
-} // sft
+} // shift

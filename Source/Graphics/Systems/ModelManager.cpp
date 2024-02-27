@@ -4,7 +4,7 @@
 #include "Utility/UtilStandard.hpp"
 #include "Utility/Vulkan/InfoUtil.hpp"
 
-namespace sft::gfx {
+namespace shift::gfx {
     std::shared_ptr<Model> ModelManager::GetModel(const std::string& filename)
     {
         if (m_loadedModels.find(filename) != m_loadedModels.end()) {

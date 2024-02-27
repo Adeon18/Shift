@@ -1,6 +1,6 @@
 #include "InfoUtil.hpp"
 
-namespace sft {
+namespace shift {
     namespace info {
         VkImageViewCreateInfo CreateImageViewInfo(
                 VkImage image,
@@ -204,4 +204,4 @@ namespace sft {
             return colorAttachmentInfo;
         }
     } // info
-} // sft
+} // shift

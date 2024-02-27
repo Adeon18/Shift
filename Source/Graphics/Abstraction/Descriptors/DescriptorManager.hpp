@@ -12,7 +12,7 @@
 
 #include "Utility/Vulkan/UtilVulkan.hpp"
 
-namespace sft::gfx {
+namespace shift::gfx {
     enum class MaterialType {
         EMISSION_ONLY,
         TEXTURED
@@ -72,6 +72,6 @@ namespace sft::gfx {
         std::unique_ptr<DescriptorPool> m_matPool;
         std::unique_ptr<DescriptorPool> m_objPool;
     };
-} // sft::gfx
+} // shift::gfx
 
 #endif //SHIFT_DESCRIPTORMANAGER_HPP

@@ -4,7 +4,7 @@
 #include <exception>
 #include <string>
 
-namespace sft {
+namespace shift {
     class VulkanCreateResourceException: public std::exception {
     public:
         VulkanCreateResourceException(std::string message): m_message{std::move(message)} {}
@@ -15,6 +15,6 @@ namespace sft {
     private:
         std::string m_message;
     };
-} // sft
+} // shift
 
 #endif //SHIFT_VULKANEXCEPTIONS_HPP

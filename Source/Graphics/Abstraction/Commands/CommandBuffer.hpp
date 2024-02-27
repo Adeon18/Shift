@@ -9,7 +9,7 @@
 #include "Graphics/Abstraction/Device/Device.hpp"
 #include "Graphics/Abstraction/Synchronization/Fence.hpp"
 
-namespace sft {
+namespace shift {
     namespace gfx {
         enum class POOL_TYPE {
             GRAPHICS,
@@ -137,6 +137,6 @@ namespace sft {
             std::unique_ptr<Fence> m_fence;
         };
     } // gfx
-} // sft
+} // shift
 
 #endif //SHIFT_COMMANDBUFFER_HPP

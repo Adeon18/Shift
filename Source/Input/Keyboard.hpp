@@ -6,7 +6,7 @@
 #include <iostream>
 #include <unordered_map>
 
-namespace sft::inp {
+namespace shift::inp {
     class Keyboard {
     public:
         static Keyboard &GetInstance() {
@@ -47,5 +47,5 @@ namespace sft::inp {
         std::unordered_map<int, bool> m_keyStatusPrev{};
     };
 
-} // sft::inp
+} // shift::inp
 #endif //SHIFT_KEYBOARD_HPP

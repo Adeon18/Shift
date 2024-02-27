@@ -7,7 +7,7 @@
 
 #include "Utility/Vulkan/InfoUtil.hpp"
 
-namespace sft {
+namespace shift {
     namespace gfx {
         Swapchain::Swapchain(const Device &device, const WindowSurface& windowSurface, uint32_t width, uint32_t height):
         m_device{device}, m_windowSurface{windowSurface}
@@ -19,7 +19,7 @@ namespace sft {
         }
 
         void Swapchain::FillSwapchainDescription(uint32_t width, uint32_t height) {
-            m_swapChainSupportDetails = sft::gutil::QuerySwapChainSupport(m_device.GetPhysicalDevice(), m_windowSurface.Get());
+            m_swapChainSupportDetails = shift::gutil::QuerySwapChainSupport(m_device.GetPhysicalDevice(), m_windowSurface.Get());
 
             m_swapchainDesc.surfaceFormat = gutil::ChooseSwapSurfaceFormat(m_swapChainSupportDetails.formats);
             m_swapchainDesc.presentMode = gutil::ChooseSwapPresentMode(m_swapChainSupportDetails.presentModes);
@@ -47,7 +47,7 @@ namespace sft {
             // This parameter is used for render on screen, if you want ofscreen rendering for postprocess => VK_IMAGE_USAGE_TRANSFER_DST_BIT
             createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-            sft::gutil::QueueFamilyIndices indices = sft::gutil::FindQueueFamilies(m_device.GetPhysicalDevice(), m_windowSurface.Get());
+            shift::gutil::QueueFamilyIndices indices = shift::gutil::FindQueueFamilies(m_device.GetPhysicalDevice(), m_windowSurface.Get());
             std::array< uint32_t, 3 > queueFamilyIndices = { indices.graphicsFamily.value(), indices.presentFamily.value(), indices.transferFamily.value() };
 
             //! INFO: Basically we have queue families that may be different but work on the same image.
@@ -175,9 +175,5 @@ namespace sft {
             }
             return true;
         }
-
-        void Swapchain::CleanUp() {
-            m_depthBuffer.reset();
-        }
     }
-} // sft
+} // shift

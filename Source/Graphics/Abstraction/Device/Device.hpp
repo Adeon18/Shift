@@ -11,7 +11,7 @@
 
 #include "Instance.hpp"
 
-namespace sft {
+namespace shift {
     namespace gfx {
         class Device {
         public:
@@ -85,6 +85,6 @@ namespace sft {
             gutil::QueueFamilyIndices m_queueFamilyIndices;
         };
     } // gfx
-} // sft
+} // shift
 
 #endif //SHIFT_DEVICE_HPP

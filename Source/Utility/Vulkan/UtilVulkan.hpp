@@ -12,7 +12,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace sft {
+namespace shift {
     namespace gutil {
         const std::vector<const char*> VALIDATION_LAYERS = {
                 "VK_LAYER_KHRONOS_validation"
@@ -139,6 +139,6 @@ namespace sft {
 
         VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features, VkPhysicalDevice physicalDevice);
     } // gutil
-} //sft
+} //shift
 
 #endif //SHIFT_UTILVULKAN_HPP

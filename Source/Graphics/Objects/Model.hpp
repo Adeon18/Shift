@@ -7,7 +7,7 @@
 
 #include "Mesh.hpp"
 
-namespace sft::gfx {
+namespace shift::gfx {
     class Model {
     public:
         struct MeshRange
@@ -32,6 +32,6 @@ namespace sft::gfx {
         std::unique_ptr<VertexBuffer> m_vertexBuffer;
         std::unique_ptr<IndexBuffer> m_indexBuffer;
     };
-} // sft::gfx
+} // shift::gfx
 
 #endif //SHIFT_MODEL_HPP

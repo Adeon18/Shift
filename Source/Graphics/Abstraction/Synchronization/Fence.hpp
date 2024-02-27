@@ -5,7 +5,7 @@
 
 #include "Graphics/Abstraction/Device/Device.hpp"
 
-namespace sft {
+namespace shift {
     namespace gfx {
         class Fence {
         public:
@@ -31,6 +31,6 @@ namespace sft {
             VkFence m_fence;
         };
     } // gfx
-} // sft
+} // shift
 
 #endif //SHIFT_FENCE_HPP

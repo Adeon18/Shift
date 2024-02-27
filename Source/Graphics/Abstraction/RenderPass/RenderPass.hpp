@@ -5,7 +5,7 @@
 
 #include "Graphics/Abstraction/Device/Device.hpp"
 
-namespace sft {
+namespace shift {
     namespace gfx {
         class RenderPass {
         public:
@@ -32,6 +32,6 @@ namespace sft {
             VkRenderPass m_pass;
         };
     } // gfx
-} // sft
+} // shift
 
 #endif //SHIFT_RENDERPASS_HPP

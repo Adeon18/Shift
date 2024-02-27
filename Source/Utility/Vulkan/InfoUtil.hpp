@@ -10,7 +10,7 @@
 #include <span>
 #include <vector>
 
-namespace sft {
+namespace shift {
     namespace info {
         //! Create Info for Images View, by default no array and no mip levels.
         VkImageViewCreateInfo CreateImageViewInfo(
@@ -70,6 +70,6 @@ namespace sft {
         VkRenderingAttachmentInfoKHR CreateRenderingAttachmentInfo(VkImageView view, bool isColor = true, VkClearValue = {{0.0f, 0.0f, 0.0f, 1.0f}});
 
     } // info
-}// sft
+}// shift
 
 #endif //SHIFT_UTILVULKANINFOS_HPP

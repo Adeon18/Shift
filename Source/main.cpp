@@ -52,7 +52,7 @@
 
 #include <spdlog/spdlog.h>
 
-using namespace sft;
+using namespace shift;
 
 class HelloTriangleApplication {
     static constexpr uint32_t WINDOW_WIDTH = 800;
@@ -79,7 +79,7 @@ private:
 
 private:
     void initWindow() {
-        m_winPtr = std::make_unique<sft::ShiftWindow>(WINDOW_WIDTH, WINDOW_HEIGHT, "Shift");
+        m_winPtr = std::make_unique<shift::ShiftWindow>(WINDOW_WIDTH, WINDOW_HEIGHT, "Shift");
         spdlog::set_level(spdlog::level::debug);
     }
 
@@ -89,13 +89,10 @@ private:
 
         createSurface();
 
-        m_device = std::make_unique<sft::gfx::Device>(*m_instance, m_surfacePtr->Get());
+        m_device = std::make_unique<shift::gfx::Device>(*m_instance, m_surfacePtr->Get());
 
         if (!createSwapchain()) {return false;}
 
-        // MUST BE CREATED BEFORE PIPELINE
-        if (!createRenderPass()) { return false; }
-        createFramebuffers();
         createCommandPools();
 
         CreateTextureSystem();
@@ -116,16 +113,16 @@ private:
 
     //! Basically wer make an app info struct
     void createVkInstance() {
-        m_instance = std::make_unique<sft::gfx::Instance>("TestApp", VK_MAKE_VERSION(1, 0, 0), "ShiftEngine",
-                                                          VK_MAKE_VERSION(1, 0, 0));
+        m_instance = std::make_unique<shift::gfx::Instance>("TestApp", VK_MAKE_VERSION(1, 0, 0), "ShiftEngine",
+                                                            VK_MAKE_VERSION(1, 0, 0));
     }
 
     void createSurface() {
-        m_surfacePtr = std::make_unique<sft::gfx::WindowSurface>(m_instance->Get(), m_winPtr->GetHandle());
+        m_surfacePtr = std::make_unique<shift::gfx::WindowSurface>(m_instance->Get(), m_winPtr->GetHandle());
     }
 
     bool createSwapchain() {
-        m_swapchain = std::make_unique<sft::gfx::Swapchain>(*m_device, *m_surfacePtr, m_winPtr->GetWidth(), m_winPtr->GetHeight());
+        m_swapchain = std::make_unique<shift::gfx::Swapchain>(*m_device, *m_surfacePtr, m_winPtr->GetWidth(), m_winPtr->GetHeight());
         return m_swapchain->IsValid();
     }
 
@@ -134,36 +131,26 @@ private:
     bool recreateSwapChain() {
         vkDeviceWaitIdle(m_device->Get());
         // Wait for device to stop using resources
-        cleanupSwapChain();
-
         if (!m_swapchain->Recreate(m_winPtr->GetWidth(), m_winPtr->GetHeight())) return false;
-
-        createFramebuffers();
         return true;
-    }
-
-    void cleanupSwapChain() {
-        for (size_t i = 0; i < m_swapChainFramebuffers.size(); i++) {
-            m_swapChainFramebuffers[i].reset();
-        }
     }
 
 
     bool createGraphicsPipeline() {
-        sft::gfx::Shader vert{*m_device, sft::util::GetShiftRoot() + "Shaders/shader.vert.spv", sft::gfx::Shader::Type::Vertex};
+        shift::gfx::Shader vert{*m_device, shift::util::GetShiftRoot() + "Shaders/shader.vert.spv", shift::gfx::Shader::Type::Vertex};
         if (!vert.CreateStage()) {return false;}
 
-        sft::gfx::Shader frag{*m_device, sft::util::GetShiftRoot() + "Shaders/shader.frag.spv", sft::gfx::Shader::Type::Fragment};
+        shift::gfx::Shader frag{*m_device, shift::util::GetShiftRoot() + "Shaders/shader.frag.spv", shift::gfx::Shader::Type::Fragment};
         if (!frag.CreateStage()) {return false;}
 
-        m_pipeline = std::make_unique<sft::gfx::Pipeline>(*m_device);
+        m_pipeline = std::make_unique<shift::gfx::Pipeline>(*m_device);
 
         m_pipeline->AddShaderStage(vert);
         m_pipeline->AddShaderStage(frag);
 
         auto bindingDescription = gfx::Vertex::getBindingDescription();
         auto attributeDescriptions = gfx::Vertex::getAttributeDescriptions();
-        m_pipeline->SetInputStateInfo(sft::info::CreateInputStateInfo(attributeDescriptions, {&bindingDescription, 1}),VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+        m_pipeline->SetInputStateInfo(shift::info::CreateInputStateInfo(attributeDescriptions, {&bindingDescription, 1}), VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
         m_pipeline->SetViewPortState();
 
@@ -173,14 +160,14 @@ private:
         };
         m_pipeline->SetDynamicState(dynamicStates);
 
-        m_pipeline->SetRasterizerInfo(sft::info::CreateRasterStateInfo());
-        m_pipeline->SetDepthStencilInfo(sft::info::CreateDepthStencilStateInfo());
+        m_pipeline->SetRasterizerInfo(shift::info::CreateRasterStateInfo());
+        m_pipeline->SetDepthStencilInfo(shift::info::CreateDepthStencilStateInfo());
 
-        m_pipeline->SetMultisampleInfo(sft::info::CreateMultisampleStateInfo());
+        m_pipeline->SetMultisampleInfo(shift::info::CreateMultisampleStateInfo());
 
-        auto blendState = sft::info::CreateBlendAttachmentState();
+        auto blendState = shift::info::CreateBlendAttachmentState();
         m_pipeline->SetBlendAttachment(blendState);
-        m_pipeline->SetBlendState(sft::info::CreateBlendStateInfo(blendState));
+        m_pipeline->SetBlendState(shift::info::CreateBlendStateInfo(blendState));
 
         VkFormat colF = m_swapchain->GetFormat();
         VkFormat depthF = m_swapchain->GetDepthBufferFormat();
@@ -197,62 +184,30 @@ private:
         return m_pipeline->Build();
     }
 
-    bool createRenderPass() {
-        m_renderPass = std::make_unique<sft::gfx::RenderPass>(*m_device);
-
-        sft::gfx::Attachment att{m_swapchain->GetFormat(), sft::gfx::Attachment::Type::Swapchain, 0};
-        sft::gfx::Attachment attDepth{m_swapchain->GetDepthBufferFormat(), sft::gfx::Attachment::Type::Depth, 1};
-
-        sft::gfx::Subpass sub;
-        sub.AddDependency(att);
-        sub.AddDependency(attDepth);
-        sub.BuildDescription();
-
-        m_renderPass->AddAttachment(att);
-        m_renderPass->AddAttachment(attDepth);
-        m_renderPass->AddSubpass(sub);
-
-        return m_renderPass->BuildPass();
-    }
-
-    void createFramebuffers() {
-        auto& swapImgViews = m_swapchain->GetImageViews();
-        m_swapChainFramebuffers.resize(swapImgViews.size());
-
-        for (size_t i = 0; i < swapImgViews.size(); i++) {
-            std::vector<VkImageView> attachments = {
-                    swapImgViews[i],
-                    m_swapchain->GetDepthBufferView()
-            };
-
-            //m_swapChainFramebuffers[i] = std::make_unique<gfx::FrameBuffer>(*m_device, m_renderPass->Get(), m_swapchain->GetExtent(), attachments);
-        }
-    }
-
     void createCommandPools() {
-        m_graphicsPool = std::make_unique<sft::gfx::CommandPool>(*m_device, *m_instance, sft::gfx::POOL_TYPE::GRAPHICS);
-        m_transferPool = std::make_unique<sft::gfx::CommandPool>(*m_device, *m_instance, sft::gfx::POOL_TYPE::TRANSFER);
+        m_graphicsPool = std::make_unique<shift::gfx::CommandPool>(*m_device, *m_instance, shift::gfx::POOL_TYPE::GRAPHICS);
+        m_transferPool = std::make_unique<shift::gfx::CommandPool>(*m_device, *m_instance, shift::gfx::POOL_TYPE::TRANSFER);
     }
 
     void CreateTextureSystem() {
-        m_textureSystem = std::make_unique<sft::gfx::TextureSystem>(*m_device, *m_graphicsPool, *m_transferPool);
+        m_textureSystem = std::make_unique<shift::gfx::TextureSystem>(*m_device, *m_graphicsPool, *m_transferPool);
 
-        m_modelManager = std::make_unique<sft::gfx::ModelManager>(*m_device, *m_transferPool, *m_textureSystem);
-        m_amogus = m_modelManager->GetModel(sft::util::GetShiftRoot() + "Assets/Models/SimpleAmogusPink/scene.gltf");
+        m_modelManager = std::make_unique<shift::gfx::ModelManager>(*m_device, *m_transferPool, *m_textureSystem);
+        m_amogus = m_modelManager->GetModel(shift::util::GetShiftRoot() + "Assets/Models/SimpleAmogusPink/scene.gltf");
 
-        m_textureIDs.push_back(m_textureSystem->LoadTexture(sft::util::GetShiftRoot() + "Assets/skeleton.png", VK_FORMAT_R8G8B8A8_SRGB));
-        m_textureSystem->GetTexture(m_textureIDs[0])->CreateSampler(sft::info::CreateSamplerInfo(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT));
+        m_textureIDs.push_back(m_textureSystem->LoadTexture(shift::util::GetShiftRoot() + "Assets/skeleton.png", VK_FORMAT_R8G8B8A8_SRGB));
+        m_textureSystem->GetTexture(m_textureIDs[0])->CreateSampler(shift::info::CreateSamplerInfo(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT));
 
-        m_textureIDs.push_back(m_textureSystem->LoadTexture(sft::util::GetShiftRoot() + "Assets/nobitches.jpg", VK_FORMAT_R8G8B8A8_SRGB));
-        m_textureSystem->GetTexture(m_textureIDs[1])->CreateSampler(sft::info::CreateSamplerInfo(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT));
+        m_textureIDs.push_back(m_textureSystem->LoadTexture(shift::util::GetShiftRoot() + "Assets/nobitches.jpg", VK_FORMAT_R8G8B8A8_SRGB));
+        m_textureSystem->GetTexture(m_textureIDs[1])->CreateSampler(shift::info::CreateSamplerInfo(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT));
     }
 
     void createVertexBuffer() {
         
         VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
-        m_vertexBuffer = std::make_unique<sft::gfx::VertexBuffer>(*m_device, bufferSize);
+        m_vertexBuffer = std::make_unique<shift::gfx::VertexBuffer>(*m_device, bufferSize);
 
-        sft::gfx::StagingBuffer stagingBuffer{*m_device, m_vertexBuffer->GetAllocInfo().size};
+        shift::gfx::StagingBuffer stagingBuffer{*m_device, m_vertexBuffer->GetAllocInfo().size};
 
         stagingBuffer.Fill(vertices.data(), static_cast<size_t>(bufferSize));
 
@@ -261,10 +216,10 @@ private:
 
         VkDeviceSize bufferSizeIndex = sizeof(indices[0]) * indices.size();
 
-        sft::gfx::StagingBuffer stagingBufferIndex{*m_device, bufferSizeIndex};
+        shift::gfx::StagingBuffer stagingBufferIndex{*m_device, bufferSizeIndex};
         stagingBufferIndex.Fill(indices.data(), static_cast<size_t>(bufferSizeIndex));
 
-        m_indexBuffer = std::make_unique<sft::gfx::IndexBuffer>(*m_device, bufferSizeIndex);
+        m_indexBuffer = std::make_unique<shift::gfx::IndexBuffer>(*m_device, bufferSizeIndex);
 
         buffer.CopyBuffer(stagingBufferIndex.Get(), m_indexBuffer->Get(), bufferSizeIndex);
         buffer.EndCommandBuffer();
@@ -277,19 +232,19 @@ private:
 
     void createUniformBuffers() {
         VkDeviceSize bufferSize = sizeof(PerFrame);
-        m_uniformBuffers.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
-        for (size_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
-            m_uniformBuffers[i] = std::make_unique<sft::gfx::UniformBuffer>(*m_device, bufferSize);
+        m_uniformBuffers.resize(shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
+        for (size_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
+            m_uniformBuffers[i] = std::make_unique<shift::gfx::UniformBuffer>(*m_device, bufferSize);
         }
     }
 
     bool createDescriptorPool() {
-        m_descriptorManager = std::make_unique<sft::gfx::DescriptorManager>(*m_device);
+        m_descriptorManager = std::make_unique<shift::gfx::DescriptorManager>(*m_device);
         return m_descriptorManager->AllocatePools();
     }
 
     bool createDescriptorSets() {
-        for (uint32_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
+        for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
             auto& perFrameSet = m_descriptorManager->CreatePerFrameSet(i);
 
             perFrameSet.GetLayout().AddUBOBinding(0, VK_SHADER_STAGE_VERTEX_BIT);
@@ -299,7 +254,7 @@ private:
 
         if (!m_descriptorManager->AllocateAll()) { return false; }
 
-        for (uint32_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
+        for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
             auto& perFrameSet = m_descriptorManager->GetPerFrameSet(i);
 
             auto* tex = m_textureSystem->GetTexture(m_textureIDs[0]);
@@ -312,7 +267,7 @@ private:
         return true;
     }
 
-    void recordCommandBuffer(const sft::gfx::CommandBuffer& cmdBuf, uint32_t imageIndex) {
+    void recordCommandBuffer(const shift::gfx::CommandBuffer& cmdBuf, uint32_t imageIndex) {
 
         cmdBuf.TransferImageLayout(m_swapchain->GetImages()[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 
@@ -367,12 +322,12 @@ private:
     }
 
     void createSyncObjects() {
-        m_imageAvailableSemaphores.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
-        m_renderFinishedSemaphores.resize(sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
+        m_imageAvailableSemaphores.resize(shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
+        m_renderFinishedSemaphores.resize(shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
 
-        for (size_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
-            m_imageAvailableSemaphores[i] = std::make_unique<sft::gfx::Semaphore>(*m_device);
-            m_renderFinishedSemaphores[i] = std::make_unique<sft::gfx::Semaphore>(*m_device);
+        for (size_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
+            m_imageAvailableSemaphores[i] = std::make_unique<shift::gfx::Semaphore>(*m_device);
+            m_renderFinishedSemaphores[i] = std::make_unique<shift::gfx::Semaphore>(*m_device);
         }
     }
 
@@ -391,7 +346,7 @@ private:
 
     bool drawFrame() {
 
-        auto& buff = m_graphicsPool->RequestCommandBuffer(sft::gfx::BUFFER_TYPE::FLIGHT, m_currentFrame);
+        auto& buff = m_graphicsPool->RequestCommandBuffer(shift::gfx::BUFFER_TYPE::FLIGHT, m_currentFrame);
 
         //////////////// FUCKING AROUND
 
@@ -439,7 +394,7 @@ private:
         std::array<VkSemaphore, 1> sigSem{ m_renderFinishedSemaphores[m_currentFrame]->Get() };
         std::array<VkCommandBuffer, 1> cmdBuf{ buff.Get() };
         std::array<VkPipelineStageFlags, 1> waitStages{ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-        buff.Submit(sft::info::CreateSubmitInfo(
+        buff.Submit(shift::info::CreateSubmitInfo(
                     waitSem,
                     sigSem,
                     cmdBuf,
@@ -457,7 +412,7 @@ private:
         }
 
         // Update the current frame
-        m_currentFrame = (m_currentFrame + 1) % sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT;
+        m_currentFrame = (m_currentFrame + 1) % shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT;
 
         return true;
     }
@@ -486,15 +441,13 @@ private:
     }
 
     void cleanup() {
-
-        cleanupSwapChain();
         m_swapchain.reset();
 
         m_textureSystem.reset();
         m_amogus.reset();
         m_modelManager.reset();
 
-        for (size_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
+        for (size_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
             m_uniformBuffers[i].reset();
         }
 
@@ -503,7 +456,7 @@ private:
         m_indexBuffer.reset();
         m_vertexBuffer.reset();
 
-        for (size_t i = 0; i < sft::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
+        for (size_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
             m_imageAvailableSemaphores[i].reset();
             m_renderFinishedSemaphores[i].reset();
         }
@@ -511,8 +464,6 @@ private:
         m_transferPool.reset();
 
         m_pipeline.reset();
-
-        m_renderPass.reset();
 
         m_surfacePtr.reset();
         m_device.reset();
@@ -522,38 +473,34 @@ private:
 
     ctrl::FlyingCameraController m_cameraController;
 
-    std::vector<sft::SGUID> m_textureIDs;
+    std::vector<shift::SGUID> m_textureIDs;
 
-    std::unique_ptr<sft::gfx::TextureSystem> m_textureSystem;
-    std::unique_ptr<sft::gfx::ModelManager> m_modelManager;
+    std::unique_ptr<shift::gfx::TextureSystem> m_textureSystem;
+    std::unique_ptr<shift::gfx::ModelManager> m_modelManager;
 
-    std::unique_ptr<sft::gfx::DescriptorManager> m_descriptorManager;
+    std::unique_ptr<shift::gfx::DescriptorManager> m_descriptorManager;
 
-    std::unique_ptr<sft::ShiftWindow> m_winPtr;
-    std::unique_ptr<sft::gfx::Device> m_device;
-    std::unique_ptr<sft::gfx::WindowSurface> m_surfacePtr;
-    std::unique_ptr<sft::gfx::Instance> m_instance;
-    std::unique_ptr<sft::gfx::Swapchain> m_swapchain;
+    std::unique_ptr<shift::ShiftWindow> m_winPtr;
+    std::unique_ptr<shift::gfx::Device> m_device;
+    std::unique_ptr<shift::gfx::WindowSurface> m_surfacePtr;
+    std::unique_ptr<shift::gfx::Instance> m_instance;
+    std::unique_ptr<shift::gfx::Swapchain> m_swapchain;
 
-    std::unique_ptr<sft::gfx::CommandPool> m_graphicsPool;
-    std::unique_ptr<sft::gfx::CommandPool> m_transferPool;
+    std::unique_ptr<shift::gfx::CommandPool> m_graphicsPool;
+    std::unique_ptr<shift::gfx::CommandPool> m_transferPool;
 
-    std::unique_ptr<sft::gfx::RenderPass> m_renderPass;
+    std::unique_ptr<shift::gfx::Pipeline> m_pipeline;
 
-    std::unique_ptr<sft::gfx::Pipeline> m_pipeline;
-
-    std::vector<std::unique_ptr<gfx::FrameBuffer>> m_swapChainFramebuffers;
-
-    std::unique_ptr<sft::gfx::VertexBuffer> m_vertexBuffer;
-    std::unique_ptr<sft::gfx::IndexBuffer> m_indexBuffer;
+    std::unique_ptr<shift::gfx::VertexBuffer> m_vertexBuffer;
+    std::unique_ptr<shift::gfx::IndexBuffer> m_indexBuffer;
 
     // We need a couple of uniform buffers because we have multiple frames in fright so that we do not write to a frame that
     // the GPU is reading from currently
-    std::vector<std::unique_ptr<sft::gfx::UniformBuffer>> m_uniformBuffers;
+    std::vector<std::unique_ptr<shift::gfx::UniformBuffer>> m_uniformBuffers;
 
     // Sync primitives to comtrol the rendering of a frame
-    std::vector<std::unique_ptr<sft::gfx::Semaphore>> m_imageAvailableSemaphores;
-    std::vector<std::unique_ptr<sft::gfx::Semaphore>> m_renderFinishedSemaphores;
+    std::vector<std::unique_ptr<shift::gfx::Semaphore>> m_imageAvailableSemaphores;
+    std::vector<std::unique_ptr<shift::gfx::Semaphore>> m_renderFinishedSemaphores;
 
     uint32_t m_currentFrame = 0;
 };

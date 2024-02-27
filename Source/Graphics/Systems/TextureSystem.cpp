@@ -5,10 +5,10 @@
 
 #include "Graphics/Abstraction/Buffers/BasicBuffers.hpp"
 
-namespace sft::gfx {
-    TextureSystem::TextureSystem(const sft::gfx::Device &device, sft::gfx::CommandPool &graphicsPool,
-                                 sft::gfx::CommandPool &transferPool): m_device{device}, m_gfxPool{graphicsPool},
-                                 m_transPool{transferPool}
+namespace shift::gfx {
+    TextureSystem::TextureSystem(const shift::gfx::Device &device, shift::gfx::CommandPool &graphicsPool,
+                                 shift::gfx::CommandPool &transferPool): m_device{device}, m_gfxPool{graphicsPool},
+                                                                         m_transPool{transferPool}
     {
 
     }
@@ -23,12 +23,12 @@ namespace sft::gfx {
             return SGUID{0};
         }
 
-        sft::gfx::StagingBuffer stagingBuff{m_device, imageSize};
+        shift::gfx::StagingBuffer stagingBuff{m_device, imageSize};
         memcpy(stagingBuff.GetMappedBuffer(), pixels, static_cast<size_t>(imageSize));
         stbi_image_free(pixels);
 
         SGUID imageGUID = GUIDGenerator::GetInstance().Guid();
-        m_textures[imageGUID] = std::make_unique<sft::gfx::Texture2D>(m_device, texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+        m_textures[imageGUID] = std::make_unique<shift::gfx::Texture2D>(m_device, texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
         auto& bufferCopy = m_transPool.RequestCommandBuffer();
         bufferCopy.TransferImageLayout(
@@ -61,5 +61,5 @@ namespace sft::gfx {
     TextureBase *TextureSystem::GetTexture(SGUID guid) {
         return m_textures[guid].get();
     }
-} // sft::gfx
+} // shift::gfx
 
