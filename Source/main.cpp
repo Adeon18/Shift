@@ -66,7 +66,6 @@ class HelloTriangleApplication {
 
 public:
     void run() {
-        initWindow();
         if (!initVulkan()) {
             cleanup();
             return;
@@ -80,11 +79,12 @@ private:
 private:
     void initWindow() {
         m_winPtr = std::make_unique<shift::ShiftWindow>(WINDOW_WIDTH, WINDOW_HEIGHT, "Shift");
-        spdlog::set_level(spdlog::level::debug);
+
     }
 
     bool initVulkan() {
 
+        initWindow();
         createVkInstance();
 
         createSurface();
@@ -97,8 +97,6 @@ private:
 
         CreateTextureSystem();
 
-        createVertexBuffer();
-        createIndexBuffer();
         createUniformBuffers();
         if (!createDescriptorPool()) {return false;}
         if (!createDescriptorSets()) {return false;}
@@ -194,40 +192,6 @@ private:
 
         m_modelManager = std::make_unique<shift::gfx::ModelManager>(*m_device, *m_transferPool, *m_textureSystem);
         m_amogus = m_modelManager->GetModel(shift::util::GetShiftRoot() + "Assets/Models/SimpleAmogusPink/scene.gltf");
-
-        m_textureIDs.push_back(m_textureSystem->LoadTexture(shift::util::GetShiftRoot() + "Assets/skeleton.png", VK_FORMAT_R8G8B8A8_SRGB));
-        m_textureSystem->GetTexture(m_textureIDs[0])->CreateSampler(shift::info::CreateSamplerInfo(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT));
-
-        m_textureIDs.push_back(m_textureSystem->LoadTexture(shift::util::GetShiftRoot() + "Assets/nobitches.jpg", VK_FORMAT_R8G8B8A8_SRGB));
-        m_textureSystem->GetTexture(m_textureIDs[1])->CreateSampler(shift::info::CreateSamplerInfo(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT));
-    }
-
-    void createVertexBuffer() {
-        
-        VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
-        m_vertexBuffer = std::make_unique<shift::gfx::VertexBuffer>(*m_device, bufferSize);
-
-        shift::gfx::StagingBuffer stagingBuffer{*m_device, m_vertexBuffer->GetAllocInfo().size};
-
-        stagingBuffer.Fill(vertices.data(), static_cast<size_t>(bufferSize));
-
-        auto& buffer = m_transferPool->RequestCommandBuffer();
-        buffer.CopyBuffer(stagingBuffer.Get(), m_vertexBuffer->Get(), bufferSize);
-
-        VkDeviceSize bufferSizeIndex = sizeof(indices[0]) * indices.size();
-
-        shift::gfx::StagingBuffer stagingBufferIndex{*m_device, bufferSizeIndex};
-        stagingBufferIndex.Fill(indices.data(), static_cast<size_t>(bufferSizeIndex));
-
-        m_indexBuffer = std::make_unique<shift::gfx::IndexBuffer>(*m_device, bufferSizeIndex);
-
-        buffer.CopyBuffer(stagingBufferIndex.Get(), m_indexBuffer->Get(), bufferSizeIndex);
-        buffer.EndCommandBuffer();
-        buffer.SubmitAndWait();
-    }
-
-    void createIndexBuffer() {
-
     }
 
     void createUniformBuffers() {
@@ -257,7 +221,7 @@ private:
         for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
             auto& perFrameSet = m_descriptorManager->GetPerFrameSet(i);
 
-            auto* tex = m_textureSystem->GetTexture(m_textureIDs[0]);
+            auto* tex = m_textureSystem->GetTexture(m_amogus->GetMeshes()[0].texturePaths[gfx::MeshTextureType::DIFFUSE]);
 
             perFrameSet.UpdateUBO<PerFrame>(0, m_uniformBuffers[i]->Get(), 0);
             perFrameSet.UpdateImage(1, tex->GetView(), tex->GetSampler());
@@ -453,9 +417,6 @@ private:
 
         m_descriptorManager.reset();
 
-        m_indexBuffer.reset();
-        m_vertexBuffer.reset();
-
         for (size_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
             m_imageAvailableSemaphores[i].reset();
             m_renderFinishedSemaphores[i].reset();
@@ -473,8 +434,6 @@ private:
 
     ctrl::FlyingCameraController m_cameraController;
 
-    std::vector<shift::SGUID> m_textureIDs;
-
     std::unique_ptr<shift::gfx::TextureSystem> m_textureSystem;
     std::unique_ptr<shift::gfx::ModelManager> m_modelManager;
 
@@ -491,9 +450,6 @@ private:
 
     std::unique_ptr<shift::gfx::Pipeline> m_pipeline;
 
-    std::unique_ptr<shift::gfx::VertexBuffer> m_vertexBuffer;
-    std::unique_ptr<shift::gfx::IndexBuffer> m_indexBuffer;
-
     // We need a couple of uniform buffers because we have multiple frames in fright so that we do not write to a frame that
     // the GPU is reading from currently
     std::vector<std::unique_ptr<shift::gfx::UniformBuffer>> m_uniformBuffers;
@@ -505,10 +461,10 @@ private:
     uint32_t m_currentFrame = 0;
 };
 
-int main() {
-    HelloTriangleApplication app;
-
-    app.run();
-
-    return EXIT_SUCCESS;
-}
+//int main() {
+//    HelloTriangleApplication app;
+//
+//    app.run();
+//
+//    return ;
+//}

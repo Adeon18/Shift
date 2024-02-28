@@ -115,6 +115,7 @@ namespace shift {
         }
 
         bool Swapchain::Recreate(uint32_t width, uint32_t height) {
+            vkDeviceWaitIdle(m_device.Get());
             FillSwapchainDescription(width, height);
             CreateSwapChain();
             CreateImageViews();
