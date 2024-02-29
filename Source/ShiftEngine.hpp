@@ -17,7 +17,7 @@
 namespace shift {
     class ShiftEngine {
     public:
-        ShiftEngine(): m_timer{60.0f} {}
+        ShiftEngine(): m_timer{300.0f} {}
 
         //! Initialize the Engine, initializes all internal components, which helps con control failure at startup
         bool Init(uint32_t width, uint32_t height);

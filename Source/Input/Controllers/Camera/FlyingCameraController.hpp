@@ -15,8 +15,8 @@
 
 namespace shift::ctrl {
     class FlyingCameraController {
-        static constexpr float ROTATION_SPEED = 0.001f;
-        static constexpr float MOVEMENT_SPEED = 0.001f;
+        static constexpr float ROTATION_SPEED = 1.0f;
+        static constexpr float MOVEMENT_SPEED = 3.0f;
 
         inline static std::unordered_map<int, glm::vec3> MOVEMENT_BIND_MAP{
                 {GLFW_KEY_A, {-1.0f, 0.0f, 0.0f}},
@@ -36,7 +36,7 @@ namespace shift::ctrl {
 
         //! Capture the input from the players mouse and keyboard and apply the
         //! respective movement to the camera
-        void CaptureInputAndApply();
+        void CaptureInputAndApply(float dt);
 
         //! Update the projection matrix of internal camera to fit the new screen
         //! size at resize
@@ -63,10 +63,10 @@ namespace shift::ctrl {
 
     private:
         //! Handle Camera rotation
-        void HandleRotation();
+        void HandleRotation(float dt);
 
         //! Handle Camera rotation
-        void HandleMovement();
+        void HandleMovement(float dt);
     };
 } // shift::ctrl
 #endif //SHIFT_FLYINGCAMERACONTROLLER_HPP

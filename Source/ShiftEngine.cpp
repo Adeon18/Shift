@@ -26,17 +26,19 @@ namespace shift {
 
     bool ShiftEngine::Run() {
         while (m_window->IsActive()) {
-            m_window->Process();
+            if (m_timer.HasFrameElapsed()) {
+                m_window->Process();
 
-            HandleInput();
-            m_controller.CaptureInputAndApply();
+                HandleInput();
+                m_controller.CaptureInputAndApply(m_timer.GetDt());
 
-            FillEngineData();
-            if (!m_renderer->RenderFrame(m_engineData)) {
-                return false;
+                FillEngineData();
+                if (!m_renderer->RenderFrame(m_engineData)) {
+                    return false;
+                }
+                inp::Keyboard::GetInstance().UpdateKeys();
+                inp::Mouse::GetInstance().UpdatePos();
             }
-            inp::Keyboard::GetInstance().UpdateKeys();
-            inp::Mouse::GetInstance().UpdatePos();
         }
 
         return true;
@@ -68,7 +70,17 @@ namespace shift {
     void ShiftEngine::HandleInput() {
         auto showFPS = m_timer.IsDebugFPSShow();
         if (showFPS.first) {
-            spdlog::debug("Shift FPS: %f", showFPS.second);
+            spdlog::debug("Shift FPS: {}", showFPS.second);
+        }
+
+        if (inp::Keyboard::GetInstance().IsJustPressed(GLFW_KEY_ESCAPE)) {
+            spdlog::info("Cursor focus off");
+            m_window->SetCaptureCursor(false);
+        }
+
+        if (inp::Keyboard::GetInstance().IsJustPressed(GLFW_KEY_F)) {
+            spdlog::info("Cursor focus on");
+            m_window->SetCaptureCursor(true);
         }
     }
 } // shift

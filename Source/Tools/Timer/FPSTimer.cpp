@@ -41,6 +41,6 @@ namespace shift::tool {
     }
     float FPSTimer::GetDt() const
     {
-        return static_cast<float>(m_dt.count()) / 1'000'000'000.0f;
+        return static_cast<float>(m_fixed_dt.count()) / 1'000'000'000.0f;
     }
 } // shift::tool

@@ -9,10 +9,10 @@ namespace shift::ctrl {
                                                    const glm::vec3 &position)
             : m_camera{fovDeg, screenWH.first, screenWH.second, position} {}
 
-    void FlyingCameraController::CaptureInputAndApply() {
+    void FlyingCameraController::CaptureInputAndApply(float dt) {
         if (inp::Keyboard::GetInstance().IsPressed(GLFW_MOUSE_BUTTON_RIGHT)) {
-            HandleRotation();
-            HandleMovement();
+            HandleRotation(dt);
+            HandleMovement(dt);
         }
     }
 
@@ -25,7 +25,7 @@ namespace shift::ctrl {
         m_camera.AddRelativeOffset(offset);
     }
 
-    void FlyingCameraController::HandleRotation() {
+    void FlyingCameraController::HandleRotation(float dt) {
 
         glm::vec3 rotation{0.0f, 0.0f, 0.0f};
 
@@ -33,11 +33,11 @@ namespace shift::ctrl {
         rotation.y += inp::Mouse::GetInstance().GetXMovement() * ROTATION_SPEED * m_camera.GetScreenRatio();
 
         if (glm::length(rotation) > 0) {
-            m_camera.AddRotation(rotation);
+            m_camera.AddRotation(rotation * dt);
         }
     }
 
-    void FlyingCameraController::HandleMovement() {
+    void FlyingCameraController::HandleMovement(float dt) {
         glm::vec3 direction{0.0f, 0.0f, 0.0f};
 
         for (auto& [k, v]: MOVEMENT_BIND_MAP) {
@@ -46,7 +46,7 @@ namespace shift::ctrl {
             }
         }
         if (glm::length(direction) > 0) {
-            m_camera.AddRelativeOffset(glm::normalize(direction) * MOVEMENT_SPEED);
+            m_camera.AddRelativeOffset(glm::normalize(direction) * MOVEMENT_SPEED * dt);
         }
     }
 
