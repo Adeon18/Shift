@@ -88,6 +88,7 @@ namespace shift::gfx {
         //! Temp
         std::unique_ptr<Pipeline> m_pipeline;
         std::vector<std::unique_ptr<UniformBuffer>> m_uniformBuffers;
+        std::vector<std::unique_ptr<UniformBuffer>> m_uniformBuffersPF;
         // Sync primitives to comtrol the rendering of a frame
         std::vector<std::unique_ptr<Semaphore>> m_imageAvailableSemaphores;
         std::vector<std::unique_ptr<Semaphore>> m_renderFinishedSemaphores;

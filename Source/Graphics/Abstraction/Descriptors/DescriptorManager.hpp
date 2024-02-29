@@ -13,7 +13,7 @@
 #include "Utility/Vulkan/UtilVulkan.hpp"
 
 namespace shift::gfx {
-    enum class MaterialType {
+    enum class PassType {
         EMISSION_ONLY,
         TEXTURED
     };
@@ -33,7 +33,7 @@ namespace shift::gfx {
         //! Creates a set entry per view set that you can externally configure
         [[nodiscard]] DescriptorSet& CreatePerViewSet(uint32_t viewID, uint32_t frameIdx);
         //! Creates a set entry per material set that you can externally configure
-        [[nodiscard]] DescriptorSet& CreatePerMaterialSet(MaterialType type, uint32_t frameIdx);
+        [[nodiscard]] DescriptorSet& CreatePerMaterialSet(PassType type, uint32_t frameIdx);
         //! Creates a set entry per object set that you can externally configure
         [[nodiscard]] DescriptorSet& CreatePerObjectSet(ObjectType type, uint32_t frameIdx);
 
@@ -42,7 +42,7 @@ namespace shift::gfx {
         //! Get reference to the respective frame index of the per view sets
         [[nodiscard]] DescriptorSet& GetPerViewSet(uint32_t viewID, uint32_t frameIdx) { return *m_perViewSets[viewID][frameIdx]; }
         //! Get reference to the respective frame index of the per material sets
-        [[nodiscard]] DescriptorSet& GetPerMaterialSet(MaterialType type, uint32_t frameIdx) { return *m_perMaterialSets[type][frameIdx]; }
+        [[nodiscard]] DescriptorSet& GetPerMaterialSet(PassType type, uint32_t frameIdx) { return *m_perMaterialSets[type][frameIdx]; }
         //! Get reference to the respective frame index of the per object sets
         [[nodiscard]] DescriptorSet& GetPerObjectSet(ObjectType type, uint32_t frameIdx) { return *m_perObjectSets[type][frameIdx]; }
 
@@ -62,7 +62,7 @@ namespace shift::gfx {
         //! The storage of stats
         DescriptorSetsInFlight m_perFrameSets;
         std::unordered_map<uint32_t, DescriptorSetsInFlight> m_perViewSets;
-        std::unordered_map<MaterialType, DescriptorSetsInFlight> m_perMaterialSets;
+        std::unordered_map<PassType, DescriptorSetsInFlight> m_perMaterialSets;
         std::unordered_map<ObjectType, DescriptorSetsInFlight> m_perObjectSets;
 
 

@@ -43,6 +43,8 @@ namespace shift {
             [[nodiscard]] VkExtent2D GetExtent() const { return m_swapchainDesc.swapChainExtent; }
             [[nodiscard]] VkFormat GetFormat() const { return m_swapchainDesc.swapChainImageFormat; }
             [[nodiscard]] VkFormat GetDepthBufferFormat() const { return m_depthBuffer->GetFormat(); }
+            [[nodiscard]] VkViewport GetViewport() const { return m_viewPort; }
+            [[nodiscard]] VkRect2D GetScissor() const { return m_scissor; }
 
             ~Swapchain();
 
@@ -56,6 +58,9 @@ namespace shift {
 
             const Device& m_device;
             const WindowSurface& m_windowSurface;
+
+            VkViewport m_viewPort;
+            VkRect2D m_scissor;
 
             VkSwapchainKHR m_swapChain = VK_NULL_HANDLE;
 

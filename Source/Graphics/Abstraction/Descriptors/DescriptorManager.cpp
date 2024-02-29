@@ -40,7 +40,7 @@ namespace shift::gfx {
         return *m_perViewSets[viewID][frameIdx];
     }
 
-    DescriptorSet &DescriptorManager::CreatePerMaterialSet(MaterialType type, uint32_t frameIdx) {
+    DescriptorSet &DescriptorManager::CreatePerMaterialSet(PassType type, uint32_t frameIdx) {
         m_perMaterialSets[type][frameIdx] = std::make_unique<DescriptorSet>(m_device);
         return *m_perMaterialSets[type][frameIdx];
     }

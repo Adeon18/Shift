@@ -86,6 +86,16 @@ namespace shift {
             vkGetSwapchainImagesKHR(m_device.Get(), m_swapChain, &imageCount, nullptr);
             m_swapChainImages.resize(imageCount);
             vkGetSwapchainImagesKHR(m_device.Get(), m_swapChain, &imageCount, m_swapChainImages.data());
+
+            m_viewPort.x = 0.0f;
+            m_viewPort.y = static_cast<float>(m_swapchainDesc.swapChainExtent.height);
+            m_viewPort.width = static_cast<float>(m_swapchainDesc.swapChainExtent.width);
+            m_viewPort.height = -static_cast<float>(m_swapchainDesc.swapChainExtent.height);
+            m_viewPort.minDepth = 0.0f;
+            m_viewPort.maxDepth = 1.0f;
+
+            m_scissor.offset = { 0, 0 };
+            m_scissor.extent = m_swapchainDesc.swapChainExtent;
         }
 
         void Swapchain::CreateImageViews() {
