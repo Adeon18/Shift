@@ -20,6 +20,7 @@ namespace shift::gfx {
         [[nodiscard]] VkBuffer Get() const { return m_buffer; }
         [[nodiscard]] VmaAllocation GetAlloc() const { return m_allocation; }
         [[nodiscard]] VmaAllocationInfo GetAllocInfo() const { return m_allocationInfo; }
+        [[nodiscard]] uint32_t GetSize() const { return m_size; }
 
         //! Get the mapped buffer ptr - if not mapped, returns nullptr
         [[nodiscard]] void* GetMappedBuffer() { return m_allocationInfo.pMappedData; }

@@ -33,7 +33,7 @@ namespace shift::gfx {
         SAMPLER
     };
 
-    struct DescriptorLayoutEntry{
+    struct DescriptorLayoutEntry {
         DescriptorType type;
         uint32_t bind;
         VkShaderStageFlags stages;

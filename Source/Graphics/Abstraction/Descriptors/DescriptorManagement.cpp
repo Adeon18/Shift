@@ -98,6 +98,24 @@ namespace shift::gfx {
         m_bufferInfos.clear();
     }
 
+
+    void DescriptorSet::UpdateUBO(uint32_t bind, VkBuffer buffer, uint32_t offset, uint64_t size) {
+        m_bufferInfos.emplace_back(buffer, offset, size);
+
+        VkWriteDescriptorSet writeSet{};
+
+        writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writeSet.dstBinding = bind;
+        writeSet.dstSet = m_set;
+        writeSet.dstArrayElement = 0;
+        writeSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        writeSet.descriptorCount = 1;
+        writeSet.pBufferInfo = &m_bufferInfos.back();
+
+        m_writeSets.push_back(writeSet);
+    }
+
     DescriptorSet::~DescriptorSet() {
+
     }
 } // shift::gfx

@@ -66,8 +66,7 @@ namespace shift::gfx {
         explicit DescriptorSet(const Device& device);
 
         //! Add UBO(need to know buffer type) - NEED TO ALLOCATE BEFORE
-        template<typename T>
-        void UpdateUBO(uint32_t bind, VkBuffer buffer, uint32_t offset);
+        void UpdateUBO(uint32_t bind, VkBuffer buffer, uint32_t offset,  uint64_t size);
         //! Add image sampler for read optimal read - NEED TO ALLOCATE BEFORE
         void UpdateImage(uint32_t bind, VkImageView view, VkSampler sampler);
 
@@ -94,23 +93,6 @@ namespace shift::gfx {
 
         VkDescriptorSet m_set = VK_NULL_HANDLE;
     };
-
-    template<typename T>
-    void DescriptorSet::UpdateUBO(uint32_t bind, VkBuffer buffer, uint32_t offset) {
-        m_bufferInfos.emplace_back(buffer, offset, sizeof(T));
-
-        VkWriteDescriptorSet writeSet{};
-
-        writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writeSet.dstBinding = bind;
-        writeSet.dstSet = m_set;
-        writeSet.dstArrayElement = 0;
-        writeSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        writeSet.descriptorCount = 1;
-        writeSet.pBufferInfo = &m_bufferInfos.back();
-
-        m_writeSets.push_back(writeSet);
-    }
 } // shift::gfx
 
 #endif //SHIFT_DESCRIPTORMANAGEMENT_HPP

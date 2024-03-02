@@ -13,6 +13,7 @@
 #include "Graphics/Abstraction/Commands/CommandPool.hpp"
 #include "Graphics/Abstraction/Descriptors/DescriptorManager.hpp"
 #include "Graphics/Abstraction/Pipeline/Pipeline.hpp"
+#include "Graphics/Abstraction/Descriptors/BufferManager.hpp"
 #include "Graphics/Systems/TextureSystem.hpp"
 #include "Graphics/Systems/ModelManager.hpp"
 
@@ -78,7 +79,8 @@ namespace shift::gfx {
 
         std::unique_ptr<TextureSystem> m_textureSystem;
         std::unique_ptr<ModelManager> m_modelManager;
-        std::unique_ptr<DescriptorManager> m_descriptorManager;\
+        std::unique_ptr<DescriptorManager> m_descriptorManager;
+        std::unique_ptr<BufferManager> m_bufferManager;
 
         uint32_t m_currentFrame = 0;
 
@@ -92,10 +94,6 @@ namespace shift::gfx {
         SGUID m_perMatID2;
 
         std::unique_ptr<Pipeline> m_pipeline;
-        std::vector<std::unique_ptr<UniformBuffer>> m_uniformBuffers;
-        std::vector<std::unique_ptr<UniformBuffer>> m_uniformBuffersPF;
-        std::vector<std::unique_ptr<UniformBuffer>> m_uniformBuffersPO;
-        std::vector<std::unique_ptr<UniformBuffer>> m_uniformBuffersPO2;
         // Sync primitives to comtrol the rendering of a frame
         std::vector<std::unique_ptr<Semaphore>> m_imageAvailableSemaphores;
         std::vector<std::unique_ptr<Semaphore>> m_renderFinishedSemaphores;

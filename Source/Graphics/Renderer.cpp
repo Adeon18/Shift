@@ -6,6 +6,8 @@
 #include "Graphics/Abstraction/Descriptors/UBOStructs.hpp"
 #include "Utility/Vulkan/InfoUtil.hpp"
 
+#include <glm/gtx/string_cast.hpp>
+
 namespace shift::gfx {
     bool Renderer::Init() {
         try {
@@ -24,10 +26,12 @@ namespace shift::gfx {
         m_context.graphicsPool = std::make_unique<CommandPool>(*m_context.device, *m_context.instance, POOL_TYPE::GRAPHICS);
         m_context.transferPool = std::make_unique<CommandPool>(*m_context.device, *m_context.instance, POOL_TYPE::TRANSFER);
 
-        m_descriptorManager = std::make_unique<shift::gfx::DescriptorManager>(*m_context.device);
+        m_descriptorManager = std::make_unique<DescriptorManager>(*m_context.device);
         if (!m_descriptorManager->AllocatePools()) {return false;}
-        m_textureSystem = std::make_unique<shift::gfx::TextureSystem>(*m_context.device, *m_context.graphicsPool, *m_context.transferPool);
-        m_modelManager = std::make_unique<shift::gfx::ModelManager>(*m_context.device, *m_context.transferPool, *m_textureSystem);
+        m_textureSystem = std::make_unique<TextureSystem>(*m_context.device, *m_context.graphicsPool, *m_context.transferPool);
+        m_modelManager = std::make_unique<ModelManager>(*m_context.device, *m_context.transferPool, *m_textureSystem);
+        m_bufferManager = std::make_unique<BufferManager>(*m_context.device);
+
         m_amogus = m_modelManager->GetModel(shift::util::GetShiftRoot() + "Assets/Models/SimpleAmogusPink/scene.gltf");
 
         TempCreate();
@@ -83,7 +87,8 @@ namespace shift::gfx {
         pf.proj = engineData.projMatrix;
         pf.viewInv = glm::inverse(engineData.viewMatrix);
         pf.projInv = glm::inverse(engineData.projMatrix);
-        m_uniformBuffers[m_currentFrame]->Fill(&pf, sizeof(pf));
+        auto& b = m_bufferManager->GetUBO(m_perViewID, m_currentFrame);
+        b.Fill(&pf, sizeof(pf));
 
         PerFrame pfr{};
         pfr.camDirection = glm::vec4{engineData.camDirection, 0};
@@ -92,21 +97,25 @@ namespace shift::gfx {
         pfr.camRight = glm::vec4{engineData.camRight, 0};
         pfr.windowData = glm::vec4{static_cast<float>(engineData.winWidth), static_cast<float>(engineData.winHeight), engineData.oneDivWinWidth, engineData.oneDivWinHeight};
         pfr.timerData = glm::vec4{engineData.dt, engineData.fps, engineData.secondsSinceStart, 0};
-        m_uniformBuffersPF[m_currentFrame]->Fill(&pfr, sizeof(pfr));
+        auto& b1 = m_bufferManager->GetUBO(m_perFrameID, m_currentFrame);
+        b1.Fill(&pfr, sizeof(pfr));
 
         PerDefaultObject po{};
         po.meshToModel = m_amogus->GetMeshes()[0].meshToModel;
         po.meshToModelInv = m_amogus->GetMeshes()[0].meshToModelInv;
         po.modelToWorld = glm::mat4(1);
         po.modelToWorldInv = glm::mat4(1);
-        m_uniformBuffersPO[m_currentFrame]->Fill(&po, sizeof(po));
+        auto& b2 = m_bufferManager->GetUBO(m_perMatID, m_currentFrame);
+        b2.Fill(&po, sizeof(po));
 
         PerDefaultObject po2{};
         po2.meshToModel = m_amogus->GetMeshes()[0].meshToModel;
         po2.meshToModelInv = m_amogus->GetMeshes()[0].meshToModelInv;
         po2.modelToWorld = glm::translate(glm::mat4(1), glm::vec3{10., 0., 0.});
         po2.modelToWorldInv = glm::inverse(po2.modelToWorld);
-        m_uniformBuffersPO2[m_currentFrame]->Fill(&po2, sizeof(po2));
+        auto& b3 = m_bufferManager->GetUBO(m_perMatID2, m_currentFrame);
+        b3.Fill(&po2, sizeof(po2));
+
         ///
 
         std::array<VkSemaphore, 1> waitSem{ m_imageAvailableSemaphores[m_currentFrame]->Get() };
@@ -145,14 +154,10 @@ namespace shift::gfx {
         m_textureSystem.reset();
         m_amogus.reset();
         m_modelManager.reset();
+        m_bufferManager.reset();
 
         // TODO: REMOVE
-        for (size_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
-            m_uniformBuffers[i].reset();
-            m_uniformBuffersPF[i].reset();
-            m_uniformBuffersPO[i].reset();
-            m_uniformBuffersPO2[i].reset();
-        }
+
         for (size_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
             m_imageAvailableSemaphores[i].reset();
             m_renderFinishedSemaphores[i].reset();
@@ -178,30 +183,6 @@ namespace shift::gfx {
     }
 
     void Renderer::TempCreate() {
-        VkDeviceSize bufferSize = sizeof(PerDefaultView);
-        m_uniformBuffers.resize(shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
-        for (size_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
-            m_uniformBuffers[i] = std::make_unique<shift::gfx::UniformBuffer>(*m_context.device, bufferSize);
-        }
-
-        bufferSize = sizeof(PerFrame);
-        m_uniformBuffersPF.resize(shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
-        for (size_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
-            m_uniformBuffersPF[i] = std::make_unique<shift::gfx::UniformBuffer>(*m_context.device, bufferSize);
-        }
-
-        bufferSize = sizeof(PerDefaultObject);
-        m_uniformBuffersPO.resize(shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
-        for (size_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
-            m_uniformBuffersPO[i] = std::make_unique<shift::gfx::UniformBuffer>(*m_context.device, bufferSize);
-        }
-
-        bufferSize = sizeof(PerDefaultObject);
-        m_uniformBuffersPO2.resize(shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
-        for (size_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
-            m_uniformBuffersPO2[i] = std::make_unique<shift::gfx::UniformBuffer>(*m_context.device, bufferSize);
-        }
-
         for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
             m_descriptorManager->CreatePerFrameLayout({{DescriptorType::UBO, 0, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT}});
             m_descriptorManager->CreatePerViewLayout(
@@ -224,23 +205,36 @@ namespace shift::gfx {
         m_perMatID = m_descriptorManager->AllocatePerMaterialSet(MaterialSetLayoutType::TEXTURED);
         m_perMatID2 = m_descriptorManager->AllocatePerMaterialSet(MaterialSetLayoutType::TEXTURED);
 
+        VkDeviceSize bufferSize = sizeof(PerDefaultView);
+        m_bufferManager->AllocateUBO(m_perViewID, bufferSize);
+        bufferSize = sizeof(PerFrame);
+        m_bufferManager->AllocateUBO(m_perFrameID, bufferSize);
+        bufferSize = sizeof(PerDefaultObject);
+        m_bufferManager->AllocateUBO(m_perMatID, bufferSize);
+        bufferSize = sizeof(PerDefaultObject);
+        m_bufferManager->AllocateUBO(m_perMatID2, bufferSize);
+
         for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
             auto& perFrameSet = m_descriptorManager->GetPerFrameSet(i);
-            perFrameSet.UpdateUBO<PerFrame>(0, m_uniformBuffersPF[i]->Get(), 0);
+            auto& buff = m_bufferManager->GetUBO(m_perFrameID, i);
+            perFrameSet.UpdateUBO(0, buff.Get(), 0, buff.GetSize());
             perFrameSet.ProcessUpdates();
 
             auto& perViewSet = m_descriptorManager->GetPerViewSet(m_perViewID, i);
-            perViewSet.UpdateUBO<PerDefaultView>(0, m_uniformBuffers[i]->Get(), 0);
+            auto& buff2 = m_bufferManager->GetUBO(m_perViewID, i);
+            perViewSet.UpdateUBO(0, buff2.Get(), 0, buff2.GetSize());
             perViewSet.ProcessUpdates();
 
             auto& perMatSet = m_descriptorManager->GetPerMaterialSet(m_perMatID, i);
+            auto& buff3 = m_bufferManager->GetUBO(m_perMatID, i);
             auto* tex = m_textureSystem->GetTexture(m_amogus->GetMeshes()[0].texturePaths[gfx::MeshTextureType::DIFFUSE]);
-            perMatSet.UpdateUBO<PerDefaultObject>(0, m_uniformBuffersPO[i]->Get(), 0);
+            perMatSet.UpdateUBO(0, buff3.Get(), 0, buff3.GetSize());
             perMatSet.UpdateImage(1, tex->GetView(), tex->GetSampler());
             perMatSet.ProcessUpdates();
 
             auto& perMatSet2 = m_descriptorManager->GetPerMaterialSet(m_perMatID2, i);
-            perMatSet2.UpdateUBO<PerDefaultObject>(0, m_uniformBuffersPO2[i]->Get(), 0);
+            auto& buff4 = m_bufferManager->GetUBO(m_perMatID2, i);
+            perMatSet2.UpdateUBO(0, buff4.Get(), 0, buff4.GetSize());
             perMatSet2.UpdateImage(1, tex->GetView(), tex->GetSampler());
             perMatSet2.ProcessUpdates();
         }
