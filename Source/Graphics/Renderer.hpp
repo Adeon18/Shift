@@ -86,9 +86,16 @@ namespace shift::gfx {
         std::shared_ptr<gfx::Model> m_amogus;
 
         //! Temp
+        SGUID m_perFrameID;
+        SGUID m_perViewID;
+        SGUID m_perMatID;
+        SGUID m_perMatID2;
+
         std::unique_ptr<Pipeline> m_pipeline;
         std::vector<std::unique_ptr<UniformBuffer>> m_uniformBuffers;
         std::vector<std::unique_ptr<UniformBuffer>> m_uniformBuffersPF;
+        std::vector<std::unique_ptr<UniformBuffer>> m_uniformBuffersPO;
+        std::vector<std::unique_ptr<UniformBuffer>> m_uniformBuffersPO2;
         // Sync primitives to comtrol the rendering of a frame
         std::vector<std::unique_ptr<Semaphore>> m_imageAvailableSemaphores;
         std::vector<std::unique_ptr<Semaphore>> m_renderFinishedSemaphores;

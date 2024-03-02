@@ -12,14 +12,31 @@
 
 #include "Utility/Vulkan/UtilVulkan.hpp"
 
+#include "Utility/GUIDGenerator/GUIDGenerator.hpp"
+
 namespace shift::gfx {
-    enum class PassType {
+    enum class MaterialSetLayoutType {
         EMISSION_ONLY,
         TEXTURED
     };
 
+    enum class ViewSetLayoutType {
+        DEFAULT_CAMERA
+    };
+
     enum class ObjectType {
         DEFAULT
+    };
+
+    enum class DescriptorType {
+        UBO,
+        SAMPLER
+    };
+
+    struct DescriptorLayoutEntry{
+        DescriptorType type;
+        uint32_t bind;
+        VkShaderStageFlags stages;
     };
 
     class DescriptorManager {
@@ -28,26 +45,29 @@ namespace shift::gfx {
 
         [[nodiscard]] bool AllocatePools();
 
+        bool CreatePerFrameLayout(const std::vector<DescriptorLayoutEntry>& entries);
+        bool CreatePerViewLayout(ViewSetLayoutType type, const std::vector<DescriptorLayoutEntry>& entries);
+        bool CreatePerMaterialLayout(MaterialSetLayoutType type, const std::vector<DescriptorLayoutEntry>& entries);
+
+        [[nodiscard]] DescriptorLayout& GetPerFrameLayout() { return *m_perFrameLayout; }
+        [[nodiscard]] DescriptorLayout& GetPerViewLayout(ViewSetLayoutType type) { return *m_perViewTypeLayouts[type]; }
+        [[nodiscard]] DescriptorLayout& GetPerMaterialLayout(MaterialSetLayoutType type) { return *m_perMaterialTypeLayouts[type]; }
+
+
         //! Creates a set entry perframe set that you can externally configure
-        [[nodiscard]] DescriptorSet& CreatePerFrameSet(uint32_t frameIdx);
-        //! Creates a set entry per view set that you can externally configure
-        [[nodiscard]] DescriptorSet& CreatePerViewSet(uint32_t viewID, uint32_t frameIdx);
-        //! Creates a set entry per material set that you can externally configure
-        [[nodiscard]] DescriptorSet& CreatePerMaterialSet(PassType type, uint32_t frameIdx);
-        //! Creates a set entry per object set that you can externally configure
-        [[nodiscard]] DescriptorSet& CreatePerObjectSet(ObjectType type, uint32_t frameIdx);
+        [[nodiscard]] SGUID AllocatePerFrameSet();
+        //! Creates a set entry per view set that you can externally configure, returns it's GUID
+        [[nodiscard]] SGUID AllocatePerViewSet(ViewSetLayoutType type);
+        //! Creates a set entry per material set that you can externally configure, returns it's GUID
+        [[nodiscard]] SGUID AllocatePerMaterialSet(MaterialSetLayoutType type);
+
 
         //! Get reference to the respective frame index of the per frame set
         [[nodiscard]] DescriptorSet& GetPerFrameSet(uint32_t frameIdx) { return *m_perFrameSets[frameIdx]; }
         //! Get reference to the respective frame index of the per view sets
-        [[nodiscard]] DescriptorSet& GetPerViewSet(uint32_t viewID, uint32_t frameIdx) { return *m_perViewSets[viewID][frameIdx]; }
+        [[nodiscard]] DescriptorSet& GetPerViewSet(SGUID id, uint32_t frameIdx) { return *m_perViewSets[id].setsInFlight[frameIdx]; }
         //! Get reference to the respective frame index of the per material sets
-        [[nodiscard]] DescriptorSet& GetPerMaterialSet(PassType type, uint32_t frameIdx) { return *m_perMaterialSets[type][frameIdx]; }
-        //! Get reference to the respective frame index of the per object sets
-        [[nodiscard]] DescriptorSet& GetPerObjectSet(ObjectType type, uint32_t frameIdx) { return *m_perObjectSets[type][frameIdx]; }
-
-        //! Calls allocate on all available descriptors
-        [[nodiscard]] bool AllocateAll();
+        [[nodiscard]] DescriptorSet& GetPerMaterialSet(SGUID id, uint32_t frameIdx) { return *m_perMaterialSets[id].setsInFlight[frameIdx]; }
 
         ~DescriptorManager() = default;
 
@@ -55,22 +75,33 @@ namespace shift::gfx {
         DescriptorManager(const DescriptorManager&) = delete;
         DescriptorManager& operator=(const DescriptorManager&) = delete;
     private:
+        //! Fill one entry for descriptor layout depending on type
+        static void FillDescriptorLayoutEntryData(DescriptorLayout& layout, const DescriptorLayoutEntry& entry);
+
         using DescriptorSetsInFlight = std::array<std::unique_ptr<DescriptorSet>, gutil::SHIFT_MAX_FRAMES_IN_FLIGHT>;
+        template<typename T>
+        struct DescriptorSetData {
+            T type;
+            std::array<std::unique_ptr<DescriptorSet>, gutil::SHIFT_MAX_FRAMES_IN_FLIGHT> setsInFlight;
+        };
+
+        //! Layouts
+        std::unique_ptr<DescriptorLayout> m_perFrameLayout;
+        std::unordered_map<ViewSetLayoutType, std::unique_ptr<DescriptorLayout>> m_perViewTypeLayouts;
+        std::unordered_map<MaterialSetLayoutType, std::unique_ptr<DescriptorLayout>> m_perMaterialTypeLayouts;
 
         const Device& m_device;
 
-        //! The storage of stats
+        //! Sets
         DescriptorSetsInFlight m_perFrameSets;
-        std::unordered_map<uint32_t, DescriptorSetsInFlight> m_perViewSets;
-        std::unordered_map<PassType, DescriptorSetsInFlight> m_perMaterialSets;
-        std::unordered_map<ObjectType, DescriptorSetsInFlight> m_perObjectSets;
+        std::unordered_map<SGUID, DescriptorSetData<ViewSetLayoutType>> m_perViewSets;
+        std::unordered_map<SGUID, DescriptorSetData<MaterialSetLayoutType>> m_perMaterialSets;
 
 
         //! I have a pool for different set types
         std::unique_ptr<DescriptorPool> m_framePool;
         std::unique_ptr<DescriptorPool> m_viewPool;
         std::unique_ptr<DescriptorPool> m_matPool;
-        std::unique_ptr<DescriptorPool> m_objPool;
     };
 } // shift::gfx
 

@@ -4,6 +4,8 @@
 #include "Utility/UtilStandard.hpp"
 #include "Utility/Vulkan/InfoUtil.hpp"
 
+#include <glm/gtx/string_cast.hpp>
+
 namespace shift::gfx {
     std::shared_ptr<Model> ModelManager::GetModel(const std::string& filename)
     {
@@ -89,17 +91,18 @@ namespace shift::gfx {
 
             const glm::mat4 parentToNode = glm::inverse(nodeToParent);
 
+            // TODO: TEMPORARY FIX
             // The same node may contain multiple meshes in its space, referring to them by indices
-            for (uint32_t i = 0; i < node->mNumMeshes; ++i)
-            {
-                uint32_t meshIndex = node->mMeshes[i];
-                modelPtr->GetMeshes()[meshIndex].meshToModel = nodeToParent;
-                modelPtr->GetMeshes()[meshIndex].meshToModelInv = parentToNode;
-            }
+//            for (uint32_t i = 0; i < node->mNumMeshes; ++i)
+//            {
+//                uint32_t meshIndex = node->mMeshes[i];
+                modelPtr->GetMeshes()[0].meshToModel = nodeToParent;
+                modelPtr->GetMeshes()[0].meshToModelInv = parentToNode;
+//            }
 
-            for (uint32_t i = 0; i < node->mNumChildren; ++i) {
-                loadInstances(node->mChildren[i]);
-            }
+//            for (uint32_t i = 0; i < node->mNumChildren; ++i) {
+//                loadInstances(node->mChildren[i]);
+//            }
         };
 
         loadInstances(assimpScene->mRootNode);

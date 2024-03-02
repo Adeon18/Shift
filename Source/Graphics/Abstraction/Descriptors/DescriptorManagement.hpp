@@ -72,13 +72,12 @@ namespace shift::gfx {
         void UpdateImage(uint32_t bind, VkImageView view, VkSampler sampler);
 
         //! Allocate set
-        bool Allocate(VkDescriptorPool pool);
+        bool Allocate(VkDescriptorPool pool, VkDescriptorSetLayout layout);
 
         //! Process updates in descriptor write sets, clears all logged sets after update
         void ProcessUpdates();
 
         [[nodiscard]] VkDescriptorSet Get() const { return m_set; }
-        [[nodiscard]] DescriptorLayout& GetLayout() { return *m_layout; }
 
         ~DescriptorSet();
 
@@ -87,8 +86,6 @@ namespace shift::gfx {
         DescriptorSet(const DescriptorSet&) = delete;
     private:
         const Device& m_device;
-
-        std::shared_ptr<DescriptorLayout> m_layout;
 
         std::vector<VkDescriptorBufferInfo> m_bufferInfos;
         std::vector<VkDescriptorImageInfo> m_imageInfos;

@@ -93,6 +93,20 @@ namespace shift::gfx {
         pfr.windowData = glm::vec4{static_cast<float>(engineData.winWidth), static_cast<float>(engineData.winHeight), engineData.oneDivWinWidth, engineData.oneDivWinHeight};
         pfr.timerData = glm::vec4{engineData.dt, engineData.fps, engineData.secondsSinceStart, 0};
         m_uniformBuffersPF[m_currentFrame]->Fill(&pfr, sizeof(pfr));
+
+        PerDefaultObject po{};
+        po.meshToModel = m_amogus->GetMeshes()[0].meshToModel;
+        po.meshToModelInv = m_amogus->GetMeshes()[0].meshToModelInv;
+        po.modelToWorld = glm::mat4(1);
+        po.modelToWorldInv = glm::mat4(1);
+        m_uniformBuffersPO[m_currentFrame]->Fill(&po, sizeof(po));
+
+        PerDefaultObject po2{};
+        po2.meshToModel = m_amogus->GetMeshes()[0].meshToModel;
+        po2.meshToModelInv = m_amogus->GetMeshes()[0].meshToModelInv;
+        po2.modelToWorld = glm::translate(glm::mat4(1), glm::vec3{10., 0., 0.});
+        po2.modelToWorldInv = glm::inverse(po2.modelToWorld);
+        m_uniformBuffersPO2[m_currentFrame]->Fill(&po2, sizeof(po2));
         ///
 
         std::array<VkSemaphore, 1> waitSem{ m_imageAvailableSemaphores[m_currentFrame]->Get() };
@@ -136,6 +150,8 @@ namespace shift::gfx {
         for (size_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
             m_uniformBuffers[i].reset();
             m_uniformBuffersPF[i].reset();
+            m_uniformBuffersPO[i].reset();
+            m_uniformBuffersPO2[i].reset();
         }
         for (size_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
             m_imageAvailableSemaphores[i].reset();
@@ -174,32 +190,59 @@ namespace shift::gfx {
             m_uniformBuffersPF[i] = std::make_unique<shift::gfx::UniformBuffer>(*m_context.device, bufferSize);
         }
 
-        for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
-            auto& perFrameSet = m_descriptorManager->CreatePerFrameSet(i);
-            perFrameSet.GetLayout().AddUBOBinding(0, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-            perFrameSet.GetLayout().Build();
-
-            auto& perViewSet = m_descriptorManager->CreatePerViewSet(0, i);
-            perViewSet.GetLayout().AddUBOBinding(0, VK_SHADER_STAGE_VERTEX_BIT);
-
-            perViewSet.GetLayout().AddSamplerBinding(1, VK_SHADER_STAGE_FRAGMENT_BIT);
-            perViewSet.GetLayout().Build();
+        bufferSize = sizeof(PerDefaultObject);
+        m_uniformBuffersPO.resize(shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
+        for (size_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
+            m_uniformBuffersPO[i] = std::make_unique<shift::gfx::UniformBuffer>(*m_context.device, bufferSize);
         }
 
-        if (!m_descriptorManager->AllocateAll()) {}
+        bufferSize = sizeof(PerDefaultObject);
+        m_uniformBuffersPO2.resize(shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
+        for (size_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
+            m_uniformBuffersPO2[i] = std::make_unique<shift::gfx::UniformBuffer>(*m_context.device, bufferSize);
+        }
+
+        for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
+            m_descriptorManager->CreatePerFrameLayout({{DescriptorType::UBO, 0, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT}});
+            m_descriptorManager->CreatePerViewLayout(
+                    ViewSetLayoutType::DEFAULT_CAMERA,
+                    {
+                        {DescriptorType::UBO, 0, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT},
+                    }
+                    );
+
+            m_descriptorManager->CreatePerMaterialLayout(
+                    MaterialSetLayoutType::TEXTURED,
+                    {
+                            {DescriptorType::UBO, 0, VK_SHADER_STAGE_VERTEX_BIT},
+                            {DescriptorType::SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT}
+                    }
+            );
+        }
+        m_perViewID = m_descriptorManager->AllocatePerViewSet(ViewSetLayoutType::DEFAULT_CAMERA);
+        m_perFrameID = m_descriptorManager->AllocatePerFrameSet();
+        m_perMatID = m_descriptorManager->AllocatePerMaterialSet(MaterialSetLayoutType::TEXTURED);
+        m_perMatID2 = m_descriptorManager->AllocatePerMaterialSet(MaterialSetLayoutType::TEXTURED);
 
         for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
             auto& perFrameSet = m_descriptorManager->GetPerFrameSet(i);
             perFrameSet.UpdateUBO<PerFrame>(0, m_uniformBuffersPF[i]->Get(), 0);
             perFrameSet.ProcessUpdates();
 
-            auto& perViewSet = m_descriptorManager->GetPerViewSet(0, i);
-
-            auto* tex = m_textureSystem->GetTexture(m_amogus->GetMeshes()[0].texturePaths[gfx::MeshTextureType::DIFFUSE]);
-
+            auto& perViewSet = m_descriptorManager->GetPerViewSet(m_perViewID, i);
             perViewSet.UpdateUBO<PerDefaultView>(0, m_uniformBuffers[i]->Get(), 0);
-            perViewSet.UpdateImage(1, tex->GetView(), tex->GetSampler());
             perViewSet.ProcessUpdates();
+
+            auto& perMatSet = m_descriptorManager->GetPerMaterialSet(m_perMatID, i);
+            auto* tex = m_textureSystem->GetTexture(m_amogus->GetMeshes()[0].texturePaths[gfx::MeshTextureType::DIFFUSE]);
+            perMatSet.UpdateUBO<PerDefaultObject>(0, m_uniformBuffersPO[i]->Get(), 0);
+            perMatSet.UpdateImage(1, tex->GetView(), tex->GetSampler());
+            perMatSet.ProcessUpdates();
+
+            auto& perMatSet2 = m_descriptorManager->GetPerMaterialSet(m_perMatID2, i);
+            perMatSet2.UpdateUBO<PerDefaultObject>(0, m_uniformBuffersPO2[i]->Get(), 0);
+            perMatSet2.UpdateImage(1, tex->GetView(), tex->GetSampler());
+            perMatSet2.ProcessUpdates();
         }
 
         m_imageAvailableSemaphores.resize(shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
@@ -254,9 +297,10 @@ namespace shift::gfx {
 
         m_pipeline->SetDynamicRenderingInfo(pipelineRenderingCreateInfo);
 
-        std::array<VkDescriptorSetLayout, 2> sets{
-                m_descriptorManager->GetPerFrameSet(m_currentFrame).GetLayout().Get(),
-                m_descriptorManager->GetPerViewSet(0, m_currentFrame).GetLayout().Get()
+        std::array<VkDescriptorSetLayout, 3> sets{
+                m_descriptorManager->GetPerFrameLayout().Get(),
+                m_descriptorManager->GetPerViewLayout(ViewSetLayoutType::DEFAULT_CAMERA).Get(),
+                m_descriptorManager->GetPerMaterialLayout(MaterialSetLayoutType::TEXTURED).Get()
             };
         if (!m_pipeline->BuildLayout(sets)) {}
 
@@ -295,9 +339,16 @@ namespace shift::gfx {
         std::array<VkDescriptorSet, 1> sets{ m_descriptorManager->GetPerFrameSet(m_currentFrame).Get() };
         cmdBuf.BindDescriptorSets(sets, {}, m_pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 0);
 
-        std::array<VkDescriptorSet, 1> setsView{ m_descriptorManager->GetPerViewSet(0, m_currentFrame).Get() };
+        std::array<VkDescriptorSet, 1> setsView{ m_descriptorManager->GetPerViewSet(m_perViewID, m_currentFrame).Get() };
         cmdBuf.BindDescriptorSets(setsView, {}, m_pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 1);
 
+        std::array<VkDescriptorSet, 1> setsObj{ m_descriptorManager->GetPerMaterialSet(m_perMatID, m_currentFrame).Get() };
+        cmdBuf.BindDescriptorSets(setsObj, {}, m_pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 2);
+        // DRAW THE FUCKING TRIANGLE
+        cmdBuf.DrawIndexed(m_amogus->GetRanges()[0].indexNum, 1, 0, 0, 0);
+
+        std::array<VkDescriptorSet, 1> setsObj2{ m_descriptorManager->GetPerMaterialSet(m_perMatID2, m_currentFrame).Get() };
+        cmdBuf.BindDescriptorSets(setsObj2, {}, m_pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 2);
         // DRAW THE FUCKING TRIANGLE
         cmdBuf.DrawIndexed(m_amogus->GetRanges()[0].indexNum, 1, 0, 0, 0);
 

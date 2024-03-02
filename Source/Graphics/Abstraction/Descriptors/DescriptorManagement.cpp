@@ -62,7 +62,6 @@ namespace shift::gfx {
     }
 
     DescriptorSet::DescriptorSet(const shift::gfx::Device &device): m_device{device} {
-        m_layout = std::make_shared<DescriptorLayout>(device);
     }
 
     void DescriptorSet::UpdateImage(uint32_t bind, VkImageView view, VkSampler sampler) {
@@ -81,14 +80,12 @@ namespace shift::gfx {
         m_writeSets.push_back(writeSet);
     }
 
-    bool DescriptorSet::Allocate(VkDescriptorPool pool) {
-        if (m_layout->Get() == VK_NULL_HANDLE) m_layout->Build();
-
+    bool DescriptorSet::Allocate(VkDescriptorPool pool, VkDescriptorSetLayout layout) {
         VkDescriptorSetAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         allocInfo.descriptorPool = pool;
         allocInfo.descriptorSetCount = 1;
-        allocInfo.pSetLayouts = m_layout->Ptr();
+        allocInfo.pSetLayouts = &layout;
 
         m_set = m_device.AllocateDescriptorSet(allocInfo);
         return m_set != VK_NULL_HANDLE;
@@ -102,6 +99,5 @@ namespace shift::gfx {
     }
 
     DescriptorSet::~DescriptorSet() {
-        m_layout.reset();
     }
 } // shift::gfx
