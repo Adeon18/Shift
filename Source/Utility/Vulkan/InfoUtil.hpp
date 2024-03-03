@@ -9,6 +9,7 @@
 
 #include <span>
 #include <vector>
+#include <optional>
 
 namespace shift {
     namespace info {
@@ -69,6 +70,7 @@ namespace shift {
         //! Create dynamic rendering attachment - for color attachments by default
         VkRenderingAttachmentInfoKHR CreateRenderingAttachmentInfo(VkImageView view, bool isColor = true, VkClearValue = {{0.0f, 0.0f, 0.0f, 1.0f}});
 
+        VkPipelineRenderingCreateInfoKHR CreatePipelineRenderingInfo(std::span<VkFormat> colorFormats, std::optional<VkFormat> depthFormat);
     } // info
 }// shift
 

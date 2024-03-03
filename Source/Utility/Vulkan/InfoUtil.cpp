@@ -203,5 +203,18 @@ namespace shift {
 
             return colorAttachmentInfo;
         }
+
+        VkPipelineRenderingCreateInfoKHR CreatePipelineRenderingInfo(std::span<VkFormat> colorFormats, std::optional<VkFormat> depthFormat) {
+            VkPipelineRenderingCreateInfoKHR pipelineRenderingCreateInfo{};
+            pipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+            pipelineRenderingCreateInfo.colorAttachmentCount = colorFormats.size();
+            pipelineRenderingCreateInfo.pColorAttachmentFormats = colorFormats.data();
+            if (depthFormat.has_value()) {
+                pipelineRenderingCreateInfo.depthAttachmentFormat = *depthFormat;
+            }
+
+            return pipelineRenderingCreateInfo;
+        }
+
     } // info
 } // shift

@@ -58,8 +58,6 @@ namespace shift {
             std::vector<VkPipelineShaderStageCreateInfo> m_shaderStages;
             std::optional<VkPipelineVertexInputStateCreateInfo> m_vertexInputInfo;
             std::optional<VkPipelineInputAssemblyStateCreateInfo> m_inputAssemblyInfo;
-            std::optional<VkViewport> m_viewPort;
-            std::optional<VkRect2D> m_scissor;
             std::optional<VkPipelineDynamicStateCreateInfo> m_dynamicStateInfo;
             std::optional<VkPipelineViewportStateCreateInfo> m_viewPortStateInfo;
             std::optional<VkPipelineRasterizationStateCreateInfo> m_rasterizerInfo;

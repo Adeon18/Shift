@@ -7,6 +7,8 @@
 
 #include <glm/glm.hpp>
 
+#include "ShiftContextData.hpp"
+
 #include "Graphics/Abstraction/Device/Device.hpp"
 #include "Graphics/Abstraction/Device/Instance.hpp"
 #include "Graphics/Abstraction/Device/Swapchain.hpp"
@@ -16,6 +18,7 @@
 #include "Graphics/Abstraction/Descriptors/BufferManager.hpp"
 #include "Graphics/Systems/TextureSystem.hpp"
 #include "Graphics/Systems/ModelManager.hpp"
+#include "Graphics/Systems/RenderStage.hpp"
 
 #include "Input/Controllers/Camera/FlyingCameraController.hpp"
 
@@ -41,18 +44,7 @@ namespace shift::gfx {
     };
 
     class Renderer {
-        struct ShiftBackBuffer {
-            std::unique_ptr<Swapchain> swapchain;
-            std::unique_ptr<WindowSurface> windowSurface;
-        };
 
-        struct ShiftContext {
-            std::unique_ptr<Device> device;
-            std::unique_ptr<Instance> instance;
-
-            std::unique_ptr<CommandPool> graphicsPool;
-            std::unique_ptr<CommandPool> transferPool;
-        };
     public:
         Renderer(ShiftWindow& window, ctrl::FlyingCameraController& controller): m_window{window}, m_controller{controller} {}
 
@@ -93,7 +85,15 @@ namespace shift::gfx {
         SGUID m_perMatID;
         SGUID m_perMatID2;
 
-        std::unique_ptr<Pipeline> m_pipeline;
+        RenderStage m_renderStage;
+
+        RenderStageCreateInfo m_renderStageCreateInfo{
+            .shaderData = {shift::util::GetShiftRoot() + "Shaders/shader.vert.spv", shift::util::GetShiftRoot() + "Shaders/shader.frag.spv", "", "", ""},
+            .viewSetLayoutType = ViewSetLayoutType::DEFAULT_CAMERA,
+            .matSetLayoutType = MaterialSetLayoutType::TEXTURED,
+            .renderTargetType = RenderStageCreateInfo::RT_Type::Forward
+        };
+
         // Sync primitives to comtrol the rendering of a frame
         std::vector<std::unique_ptr<Semaphore>> m_imageAvailableSemaphores;
         std::vector<std::unique_ptr<Semaphore>> m_renderFinishedSemaphores;

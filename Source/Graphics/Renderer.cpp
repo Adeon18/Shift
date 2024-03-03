@@ -162,7 +162,7 @@ namespace shift::gfx {
             m_imageAvailableSemaphores[i].reset();
             m_renderFinishedSemaphores[i].reset();
         }
-        m_pipeline.reset();
+        m_renderStage.pipeline.reset();
         // End TODO
 
         m_descriptorManager.reset();
@@ -247,64 +247,14 @@ namespace shift::gfx {
             m_renderFinishedSemaphores[i] = std::make_unique<shift::gfx::Semaphore>(*m_context.device);
         }
 
-
-
-        shift::gfx::Shader vert{*m_context.device, shift::util::GetShiftRoot() + "Shaders/shader.vert.spv", shift::gfx::Shader::Type::Vertex};
-        if (!vert.CreateStage()) {}
-
-        shift::gfx::Shader frag{*m_context.device, shift::util::GetShiftRoot() + "Shaders/shader.frag.spv", shift::gfx::Shader::Type::Fragment};
-        if (!frag.CreateStage()) {}
-
-        m_pipeline = std::make_unique<shift::gfx::Pipeline>(*m_context.device);
-
-        m_pipeline->AddShaderStage(vert);
-        m_pipeline->AddShaderStage(frag);
-
-        auto bindingDescription = gfx::Vertex::getBindingDescription();
-        auto attributeDescriptions = gfx::Vertex::getAttributeDescriptions();
-        m_pipeline->SetInputStateInfo(shift::info::CreateInputStateInfo(attributeDescriptions, {&bindingDescription, 1}), VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-
-        m_pipeline->SetViewPortState();
-
-        std::vector<VkDynamicState> dynamicStates = {
-                VK_DYNAMIC_STATE_VIEWPORT,
-                VK_DYNAMIC_STATE_SCISSOR
-        };
-        m_pipeline->SetDynamicState(dynamicStates);
-
-        m_pipeline->SetRasterizerInfo(shift::info::CreateRasterStateInfo());
-        m_pipeline->SetDepthStencilInfo(shift::info::CreateDepthStencilStateInfo());
-
-        m_pipeline->SetMultisampleInfo(shift::info::CreateMultisampleStateInfo());
-
-        auto blendState = shift::info::CreateBlendAttachmentState();
-        m_pipeline->SetBlendAttachment(blendState);
-        m_pipeline->SetBlendState(shift::info::CreateBlendStateInfo(blendState));
-
-        VkFormat colF = m_backBuffer.swapchain->GetFormat();
-        VkFormat depthF = m_backBuffer.swapchain->GetDepthBufferFormat();
-        VkPipelineRenderingCreateInfoKHR pipelineRenderingCreateInfo{};
-        pipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
-        pipelineRenderingCreateInfo.colorAttachmentCount = 1;
-        pipelineRenderingCreateInfo.pColorAttachmentFormats = &colF;
-        pipelineRenderingCreateInfo.depthAttachmentFormat = depthF;
-
-        m_pipeline->SetDynamicRenderingInfo(pipelineRenderingCreateInfo);
-
-        std::array<VkDescriptorSetLayout, 3> sets{
-                m_descriptorManager->GetPerFrameLayout().Get(),
-                m_descriptorManager->GetPerViewLayout(ViewSetLayoutType::DEFAULT_CAMERA).Get(),
-                m_descriptorManager->GetPerMaterialLayout(MaterialSetLayoutType::TEXTURED).Get()
-            };
-        if (!m_pipeline->BuildLayout(sets)) {}
-
-        m_pipeline->Build();
+        CreateRenderStageFromInfo(*m_context.device, m_backBuffer, *m_descriptorManager,  m_renderStage, m_renderStageCreateInfo);
     }
 
     void Renderer::TempRecordCommandBuffer(const shift::gfx::CommandBuffer& cmdBuf, uint32_t imageIndex) {
 
         cmdBuf.TransferImageLayout(m_backBuffer.swapchain->GetImages()[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 
+        // TODO: THIS SHOULD BE DEPENDENT ON THE RenderStage
         auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_backBuffer.swapchain->GetImageViews()[imageIndex]);
         auto depthAttInfo = info::CreateRenderingAttachmentInfo(m_backBuffer.swapchain->GetDepthBufferView(), false, {1.0f, 0});
 
@@ -321,7 +271,7 @@ namespace shift::gfx {
 
         cmdBuf.BeginRendering(renderInfo);
 
-        cmdBuf.BindPipeline(m_pipeline->Get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
+        cmdBuf.BindPipeline(m_renderStage.pipeline->Get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
 
         std::array<VkBuffer, 1> vertexBuffers{ m_amogus->GetVertexBufferPtr().Get() };
         std::array<VkDeviceSize, 1> offsets{ 0 };
@@ -331,18 +281,18 @@ namespace shift::gfx {
         // Bind the descriptor sets
         // INFO: The sets are not unique to pipelines, so we need to specify whether to bind it to compute pipeline or the graphics one
         std::array<VkDescriptorSet, 1> sets{ m_descriptorManager->GetPerFrameSet(m_currentFrame).Get() };
-        cmdBuf.BindDescriptorSets(sets, {}, m_pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 0);
+        cmdBuf.BindDescriptorSets(sets, {}, m_renderStage.pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 0);
 
         std::array<VkDescriptorSet, 1> setsView{ m_descriptorManager->GetPerViewSet(m_perViewID, m_currentFrame).Get() };
-        cmdBuf.BindDescriptorSets(setsView, {}, m_pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 1);
+        cmdBuf.BindDescriptorSets(setsView, {}, m_renderStage.pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 1);
 
         std::array<VkDescriptorSet, 1> setsObj{ m_descriptorManager->GetPerMaterialSet(m_perMatID, m_currentFrame).Get() };
-        cmdBuf.BindDescriptorSets(setsObj, {}, m_pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 2);
+        cmdBuf.BindDescriptorSets(setsObj, {}, m_renderStage.pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 2);
         // DRAW THE FUCKING TRIANGLE
         cmdBuf.DrawIndexed(m_amogus->GetRanges()[0].indexNum, 1, 0, 0, 0);
 
         std::array<VkDescriptorSet, 1> setsObj2{ m_descriptorManager->GetPerMaterialSet(m_perMatID2, m_currentFrame).Get() };
-        cmdBuf.BindDescriptorSets(setsObj2, {}, m_pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 2);
+        cmdBuf.BindDescriptorSets(setsObj2, {}, m_renderStage.pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 2);
         // DRAW THE FUCKING TRIANGLE
         cmdBuf.DrawIndexed(m_amogus->GetRanges()[0].indexNum, 1, 0, 0, 0);
 

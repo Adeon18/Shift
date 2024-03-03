@@ -107,6 +107,21 @@ namespace shift::gfx {
 
         }
     };
+
+    //! A class for a render target that can be sampled(like GBuffer Textures)
+    class RenderTerget2DSampled: public TextureBase {
+    public:
+        RenderTerget2DSampled(
+                const Device& device,
+                uint32_t width,
+                uint32_t height,
+                VkFormat format,
+                uint32_t mips = 1
+        ) : TextureBase(device, width, height, 1, 1, 1, format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, TextureDim::T_2D, TextureType::Color)
+        {
+
+        }
+    };
 } // shift::gfx
 
 #endif //SHIFT_IMAGES_HPP
