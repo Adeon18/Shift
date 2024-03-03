@@ -7,29 +7,23 @@
 #include <glm/gtx/string_cast.hpp>
 
 namespace shift::gfx {
-    std::shared_ptr<Model> ModelManager::GetModel(const std::string& filename)
+    std::shared_ptr<Model> ModelManager::GetModel(SGUID id)
     {
-        if (m_loadedModels.find(filename) != m_loadedModels.end()) {
-            return m_loadedModels[filename];
+        if (m_loadedModels.find(id) != m_loadedModels.end()) {
+            return m_loadedModels[id];
         }
 
-        spdlog::info("ModelManager: Model is not cached, will perform load. Location: " + filename);
-
-        if (!LoadModel(filename)) {
-            return nullptr;
-        }
-
-        return m_loadedModels[filename];
+        spdlog::info("ModelManager: Model is not cached, will perform load.");
     }
 
 
-    bool ModelManager::LoadModel(const std::string& filename)
+    SGUID ModelManager::LoadModel(const std::string& filename)
     {
         Assimp::Importer importer;
         const aiScene* assimpScene = importer.ReadFile(filename, IMPORT_FLAGS);
         if (!assimpScene) {
             spdlog::warn("ModelManager::Failed loading model. Location: " + filename);
-            return false;
+            return 0;
         }
 
         uint32_t numMeshes = assimpScene->mNumMeshes;
@@ -109,8 +103,10 @@ namespace shift::gfx {
 
         modelPtr->InitWithMeshData(m_device, m_pool.RequestCommandBuffer());
 
-        m_loadedModels[filename] = modelPtr;
-        return true;
+        SGUID modelID = GUIDGenerator::GetInstance().Guid();
+
+        m_loadedModels[modelID] = modelPtr;
+        return modelID;
     }
     void ModelManager::LoadTextures(const aiScene* pScene, std::shared_ptr<Model> modelPtr, aiTextureType textureType, const std::string& filename)
     {

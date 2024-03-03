@@ -23,13 +23,12 @@ namespace shift::gfx {
         ModelManager(const ModelManager& other) = delete;
         ModelManager& operator=(const ModelManager& other) = delete;
 
-        //! Loads models with a specified filename, caches it and returns a shared_ptr to it
-        //! If model was cached, just returns the shared_ptr
-        std::shared_ptr<Model> GetModel(const std::string& filename);
-    private:
+        //! Get model By Id, return null if not present, maybe TODO: slow
+        std::shared_ptr<Model> GetModel(SGUID id);
 
         //! Load and cache the model into a map
-        bool LoadModel(const std::string& filename);
+        SGUID LoadModel(const std::string& filename);
+    private:
 
         void LoadTextures(const aiScene* pScene, std::shared_ptr<Model> modelPtr, aiTextureType textureType, const std::string& filename);
         //! Print all the textures paths for each mesh given the scene
@@ -39,7 +38,7 @@ namespace shift::gfx {
         CommandPool& m_pool;
         TextureSystem& m_textureSystem;
 
-        std::unordered_map<std::string, std::shared_ptr<Model>> m_loadedModels;
+        std::unordered_map<SGUID, std::shared_ptr<Model>> m_loadedModels;
 
         const std::vector<aiTextureType> TEXTURE_TYPES{
                 aiTextureType_NONE,

@@ -11,7 +11,7 @@ layout (set = 0, binding = 0) uniform PerFrame {
     vec4 timerData;
 } perFrame;
 
-layout (set = 1, binding = 0) uniform PerFrameLegacy {
+layout (set = 1, binding = 0) uniform PerView {
     mat4 view;
     mat4 proj;
     mat4 viewInv;

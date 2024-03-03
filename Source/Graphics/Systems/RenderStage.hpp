@@ -16,6 +16,7 @@
 
 namespace shift::gfx {
     struct RenderStage {
+        std::string name;
         std::unique_ptr<Pipeline> pipeline;
         ViewSetLayoutType viewSetLayoutType;
         MaterialSetLayoutType matSetLayoutType;
@@ -30,7 +31,7 @@ namespace shift::gfx {
             Forward,
             Gbuffer
         };
-
+        std::string name;
         std::array<std::string, 5> shaderData;
         ViewSetLayoutType viewSetLayoutType;
         MaterialSetLayoutType matSetLayoutType;

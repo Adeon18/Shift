@@ -15,6 +15,11 @@ namespace shift {
             return std::string{SHIFT_ROOT} + "/";
         }
 
+        constexpr std::string GetShiftShaderBuildDir() {
+            return std::string{SHIFT_ROOT} + "/Shaders/Build/";
+        }
+
+
         //! TODO: Can be optimized!
         [[nodiscard]] std::vector<char> ReadFile(const std::string& filename);
 

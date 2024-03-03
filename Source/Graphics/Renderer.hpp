@@ -19,6 +19,7 @@
 #include "Graphics/Systems/TextureSystem.hpp"
 #include "Graphics/Systems/ModelManager.hpp"
 #include "Graphics/Systems/RenderStage.hpp"
+#include "Graphics/Systems/MeshSystem.hpp"
 
 #include "Input/Controllers/Camera/FlyingCameraController.hpp"
 
@@ -61,7 +62,6 @@ namespace shift::gfx {
         void CreateUniformDescriptors();
 
         void TempCreate();
-        void TempRecordCommandBuffer(const shift::gfx::CommandBuffer& cmdBuf, uint32_t imageIndex);
 
         ShiftWindow& m_window;
         ctrl::FlyingCameraController& m_controller;
@@ -74,25 +74,16 @@ namespace shift::gfx {
         std::unique_ptr<DescriptorManager> m_descriptorManager;
         std::unique_ptr<BufferManager> m_bufferManager;
 
+        std::unique_ptr<MeshSystem> m_meshSystem;
+
         uint32_t m_currentFrame = 0;
 
         //! Temp - Shoud be replaced with meshsystem
-        std::shared_ptr<gfx::Model> m_amogus;
+        SGUID m_amogus;
 
         //! Temp
         SGUID m_perFrameID;
         SGUID m_perViewID;
-        SGUID m_perMatID;
-        SGUID m_perMatID2;
-
-        RenderStage m_renderStage;
-
-        RenderStageCreateInfo m_renderStageCreateInfo{
-            .shaderData = {shift::util::GetShiftRoot() + "Shaders/shader.vert.spv", shift::util::GetShiftRoot() + "Shaders/shader.frag.spv", "", "", ""},
-            .viewSetLayoutType = ViewSetLayoutType::DEFAULT_CAMERA,
-            .matSetLayoutType = MaterialSetLayoutType::TEXTURED,
-            .renderTargetType = RenderStageCreateInfo::RT_Type::Forward
-        };
 
         // Sync primitives to comtrol the rendering of a frame
         std::vector<std::unique_ptr<Semaphore>> m_imageAvailableSemaphores;

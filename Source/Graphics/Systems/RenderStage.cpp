@@ -7,6 +7,7 @@
 namespace shift::gfx {
     bool CreateRenderStageFromInfo(const Device& device, const ShiftBackBuffer& backBuff, DescriptorManager& descManager , RenderStage &outStage, RenderStageCreateInfo info) {
         /// Filling base data
+        outStage.name = info.name;
         outStage.viewSetLayoutType = info.viewSetLayoutType;
         outStage.matSetLayoutType = info.matSetLayoutType;
 
@@ -19,15 +20,16 @@ namespace shift::gfx {
 
         outStage.pipeline = std::make_unique<shift::gfx::Pipeline>(device);
 
+        std::string buildDir = util::GetShiftShaderBuildDir();
         std::array<std::unique_ptr<Shader>, 5> shaders;
         if (!info.shaderData[0].empty()) {
-            shaders[0] = std::make_unique<Shader>(device, info.shaderData[0], shift::gfx::Shader::Type::Vertex);
+            shaders[0] = std::make_unique<Shader>(device, buildDir + info.shaderData[0], shift::gfx::Shader::Type::Vertex);
             if (!shaders[0]->CreateStage()) {}
             outStage.pipeline->AddShaderStage(*shaders[0]);
         }
 
         if (!info.shaderData[1].empty()) {
-            shaders[1] = std::make_unique<Shader>(device, info.shaderData[1], shift::gfx::Shader::Type::Fragment);
+            shaders[1] = std::make_unique<Shader>(device, buildDir + info.shaderData[1], shift::gfx::Shader::Type::Fragment);
             if (!shaders[1]->CreateStage()) {}
             outStage.pipeline->AddShaderStage(*shaders[1]);
         }

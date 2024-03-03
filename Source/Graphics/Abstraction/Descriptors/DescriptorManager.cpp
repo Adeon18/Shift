@@ -19,7 +19,7 @@ namespace shift::gfx {
 
         m_matPool->AddUBOSize(3);
         m_matPool->AddSamplerSize(10);
-        m_matPool->SetMaxSets(10 * gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
+        m_matPool->SetMaxSets(2048 * gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
         if (!m_matPool->Build()) return false;
 
         return true;
