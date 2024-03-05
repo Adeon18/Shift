@@ -28,5 +28,6 @@ namespace shift::gfx {
         glm::mat4 meshToModelInv;
         glm::mat4 modelToWorld;
         glm::mat4 modelToWorldInv;
+        glm::vec4 color;
     };
 } // shift::gfx

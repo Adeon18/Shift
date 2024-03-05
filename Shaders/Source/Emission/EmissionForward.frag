@@ -16,10 +16,16 @@ layout (set = 2, binding = 0) uniform PerObj {
     mat4 meshToModelInv;
     mat4 modelToWorld;
     mat4 modelToWorldInv;
+    vec4 color;
 } perObj;
+
+layout(location = 0) in vec3 inWorldPos;
+layout(location = 1) in vec3 inWorldNorm;
 
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    outColor = vec4(1.0f, 0.0, 0.0, 1.0f);
+    float camAngle = max(dot(-perFrame.camDirection.xyz, inWorldNorm), 0.05f);
+    outColor = vec4(perObj.color.rgb * camAngle, 1.0f);
+    //outColor = vec4(inWorldNorm * 0.5 + 0.5, 1.0f);
 }

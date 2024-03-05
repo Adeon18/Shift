@@ -23,6 +23,7 @@ layout (set = 2, binding = 0) uniform PerObj {
     mat4 meshToModelInv;
     mat4 modelToWorld;
     mat4 modelToWorldInv;
+    vec4 color;
 } perObj;
 
 

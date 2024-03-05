@@ -17,8 +17,8 @@
 
 namespace shift::gfx {
     enum class MeshPass {
-        Emission,
-        Textured
+        Emission_Forward,
+        Textured_Forward
     };
 
     enum class Mobility {
@@ -26,14 +26,18 @@ namespace shift::gfx {
         MOVABLE
     };
 
+    [[nodiscard]] bool IsMeshPassForward(MeshPass pass);
+
     class MeshSystem {
     public:
-        MeshSystem(const Device& device, const ShiftBackBuffer& backBufferData, TextureSystem& textureSystem, ModelManager& modelManager, BufferManager& bufferManager, DescriptorManager &descManager);
+        MeshSystem(const Device& device, const ShiftBackBuffer& backBufferData, TextureSystem& textureSystem, ModelManager& modelManager, BufferManager& bufferManager, DescriptorManager &descManager, std::unordered_map<ViewSetLayoutType, SGUID>& viewIds);
 
-        void AddInstance(MeshPass pass, Mobility mobility, SGUID modelID, const glm::mat4& transformation);
+        void AddInstance(MeshPass pass, Mobility mobility, SGUID modelID, const glm::mat4& transformation, const glm::vec4& color = {0.0f, 0.0f, 0.0f, 0.0f});
 
         //! Render all passes to 1 command buffer
-        void RenderAllPasses(const CommandBuffer& buffer, uint32_t currentImage, uint32_t currentFrame, SGUID perViewID);
+        void RenderAllPasses(const CommandBuffer& buffer, uint32_t currentImage, uint32_t currentFrame);
+
+        void RenderForwardPasses(const CommandBuffer& buffer, uint32_t currentImage, uint32_t currentFrame);
 
         ~MeshSystem() = default;
 
@@ -41,13 +45,19 @@ namespace shift::gfx {
         MeshSystem(const MeshSystem&) = delete;
         MeshSystem& operator=(const MeshSystem&) = delete;
     private:
+        void RenderMeshesFromStages(const CommandBuffer& buffer, const std::unordered_map<MeshPass, RenderStage> &renderStages, uint32_t currentFrame);
+
         struct StaticInstance {
             SGUID id;
             SGUID modelID;
             SGUID descriptorSetId;
         };
 
+        //! Create all the render stages
         void CreateRenderStages();
+
+        //! Create the descriptor layouts used by the render stages
+        void CreateDescriptorLayouts();
 
         const Device& m_device;
         const ShiftBackBuffer& m_backBufferData;
@@ -55,14 +65,16 @@ namespace shift::gfx {
         ModelManager& m_modelManager;
         DescriptorManager& m_descriptorManager;
         BufferManager& m_bufferManager;
+        std::unordered_map<ViewSetLayoutType, SGUID>& m_perViewIDs;
 
-        std::unordered_map<MeshPass, RenderStage> m_renderStages;
+        std::unordered_map<MeshPass, RenderStage> m_renderStagesForward;
+        std::unordered_map<MeshPass, RenderStage> m_renderStagesDeferred;
         std::unordered_map<MeshPass, std::vector<StaticInstance>> m_staticInstances;
         // TODO: dynamic instances
         //std::unordered_map<MeshPass, std::vector<StaticInstance>> m_staticInstances;
 
         std::unordered_map<MeshPass, RenderStageCreateInfo> RENDER_STAGE_INFOS {
-                {MeshPass::Emission,
+                {MeshPass::Emission_Forward,
                  {
                      .name = "Emission",
                      .shaderData = {"EmissionForward.vert.spv", "EmissionForward.frag.spv", "", "", ""},
@@ -71,7 +83,7 @@ namespace shift::gfx {
                      .renderTargetType = RenderStageCreateInfo::RT_Type::Forward
                  }
                 },
-                {MeshPass::Textured,
+                {MeshPass::Textured_Forward,
                  {
                          .name = "Textured",
                          .shaderData = {"Textured.vert.spv", "Textured.frag.spv", "", "", ""},

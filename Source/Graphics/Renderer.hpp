@@ -52,16 +52,19 @@ namespace shift::gfx {
         //! Init the renderer and all child elements
         bool Init();
 
+        // TODO: hardcoded
+        bool LoadScene();
+
         //! Render entire frame
         bool RenderFrame(const EngineData& engineData);
 
         //! Cleanup unused resources
         void Cleanup();
     private:
-        void CreatePipelines();
-        void CreateUniformDescriptors();
+        void CreateDescriptors();
+        void CreateSyncPrimitives();
 
-        void TempCreate();
+        void UpdateBuffers(const EngineData& engineData);
 
         ShiftWindow& m_window;
         ctrl::FlyingCameraController& m_controller;
@@ -78,12 +81,8 @@ namespace shift::gfx {
 
         uint32_t m_currentFrame = 0;
 
-        //! Temp - Shoud be replaced with meshsystem
-        SGUID m_amogus;
-
-        //! Temp
         SGUID m_perFrameID;
-        SGUID m_perViewID;
+        std::unordered_map<ViewSetLayoutType, SGUID> m_perViewIDs;
 
         // Sync primitives to comtrol the rendering of a frame
         std::vector<std::unique_ptr<Semaphore>> m_imageAvailableSemaphores;

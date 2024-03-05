@@ -8,21 +8,59 @@
 
 namespace shift::gfx {
 
+    bool IsMeshPassForward(MeshPass pass) {
+        switch (pass) {
+            case MeshPass::Emission_Forward:
+            case MeshPass::Textured_Forward:
+                return true;
+
+            return false;
+        }
+    }
+
     MeshSystem::MeshSystem(const Device &device, const ShiftBackBuffer &backBufferData, TextureSystem &textureSystem,
-                           ModelManager &modelManager, BufferManager &bufferManager, DescriptorManager &descManager): m_device{device}, m_backBufferData{backBufferData},
-                           m_textureSystem{textureSystem}, m_modelManager{modelManager}, m_bufferManager{bufferManager}, m_descriptorManager{descManager} {
+                           ModelManager &modelManager, BufferManager &bufferManager, DescriptorManager &descManager,
+                           std::unordered_map<ViewSetLayoutType, SGUID>& viewIds): m_device{device}, m_backBufferData{backBufferData},
+                           m_textureSystem{textureSystem}, m_modelManager{modelManager}, m_bufferManager{bufferManager}, m_descriptorManager{descManager}, m_perViewIDs{viewIds} {
+        CreateDescriptorLayouts();
         CreateRenderStages();
     }
 
     void MeshSystem::CreateRenderStages() {
         for (auto& [k, v]: RENDER_STAGE_INFOS) {
-            if (!CreateRenderStageFromInfo(m_device, m_backBufferData, m_descriptorManager, m_renderStages[k], v)) {
-                spdlog::warn("MeshSystem failed to create Mesh Render Stage! Name: {}", v.name);
+            switch (v.renderTargetType) {
+                case RenderStageCreateInfo::RT_Type::Forward:
+                    if (!CreateRenderStageFromInfo(m_device, m_backBufferData, m_descriptorManager, m_renderStagesForward[k], v)) {
+                        spdlog::warn("MeshSystem failed to create Mesh Render Stage! Name: {}", v.name);
+                    }
+                    break;
+                case RenderStageCreateInfo::RT_Type::Gbuffer:
+                    if (!CreateRenderStageFromInfo(m_device, m_backBufferData, m_descriptorManager, m_renderStagesDeferred[k], v)) {
+                        spdlog::warn("MeshSystem failed to create Mesh Render Stage! Name: {}", v.name);
+                    }
+                    break;
             }
         }
     }
 
-    void MeshSystem::AddInstance(MeshPass pass, Mobility mobility, SGUID modelID, const glm::mat4 &transformation) {
+    void MeshSystem::CreateDescriptorLayouts() {
+        m_descriptorManager.CreatePerMaterialLayout(
+                MaterialSetLayoutType::TEXTURED,
+                {
+                        {DescriptorType::UBO, 0, VK_SHADER_STAGE_VERTEX_BIT},
+                        {DescriptorType::SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT}
+                }
+        );
+
+        m_descriptorManager.CreatePerMaterialLayout(
+                MaterialSetLayoutType::EMISSION_ONLY,
+                {
+                        {DescriptorType::UBO, 0, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT},
+                }
+        );
+    }
+
+    void MeshSystem::AddInstance(MeshPass pass, Mobility mobility, SGUID modelID, const glm::mat4 &transformation, const glm::vec4& color) {
         auto model = m_modelManager.GetModel(modelID);
 
         for (auto& mesh: model->GetMeshes()) {
@@ -30,7 +68,7 @@ namespace shift::gfx {
             instance.id = GUIDGenerator::GetInstance().Guid();
             instance.modelID = modelID;
 
-            auto& stage = m_renderStages[pass];
+            RenderStage& stage = (IsMeshPassForward(pass)) ? m_renderStagesForward[pass]: m_renderStagesDeferred[pass];
             SGUID setID = m_descriptorManager.AllocatePerMaterialSet(stage.matSetLayoutType);
             m_bufferManager.AllocateUBO(setID, sizeof(PerDefaultObject));
 
@@ -56,6 +94,7 @@ namespace shift::gfx {
                 po.meshToModelInv = mesh.meshToModelInv;
                 po.modelToWorld = transformation;
                 po.modelToWorldInv = glm::inverse(transformation);
+                po.color = color;
                 buff.Fill(&po, sizeof(po));
             }
 
@@ -65,8 +104,12 @@ namespace shift::gfx {
         }
     }
 
-    void MeshSystem::RenderAllPasses(const CommandBuffer& buffer, uint32_t currentImage, uint32_t currentFrame, SGUID perViewID) {
-        // TODO: THIS SHOULD BE DEPENDENT ON THE RenderStage AND ON SWITCHING BEGIN RENDER INFO, MY FUCKING ASS
+    void MeshSystem::RenderAllPasses(const CommandBuffer& buffer, uint32_t currentImage, uint32_t currentFrame) {
+        RenderForwardPasses(buffer, currentImage, currentFrame);
+    }
+
+    void MeshSystem::RenderForwardPasses(const CommandBuffer& buffer, uint32_t currentImage, uint32_t currentFrame) {
+        // TODO: FOR NOT TO BACKBUFFER
         auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_backBufferData.swapchain->GetImageViews()[currentImage]);
         auto depthAttInfo = info::CreateRenderingAttachmentInfo(m_backBufferData.swapchain->GetDepthBufferView(), false, {1.0f, 0});
 
@@ -83,7 +126,13 @@ namespace shift::gfx {
 
         buffer.BeginRendering(renderInfo);
 
-        for (auto& [k, v]: m_renderStages) {
+        RenderMeshesFromStages(buffer, m_renderStagesForward, currentFrame);
+
+        buffer.EndRendering();
+    }
+
+    void MeshSystem::RenderMeshesFromStages(const CommandBuffer& buffer, const std::unordered_map<MeshPass, RenderStage> &renderStages, uint32_t currentFrame) {
+        for (auto& [k, v]: renderStages) {
             buffer.BindPipeline(v.pipeline->Get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
 
             for (auto& instance: m_staticInstances[k]) {
@@ -98,7 +147,7 @@ namespace shift::gfx {
                 std::array<VkDescriptorSet, 1> sets{ m_descriptorManager.GetPerFrameSet(currentFrame).Get() };
                 buffer.BindDescriptorSets(sets, {}, v.pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 0);
 
-                std::array<VkDescriptorSet, 1> setsView{ m_descriptorManager.GetPerViewSet(perViewID, currentFrame).Get() };
+                std::array<VkDescriptorSet, 1> setsView{ m_descriptorManager.GetPerViewSet(m_perViewIDs[v.viewSetLayoutType], currentFrame).Get() };
                 buffer.BindDescriptorSets(setsView, {}, v.pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 1);
 
                 std::array<VkDescriptorSet, 1> setsObj{ m_descriptorManager.GetPerMaterialSet(instance.descriptorSetId, currentFrame).Get() };
@@ -107,6 +156,5 @@ namespace shift::gfx {
                 buffer.DrawIndexed(model->GetRanges()[0].indexNum, 1, 0, 0, 0);
             }
         }
-        buffer.EndRendering();
     }
 } // shift::gfx

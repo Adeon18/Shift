@@ -32,20 +32,29 @@ namespace shift::gfx {
         m_modelManager = std::make_unique<ModelManager>(*m_context.device, *m_context.transferPool, *m_textureSystem);
         m_bufferManager = std::make_unique<BufferManager>(*m_context.device);
 
-        m_amogus = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/SimpleAmogusPink/scene.gltf");
-        TempCreate();
+        /// Must be created before meshsystem
+        CreateDescriptors();
+        CreateSyncPrimitives();
 
-        m_meshSystem = std::make_unique<MeshSystem>(*m_context.device, m_backBuffer, *m_textureSystem, *m_modelManager, *m_bufferManager, *m_descriptorManager);
+        m_meshSystem = std::make_unique<MeshSystem>(*m_context.device, m_backBuffer, *m_textureSystem, *m_modelManager, *m_bufferManager, *m_descriptorManager, m_perViewIDs);
+
+        LoadScene();
+    }
+
+    bool Renderer::LoadScene() {
+        auto amogus = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/SimpleAmogusPink/scene.gltf");
 
         for (int i = -16; i < 16; ++i) {
             for (int j = -16; j < 16; ++j) {
-                m_meshSystem->AddInstance(MeshPass::Textured, Mobility::STATIC, m_amogus,
+                m_meshSystem->AddInstance(MeshPass::Textured_Forward, Mobility::STATIC, amogus,
                                           glm::translate(glm::mat4(1), glm::vec3(1.5f * i, 0.0f, 1.5f * j)));
             }
         }
 
-        m_meshSystem->AddInstance(MeshPass::Emission, Mobility::STATIC, m_amogus,
-                                  glm::translate(glm::mat4(1), glm::vec3(1.0f, 1.0f, 0.0f)));
+        m_meshSystem->AddInstance(MeshPass::Emission_Forward, Mobility::STATIC, amogus,
+                                  glm::rotate(glm::translate(glm::mat4(1), glm::vec3(1.0f, 1.0f, 0.0f)), static_cast<float>(glm::radians(90.0)), glm::vec3(0.0, 1.0, 0.0)), glm::vec4{1.0f, 1.0f, 0.0f, 1.0f});
+
+        return true;
     }
 
     bool Renderer::RenderFrame(const shift::gfx::EngineData &engineData) {
@@ -60,34 +69,14 @@ namespace shift::gfx {
             return true;
         }
 
+        UpdateBuffers(engineData);
+
         buff.TransferImageLayout(m_backBuffer.swapchain->GetImages()[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 
-        m_meshSystem->RenderAllPasses(buff, imageIndex, m_currentFrame, m_perViewID);
+        m_meshSystem->RenderForwardPasses(buff, imageIndex, m_currentFrame);
 
         buff.TransferImageLayout(m_backBuffer.swapchain->GetImages()[imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
         buff.EndCommandBuffer();
-
-        /// BUffer updates
-
-        PerDefaultView pf{};
-        pf.view = engineData.viewMatrix;
-        pf.proj = engineData.projMatrix;
-        pf.viewInv = glm::inverse(engineData.viewMatrix);
-        pf.projInv = glm::inverse(engineData.projMatrix);
-        auto& b = m_bufferManager->GetUBO(m_perViewID, m_currentFrame);
-        b.Fill(&pf, sizeof(pf));
-
-        PerFrame pfr{};
-        pfr.camDirection = glm::vec4{engineData.camDirection, 0};
-        pfr.camPosition = glm::vec4{engineData.camPosition, 0};
-        pfr.camUp = glm::vec4{engineData.camUp, 0};
-        pfr.camRight = glm::vec4{engineData.camRight, 0};
-        pfr.windowData = glm::vec4{static_cast<float>(engineData.winWidth), static_cast<float>(engineData.winHeight), engineData.oneDivWinWidth, engineData.oneDivWinHeight};
-        pfr.timerData = glm::vec4{engineData.dt, engineData.fps, engineData.secondsSinceStart, 0};
-        auto& b1 = m_bufferManager->GetUBO(m_perFrameID, m_currentFrame);
-        b1.Fill(&pfr, sizeof(pfr));
-
-        ///
 
         std::array<VkSemaphore, 1> waitSem{ m_imageAvailableSemaphores[m_currentFrame]->Get() };
         std::array<VkSemaphore, 1> sigSem{ m_renderFinishedSemaphores[m_currentFrame]->Get() };
@@ -141,44 +130,22 @@ namespace shift::gfx {
         m_context.device.reset();
     }
 
-    void Renderer::CreatePipelines() {
-
-    }
-
-    void Renderer::CreateUniformDescriptors() {
-
-    }
-
-    void Renderer::TempCreate() {
+    void Renderer::CreateDescriptors() {
         for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
             m_descriptorManager->CreatePerFrameLayout({{DescriptorType::UBO, 0, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT}});
             m_descriptorManager->CreatePerViewLayout(
                     ViewSetLayoutType::DEFAULT_CAMERA,
                     {
-                        {DescriptorType::UBO, 0, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT},
-                    }
-                    );
-
-            m_descriptorManager->CreatePerMaterialLayout(
-                    MaterialSetLayoutType::TEXTURED,
-                    {
-                            {DescriptorType::UBO, 0, VK_SHADER_STAGE_VERTEX_BIT},
-                            {DescriptorType::SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT}
+                            {DescriptorType::UBO, 0, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT},
                     }
             );
 
-            m_descriptorManager->CreatePerMaterialLayout(
-                    MaterialSetLayoutType::EMISSION_ONLY,
-                    {
-                            {DescriptorType::UBO, 0, VK_SHADER_STAGE_VERTEX_BIT},
-                    }
-            );
         }
-        m_perViewID = m_descriptorManager->AllocatePerViewSet(ViewSetLayoutType::DEFAULT_CAMERA);
+        m_perViewIDs[ViewSetLayoutType::DEFAULT_CAMERA] = (m_descriptorManager->AllocatePerViewSet(ViewSetLayoutType::DEFAULT_CAMERA));
         m_perFrameID = m_descriptorManager->AllocatePerFrameSet();
 
         VkDeviceSize bufferSize = sizeof(PerDefaultView);
-        m_bufferManager->AllocateUBO(m_perViewID, bufferSize);
+        m_bufferManager->AllocateUBO(m_perViewIDs[ViewSetLayoutType::DEFAULT_CAMERA], bufferSize);
         bufferSize = sizeof(PerFrame);
         m_bufferManager->AllocateUBO(m_perFrameID, bufferSize);
 
@@ -188,12 +155,34 @@ namespace shift::gfx {
             perFrameSet.UpdateUBO(0, buff.Get(), 0, buff.GetSize());
             perFrameSet.ProcessUpdates();
 
-            auto& perViewSet = m_descriptorManager->GetPerViewSet(m_perViewID, i);
-            auto& buff2 = m_bufferManager->GetUBO(m_perViewID, i);
+            auto& perViewSet = m_descriptorManager->GetPerViewSet(m_perViewIDs[ViewSetLayoutType::DEFAULT_CAMERA], i);
+            auto& buff2 = m_bufferManager->GetUBO(m_perViewIDs[ViewSetLayoutType::DEFAULT_CAMERA], i);
             perViewSet.UpdateUBO(0, buff2.Get(), 0, buff2.GetSize());
             perViewSet.ProcessUpdates();
         }
+    }
 
+    void Renderer::UpdateBuffers(const EngineData& engineData) {
+        PerDefaultView pf{};
+        pf.view = engineData.viewMatrix;
+        pf.proj = engineData.projMatrix;
+        pf.viewInv = glm::inverse(engineData.viewMatrix);
+        pf.projInv = glm::inverse(engineData.projMatrix);
+        auto& b = m_bufferManager->GetUBO(m_perViewIDs[ViewSetLayoutType::DEFAULT_CAMERA], m_currentFrame);
+        b.Fill(&pf, sizeof(pf));
+
+        PerFrame pfr{};
+        pfr.camDirection = glm::vec4{engineData.camDirection, 0};
+        pfr.camPosition = glm::vec4{engineData.camPosition, 0};
+        pfr.camUp = glm::vec4{engineData.camUp, 0};
+        pfr.camRight = glm::vec4{engineData.camRight, 0};
+        pfr.windowData = glm::vec4{static_cast<float>(engineData.winWidth), static_cast<float>(engineData.winHeight), engineData.oneDivWinWidth, engineData.oneDivWinHeight};
+        pfr.timerData = glm::vec4{engineData.dt, engineData.fps, engineData.secondsSinceStart, 0};
+        auto& b1 = m_bufferManager->GetUBO(m_perFrameID, m_currentFrame);
+        b1.Fill(&pfr, sizeof(pfr));
+    }
+
+    void Renderer::CreateSyncPrimitives() {
         m_imageAvailableSemaphores.resize(shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
         m_renderFinishedSemaphores.resize(shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
 
@@ -201,6 +190,5 @@ namespace shift::gfx {
             m_imageAvailableSemaphores[i] = std::make_unique<shift::gfx::Semaphore>(*m_context.device);
             m_renderFinishedSemaphores[i] = std::make_unique<shift::gfx::Semaphore>(*m_context.device);
         }
-
     }
 } // shift::gfx
