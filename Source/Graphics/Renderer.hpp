@@ -20,6 +20,7 @@
 #include "Graphics/Systems/ModelManager.hpp"
 #include "Graphics/Systems/RenderStage.hpp"
 #include "Graphics/Systems/MeshSystem.hpp"
+#include "Graphics/UI/UIManager.hpp"
 
 #include "Input/Controllers/Camera/FlyingCameraController.hpp"
 
@@ -68,6 +69,8 @@ namespace shift::gfx {
 
         ShiftWindow& m_window;
         ctrl::FlyingCameraController& m_controller;
+
+        ui::UIManager m_ui;
 
         ShiftBackBuffer m_backBuffer;
         ShiftContext m_context;

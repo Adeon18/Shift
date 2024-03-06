@@ -45,9 +45,10 @@ namespace shift::gfx {
 
     void DescriptorPool::SetMaxSets(uint32_t limit) { m_maxSets = limit; }
 
-    bool DescriptorPool::Build() {
+    bool DescriptorPool::Build(VkDescriptorPoolCreateFlags flags) {
         VkDescriptorPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        poolInfo.flags = flags;
         poolInfo.poolSizeCount = static_cast<uint32_t>(m_sizes.size());;
         poolInfo.pPoolSizes = m_sizes.data();
         poolInfo.maxSets = m_maxSets;

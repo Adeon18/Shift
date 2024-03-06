@@ -49,6 +49,8 @@ namespace shift::gfx {
         bool CreatePerViewLayout(ViewSetLayoutType type, const std::vector<DescriptorLayoutEntry>& entries);
         bool CreatePerMaterialLayout(MaterialSetLayoutType type, const std::vector<DescriptorLayoutEntry>& entries);
 
+        [[nodiscard]] const DescriptorPool& GetImGuiPool() const { return *m_ImGuiPool; }
+
         [[nodiscard]] DescriptorLayout& GetPerFrameLayout() { return *m_perFrameLayout; }
         [[nodiscard]] DescriptorLayout& GetPerViewLayout(ViewSetLayoutType type) { return *m_perViewTypeLayouts[type]; }
         [[nodiscard]] DescriptorLayout& GetPerMaterialLayout(MaterialSetLayoutType type) { return *m_perMaterialTypeLayouts[type]; }
@@ -102,6 +104,8 @@ namespace shift::gfx {
         std::unique_ptr<DescriptorPool> m_framePool;
         std::unique_ptr<DescriptorPool> m_viewPool;
         std::unique_ptr<DescriptorPool> m_matPool;
+
+        std::unique_ptr<DescriptorPool> m_ImGuiPool;
     };
 } // shift::gfx
 

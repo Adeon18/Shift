@@ -43,7 +43,7 @@ namespace shift::gfx {
         void SetMaxSets(uint32_t limit);
 
         //! Build Pool
-        bool Build();
+        bool Build(VkDescriptorPoolCreateFlags flags = 0);
 
         [[nodiscard]] VkDescriptorPool Get() const { return m_pool; }
 

@@ -41,13 +41,15 @@ FetchContent_MakeAvailable(glfw)
 #FetchContent_MakeAvailable(glm)
 FetchContent_MakeAvailable(assimp)
 FetchContent_MakeAvailable(spdlog)
-FetchContent_MakeAvailable(imgui)
-add_library(imgui
-        ${imgui_SOURCE_DIR}/imgui.cpp
-        ${imgui_SOURCE_DIR}/imgui_draw.cpp
-        ${imgui_SOURCE_DIR}/imgui_tables.cpp
-        ${imgui_SOURCE_DIR}/imgui_widgets.cpp)
-target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR})
+#FetchContent_MakeAvailable(imgui)
+#add_library(imgui
+#        ${imgui_SOURCE_DIR}/imgui.cpp
+#        ${imgui_SOURCE_DIR}/imgui_draw.cpp
+#        ${imgui_SOURCE_DIR}/imgui_tables.cpp
+#        ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+#        ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+#        ${imgui_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp)
+#target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR})
 
 file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/Source/*.cpp)
  
@@ -87,7 +89,7 @@ if (WIN32)
     ${PROJECT_SOURCE_DIR}/Vendor/local
     ${Vulkan_INCLUDE_DIRS}
     ${GLFW_INCLUDE_DIRS}
-      ${assimp_INCLUDE_DIRS}
+    ${assimp_INCLUDE_DIRS}
     )
  
   target_link_directories(${PROJECT_NAME} PUBLIC
@@ -97,7 +99,7 @@ if (WIN32)
   target_link_libraries(${PROJECT_NAME}
           glfw
           vulkan-1
-          imgui
+#          imgui
           spdlog::spdlog
           Threads::Threads
           assimp

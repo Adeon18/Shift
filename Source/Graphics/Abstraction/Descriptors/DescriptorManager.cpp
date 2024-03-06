@@ -5,6 +5,7 @@ namespace shift::gfx {
         m_framePool = std::make_unique<DescriptorPool>(m_device);
         m_viewPool = std::make_unique<DescriptorPool>(m_device);
         m_matPool = std::make_unique<DescriptorPool>(m_device);
+        m_ImGuiPool = std::make_unique<DescriptorPool>(m_device);
     }
 
     bool DescriptorManager::AllocatePools() {
@@ -21,6 +22,12 @@ namespace shift::gfx {
         m_matPool->AddSamplerSize(10);
         m_matPool->SetMaxSets(2048 * gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
         if (!m_matPool->Build()) return false;
+
+        m_ImGuiPool->AddUBOSize(10);
+        m_ImGuiPool->AddSamplerSize(10);
+        m_ImGuiPool->SetMaxSets(100 * gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
+        if (!m_ImGuiPool->Build(VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT)) return false;
+
 
         return true;
     }

@@ -39,6 +39,9 @@ namespace shift::gfx {
         m_meshSystem = std::make_unique<MeshSystem>(*m_context.device, m_backBuffer, *m_textureSystem, *m_modelManager, *m_bufferManager, *m_descriptorManager, m_perViewIDs);
 
         LoadScene();
+
+        m_ui.CreateImGuiContext();
+        m_ui.InitImGuiForVulkan(m_context, m_backBuffer, m_window, m_descriptorManager->GetImGuiPool());
     }
 
     bool Renderer::LoadScene() {
@@ -108,6 +111,8 @@ namespace shift::gfx {
     void Renderer::Cleanup() {
         //! Wait for device to finish operations so we can clean everything properly
         vkDeviceWaitIdle(m_context.device->Get());
+
+        m_ui.Destroy();
 
         m_backBuffer.swapchain.reset();
 
