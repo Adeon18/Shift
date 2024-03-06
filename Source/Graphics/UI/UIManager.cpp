@@ -45,4 +45,38 @@ namespace shift::gfx::ui {
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
     }
+
+    void UIManager::BeginFrame() {
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        ImGuiWindowFlags window_flags = 0;
+        window_flags |= ImGuiWindowFlags_MenuBar;
+        window_flags |= ImGuiWindowFlags_NoMove;
+        ImGui::Begin("Dear ImGui Demo", NULL, window_flags);
+        static bool a = false;
+        static bool b = false;
+        if (ImGui::BeginMenuBar())
+        {
+            if (ImGui::BeginMenu("Menu"))
+            {
+                ImGui::MenuItem("ASS", NULL, &b);
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenuBar();
+        }
+        if (b) {
+            ImGui::Begin("ASS", &b);
+            if (ImGui::CollapsingHeader("Geometry")) {
+                ImGui::Checkbox("Visualize normals", &a);
+            }
+            ImGui::End();
+        }
+    }
+
+    void UIManager::EndFrame(const shift::gfx::CommandBuffer &buffer) {
+        ImGui::End();
+        ImGui::Render();
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), buffer.Get(), VK_NULL_HANDLE);
+    }
 }

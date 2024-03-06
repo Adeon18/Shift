@@ -40,12 +40,13 @@ namespace shift::gfx {
 
         LoadScene();
 
-        m_ui.CreateImGuiContext();
-        m_ui.InitImGuiForVulkan(m_context, m_backBuffer, m_window, m_descriptorManager->GetImGuiPool());
+        ui::UIManager::GetInstance().CreateImGuiContext();
+        ui::UIManager::GetInstance().InitImGuiForVulkan(m_context, m_backBuffer, m_window, m_descriptorManager->GetImGuiPool());
     }
 
     bool Renderer::LoadScene() {
         auto amogus = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/SimpleAmogusPink/scene.gltf");
+        auto sphere = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/Sphere/sphere.glb");
 
         for (int i = -16; i < 16; ++i) {
             for (int j = -16; j < 16; ++j) {
@@ -54,13 +55,15 @@ namespace shift::gfx {
             }
         }
 
-        m_meshSystem->AddInstance(MeshPass::Emission_Forward, Mobility::STATIC, amogus,
-                                  glm::rotate(glm::translate(glm::mat4(1), glm::vec3(1.0f, 1.0f, 0.0f)), static_cast<float>(glm::radians(90.0)), glm::vec3(0.0, 1.0, 0.0)), glm::vec4{1.0f, 1.0f, 0.0f, 1.0f});
+        m_meshSystem->AddInstance(MeshPass::Emission_Forward, Mobility::STATIC, sphere,
+                                  glm::rotate(glm::scale(glm::translate(glm::mat4(1), glm::vec3(1.0f, -2.0f, 0.0f)), glm::vec3(0.3, 0.3, 0.3)), static_cast<float>(glm::radians(90.0)), glm::vec3(0.0, 1.0, 0.0)), glm::vec4{1.0f, 1.0f, 0.0f, 1.0f});
 
         return true;
     }
 
     bool Renderer::RenderFrame(const shift::gfx::EngineData &engineData) {
+        ui::UIManager::GetInstance().BeginFrame();
+
         auto& buff = m_context.graphicsPool->RequestCommandBuffer(shift::gfx::BUFFER_TYPE::FLIGHT, m_currentFrame);
 
         /// Aquire availible swapchain image index
@@ -112,7 +115,7 @@ namespace shift::gfx {
         //! Wait for device to finish operations so we can clean everything properly
         vkDeviceWaitIdle(m_context.device->Get());
 
-        m_ui.Destroy();
+        ui::UIManager::GetInstance().Destroy();
 
         m_backBuffer.swapchain.reset();
 

@@ -129,14 +129,7 @@ namespace shift::gfx {
 
         RenderMeshesFromStages(buffer, m_renderStagesForward, currentFrame);
 
-        ImGui_ImplVulkan_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-
-        ImGui::ShowDemoWindow();
-
-        ImGui::Render();
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), buffer.Get(), VK_NULL_HANDLE);
+        ui::UIManager::GetInstance().EndFrame(buffer);
 
         buffer.EndRendering();
     }

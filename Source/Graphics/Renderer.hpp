@@ -70,8 +70,6 @@ namespace shift::gfx {
         ShiftWindow& m_window;
         ctrl::FlyingCameraController& m_controller;
 
-        ui::UIManager m_ui;
-
         ShiftBackBuffer m_backBuffer;
         ShiftContext m_context;
 

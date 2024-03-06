@@ -19,10 +19,18 @@
 namespace shift::gfx::ui {
     class UIManager {
     public:
-        UIManager() = default;
+        UIManager(const UIManager&) = delete;
+        UIManager& operator=(const UIManager&) = delete;
 
+        static UIManager& GetInstance() {
+            static UIManager u;
+            return u;
+        }
+
+        //! Create the general imgui context, is done first
         void CreateImGuiContext();
 
+        //! Init vulkan and glfw implementations
         void InitImGuiForVulkan(
                 const ShiftContext& shiftContext,
                 const ShiftBackBuffer& shiftBackBuffer,
@@ -30,8 +38,15 @@ namespace shift::gfx::ui {
                 const DescriptorPool& pool
                 );
 
+        //! Begin the frame
+        void BeginFrame();
+
+        void EndFrame(const CommandBuffer& buffer);
+
+        //! Destroy imgui context
         void Destroy();
     private:
+        UIManager() = default;
     };
 } // shift::gfx::ui
 
