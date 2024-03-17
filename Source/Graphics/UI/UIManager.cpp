@@ -38,6 +38,19 @@ namespace shift::gfx::ui {
         ImGui_ImplVulkan_CreateFontsTexture();
         vkDeviceWaitIdle(shiftContext.device->Get());
         ImGui_ImplVulkan_DestroyFontsTexture();
+
+//        ImGui::StyleColorsDark(); // Use the built-in dark theme as a base
+//        // Get the current style
+//        ImGuiStyle& style = ImGui::GetStyle();
+//        // Modify specific colors for a yellow theme
+//        style.Colors[ImGuiCol_TitleBg] = ImVec4(0.737, 0.325, 0.949f, 1.0f); // Yellow title background
+//        style.Colors[ImGuiCol_TitleBgActive] = ImVec4(1.0f, 1.0f, 0.6f, 1.0f); // Brighter yellow title background when window is active
+//        style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.9f, 0.9f, 0.2f, 1.0f); // Darker yellow title background when window is collapsed
+//        style.Colors[ImGuiCol_CheckMark] = ImVec4(0.8f, 0.8f, 0.0f, 1.0f); // Yellowish checkmark color
+//        style.Colors[ImGuiCol_Button] = ImVec4(0.9f, 0.9f, 0.2f, 1.0f); // Yellow button color
+//        style.Colors[ImGuiCol_ButtonHovered] = ImVec4(1.0f, 1.0f, 0.4f, 1.0f); // Lighter yellow button hover color
+//        style.Colors[ImGuiCol_ButtonActive] = ImVec4(0.7f, 0.7f, 0.1f, 1.0f); // Darker yellow button pressed color
+
     }
 
     void UIManager::Destroy() {

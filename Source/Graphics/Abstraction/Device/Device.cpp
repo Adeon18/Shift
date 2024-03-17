@@ -29,6 +29,10 @@ namespace shift {
                     m_queueFamilyIndices.transferFamily.value()
             };
 
+            spdlog::debug("Graphics family: " + std::to_string(*m_queueFamilyIndices.graphicsFamily));
+            spdlog::debug("Transfer family: " + std::to_string(*m_queueFamilyIndices.transferFamily));
+            spdlog::debug("Present family: " + std::to_string(*m_queueFamilyIndices.presentFamily));
+
             for (uint32_t queueFamily : uniqueQueueFamilies) {
                 VkDeviceQueueCreateInfo queueCreateInfo{};
                 queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
