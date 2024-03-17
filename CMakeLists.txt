@@ -38,7 +38,7 @@ endif()
 include(CMake/dependancies.cmake)
 
 FetchContent_MakeAvailable(glfw)
-#FetchContent_MakeAvailable(glm)
+FetchContent_MakeAvailable(glm)
 FetchContent_MakeAvailable(assimp)
 FetchContent_MakeAvailable(spdlog)
 #FetchContent_MakeAvailable(imgui)

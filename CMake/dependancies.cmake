@@ -13,10 +13,13 @@ FetchContent_Declare(glfw
         GIT_PROGRESS ON
         FIND_PACKAGE_ARGS 3.3.8)
 
+set(GLM_TEST_MODE ON CACHE BOOL "" FORCE)
 # Math
-#FetchContent_Declare(glm
-#        GIT_REPOSITORY https://github.com/icaven/glm.git
-#        GIT_TAG 0.9.3.2)
+FetchContent_Declare(glm
+        GIT_REPOSITORY https://github.com/g-truc/glm.git
+        GIT_TAG 1.0.1
+        GIT_SHALLOW ON
+        GIT_PROGRESS ON)
 
 # GUI
 FetchContent_Declare(imgui
