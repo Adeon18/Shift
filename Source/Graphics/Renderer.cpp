@@ -67,15 +67,12 @@ namespace shift::gfx {
         auto& buff = m_context.graphicsPool->RequestCommandBuffer(shift::gfx::BUFFER_TYPE::FLIGHT, m_currentFrame);
 
         /// Aquire availible swapchain image index
-        bool changed = false;
-        uint32_t imageIndex = m_backBuffer.swapchain->AquireNextImageIndex(*m_imageAvailableSemaphores[m_currentFrame], &changed);
-        if (imageIndex == UINT32_MAX) return false;
-        if (changed) {
-            if (!m_backBuffer.swapchain->Recreate(m_window.GetWidth(), m_window.GetHeight())) return false;
-            return true;
-        }
+        bool aquireSuccess = true;
+        uint32_t imageIndex = AquireImage(&aquireSuccess);
+        if (imageIndex == UINT32_MAX) { return aquireSuccess; }
 
         UpdateBuffers(engineData);
+
 
         buff.TransferImageLayout(m_backBuffer.swapchain->GetImages()[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 
@@ -83,6 +80,7 @@ namespace shift::gfx {
 
         buff.TransferImageLayout(m_backBuffer.swapchain->GetImages()[imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
         buff.EndCommandBuffer();
+
 
         std::array<VkSemaphore, 1> waitSem{ m_imageAvailableSemaphores[m_currentFrame]->Get() };
         std::array<VkSemaphore, 1> sigSem{ m_renderFinishedSemaphores[m_currentFrame]->Get() };
@@ -95,15 +93,7 @@ namespace shift::gfx {
                 waitStages.data()
         ));
 
-        bool isOld = false;
-        bool success = m_backBuffer.swapchain->Present(*m_renderFinishedSemaphores[m_currentFrame], imageIndex, &isOld);
-        if (!success) {return false;}
-
-        if (isOld || m_window.ShouldProcessResize()) {
-            m_window.ProcessResize();
-            m_controller.UpdateScreenSize(m_window.GetWidth(), m_window.GetHeight());
-            if (!m_backBuffer.swapchain->Recreate(m_window.GetWidth(), m_window.GetHeight())) return false;
-        }
+        if (!PresentFinalImage(imageIndex)) { return false; }
 
         // Update the current frame
         m_currentFrame = (m_currentFrame + 1) % shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT;
@@ -198,5 +188,34 @@ namespace shift::gfx {
             m_imageAvailableSemaphores[i] = std::make_unique<shift::gfx::Semaphore>(*m_context.device);
             m_renderFinishedSemaphores[i] = std::make_unique<shift::gfx::Semaphore>(*m_context.device);
         }
+    }
+
+    bool Renderer::PresentFinalImage(uint32_t imageIndex) {
+        bool isOld = false;
+        bool success = m_backBuffer.swapchain->Present(*m_renderFinishedSemaphores[m_currentFrame], imageIndex, &isOld);
+        if (!success) { return false; }
+
+        if (isOld || m_window.ShouldProcessResize()) {
+            m_window.ProcessResize();
+            m_controller.UpdateScreenSize(m_window.GetWidth(), m_window.GetHeight());
+            if (!m_backBuffer.swapchain->Recreate(m_window.GetWidth(), m_window.GetHeight())) { return false; }
+        }
+
+        return true;
+    }
+
+    uint32_t Renderer::AquireImage(bool *success) {
+        bool changed = false;
+        uint32_t imageIndex = m_backBuffer.swapchain->AquireNextImageIndex(*m_imageAvailableSemaphores[m_currentFrame], &changed);
+        if (imageIndex == UINT32_MAX) {
+            *success = false;
+        } else if (changed) {
+            if (!m_backBuffer.swapchain->Recreate(m_window.GetWidth(), m_window.GetHeight())) {
+                *success = false;
+            }
+            return UINT32_MAX;
+        }
+
+        return imageIndex;
     }
 } // shift::gfx

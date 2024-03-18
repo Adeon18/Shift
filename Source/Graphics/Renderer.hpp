@@ -65,6 +65,9 @@ namespace shift::gfx {
         void CreateDescriptors();
         void CreateSyncPrimitives();
 
+        [[nodiscard]] uint32_t AquireImage(bool *success);
+        [[nodiscard]] bool PresentFinalImage(uint32_t imageIndex);
+
         void UpdateBuffers(const EngineData& engineData);
 
         ShiftWindow& m_window;
