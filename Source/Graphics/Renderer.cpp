@@ -30,6 +30,8 @@ namespace shift::gfx {
         if (!m_descriptorManager->AllocatePools()) {return false;}
         m_textureSystem = std::make_unique<TextureSystem>(*m_context.device, *m_context.graphicsPool, *m_context.transferPool);
         m_modelManager = std::make_unique<ModelManager>(*m_context.device, *m_context.transferPool, *m_textureSystem);
+        auto sphere = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/Sphere/sphere.glb");
+
         m_bufferManager = std::make_unique<BufferManager>(*m_context.device);
 
         /// Must be created before meshsystem
@@ -37,6 +39,7 @@ namespace shift::gfx {
         CreateSyncPrimitives();
 
         m_meshSystem = std::make_unique<MeshSystem>(*m_context.device, m_backBuffer, *m_textureSystem, *m_modelManager, *m_bufferManager, *m_descriptorManager, m_perViewIDs);
+        m_lightSystem = std::make_unique<LightSystem>(*m_descriptorManager, *m_bufferManager, *m_meshSystem, sphere);
 
         LoadScene();
 
@@ -46,17 +49,24 @@ namespace shift::gfx {
 
     bool Renderer::LoadScene() {
         auto amogus = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/SimpleAmogusPink/scene.gltf");
-        auto sphere = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/Sphere/sphere.glb");
 
         for (int i = -16; i < 16; ++i) {
             for (int j = -16; j < 16; ++j) {
-                m_meshSystem->AddInstance(MeshPass::Textured_Forward, Mobility::STATIC, amogus,
+                m_meshSystem->AddInstance(MeshPass::SimpleLights_Forward, Mobility::STATIC, amogus,
                                           glm::translate(glm::mat4(1), glm::vec3(1.5f * i, 0.0f, 1.5f * j)));
             }
         }
 
-        m_meshSystem->AddInstance(MeshPass::Emission_Forward, Mobility::STATIC, sphere,
-                                  glm::rotate(glm::scale(glm::translate(glm::mat4(1), glm::vec3(1.0f, -2.0f, 0.0f)), glm::vec3(0.3, 0.3, 0.3)), static_cast<float>(glm::radians(90.0)), glm::vec3(0.0, 1.0, 0.0)), glm::vec4{1.0f, 1.0f, 0.0f, 1.0f});
+        m_lightSystem->AddPointLight(glm::vec3(-3.0, -3.0, 0.0), glm::vec3(1.0, 0.0, 0.0));
+        m_lightSystem->AddPointLight(glm::vec3(3.0, -3.0, -3.0), glm::vec3(1.0, 0.0, 0.0));
+
+        m_lightSystem->AddDirectionalLight(glm::vec3(0.0, 1.0, -1.0), glm::vec3(1.0, 1.0, 1.0));
+//        m_lightSystem->AddPointLight(glm::vec3(-3.0, -3.0, 0.0), glm::vec3(0.0, 1.0, 1.0));
+//        m_lightSystem->AddPointLight(glm::vec3(-3.0, -3.0, 0.0), glm::vec3(1.0, 0.0, 1.0));
+//        m_lightSystem->AddPointLight(glm::vec3(-3.0, -3.0, 0.0), glm::vec3(1.0, 0.0, 1.0));
+//        m_lightSystem->AddPointLight(glm::vec3(-3.0, -3.0, 0.0), glm::vec3(1.0, 0.0, 1.0));
+//        m_lightSystem->AddPointLight(glm::vec3(-3.0, -3.0, 0.0), glm::vec3(1.0, 0.0, 1.0));
+//        m_lightSystem->AddPointLight(glm::vec3(-3.0, -3.0, 0.0), glm::vec3(1.0, 0.0, 1.0));
 
         return true;
     }
@@ -72,7 +82,7 @@ namespace shift::gfx {
         if (imageIndex == UINT32_MAX) { return aquireSuccess; }
 
         UpdateBuffers(engineData);
-
+        m_lightSystem->UpdateAllLights(m_currentFrame);
 
         buff.TransferImageLayout(m_backBuffer.swapchain->GetImages()[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 
@@ -130,7 +140,12 @@ namespace shift::gfx {
 
     void Renderer::CreateDescriptors() {
         for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
-            m_descriptorManager->CreatePerFrameLayout({{DescriptorType::UBO, 0, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT}});
+            m_descriptorManager->CreatePerFrameLayout(
+                    {
+                        {DescriptorType::UBO, 0, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT},
+                        {DescriptorType::UBO, 1, VK_SHADER_STAGE_FRAGMENT_BIT}
+                    }
+            );
             m_descriptorManager->CreatePerViewLayout(
                     ViewSetLayoutType::DEFAULT_CAMERA,
                     {

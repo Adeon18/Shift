@@ -2,6 +2,9 @@
 
 #include <glm/glm.hpp>
 
+#include "Graphics/Objects/LightTypes.hpp"
+#include "Config/EngineConfig.hpp"
+
 namespace shift::gfx {
     struct PerFrame {
         /// These are vec3, for alignment
@@ -29,5 +32,11 @@ namespace shift::gfx {
         glm::mat4 modelToWorld;
         glm::mat4 modelToWorldInv;
         glm::vec4 color;
+    };
+
+    struct LightsPerFrame {
+        DirectionalLight directionalLights[cfg::DIRECTIONAL_LIGHT_MAX_COUNT];
+        PointLight pointLights[cfg::POINT_LIGHT_MAX_COUNT];
+        glm::uvec2 lightCounts; // x - dir, y - point
     };
 } // shift::gfx

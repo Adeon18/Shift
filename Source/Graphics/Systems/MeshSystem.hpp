@@ -18,7 +18,8 @@
 namespace shift::gfx {
     enum class MeshPass {
         Emission_Forward,
-        Textured_Forward
+        Textured_Forward,
+        SimpleLights_Forward
     };
 
     enum class Mobility {
@@ -91,6 +92,15 @@ namespace shift::gfx {
                          .matSetLayoutType = MaterialSetLayoutType::TEXTURED,
                          .renderTargetType = RenderStageCreateInfo::RT_Type::Forward
                  }
+                },
+                {MeshPass::SimpleLights_Forward,
+                        {
+                                .name = "SimpleLights",
+                                .shaderData = {"SimpleLights.vert.spv", "SimpleLights.frag.spv", "", "", ""},
+                                .viewSetLayoutType = ViewSetLayoutType::DEFAULT_CAMERA,
+                                .matSetLayoutType = MaterialSetLayoutType::TEXTURED,
+                                .renderTargetType = RenderStageCreateInfo::RT_Type::Forward
+                        }
                 },
         };
     };

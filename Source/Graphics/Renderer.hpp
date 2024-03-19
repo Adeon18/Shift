@@ -20,6 +20,7 @@
 #include "Graphics/Systems/ModelManager.hpp"
 #include "Graphics/Systems/RenderStage.hpp"
 #include "Graphics/Systems/MeshSystem.hpp"
+#include "Graphics/Systems/LightSystem.hpp"
 #include "Graphics/UI/UIManager.hpp"
 
 #include "Input/Controllers/Camera/FlyingCameraController.hpp"
@@ -82,6 +83,7 @@ namespace shift::gfx {
         std::unique_ptr<BufferManager> m_bufferManager;
 
         std::unique_ptr<MeshSystem> m_meshSystem;
+        std::unique_ptr<LightSystem> m_lightSystem;
 
         uint32_t m_currentFrame = 0;
 

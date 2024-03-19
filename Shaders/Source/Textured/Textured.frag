@@ -13,9 +13,7 @@ layout(location = 0) out vec4 outColor;
 layout(set = 2, binding = 1) uniform sampler2D texSampler;
 
 void main() {
-
-    vec3 dir = normalize(vec3(0, -1, 1));
     vec4 color = texture(texSampler, fragTexCoord);
 
-    outColor = vec4(dot(-dir, outWorldNorm) * color.rgb, 1.0f);
+    outColor = vec4(color.rgb, 1.0f);
 }
