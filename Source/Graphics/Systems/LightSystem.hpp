@@ -44,6 +44,7 @@ namespace shift::gfx {
         template<typename T>
         struct LightEntry {
             T light;
+            SGUID insId;
             uint32_t bufferIndex;
         };
 

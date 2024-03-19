@@ -5,8 +5,6 @@
 #include "MeshSystem.hpp"
 #include "Graphics/UI/UIManager.hpp"
 
-#include "Graphics/Abstraction/Descriptors/UBOStructs.hpp"
-
 namespace shift::gfx {
 
     bool IsMeshPassForward(MeshPass pass) {
@@ -61,7 +59,7 @@ namespace shift::gfx {
         );
     }
 
-    void MeshSystem::AddInstance(MeshPass pass, Mobility mobility, SGUID modelID, const glm::mat4 &transformation, const glm::vec4& color) {
+    SGUID MeshSystem::AddInstance(MeshPass pass, Mobility mobility, SGUID modelID, const glm::mat4 &transformation, const glm::vec4& color) {
         auto model = m_modelManager.GetModel(modelID);
 
         for (auto& mesh: model->GetMeshes()) {
@@ -90,18 +88,24 @@ namespace shift::gfx {
                 }
                 perObjSet.ProcessUpdates();
 
-                PerDefaultObject po{};
-                po.meshToModel = mesh.meshToModel;
-                po.meshToModelInv = mesh.meshToModelInv;
-                po.modelToWorld = transformation;
-                po.modelToWorldInv = glm::inverse(transformation);
-                po.color = color;
-                buff.Fill(&po, sizeof(po));
+                instance.data.meshToModel = mesh.meshToModel;
+                instance.data.meshToModelInv = mesh.meshToModelInv;
+                instance.data.modelToWorld = transformation;
+                instance.data.modelToWorldInv = glm::inverse(transformation);
+                instance.data.color = color;
+                buff.Fill(&instance.data, sizeof(instance.data));
             }
 
             instance.descriptorSetId = setID;
 
-            m_staticInstances[pass].push_back(instance);
+            switch (mobility) {
+                case Mobility::STATIC:
+                    m_staticInstances[pass].push_back(instance);
+                    return instance.id;
+                case Mobility::MOVABLE:
+                    m_dynamicInstances[pass][instance.id] = instance;
+                    return instance.id;
+            }
         }
     }
 
@@ -134,9 +138,24 @@ namespace shift::gfx {
         buffer.EndRendering();
     }
 
+    void MeshSystem::UpdateInstances(uint32_t currentFrame) {
+        for (const auto &[pass, instances]: m_dynamicInstances) {
+            for (auto& [id, ins]: instances) {
+                auto& buff = m_bufferManager.GetUBO(ins.descriptorSetId, currentFrame);
+                buff.Fill(&ins.data, sizeof(ins.data));
+            }
+        }
+    }
+
     void MeshSystem::RenderMeshesFromStages(const CommandBuffer& buffer, const std::unordered_map<MeshPass, RenderStage> &renderStages, uint32_t currentFrame) {
         for (auto& [k, v]: renderStages) {
             buffer.BindPipeline(v.pipeline->Get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+            std::array<VkDescriptorSet, 1> sets{ m_descriptorManager.GetPerFrameSet(currentFrame).Get() };
+            buffer.BindDescriptorSets(sets, {}, v.pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 0);
+
+            std::array<VkDescriptorSet, 1> setsView{ m_descriptorManager.GetPerViewSet(m_perViewIDs[v.viewSetLayoutType], currentFrame).Get() };
+            buffer.BindDescriptorSets(setsView, {}, v.pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 1);
 
             for (auto& instance: m_staticInstances[k]) {
                 auto model = m_modelManager.GetModel(instance.modelID);
@@ -145,13 +164,18 @@ namespace shift::gfx {
                 buffer.BindVertexBuffers(vertexBuffers, offsets, 0);
                 buffer.BindIndexBuffer(model->GetIndexBufferRef().Get(), 0);
 
-                // Bind the descriptor sets
-                // INFO: The sets are not unique to pipelines, so we need to specify whether to bind it to compute pipeline or the graphics one
-                std::array<VkDescriptorSet, 1> sets{ m_descriptorManager.GetPerFrameSet(currentFrame).Get() };
-                buffer.BindDescriptorSets(sets, {}, v.pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 0);
+                std::array<VkDescriptorSet, 1> setsObj{ m_descriptorManager.GetPerMaterialSet(instance.descriptorSetId, currentFrame).Get() };
+                buffer.BindDescriptorSets(setsObj, {}, v.pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 2);
+                // DRAW THE FUCKING TRIANGLE
+                buffer.DrawIndexed(model->GetRanges()[0].indexNum, 1, 0, 0, 0);
+            }
 
-                std::array<VkDescriptorSet, 1> setsView{ m_descriptorManager.GetPerViewSet(m_perViewIDs[v.viewSetLayoutType], currentFrame).Get() };
-                buffer.BindDescriptorSets(setsView, {}, v.pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 1);
+            for (auto& [id, instance]: m_dynamicInstances[k]) {
+                auto model = m_modelManager.GetModel(instance.modelID);
+                std::array<VkBuffer, 1> vertexBuffers{ model->GetVertexBufferPtr().Get() };
+                std::array<VkDeviceSize, 1> offsets{ 0 };
+                buffer.BindVertexBuffers(vertexBuffers, offsets, 0);
+                buffer.BindIndexBuffer(model->GetIndexBufferRef().Get(), 0);
 
                 std::array<VkDescriptorSet, 1> setsObj{ m_descriptorManager.GetPerMaterialSet(instance.descriptorSetId, currentFrame).Get() };
                 buffer.BindDescriptorSets(setsObj, {}, v.pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 2);
@@ -159,5 +183,20 @@ namespace shift::gfx {
                 buffer.DrawIndexed(model->GetRanges()[0].indexNum, 1, 0, 0, 0);
             }
         }
+    }
+
+    MeshSystem::StaticInstance &MeshSystem::GetDynamicInstance(MeshPass pass, SGUID id) {
+        return m_dynamicInstances[pass][id];
+    }
+
+    void MeshSystem::SetDynamicInstanceWorldPosition(MeshPass pass, SGUID id, const glm::vec3 &worldPos) {
+        auto &ins = m_dynamicInstances[pass][id];
+        if (ins.id == 0) {
+            spdlog::warn("MeshSystem: Cannot set instance position because instance at id=" + std::to_string(id) + " does not exist!");
+            return;
+        }
+
+        ins.data.modelToWorld[3] = glm::vec4(worldPos, 1);
+        ins.data.modelToWorldInv = glm::inverse(ins.data.modelToWorld);
     }
 } // shift::gfx

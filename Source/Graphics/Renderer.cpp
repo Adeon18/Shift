@@ -58,7 +58,7 @@ namespace shift::gfx {
         }
 
         m_lightSystem->AddPointLight(glm::vec3(-3.0, -3.0, 0.0), glm::vec3(1.0, 0.0, 0.0));
-        m_lightSystem->AddPointLight(glm::vec3(3.0, -3.0, -3.0), glm::vec3(1.0, 0.0, 0.0));
+        m_lightSystem->AddPointLight(glm::vec3(3.0, -3.0, -3.0), glm::vec3(0.0, 0.3, 0.0));
 
         m_lightSystem->AddDirectionalLight(glm::vec3(0.0, 1.0, -1.0), glm::vec3(1.0, 1.0, 1.0));
 //        m_lightSystem->AddPointLight(glm::vec3(-3.0, -3.0, 0.0), glm::vec3(0.0, 1.0, 1.0));
@@ -83,6 +83,7 @@ namespace shift::gfx {
 
         UpdateBuffers(engineData);
         m_lightSystem->UpdateAllLights(m_currentFrame);
+        m_meshSystem->UpdateInstances(m_currentFrame);
 
         buff.TransferImageLayout(m_backBuffer.swapchain->GetImages()[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 
