@@ -50,6 +50,9 @@ namespace shift::gfx {
 
         void SetDynamicInstanceWorldPosition(MeshPass pass, SGUID id, const glm::vec3& worldPos);
 
+        //! TODO: Temporary function to set color for lights, used by LightSystem
+        void SetEmissionPassInstanceColor(SGUID id, const glm::vec4& color);
+
         //! Render all passes to 1 command buffer
         void RenderAllPasses(const CommandBuffer& buffer, uint32_t currentImage, uint32_t currentFrame);
 

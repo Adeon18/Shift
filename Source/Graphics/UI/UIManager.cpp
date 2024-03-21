@@ -67,23 +67,20 @@ namespace shift::gfx::ui {
         window_flags |= ImGuiWindowFlags_MenuBar;
         window_flags |= ImGuiWindowFlags_NoMove;
         ImGui::Begin("Dear ImGui Demo", NULL, window_flags);
-        static bool a = false;
-        static bool b = false;
+
         if (ImGui::BeginMenuBar())
         {
-            if (ImGui::BeginMenu("Menu"))
-            {
-                ImGui::MenuItem("ASS", NULL, &b);
+            if (ImGui::BeginMenu("Tools")) {
+                for (auto toolCompPtr: m_toolComponents) {
+                    toolCompPtr->Item();
+                }
                 ImGui::EndMenu();
             }
+
             ImGui::EndMenuBar();
         }
-        if (b) {
-            ImGui::Begin("ASS", &b);
-            if (ImGui::CollapsingHeader("Geometry")) {
-                ImGui::Checkbox("Visualize normals", &a);
-            }
-            ImGui::End();
+        for (auto toolCompPtr: m_toolComponents) {
+            toolCompPtr->Show();
         }
     }
 
@@ -91,5 +88,9 @@ namespace shift::gfx::ui {
         ImGui::End();
         ImGui::Render();
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), buffer.Get(), VK_NULL_HANDLE);
+    }
+
+    void UIManager::RegisterToolComponent(UIToolComponent* componentPtr) {
+        m_toolComponents.push_back(componentPtr);
     }
 }

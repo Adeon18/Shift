@@ -15,6 +15,7 @@
 #include "Graphics/Abstraction/Commands/CommandBuffer.hpp"
 #include "Window/ShiftWindow.hpp"
 
+#include "UIWindowComponent.hpp"
 
 namespace shift::gfx::ui {
     class UIManager {
@@ -43,10 +44,14 @@ namespace shift::gfx::ui {
 
         void EndFrame(const CommandBuffer& buffer);
 
+        void RegisterToolComponent(UIToolComponent* componentPtr);
+
         //! Destroy imgui context
         void Destroy();
     private:
         UIManager() = default;
+
+        std::vector<UIToolComponent*> m_toolComponents;
     };
 } // shift::gfx::ui
 

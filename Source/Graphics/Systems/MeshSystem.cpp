@@ -199,4 +199,13 @@ namespace shift::gfx {
         ins.data.modelToWorld[3] = glm::vec4(worldPos, 1);
         ins.data.modelToWorldInv = glm::inverse(ins.data.modelToWorld);
     }
+
+    void MeshSystem::SetEmissionPassInstanceColor(SGUID id, const glm::vec4& color) {
+        auto &ins = m_dynamicInstances[MeshPass::Emission_Forward][id];
+        if (ins.id == 0) {
+            spdlog::warn("MeshSystem: Cannot set forward instance color because instance at id=" + std::to_string(id) + " does not exist!");
+            return;
+        }
+        ins.data.color = color;
+    }
 } // shift::gfx

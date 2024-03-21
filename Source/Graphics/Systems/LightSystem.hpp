@@ -10,10 +10,25 @@
 #include "Graphics/Objects/LightTypes.hpp"
 #include "Graphics/Abstraction/Descriptors/UBOStructs.hpp"
 
+#include "Graphics/UI/UIWindowComponent.hpp"
+#include "Graphics/UI/UIManager.hpp"
+
 namespace shift::gfx {
+    class LightSystemUI;
 
     //! A system that manages lights, addition, deletion, updates
     class LightSystem {
+        class UI: public ui::UIToolComponent {
+        public:
+            explicit UI(std::string name, LightSystem& system): ui::UIToolComponent(std::move(name)), m_system{system} {
+                ui::UIManager::GetInstance().RegisterToolComponent(this);
+            }
+
+            virtual void Item() override { ui::UIToolComponent::Item(); }
+            virtual void Show() override;
+        private:
+            LightSystem& m_system;
+        };
     public:
         // TODO: remake the model vis based on name
         LightSystem(DescriptorManager& dMan, BufferManager& bMan, MeshSystem& mSys, SGUID pointLightModel): m_descriptorManager{dMan}, m_bufferManager{bMan}, m_meshSystem{mSys}, m_pointLightModel{pointLightModel} {
@@ -41,10 +56,13 @@ namespace shift::gfx {
         LightSystem(const LightSystem&) = delete;
         LightSystem& operator=(const LightSystem&) = delete;
     private:
+        UI m_UI{"Light System", *this};
+
         template<typename T>
         struct LightEntry {
             T light;
-            SGUID insId;
+            SGUID lightInsId;
+            SGUID meshInsId = 0;
             uint32_t bufferIndex;
         };
 
@@ -52,8 +70,8 @@ namespace shift::gfx {
         BufferManager& m_bufferManager;
         MeshSystem& m_meshSystem;
 
-        std::unordered_map<SGUID, LightEntry<DirectionalLight>> m_directinalLights;
-        std::unordered_map<SGUID, LightEntry<PointLight>> m_pointLights;
+        std::vector<LightEntry<DirectionalLight>> m_directinalLights;
+        std::vector<LightEntry<PointLight>> m_pointLights;
 
         LightsPerFrame m_lightBuffer;
         SGUID m_lightBufferId;
