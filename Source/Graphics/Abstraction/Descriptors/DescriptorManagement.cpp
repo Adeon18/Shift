@@ -66,7 +66,7 @@ namespace shift::gfx {
     }
 
     void DescriptorSet::UpdateImage(uint32_t bind, VkImageView view, VkSampler sampler) {
-        m_imageInfos.emplace_back(sampler, view,VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        m_imageInfos.emplace_back(sampler, view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         VkWriteDescriptorSet writeSet{};
 

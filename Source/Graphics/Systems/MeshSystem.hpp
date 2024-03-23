@@ -36,7 +36,8 @@ namespace shift::gfx {
         struct StaticInstance {
             PerDefaultObject data;
 
-            SGUID id = 0;
+            SGUID meshId = 0;
+            SGUID instanceID;
             SGUID modelID;
             SGUID descriptorSetId;
         };

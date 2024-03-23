@@ -30,7 +30,7 @@ namespace shift::ctrl {
         glm::vec3 rotation{0.0f, 0.0f, 0.0f};
 
         rotation.x -= inp::Mouse::GetInstance().GetYMovement() * ROTATION_SPEED * m_camera.GetScreenRatio();
-        rotation.y += inp::Mouse::GetInstance().GetXMovement() * ROTATION_SPEED * m_camera.GetScreenRatio();
+        rotation.y -= inp::Mouse::GetInstance().GetXMovement() * ROTATION_SPEED * m_camera.GetScreenRatio();
 
         if (glm::length(rotation) > 0) {
             m_camera.AddRotation(rotation * dt);

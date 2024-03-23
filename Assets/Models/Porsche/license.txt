@@ -1,0 +1,11 @@
+Model Information:
+* title:	1983 Porsche 911 Carrera
+* source:	https://sketchfab.com/3d-models/1983-porsche-911-carrera-017eaf54707e4cf8a93651863c6a5403
+* author:	BadKarma™ (https://sketchfab.com/890244234)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "1983 Porsche 911 Carrera" (https://sketchfab.com/3d-models/1983-porsche-911-carrera-017eaf54707e4cf8a93651863c6a5403) by BadKarma™ (https://sketchfab.com/890244234) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

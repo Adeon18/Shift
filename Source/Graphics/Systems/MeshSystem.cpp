@@ -62,9 +62,16 @@ namespace shift::gfx {
     SGUID MeshSystem::AddInstance(MeshPass pass, Mobility mobility, SGUID modelID, const glm::mat4 &transformation, const glm::vec4& color) {
         auto model = m_modelManager.GetModel(modelID);
 
-        for (auto& mesh: model->GetMeshes()) {
+        auto instanceID = GUIDGenerator::GetInstance().Guid();
+
+        SGUID lastInsId;
+        for (uint32_t i = 0; i < model->GetMeshes().size(); ++i) {
+            auto& mesh = model->GetMeshes()[i];
+
             StaticInstance instance{};
-            instance.id = GUIDGenerator::GetInstance().Guid();
+            instance.meshId = instanceID + i;
+            lastInsId = instance.meshId;
+            instance.instanceID = instanceID;
             instance.modelID = modelID;
 
             RenderStage& stage = (IsMeshPassForward(pass)) ? m_renderStagesForward[pass]: m_renderStagesDeferred[pass];
@@ -72,6 +79,10 @@ namespace shift::gfx {
             m_bufferManager.AllocateUBO(setID, sizeof(PerDefaultObject));
 
             auto* tex = m_textureSystem.GetTexture(mesh.texturePaths[gfx::MeshTextureType::DIFFUSE]);
+            // TODO: Workaround for now
+            if (!tex) {
+                tex = m_textureSystem.GetDefaultBlueTexture();
+            }
 
             for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
                 // TODO: should be dependent on material, AND THIS IS SO SHIT
@@ -101,11 +112,18 @@ namespace shift::gfx {
             switch (mobility) {
                 case Mobility::STATIC:
                     m_staticInstances[pass].push_back(instance);
-                    return instance.id;
+                    break;
                 case Mobility::MOVABLE:
-                    m_dynamicInstances[pass][instance.id] = instance;
-                    return instance.id;
+                    m_dynamicInstances[pass][instance.meshId] = instance;
+                    break;
             }
+        }
+
+        switch (mobility) {
+            case Mobility::STATIC:
+                return m_staticInstances[pass].back().meshId;
+            case Mobility::MOVABLE:
+                return lastInsId;
         }
     }
 
@@ -159,6 +177,7 @@ namespace shift::gfx {
 
             for (auto& instance: m_staticInstances[k]) {
                 auto model = m_modelManager.GetModel(instance.modelID);
+                auto& instanceRange = model->GetRanges()[instance.meshId - instance.instanceID];
                 std::array<VkBuffer, 1> vertexBuffers{ model->GetVertexBufferPtr().Get() };
                 std::array<VkDeviceSize, 1> offsets{ 0 };
                 buffer.BindVertexBuffers(vertexBuffers, offsets, 0);
@@ -167,7 +186,7 @@ namespace shift::gfx {
                 std::array<VkDescriptorSet, 1> setsObj{ m_descriptorManager.GetPerMaterialSet(instance.descriptorSetId, currentFrame).Get() };
                 buffer.BindDescriptorSets(setsObj, {}, v.pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 2);
                 // DRAW THE FUCKING TRIANGLE
-                buffer.DrawIndexed(model->GetRanges()[0].indexNum, 1, 0, 0, 0);
+                buffer.DrawIndexed(instanceRange.indexNum, 1, instanceRange.indexOffset, instanceRange.vertexOffset, 0);
             }
 
             for (auto& [id, instance]: m_dynamicInstances[k]) {
@@ -191,7 +210,7 @@ namespace shift::gfx {
 
     void MeshSystem::SetDynamicInstanceWorldPosition(MeshPass pass, SGUID id, const glm::vec3 &worldPos) {
         auto &ins = m_dynamicInstances[pass][id];
-        if (ins.id == 0) {
+        if (ins.meshId == 0) {
             spdlog::warn("MeshSystem: Cannot set instance position because instance at id=" + std::to_string(id) + " does not exist!");
             return;
         }
@@ -202,7 +221,7 @@ namespace shift::gfx {
 
     void MeshSystem::SetEmissionPassInstanceColor(SGUID id, const glm::vec4& color) {
         auto &ins = m_dynamicInstances[MeshPass::Emission_Forward][id];
-        if (ins.id == 0) {
+        if (ins.meshId == 0) {
             spdlog::warn("MeshSystem: Cannot set forward instance color because instance at id=" + std::to_string(id) + " does not exist!");
             return;
         }

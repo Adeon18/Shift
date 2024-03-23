@@ -17,7 +17,7 @@ void main() {
     vec3 meshBitan = inBitan;
 
     // Transform coords to world
-    VertexInputsMeshToModelTransform(meshNorm, meshTan, meshBitan, meshPos);
+//    VertexInputsMeshToModelTransform(meshNorm, meshTan, meshBitan, meshPos);
     VertexInputsModelToWorldTransform(meshNorm, meshTan, meshBitan, meshPos);
 
     outWorldPos = meshPos;

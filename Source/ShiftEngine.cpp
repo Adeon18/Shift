@@ -15,7 +15,7 @@ namespace shift {
         m_renderer = std::make_unique<gfx::Renderer>(*m_window, m_controller);
         if (!m_renderer->Init()) { return false;}
 
-        m_controller = ctrl::FlyingCameraController{80.0f, {m_window->GetWidth(), m_window->GetHeight()}, glm::vec3(0.0f, 0.0f, -2.0f)};
+        m_controller = ctrl::FlyingCameraController{80.0f, {m_window->GetWidth(), m_window->GetHeight()}, glm::vec3(0.0f, 0.0f, 0.0f)};
 
         return true;
     }

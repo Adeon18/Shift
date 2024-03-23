@@ -39,8 +39,8 @@ namespace shift::gfx {
         //! Update view matrix, called at every camera state change
         void UpdateViewMatrix();
 
-        static constexpr glm::vec3 FRONT_DIR = glm::vec3{0.0f, 0.0f, 1.0f};
-        static constexpr glm::vec3 UP_DIR = glm::vec3{0.0f, -1.0f, 0.0f};
+        static constexpr glm::vec3 FRONT_DIR = glm::vec3{0.0f, 0.0f, -1.0f};
+        static constexpr glm::vec3 UP_DIR = glm::vec3{0.0f, 1.0f, 0.0f};
         static constexpr glm::vec3 RIGHT_DIR = glm::vec3{1.0f, 0.0f, 0.0f};
 
         float m_fov;

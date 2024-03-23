@@ -18,13 +18,27 @@ namespace shift::gfx {
                 CommandPool& transferPool
                 );
 
-        [[nodiscard]] SGUID LoadTexture(const std::string& path, VkFormat format);
+        [[nodiscard]] SGUID LoadTexture(const std::string& path, VkFormat format, std::string name = "");
         [[nodiscard]] TextureBase* GetTexture(SGUID guid);
+        [[nodiscard]] TextureBase* GetTexture(std::string name);
+
+        [[nodiscard]] TextureBase* GetDefaultWhiteTexture() { return GetTexture("WHITE"); }
+        [[nodiscard]] TextureBase* GetDefaultBlackTexture() { return GetTexture("BLACK"); }
+        [[nodiscard]] TextureBase* GetDefaultGrayTexture() { return GetTexture("GRAY"); }
+        [[nodiscard]] TextureBase* GetDefaultRedTexture() { return GetTexture("RED"); }
+        [[nodiscard]] TextureBase* GetDefaultGreenTexture() { return GetTexture("GREEN"); }
+        [[nodiscard]] TextureBase* GetDefaultBlueTexture() { return GetTexture("BLUE"); }
     private:
+        void CreateDefaultTextures();
+
+        //! Utility function for default color textures
+        SGUID CreateDefaultColorTexture(const std::array<uint8_t, 4>& color, std::string name);
+
         const Device& m_device;
         CommandPool& m_gfxPool;
         CommandPool& m_transPool;
 
+        std::unordered_map<std::string, SGUID> m_textureIdByName;
         std::unordered_map<SGUID, std::unique_ptr<TextureBase>> m_textures;
     };
 }
