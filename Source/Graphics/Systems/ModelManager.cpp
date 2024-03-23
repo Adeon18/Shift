@@ -134,7 +134,6 @@ namespace shift::gfx {
                     modelPtr->defaultTexId = guid;
                     first = false;
                 }
-                m_textureSystem.GetTexture(guid)->CreateSampler(info::CreateSamplerInfo(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT));
             }
         }
     }

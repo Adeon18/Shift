@@ -33,12 +33,13 @@ namespace shift::gfx {
         auto sphere = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/Sphere/sphere.glb");
 
         m_bufferManager = std::make_unique<BufferManager>(*m_context.device);
+        m_samplerManager = std::make_unique<SamplerManager>(*m_context.device);
 
         /// Must be created before meshsystem
         CreateDescriptors();
         CreateSyncPrimitives();
 
-        m_meshSystem = std::make_unique<MeshSystem>(*m_context.device, m_backBuffer, *m_textureSystem, *m_modelManager, *m_bufferManager, *m_descriptorManager, m_perViewIDs);
+        m_meshSystem = std::make_unique<MeshSystem>(*m_context.device, m_backBuffer, *m_samplerManager, *m_textureSystem, *m_modelManager, *m_bufferManager, *m_descriptorManager, m_perViewIDs);
         m_lightSystem = std::make_unique<LightSystem>(*m_descriptorManager, *m_bufferManager, *m_meshSystem, sphere);
 
         LoadScene();
@@ -126,6 +127,7 @@ namespace shift::gfx {
 
         m_backBuffer.swapchain.reset();
 
+        m_samplerManager.reset();
         m_textureSystem.reset();
         m_modelManager.reset();
         m_bufferManager.reset();

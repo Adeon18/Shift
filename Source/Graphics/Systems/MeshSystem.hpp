@@ -16,6 +16,7 @@
 #include "Graphics/ShiftContextData.hpp"
 
 #include "Graphics/Abstraction/Descriptors/UBOStructs.hpp"
+#include "Graphics/Abstraction/Images/SamplerManager.hpp"
 
 namespace shift::gfx {
     enum class MeshPass {
@@ -42,7 +43,15 @@ namespace shift::gfx {
             SGUID descriptorSetId;
         };
     public:
-        MeshSystem(const Device& device, const ShiftBackBuffer& backBufferData, TextureSystem& textureSystem, ModelManager& modelManager, BufferManager& bufferManager, DescriptorManager &descManager, std::unordered_map<ViewSetLayoutType, SGUID>& viewIds);
+        MeshSystem(
+                const Device& device,
+                const ShiftBackBuffer& backBufferData,
+                const SamplerManager& samplerManager,
+                TextureSystem& textureSystem,
+                ModelManager& modelManager,
+                BufferManager& bufferManager,
+                DescriptorManager &descManager,
+                std::unordered_map<ViewSetLayoutType, SGUID>& viewIds);
 
         SGUID AddInstance(MeshPass pass, Mobility mobility, SGUID modelID, const glm::mat4& transformation, const glm::vec4& color = {0.0f, 0.0f, 0.0f, 0.0f});
 
@@ -86,6 +95,7 @@ namespace shift::gfx {
 
         const Device& m_device;
         const ShiftBackBuffer& m_backBufferData;
+        const SamplerManager& m_samplerManager;
         TextureSystem& m_textureSystem;
         ModelManager& m_modelManager;
         DescriptorManager& m_descriptorManager;

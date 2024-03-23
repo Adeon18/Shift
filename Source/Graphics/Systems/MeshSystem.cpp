@@ -17,10 +17,23 @@ namespace shift::gfx {
         }
     }
 
-    MeshSystem::MeshSystem(const Device &device, const ShiftBackBuffer &backBufferData, TextureSystem &textureSystem,
-                           ModelManager &modelManager, BufferManager &bufferManager, DescriptorManager &descManager,
-                           std::unordered_map<ViewSetLayoutType, SGUID>& viewIds): m_device{device}, m_backBufferData{backBufferData},
-                           m_textureSystem{textureSystem}, m_modelManager{modelManager}, m_bufferManager{bufferManager}, m_descriptorManager{descManager}, m_perViewIDs{viewIds} {
+    MeshSystem::MeshSystem(const Device &device,
+                           const ShiftBackBuffer &backBufferData,
+                           const SamplerManager& samplerManager,
+                           TextureSystem &textureSystem,
+                           ModelManager &modelManager,
+                           BufferManager &bufferManager,
+                           DescriptorManager &descManager,
+                           std::unordered_map<ViewSetLayoutType, SGUID>& viewIds):
+                                m_device{device},
+                                m_backBufferData{backBufferData},
+                                m_samplerManager{samplerManager},
+                                m_textureSystem{textureSystem},
+                                m_modelManager{modelManager},
+                                m_bufferManager{bufferManager},
+                                m_descriptorManager{descManager},
+                                m_perViewIDs{viewIds}
+    {
         CreateDescriptorLayouts();
         CreateRenderStages();
     }
@@ -91,7 +104,7 @@ namespace shift::gfx {
                 switch (stage.matSetLayoutType) {
                     case MaterialSetLayoutType::TEXTURED:
                         perObjSet.UpdateUBO(0, buff.Get(), 0, buff.GetSize());
-                        perObjSet.UpdateImage(1, tex->GetView(), tex->GetSampler());
+                        perObjSet.UpdateImage(1, tex->GetView(), m_samplerManager.GetLinearSampler());
                         break;
                     case MaterialSetLayoutType::EMISSION_ONLY:
                         perObjSet.UpdateUBO(0, buff.Get(), 0, buff.GetSize());

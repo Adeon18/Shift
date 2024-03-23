@@ -16,6 +16,7 @@
 #include "Graphics/Abstraction/Descriptors/DescriptorManager.hpp"
 #include "Graphics/Abstraction/Pipeline/Pipeline.hpp"
 #include "Graphics/Abstraction/Descriptors/BufferManager.hpp"
+#include "Graphics/Abstraction/Images/SamplerManager.hpp"
 #include "Graphics/Systems/TextureSystem.hpp"
 #include "Graphics/Systems/ModelManager.hpp"
 #include "Graphics/Systems/RenderStage.hpp"
@@ -81,6 +82,7 @@ namespace shift::gfx {
         std::unique_ptr<ModelManager> m_modelManager;
         std::unique_ptr<DescriptorManager> m_descriptorManager;
         std::unique_ptr<BufferManager> m_bufferManager;
+        std::unique_ptr<SamplerManager> m_samplerManager;
 
         std::unique_ptr<MeshSystem> m_meshSystem;
         std::unique_ptr<LightSystem> m_lightSystem;

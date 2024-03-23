@@ -85,7 +85,6 @@ namespace shift::gfx {
         SGUID imageGUID = GUIDGenerator::GetInstance().Guid();
         m_textureIdByName[name] = imageGUID;
         m_textures[imageGUID] = std::make_unique<shift::gfx::Texture2D>(m_device, 1, 1, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-        m_textures[imageGUID]->CreateSampler(info::CreateSamplerInfo(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT));
 
         auto& bufferCopy = m_transPool.RequestCommandBuffer();
         bufferCopy.TransferImageLayout(

@@ -85,13 +85,7 @@ namespace shift::gfx {
         m_imageView = m_device.CreateImageView(info::CreateImageViewInfo(m_image, viewType, format, sRange));
     }
 
-    bool TextureBase::CreateSampler(VkSamplerCreateInfo info) {
-        m_sampler = m_device.CreateImageSampler(info);
-        return m_sampler != VK_NULL_HANDLE;
-    }
-
     TextureBase::~TextureBase() {
-        m_device.DestroyImageSampler(m_sampler);
         m_device.DestroyImageView(m_imageView);
         vmaDestroyImage(m_device.GetAllocator(), m_image, m_allocation);
     }

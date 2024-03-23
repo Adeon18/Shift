@@ -155,11 +155,11 @@ namespace shift {
         VkSamplerCreateInfo CreateSamplerInfo(VkFilter minFilter, VkFilter magFilter, VkSamplerAddressMode addressMode) {
             VkSamplerCreateInfo samplerInfo{};
             samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-            samplerInfo.magFilter = VK_FILTER_LINEAR;
-            samplerInfo.minFilter = VK_FILTER_LINEAR;
-            samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerInfo.magFilter = magFilter;
+            samplerInfo.minFilter = minFilter;
+            samplerInfo.addressModeU = addressMode;
+            samplerInfo.addressModeV = addressMode;
+            samplerInfo.addressModeW = addressMode;
             samplerInfo.anisotropyEnable = VK_FALSE;
             samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
             // You can either use UVs or [0, width/height] coordinates

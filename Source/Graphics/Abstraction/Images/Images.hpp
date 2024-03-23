@@ -35,13 +35,10 @@ namespace shift::gfx {
                 TextureType texType = TextureType::Color
             );
 
-        bool CreateSampler(VkSamplerCreateInfo info);
-
         [[nodiscard]] VkImage GetImage() const { return m_image; }
         [[nodiscard]] VkImageView GetView() const { return m_imageView; }
         [[nodiscard]] VmaAllocation GetAlloc() const { return m_allocation; }
         [[nodiscard]] VmaAllocationInfo GetAllocInfo() const { return m_allocationInfo; }
-        [[nodiscard]] VkSampler GetSampler() const { return m_sampler; }
 
         [[nodiscard]] uint32_t GetWidth() const { return m_width; }
         [[nodiscard]] uint32_t GetHeight() const { return m_height; }
@@ -65,8 +62,6 @@ namespace shift::gfx {
         VkImageView m_imageView = VK_NULL_HANDLE;
         VmaAllocation m_allocation = VK_NULL_HANDLE;
         VmaAllocationInfo m_allocationInfo;
-
-        VkSampler m_sampler = VK_NULL_HANDLE;
 
         uint32_t m_width;
         uint32_t m_height;
