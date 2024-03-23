@@ -145,6 +145,11 @@ namespace shift::gfx {
         if (m_shown) {
             ImGui::Begin(m_name.c_str(), &m_shown);
 
+            ImGuiIO& io = ImGui::GetIO();
+            ImVec2 pos = ImGui::GetCursorScreenPos();
+            ImVec2 winSize = ImGui::GetWindowSize();
+            ImVec4 borderCol = ImGui::GetStyleColorVec4(ImGuiCol_Border);
+
             ImGui::SeparatorText("Texture Name");
             static char buff[512];
             ImGui::InputText("512 chars max", buff, IM_ARRAYSIZE(buff), 0);
@@ -160,13 +165,43 @@ namespace shift::gfx {
                 ImGui::PushID(id);
 
                 if (ImGui::CollapsingHeader(std::string{name + "##" + std::to_string(id)}.c_str())) {
+                    glm::ivec2 texSize = {m_system.m_textures[id]->GetWidth(), m_system.m_textures[id]->GetHeight()};
 
-                    ImGui::Image(m_system.m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE,
-                                                                          textureIdToDescriptorIdLUT[id]).Get(),
-                                 ImVec2(300, 300));
+                    auto set = m_system.m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, textureIdToDescriptorIdLUT[id]).Get();
+
+                    //ImVec2 texSizeIm = ImVec2{static_cast<float>((winSize.x - 256) * 0.5f), static_cast<float>((winSize.y - 256) * 0.5f)};
+                    //ImGui::SetCursorPos(texSizeIm);
+                    ImGui::Image(
+                            set,
+                            ImVec2(256, 256),
+                            ImVec2(0, 0),
+                            ImVec2(1, 1),
+                            ImVec4(1, 1, 1, 1),
+                            borderCol
+                            );
+
+//                    if (ImGui::BeginItemTooltip())
+//                    {
+//                        float region_sz = 32.0f;
+//                        float region_x = io.MousePos.x - pos.x - region_sz * 0.5f;
+//                        float region_y = io.MousePos.y - pos.y - region_sz * 0.5f;
+//                        float zoom = 4.0f;
+//                        if (region_x < 0.0f) { region_x = 0.0f; }
+//                        else if (region_x > size.x - region_sz) { region_x = size.x - region_sz; }
+//                        if (region_y < 0.0f) { region_y = 0.0f; }
+//                        else if (region_y > size.y - region_sz) { region_y = size.y - region_sz; }
+//                        ImGui::Text("Min: (%.2f, %.2f)", region_x, region_y);
+//                        ImGui::Text("Max: (%.2f, %.2f)", region_x + region_sz, region_y + region_sz);
+//                        ImVec2 uv0 = ImVec2((region_x) / size.x, (region_y) / size.y);
+//                        ImVec2 uv1 = ImVec2((region_x + region_sz) / size.x, (region_y + region_sz) / size.y);
+//                        ImGui::Image(set, ImVec2(region_sz * zoom, region_sz * zoom), uv0, uv1, ImVec4(1, 1, 1, 1), borderCol);
+//                        ImGui::EndTooltip();
+//                    }
 
                     if (ImGui::TreeNode("Misc")) {
                         ImGui::LabelText(std::to_string(id).c_str(), "GUID");
+                        std::string res = std::to_string(texSize.x) + "x" + std::to_string(texSize.y);
+                        ImGui::LabelText(res.c_str(), "Texture Res");
                         ImGui::TreePop();
                     }
                 }
