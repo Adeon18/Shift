@@ -26,14 +26,14 @@ namespace shift::gfx {
         m_context.graphicsPool = std::make_unique<CommandPool>(*m_context.device, *m_context.instance, POOL_TYPE::GRAPHICS);
         m_context.transferPool = std::make_unique<CommandPool>(*m_context.device, *m_context.instance, POOL_TYPE::TRANSFER);
 
-        m_descriptorManager = std::make_unique<DescriptorManager>(*m_context.device);
-        if (!m_descriptorManager->AllocatePools()) {return false;}
-        m_textureSystem = std::make_unique<TextureSystem>(*m_context.device, *m_context.graphicsPool, *m_context.transferPool);
-        m_modelManager = std::make_unique<ModelManager>(*m_context.device, *m_context.transferPool, *m_textureSystem);
-        auto sphere = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/Sphere/sphere.glb");
-
         m_bufferManager = std::make_unique<BufferManager>(*m_context.device);
         m_samplerManager = std::make_unique<SamplerManager>(*m_context.device);
+
+        m_descriptorManager = std::make_unique<DescriptorManager>(*m_context.device);
+        if (!m_descriptorManager->AllocatePools()) {return false;}
+        m_textureSystem = std::make_unique<TextureSystem>(*m_context.device, *m_samplerManager, *m_context.graphicsPool, *m_context.transferPool, *m_descriptorManager);
+        m_modelManager = std::make_unique<ModelManager>(*m_context.device, *m_context.transferPool, *m_textureSystem);
+        auto sphere = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/Sphere/sphere.glb");
 
         /// Must be created before meshsystem
         CreateDescriptors();
@@ -161,7 +161,6 @@ namespace shift::gfx {
                             {DescriptorType::UBO, 0, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT},
                     }
             );
-
         }
         m_perViewIDs[ViewSetLayoutType::DEFAULT_CAMERA] = (m_descriptorManager->AllocatePerViewSet(ViewSetLayoutType::DEFAULT_CAMERA));
         m_perFrameID = m_descriptorManager->AllocatePerFrameSet();

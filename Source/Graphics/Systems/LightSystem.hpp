@@ -14,8 +14,6 @@
 #include "Graphics/UI/UIManager.hpp"
 
 namespace shift::gfx {
-    class LightSystemUI;
-
     //! A system that manages lights, addition, deletion, updates
     class LightSystem {
         class UI: public ui::UIToolComponent {

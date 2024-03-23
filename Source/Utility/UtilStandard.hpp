@@ -19,6 +19,14 @@ namespace shift {
             return std::string{SHIFT_ROOT} + "/Shaders/Build/";
         }
 
+        constexpr std::string StrToLower(const std::string& str) {
+            std::string transformed;
+            transformed.resize(str.size());
+            std::transform(str.begin(), str.end(), transformed.begin(),
+                                  [](unsigned char c){ return std::tolower(c); });
+            return transformed;
+        }
+
 
         //! TODO: Can be optimized!
         [[nodiscard]] std::vector<char> ReadFile(const std::string& filename);

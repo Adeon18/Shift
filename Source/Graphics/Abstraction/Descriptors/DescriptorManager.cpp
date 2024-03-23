@@ -6,6 +6,12 @@ namespace shift::gfx {
         m_viewPool = std::make_unique<DescriptorPool>(m_device);
         m_matPool = std::make_unique<DescriptorPool>(m_device);
         m_ImGuiPool = std::make_unique<DescriptorPool>(m_device);
+
+        CreateImGuiLayout(
+                {
+                        {DescriptorType::SAMPLER, 0, VK_SHADER_STAGE_FRAGMENT_BIT}
+                }
+        );
     }
 
     bool DescriptorManager::AllocatePools() {
@@ -62,6 +68,13 @@ namespace shift::gfx {
         return id;
     }
 
+    SGUID DescriptorManager::AllocateImGuiSet(ImGuiSetLayoutType type) {
+        SGUID id = GUIDGenerator::GetInstance().Guid();
+        m_imguiTextureSets[id] = std::make_unique<DescriptorSet>(m_device);
+        m_imguiTextureSets[id]->Allocate(m_ImGuiPool->Get(), m_imguiLayout->Get());
+        return id;
+    }
+
     bool DescriptorManager::CreatePerFrameLayout(const std::vector<DescriptorLayoutEntry> &entries) {
         m_perFrameLayout = std::make_unique<DescriptorLayout>(m_device);
         for (auto& entry: entries) {
@@ -98,5 +111,13 @@ namespace shift::gfx {
                 layout.AddSamplerBinding(entry.bind, entry.stages);
                 break;
         }
+    }
+
+    bool DescriptorManager::CreateImGuiLayout(const std::vector<DescriptorLayoutEntry> &entries) {
+        m_imguiLayout = std::make_unique<DescriptorLayout>(m_device);
+        for (auto& entry: entries) {
+            FillDescriptorLayoutEntryData(*m_imguiLayout, entry);
+        }
+        return m_imguiLayout->Build();
     }
 } // shift::gfx

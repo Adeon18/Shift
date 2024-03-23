@@ -14,6 +14,7 @@
 
 #include "Utility/GUIDGenerator/GUIDGenerator.hpp"
 
+
 namespace shift::gfx {
     enum class MaterialSetLayoutType {
         EMISSION_ONLY,
@@ -22,6 +23,11 @@ namespace shift::gfx {
 
     enum class ViewSetLayoutType {
         DEFAULT_CAMERA
+    };
+
+    enum class ImGuiSetLayoutType {
+        TEXTURE,
+        RENDER_TARGET
     };
 
     enum class ObjectType {
@@ -48,6 +54,7 @@ namespace shift::gfx {
         bool CreatePerFrameLayout(const std::vector<DescriptorLayoutEntry>& entries);
         bool CreatePerViewLayout(ViewSetLayoutType type, const std::vector<DescriptorLayoutEntry>& entries);
         bool CreatePerMaterialLayout(MaterialSetLayoutType type, const std::vector<DescriptorLayoutEntry>& entries);
+        bool CreateImGuiLayout(const std::vector<DescriptorLayoutEntry>& entries);
 
         [[nodiscard]] const DescriptorPool& GetImGuiPool() const { return *m_ImGuiPool; }
 
@@ -55,6 +62,7 @@ namespace shift::gfx {
         [[nodiscard]] DescriptorLayout& GetPerViewLayout(ViewSetLayoutType type) { return *m_perViewTypeLayouts[type]; }
         [[nodiscard]] DescriptorLayout& GetPerMaterialLayout(MaterialSetLayoutType type) { return *m_perMaterialTypeLayouts[type]; }
 
+        [[nodiscard]] DescriptorLayout& GetImGuiLayout() { return *m_imguiLayout; }
 
         //! Creates a set entry perframe set that you can externally configure
         [[nodiscard]] SGUID AllocatePerFrameSet();
@@ -63,6 +71,8 @@ namespace shift::gfx {
         //! Creates a set entry per material set that you can externally configure, returns it's GUID
         [[nodiscard]] SGUID AllocatePerMaterialSet(MaterialSetLayoutType type);
 
+        //! Allocate a descriptor set for ImGui images
+        [[nodiscard]] SGUID AllocateImGuiSet(ImGuiSetLayoutType type);
 
         //! Get reference to the respective frame index of the per frame set
         [[nodiscard]] DescriptorSet& GetPerFrameSet(uint32_t frameIdx) { return *m_perFrameSets[frameIdx]; }
@@ -71,6 +81,8 @@ namespace shift::gfx {
         //! Get reference to the respective frame index of the per material sets
         [[nodiscard]] DescriptorSet& GetPerMaterialSet(SGUID id, uint32_t frameIdx) { return *m_perMaterialSets[id].setsInFlight[frameIdx]; }
 
+        // TODO: For now
+        [[nodiscard]] DescriptorSet& GetImGuiSet(ImGuiSetLayoutType type, SGUID id, uint32_t frameIdx=0) { return *m_imguiTextureSets[id]; }
         ~DescriptorManager() = default;
 
         DescriptorManager() = delete;
@@ -92,12 +104,16 @@ namespace shift::gfx {
         std::unordered_map<ViewSetLayoutType, std::unique_ptr<DescriptorLayout>> m_perViewTypeLayouts;
         std::unordered_map<MaterialSetLayoutType, std::unique_ptr<DescriptorLayout>> m_perMaterialTypeLayouts;
 
+        std::unique_ptr<DescriptorLayout> m_imguiLayout;
+
         const Device& m_device;
 
         //! Sets
         DescriptorSetsInFlight m_perFrameSets;
         std::unordered_map<SGUID, DescriptorSetData<ViewSetLayoutType>> m_perViewSets;
         std::unordered_map<SGUID, DescriptorSetData<MaterialSetLayoutType>> m_perMaterialSets;
+
+        std::unordered_map<SGUID, std::unique_ptr<DescriptorSet>> m_imguiTextureSets;
 
 
         //! I have a pool for different set types
