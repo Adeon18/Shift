@@ -14,7 +14,7 @@ namespace shift::gfx {
     class ModelManager {
     public:
         static constexpr uint32_t IMPORT_FLAGS = uint32_t(
-                aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_PreTransformVertices
+                aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices  | aiProcess_PreTransformVertices
         );
     public:
         ModelManager(const Device& device, CommandPool& pool, TextureSystem& texSys): m_device{device}, m_pool{pool}, m_textureSystem{texSys} {}

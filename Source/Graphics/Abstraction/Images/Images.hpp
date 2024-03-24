@@ -103,16 +103,16 @@ namespace shift::gfx {
         }
     };
 
-    //! A class for a render target that can be sampled(like GBuffer Textures)
-    class RenderTerget2DSampled: public TextureBase {
+    //! A class for a render target(like GBuffer Textures)
+    class RenderTerget2D: public Texture2D {
     public:
-        RenderTerget2DSampled(
+        RenderTerget2D(
                 const Device& device,
                 uint32_t width,
                 uint32_t height,
                 VkFormat format,
                 uint32_t mips = 1
-        ) : TextureBase(device, width, height, 1, 1, 1, format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, TextureDim::T_2D, TextureType::Color)
+        ) : Texture2D(device, width, height, format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, mips)
         {
 
         }

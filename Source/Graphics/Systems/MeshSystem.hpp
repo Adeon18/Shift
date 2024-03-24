@@ -77,7 +77,7 @@ namespace shift::gfx {
         MeshSystem(const MeshSystem&) = delete;
         MeshSystem& operator=(const MeshSystem&) = delete;
     private:
-        void RenderMeshesFromStages(const CommandBuffer& buffer, const std::unordered_map<MeshPass, RenderStage> &renderStages, uint32_t currentFrame);
+        void RenderMeshesFromStages(const CommandBuffer& buffer, std::unordered_map<MeshPass, RenderStage> &renderStages, uint32_t currentFrame);
 
 //        struct DynamicInstance {
 //            PerDefaultObject data;

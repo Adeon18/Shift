@@ -49,10 +49,10 @@ namespace shift::gfx {
     }
 
     bool Renderer::LoadScene() {
-        auto amogus = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/SimpleAmogusPink/scene.gltf");
+        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/SimpleAmogusPink/scene.gltf");
 //        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../Sponza-master/Sponza-master/sponza.obj");
-//        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../Porsche/scene.gltf");
-        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/Porsche/scene.gltf");
+//        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../sponza/scene.gltf");
+//        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/Porsche/scene.gltf");
 
 //        for (int i = -16; i < 16; ++i) {
 //            for (int j = -16; j < 16; ++j) {
@@ -92,6 +92,8 @@ namespace shift::gfx {
         m_lightSystem->UpdateAllLights(m_currentFrame);
         m_meshSystem->UpdateInstances(m_currentFrame);
 
+        std::cout << "Idx: " << imageIndex << std::endl;
+
         buff.TransferImageLayout(m_backBuffer.swapchain->GetImages()[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 
         m_meshSystem->RenderForwardPasses(buff, imageIndex, m_currentFrame);
@@ -104,12 +106,12 @@ namespace shift::gfx {
         std::array<VkSemaphore, 1> sigSem{ m_renderFinishedSemaphores[m_currentFrame]->Get() };
         std::array<VkCommandBuffer, 1> cmdBuf{ buff.Get() };
         std::array<VkPipelineStageFlags, 1> waitStages{ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-        buff.Submit(info::CreateSubmitInfo(
+        if (!buff.Submit(info::CreateSubmitInfo(
                 waitSem,
                 sigSem,
                 cmdBuf,
                 waitStages.data()
-        ));
+        ))) { return false; }
 
         if (!PresentFinalImage(imageIndex)) { return false; }
 

@@ -73,7 +73,6 @@ namespace shift::gfx {
                 break;
         }
 
-        //! TODO: handle for depth
         VkImageSubresourceRange sRange{
             .aspectMask = textureType,
             .baseMipLevel = 0,

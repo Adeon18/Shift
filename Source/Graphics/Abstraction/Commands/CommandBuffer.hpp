@@ -1,6 +1,9 @@
 #ifndef SHIFT_COMMANDBUFFER_HPP
 #define SHIFT_COMMANDBUFFER_HPP
 
+// BLYAT
+#pragma optimize( "", off )
+
 #include <vulkan/vulkan.h>
 
 #include <memory>

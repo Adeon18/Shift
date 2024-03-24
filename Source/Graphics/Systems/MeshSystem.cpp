@@ -45,6 +45,7 @@ namespace shift::gfx {
                     if (!CreateRenderStageFromInfo(m_device, m_backBufferData, m_descriptorManager, m_renderStagesForward[k], v)) {
                         spdlog::warn("MeshSystem failed to create Mesh Render Stage! Name: {}", v.name);
                     }
+                    spdlog::debug("Created forward render stage: " + v.name);
                     break;
                 case RenderStageCreateInfo::RT_Type::Gbuffer:
                     if (!CreateRenderStageFromInfo(m_device, m_backBufferData, m_descriptorManager, m_renderStagesDeferred[k], v)) {
@@ -87,7 +88,7 @@ namespace shift::gfx {
             instance.instanceID = instanceID;
             instance.modelID = modelID;
 
-            RenderStage& stage = (IsMeshPassForward(pass)) ? m_renderStagesForward[pass]: m_renderStagesDeferred[pass];
+            RenderStage& stage = m_renderStagesForward[pass];
             SGUID setID = m_descriptorManager.AllocatePerMaterialSet(stage.matSetLayoutType);
             m_bufferManager.AllocateUBO(setID, sizeof(PerDefaultObject));
 
@@ -178,8 +179,10 @@ namespace shift::gfx {
         }
     }
 
-    void MeshSystem::RenderMeshesFromStages(const CommandBuffer& buffer, const std::unordered_map<MeshPass, RenderStage> &renderStages, uint32_t currentFrame) {
+    void MeshSystem::RenderMeshesFromStages(const CommandBuffer& buffer, std::unordered_map<MeshPass, RenderStage> &renderStages, uint32_t currentFrame) {
         for (auto& [k, v]: renderStages) {
+            if (m_staticInstances[k].empty() && m_dynamicInstances[k].empty()) continue;
+
             buffer.BindPipeline(v.pipeline->Get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
 
             std::array<VkDescriptorSet, 1> sets{ m_descriptorManager.GetPerFrameSet(currentFrame).Get() };
