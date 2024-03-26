@@ -284,6 +284,11 @@ namespace shift {
             vkCmdDrawIndexed(m_buffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
         }
 
+        void CommandBuffer::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex,
+                                 uint32_t firstInstance) const {
+            vkCmdDraw(m_buffer, vertexCount, instanceCount, firstVertex, firstInstance);
+        }
+
         void CommandBuffer::BeginRendering(VkRenderingInfoKHR info) const {
             m_ins.CallBeginRenderingExternal(m_buffer, info);
         }
@@ -291,5 +296,6 @@ namespace shift {
         void CommandBuffer::EndRendering() const {
             m_ins.CallEndRenderingExternal(m_buffer);
         }
+
     } // gfx
 } // shift

@@ -59,7 +59,7 @@ namespace shift::gfx::ui {
         ImGui::DestroyContext();
     }
 
-    void UIManager::BeginFrame() {
+    void UIManager::BeginFrame(uint32_t currentFrame) {
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
@@ -80,7 +80,7 @@ namespace shift::gfx::ui {
             ImGui::EndMenuBar();
         }
         for (auto toolCompPtr: m_toolComponents) {
-            toolCompPtr->Show();
+            toolCompPtr->Show(currentFrame);
         }
     }
 

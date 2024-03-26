@@ -24,6 +24,7 @@ namespace shift::gfx {
                            ModelManager &modelManager,
                            BufferManager &bufferManager,
                            DescriptorManager &descManager,
+                           RenderTargetSystem& RTSystem,
                            std::unordered_map<ViewSetLayoutType, SGUID>& viewIds):
                                 m_device{device},
                                 m_backBufferData{backBufferData},
@@ -32,6 +33,7 @@ namespace shift::gfx {
                                 m_modelManager{modelManager},
                                 m_bufferManager{bufferManager},
                                 m_descriptorManager{descManager},
+                                m_RTSystem{RTSystem},
                                 m_perViewIDs{viewIds}
     {
         CreateDescriptorLayouts();
@@ -147,7 +149,8 @@ namespace shift::gfx {
 
     void MeshSystem::RenderForwardPasses(const CommandBuffer& buffer, uint32_t currentImage, uint32_t currentFrame) {
         // TODO: FOR NOT TO BACKBUFFER
-        auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_backBufferData.swapchain->GetImageViews()[currentImage]);
+//        auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_backBufferData.swapchain->GetImageViews()[currentImage]);
+        auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_RTSystem.GetRTCurrentFrame("HDR:BackBuffer", currentFrame).GetView());
         auto depthAttInfo = info::CreateRenderingAttachmentInfo(m_backBufferData.swapchain->GetDepthBufferView(), false, {1.0f, 0});
 
         VkRenderingInfoKHR renderInfo{};
@@ -165,7 +168,7 @@ namespace shift::gfx {
 
         RenderMeshesFromStages(buffer, m_renderStagesForward, currentFrame);
 
-        ui::UIManager::GetInstance().EndFrame(buffer);
+//        ui::UIManager::GetInstance().EndFrame(buffer);
 
         buffer.EndRendering();
     }

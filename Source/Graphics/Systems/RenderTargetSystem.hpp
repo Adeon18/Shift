@@ -26,9 +26,9 @@ namespace shift::gfx {
             }
 
             virtual void Item() override { ui::UIToolComponent::Item(); }
-            virtual void Show() override;
+            virtual void Show(uint32_t currentFrame) override;
 
-            std::unordered_map<SGUID, SGUID> textureIdToDescriptorIdLUT;
+            std::unordered_map<SGUID, std::array<SGUID, gutil::SHIFT_MAX_FRAMES_IN_FLIGHT>> textureIdToDescriptorIdLUT;
         private:
             RenderTargetSystem& m_system;
         };
@@ -36,10 +36,21 @@ namespace shift::gfx {
         RenderTargetSystem(const Device& device, const SamplerManager& samplerManager, DescriptorManager& descriptorManager);
 
         //! Create a render target and store it by name
-        SGUID CreateRenderTarget2D(uint32_t width, uint32_t height, VkFormat format, std::string name);
+        SGUID CreateRenderTarget2D(uint32_t width, uint32_t height, VkFormat format, const std::string& name);
+
+        //! Check whether the ID of the RT is valid, or it was freed/recreated
+        [[nodiscard]] bool IsValid(SGUID id);
+
+        //! Get the RT id by name for tracking the
+        [[nodiscard]] SGUID IdByName(const std::string& name);
 
         //! Store an existing VkImage by name
         SGUID RegisterRenderTarget2D(VkImage image, VkFormat format, std::string name);
+
+        RenderTerget2D& GetRTCurrentFrame(SGUID id, uint32_t currentFrame);
+        RenderTerget2D& GetRTPrevFrame(SGUID id, uint32_t currentFrame);
+        RenderTerget2D& GetRTCurrentFrame(const std::string& name, uint32_t currentFrame);
+        RenderTerget2D& GetRTPrevFrame(const std::string& name, uint32_t currentFrame);
 
         ~RenderTargetSystem() = default;
 

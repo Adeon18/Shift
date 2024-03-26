@@ -23,7 +23,7 @@ namespace shift::gfx {
             }
 
             virtual void Item() override { ui::UIToolComponent::Item(); }
-            virtual void Show() override;
+            virtual void Show(uint32_t currentFrame) override;
 
             std::unordered_map<SGUID, SGUID> textureIdToDescriptorIdLUT;
         private:

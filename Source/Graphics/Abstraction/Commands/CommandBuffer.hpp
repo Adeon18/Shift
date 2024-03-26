@@ -107,6 +107,11 @@ namespace shift {
                              int32_t vertexOffset,
                              uint32_t firstInstance) const;
 
+            void Draw(uint32_t vertexCount,
+                     uint32_t instanceCount,
+                     uint32_t firstVertex,
+                     uint32_t firstInstance) const;
+
             //! Buffer Submit Functions
             bool Submit() const;
             bool Submit(const VkSubmitInfo& info) const;

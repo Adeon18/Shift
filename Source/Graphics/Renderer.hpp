@@ -22,6 +22,8 @@
 #include "Graphics/Systems/RenderStage.hpp"
 #include "Graphics/Systems/MeshSystem.hpp"
 #include "Graphics/Systems/LightSystem.hpp"
+#include "Graphics/Systems/RenderTargetSystem.hpp"
+#include "Graphics/Systems/PostProcessSystem.hpp"
 #include "Graphics/UI/UIManager.hpp"
 
 #include "Input/Controllers/Camera/FlyingCameraController.hpp"
@@ -85,7 +87,9 @@ namespace shift::gfx {
         std::unique_ptr<SamplerManager> m_samplerManager;
 
         std::unique_ptr<MeshSystem> m_meshSystem;
+        std::unique_ptr<PostProcessSystem> m_postProcessSystem;
         std::unique_ptr<LightSystem> m_lightSystem;
+        std::unique_ptr<RenderTargetSystem> m_RTSystem;
 
         uint32_t m_currentFrame = 0;
 

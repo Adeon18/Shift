@@ -141,7 +141,7 @@ namespace shift::gfx {
         return m_textures[m_textureIdByName[name]].get();
     }
 
-    void TextureSystem::UI::Show() {
+    void TextureSystem::UI::Show(uint32_t currentFrame) {
         if (m_shown) {
             ImGui::Begin(m_name.c_str(), &m_shown);
 

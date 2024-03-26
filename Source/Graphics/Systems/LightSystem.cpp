@@ -60,7 +60,7 @@ namespace shift::gfx {
         b.Fill(&m_lightBuffer, sizeof(m_lightBuffer));
     }
 
-    void LightSystem::UI::Show() {
+    void LightSystem::UI::Show(uint32_t currentFrame) {
         if (m_shown) {
             ImGui::Begin(m_name.c_str(), &m_shown);
             if (ImGui::CollapsingHeader("Directional Lights")) {

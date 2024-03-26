@@ -29,7 +29,8 @@ namespace shift::gfx {
     struct RenderStageCreateInfo {
         enum RT_Type {
             Forward,
-            Gbuffer
+            Gbuffer,
+            Swapchain
         };
         std::string name;
         std::array<std::string, 5> shaderData;

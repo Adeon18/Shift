@@ -15,15 +15,25 @@ namespace shift::gfx {
 
     }
 
-    SGUID RenderTargetSystem::CreateRenderTarget2D(uint32_t width, uint32_t height, VkFormat format, std::string name) {
+    SGUID RenderTargetSystem::CreateRenderTarget2D(uint32_t width, uint32_t height, VkFormat format, const std::string& name) {
+        //! If the RT was created with such name, recreate it, used for window resize
+        if (m_RTNameToId[name] != 0) {
+            for (uint32_t i = 0; i < gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
+                m_renderTargets[m_RTNameToId[name]][i].reset();
+                m_UI.textureIdToDescriptorIdLUT.erase(m_RTNameToId[name]);
+            }
+            m_renderTargets.erase(m_RTNameToId[name]);
+            spdlog::info("Recreated RT: " + name);
+        }
+
         auto id = GUIDGenerator::GetInstance().Guid();
         m_RTNameToId[name] = id;
         for (uint32_t i = 0; i < gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
             m_renderTargets[id][i] = std::make_unique<RenderTerget2D>(m_device, width, height, format);
 
             // MASSIVE TODO: THINK HOW TO CONNECT IT WITH FIF
-            m_UI.textureIdToDescriptorIdLUT[id] = m_descriptorManager.AllocateImGuiSet(ImGuiSetLayoutType::TEXTURE);
-            auto& texSet = m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, m_UI.textureIdToDescriptorIdLUT[id]);
+            m_UI.textureIdToDescriptorIdLUT[id][i] = m_descriptorManager.AllocateImGuiSet(ImGuiSetLayoutType::TEXTURE);
+            auto& texSet = m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, m_UI.textureIdToDescriptorIdLUT[id][i]);
             texSet.UpdateImage(0, m_renderTargets[id][i]->GetView(), m_samplerManager.GetLinearSampler());
             texSet.ProcessUpdates();
         }
@@ -31,7 +41,33 @@ namespace shift::gfx {
         return id;
     }
 
-    void RenderTargetSystem::UI::Show() {
+    RenderTerget2D &RenderTargetSystem::GetRTCurrentFrame(SGUID id, uint32_t currentFrame) {
+        return *m_renderTargets[id][currentFrame];
+    }
+
+    RenderTerget2D &RenderTargetSystem::GetRTPrevFrame(SGUID id, uint32_t currentFrame) {
+        uint32_t prevFrame = currentFrame - 1;
+        prevFrame = (prevFrame == UINT32_MAX) ? gutil::SHIFT_MAX_FRAMES_IN_FLIGHT - 1: prevFrame;
+        return *m_renderTargets[id][prevFrame];
+    }
+
+    RenderTerget2D &RenderTargetSystem::GetRTCurrentFrame(const std::string &name, uint32_t currentFrame) {
+        return GetRTCurrentFrame(m_RTNameToId[name], currentFrame);
+    }
+
+    RenderTerget2D &RenderTargetSystem::GetRTPrevFrame(const std::string &name, uint32_t currentFrame) {
+        return GetRTPrevFrame(m_RTNameToId[name], currentFrame);
+    }
+
+    bool RenderTargetSystem::IsValid(SGUID id) {
+        return (m_renderTargets.find(id) != m_renderTargets.end());
+    }
+
+    SGUID RenderTargetSystem::IdByName(const std::string &name) {
+        return m_RTNameToId[name];
+    }
+
+    void RenderTargetSystem::UI::Show(uint32_t currentFrame) {
         if (m_shown) {
             ImGui::Begin(m_name.c_str(), &m_shown);
 
@@ -54,7 +90,7 @@ namespace shift::gfx {
                 if (ImGui::CollapsingHeader(std::string{name + "##" + std::to_string(id)}.c_str())) {
                     glm::ivec2 texSize = {m_system.m_renderTargets[id][0]->GetWidth(), m_system.m_renderTargets[id][0]->GetHeight()};
 
-                    auto set = m_system.m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, textureIdToDescriptorIdLUT[id]).Get();
+                    auto set = m_system.m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, textureIdToDescriptorIdLUT[id][currentFrame]).Get();
 
                     ImGui::Image(
                             set,

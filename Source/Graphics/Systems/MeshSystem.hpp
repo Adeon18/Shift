@@ -12,6 +12,7 @@
 #include "Graphics/Abstraction/Device/Device.hpp"
 #include "Graphics/Systems/TextureSystem.hpp"
 #include "Graphics/Systems/ModelManager.hpp"
+#include "Graphics/Systems/RenderTargetSystem.hpp"
 #include "Graphics/Abstraction/Descriptors/BufferManager.hpp"
 #include "Graphics/ShiftContextData.hpp"
 
@@ -51,6 +52,7 @@ namespace shift::gfx {
                 ModelManager& modelManager,
                 BufferManager& bufferManager,
                 DescriptorManager &descManager,
+                RenderTargetSystem& RTSystem,
                 std::unordered_map<ViewSetLayoutType, SGUID>& viewIds);
 
         SGUID AddInstance(MeshPass pass, Mobility mobility, SGUID modelID, const glm::mat4& transformation, const glm::vec4& color = {0.0f, 0.0f, 0.0f, 0.0f});
@@ -100,6 +102,7 @@ namespace shift::gfx {
         ModelManager& m_modelManager;
         DescriptorManager& m_descriptorManager;
         BufferManager& m_bufferManager;
+        RenderTargetSystem& m_RTSystem;
         std::unordered_map<ViewSetLayoutType, SGUID>& m_perViewIDs;
 
         std::unordered_map<MeshPass, RenderStage> m_renderStagesForward;

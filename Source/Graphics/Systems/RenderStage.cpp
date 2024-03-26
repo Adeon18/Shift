@@ -13,6 +13,12 @@ namespace shift::gfx {
 
         switch (info.renderTargetType) {
             case RenderStageCreateInfo::RT_Type::Forward:
+                // TODO: FUCKING FIX
+                outStage.renderTargetFormats.push_back(VK_FORMAT_R16G16B16A16_SFLOAT);
+                outStage.depthTargetFormat = backBuff.swapchain->GetDepthBufferFormat();
+                break;
+            case RenderStageCreateInfo::RT_Type::Swapchain:
+                // TODO: FUCKING FIX
                 outStage.renderTargetFormats.push_back(backBuff.swapchain->GetFormat());
                 outStage.depthTargetFormat = backBuff.swapchain->GetDepthBufferFormat();
                 break;
@@ -53,7 +59,17 @@ namespace shift::gfx {
                 descManager.GetPerViewLayout(outStage.viewSetLayoutType).Get(),
                 descManager.GetPerMaterialLayout(outStage.matSetLayoutType).Get()
         };
-        if (!outStage.pipeline->BuildLayout(sets)) {}
+
+        std::array<VkDescriptorSetLayout, 1> setsPP{
+                descManager.GetPerMaterialLayout(outStage.matSetLayoutType).Get()
+        };
+        switch (info.renderTargetType) {
+            case RenderStageCreateInfo::RT_Type::Swapchain:
+                if (!outStage.pipeline->BuildLayout(setsPP)) {}
+                break;
+            default:
+                if (!outStage.pipeline->BuildLayout(sets)) {}
+        }
 
         return outStage.pipeline->Build();
     }

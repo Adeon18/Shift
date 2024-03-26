@@ -40,7 +40,7 @@ namespace shift::gfx::ui {
                 );
 
         //! Begin the frame
-        void BeginFrame();
+        void BeginFrame(uint32_t currentFrame);
 
         void EndFrame(const CommandBuffer& buffer);
 

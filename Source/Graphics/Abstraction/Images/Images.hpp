@@ -112,7 +112,7 @@ namespace shift::gfx {
                 uint32_t height,
                 VkFormat format,
                 uint32_t mips = 1
-        ) : Texture2D(device, width, height, format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, mips)
+        ) : Texture2D(device, width, height, format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, mips)
         {
 
         }

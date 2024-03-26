@@ -22,7 +22,7 @@ namespace shift::gfx::ui {
             ImGui::MenuItem(m_name.c_str(), NULL, &m_shown);
         }
 
-        virtual void Show() = 0;
+        virtual void Show(uint32_t currentFrame) = 0;
 
     protected:
         std::string m_name;
