@@ -1,7 +1,7 @@
 #ifndef SHIFT_COMMANDBUFFER_HPP
 #define SHIFT_COMMANDBUFFER_HPP
 
-// BLYAT
+// DANGER: Yeaaaaah, so this must be removed further in development
 #pragma optimize( "", off )
 
 #include <vulkan/vulkan.h>
