@@ -16,13 +16,15 @@ namespace shift::gfx {
     }
 
     SGUID RenderTargetSystem::CreateRenderTarget2D(uint32_t width, uint32_t height, VkFormat format, const std::string& name) {
+        bool IsReplaced = (m_RTNameToId[name] != 0);
+        SGUID prevId{};
         //! If the RT was created with such name, recreate it, used for window resize
-        if (m_RTNameToId[name] != 0) {
+        if (IsReplaced) {
+            prevId = m_RTNameToId[name];
             for (uint32_t i = 0; i < gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
-                m_renderTargets[m_RTNameToId[name]][i].reset();
-                m_UI.textureIdToDescriptorIdLUT.erase(m_RTNameToId[name]);
+                m_renderTargets[prevId][i].reset();
             }
-            m_renderTargets.erase(m_RTNameToId[name]);
+            m_renderTargets.erase(prevId);
             spdlog::info("Recreated RT: " + name);
         }
 
@@ -32,7 +34,12 @@ namespace shift::gfx {
             m_renderTargets[id][i] = std::make_unique<RenderTerget2D>(m_device, width, height, format);
 
             // MASSIVE TODO: THINK HOW TO CONNECT IT WITH FIF
-            m_UI.textureIdToDescriptorIdLUT[id][i] = m_descriptorManager.AllocateImGuiSet(ImGuiSetLayoutType::TEXTURE);
+            if (!IsReplaced) {
+                m_UI.textureIdToDescriptorIdLUT[id][i] = m_descriptorManager.AllocateImGuiSet(ImGuiSetLayoutType::TEXTURE);
+            } else {
+                m_UI.textureIdToDescriptorIdLUT[id][i] = m_UI.textureIdToDescriptorIdLUT[prevId][i];
+                //m_UI.textureIdToDescriptorIdLUT.erase(prevId);
+            }
             auto& texSet = m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, m_UI.textureIdToDescriptorIdLUT[id][i]);
             texSet.UpdateImage(0, m_renderTargets[id][i]->GetView(), m_samplerManager.GetLinearSampler());
             texSet.ProcessUpdates();
@@ -88,13 +95,14 @@ namespace shift::gfx {
                 ImGui::PushID(id);
 
                 if (ImGui::CollapsingHeader(std::string{name + "##" + std::to_string(id)}.c_str())) {
-                    glm::ivec2 texSize = {m_system.m_renderTargets[id][0]->GetWidth(), m_system.m_renderTargets[id][0]->GetHeight()};
+                    glm::ivec2 texSize = {m_system.m_renderTargets[id][currentFrame]->GetWidth(), m_system.m_renderTargets[id][currentFrame]->GetHeight()};
+                    float ratio = static_cast<float>(texSize.x) / static_cast<float>(texSize.y);
 
                     auto set = m_system.m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, textureIdToDescriptorIdLUT[id][currentFrame]).Get();
 
                     ImGui::Image(
                             set,
-                            ImVec2(256, 256),
+                            ImVec2(256 * ratio, 256),
                             ImVec2(0, 0),
                             ImVec2(1, 1),
                             ImVec4(1, 1, 1, 1),
