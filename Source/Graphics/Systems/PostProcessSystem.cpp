@@ -7,17 +7,11 @@ namespace shift::gfx {
     PostProcessSystem::PostProcessSystem(const Device &device,
                            const ShiftBackBuffer &backBufferData,
                            const SamplerManager& samplerManager,
-                           TextureSystem &textureSystem,
-                           ModelManager &modelManager,
-                           BufferManager &bufferManager,
                            DescriptorManager &descManager,
                            RenderTargetSystem& RTSystem):
             m_device{device},
             m_backBufferData{backBufferData},
             m_samplerManager{samplerManager},
-            m_textureSystem{textureSystem},
-            m_modelManager{modelManager},
-            m_bufferManager{bufferManager},
             m_descriptorManager{descManager},
             m_RTSystem{RTSystem}
     {
@@ -29,14 +23,14 @@ namespace shift::gfx {
         for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
             // TODO: should be dependent on material, AND THIS IS SO SHIT
             auto& perObjSet = m_descriptorManager.GetPerMaterialSet(m_postProcessSetGuid, i);
-            perObjSet.UpdateImage(0, m_RTSystem.GetRTCurrentFrame("HDR:BackBuffer", i).GetView(), m_samplerManager.GetPointSampler());
+            perObjSet.UpdateImage(0, m_RTSystem.GetColorRTCurrentFrame("HDR:BackBuffer", i).GetView(), m_samplerManager.GetPointSampler());
             perObjSet.ProcessUpdates();
         }
     }
 
     void PostProcessSystem::CreateRenderStages() {
         for (auto& [k, v]: RENDER_STAGE_INFOS) {
-            if (!CreateRenderStageFromInfo(m_device, m_backBufferData, m_descriptorManager, m_postProcessStages[k], v)) {
+            if (!CreateRenderStageFromInfo(m_device, m_backBufferData, m_descriptorManager, m_RTSystem, m_postProcessStages[k], v)) {
                 spdlog::warn("PostProcessSystem failed to create PostProcess Render Stage! Name: {}", v.name);
             }
             spdlog::debug("Created PostProcess render stage: " + v.name);
@@ -56,7 +50,7 @@ namespace shift::gfx {
         for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
 
             auto &perObjSet = m_descriptorManager.GetPerMaterialSet(m_postProcessSetGuid, i);
-            perObjSet.UpdateImage(0, m_RTSystem.GetRTCurrentFrame("HDR:BackBuffer", i).GetView(),
+            perObjSet.UpdateImage(0, m_RTSystem.GetColorRTCurrentFrame("HDR:BackBuffer", i).GetView(),
                                   m_samplerManager.GetPointSampler());
             perObjSet.ProcessUpdates();
         }
@@ -65,7 +59,7 @@ namespace shift::gfx {
     void PostProcessSystem::ToneMap(const CommandBuffer &buffer, uint32_t currentImage, uint32_t currentFrame) {
 
         auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_backBufferData.swapchain->GetImageViews()[currentImage]);
-        auto depthAttInfo = info::CreateRenderingAttachmentInfo(m_backBufferData.swapchain->GetDepthBufferView(), false, {1.0f, 0});
+//        auto depthAttInfo = info::CreateRenderingAttachmentInfo(m_backBufferData.swapchain->GetDepthBufferView(), false, {1.0f, 0});
 
         VkRenderingInfoKHR renderInfo{};
         renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
@@ -73,7 +67,7 @@ namespace shift::gfx {
         renderInfo.layerCount = 1;
         renderInfo.colorAttachmentCount = 1;
         renderInfo.pColorAttachments = &colorAttInfo;
-        renderInfo.pDepthAttachment = &depthAttInfo;
+//        renderInfo.pDepthAttachment = &depthAttInfo;
 
         buffer.SetViewPort(m_backBufferData.swapchain->GetViewport());
         buffer.SetScissor(m_backBufferData.swapchain->GetScissor());

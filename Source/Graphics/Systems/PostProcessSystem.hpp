@@ -25,9 +25,6 @@ namespace shift::gfx {
                 const Device& device,
                 const ShiftBackBuffer& backBufferData,
                 const SamplerManager& samplerManager,
-                TextureSystem& textureSystem,
-                ModelManager& modelManager,
-                BufferManager& bufferManager,
                 DescriptorManager &descManager,
                 RenderTargetSystem& RTSystem);
 
@@ -50,10 +47,7 @@ namespace shift::gfx {
         const Device& m_device;
         const ShiftBackBuffer& m_backBufferData;
         const SamplerManager& m_samplerManager;
-        TextureSystem& m_textureSystem;
-        ModelManager& m_modelManager;
         DescriptorManager& m_descriptorManager;
-        BufferManager& m_bufferManager;
         RenderTargetSystem& m_RTSystem;
 
         //! Single for now

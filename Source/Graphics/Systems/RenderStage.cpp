@@ -5,7 +5,7 @@
 #include "Graphics/Objects/VertexStructures.hpp"
 
 namespace shift::gfx {
-    bool CreateRenderStageFromInfo(const Device& device, const ShiftBackBuffer& backBuff, DescriptorManager& descManager , RenderStage &outStage, RenderStageCreateInfo info) {
+    bool CreateRenderStageFromInfo(const Device& device, const ShiftBackBuffer& backBuff, DescriptorManager& descManager, RenderTargetSystem& rtSystem, RenderStage &outStage, RenderStageCreateInfo info) {
         /// Filling base data
         outStage.name = info.name;
         outStage.viewSetLayoutType = info.viewSetLayoutType;
@@ -15,12 +15,12 @@ namespace shift::gfx {
             case RenderStageCreateInfo::RT_Type::Forward:
                 // TODO: FUCKING FIX
                 outStage.renderTargetFormats.push_back(VK_FORMAT_R16G16B16A16_SFLOAT);
-                outStage.depthTargetFormat = backBuff.swapchain->GetDepthBufferFormat();
+                outStage.depthTargetFormat = rtSystem.GetDepthRTCurrentFrame("Swaphain:Depth", 0).GetFormat();
                 break;
             case RenderStageCreateInfo::RT_Type::Swapchain:
                 // TODO: FUCKING FIX
                 outStage.renderTargetFormats.push_back(backBuff.swapchain->GetFormat());
-                outStage.depthTargetFormat = backBuff.swapchain->GetDepthBufferFormat();
+//                outStage.depthTargetFormat = rtSystem.GetDepthRTCurrentFrame("Swaphain:Depth", 0).GetFormat();
                 break;
         }
 
@@ -52,7 +52,14 @@ namespace shift::gfx {
         outStage.pipeline->SetBlendAttachment(*info.coloBlendAttInfo);
         outStage.pipeline->SetBlendState(info::CreateBlendStateInfo(*info.coloBlendAttInfo));
 
-        outStage.pipeline->SetDynamicRenderingInfo(info::CreatePipelineRenderingInfo(outStage.renderTargetFormats, outStage.depthTargetFormat));
+        switch (info.renderTargetType) {
+            case RenderStageCreateInfo::RT_Type::Swapchain:
+                outStage.pipeline->SetDynamicRenderingInfo(info::CreatePipelineRenderingInfo(outStage.renderTargetFormats,
+                                                                                             {}));
+                break;
+            default:
+                outStage.pipeline->SetDynamicRenderingInfo(info::CreatePipelineRenderingInfo(outStage.renderTargetFormats, outStage.depthTargetFormat));
+        }
 
         std::array<VkDescriptorSetLayout, 3> sets{
                 descManager.GetPerFrameLayout().Get(),

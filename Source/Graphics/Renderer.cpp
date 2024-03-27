@@ -41,8 +41,9 @@ namespace shift::gfx {
 
         m_RTSystem = std::make_unique<RenderTargetSystem>(*m_context.device, *m_samplerManager, *m_descriptorManager);
         m_RTSystem->CreateRenderTarget2D(m_window.GetWidth(), m_window.GetHeight(), VK_FORMAT_R16G16B16A16_SFLOAT, "HDR:BackBuffer");
+        m_RTSystem->CreateDepthTarget2D(m_window.GetWidth(), m_window.GetHeight(), m_context.device->FindSupportedDepthFormat(), "Swaphain:Depth");
         m_meshSystem = std::make_unique<MeshSystem>(*m_context.device, m_backBuffer, *m_samplerManager, *m_textureSystem, *m_modelManager, *m_bufferManager, *m_descriptorManager, *m_RTSystem, m_perViewIDs);
-        m_postProcessSystem = std::make_unique<PostProcessSystem>(*m_context.device, m_backBuffer, *m_samplerManager, *m_textureSystem, *m_modelManager, *m_bufferManager, *m_descriptorManager, *m_RTSystem);
+        m_postProcessSystem = std::make_unique<PostProcessSystem>(*m_context.device, m_backBuffer, *m_samplerManager, *m_descriptorManager, *m_RTSystem);
         m_lightSystem = std::make_unique<LightSystem>(*m_descriptorManager, *m_bufferManager, *m_meshSystem, sphere);
 
         LoadScene();
@@ -52,8 +53,8 @@ namespace shift::gfx {
     }
 
     bool Renderer::LoadScene() {
-//        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/SimpleAmogusPink/scene.gltf");
-        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../Sponza-master/Sponza-master/sponza.obj");
+        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/SimpleAmogusPink/scene.gltf");
+//        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../Sponza-master/Sponza-master/sponza.obj");
 //        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../sponza/scene.gltf");
 //        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/Porsche/scene.gltf");
 
@@ -65,7 +66,7 @@ namespace shift::gfx {
 //        }
 
         m_meshSystem->AddInstance(MeshPass::SimpleLights_Forward, Mobility::STATIC, amogus2,
-                                  glm::translate(glm::scale(glm::mat4(1), glm::vec3(0.01f)), glm::vec3(0.0, .5f, -2.0f)));
+                                  glm::translate(glm::scale(glm::mat4(1), glm::vec3(1.0f)), glm::vec3(0.0, .5f, -2.0f)));
 
         m_lightSystem->AddPointLight(glm::vec3(-1.0, 1.0, 0.0), glm::vec3(1.0, 0.0, 0.0));
         m_lightSystem->AddPointLight(glm::vec3(1.0, 1.0, 0.0), glm::vec3(0.0, 0.3, 0.0));
@@ -95,11 +96,13 @@ namespace shift::gfx {
         m_lightSystem->UpdateAllLights(m_currentFrame);
         m_meshSystem->UpdateInstances(m_currentFrame);
 
-        buff.TransferImageLayout(m_RTSystem->GetRTCurrentFrame("HDR:BackBuffer", m_currentFrame).GetImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+        buff.TransferImageLayout(m_RTSystem->GetColorRTCurrentFrame("HDR:BackBuffer", m_currentFrame).GetImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+        buff.TransferImageLayout(m_RTSystem->GetDepthRTCurrentFrame("Swaphain:Depth", 0).GetImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, true);
 
         m_meshSystem->RenderForwardPasses(buff, imageIndex, m_currentFrame);
 
-        buff.TransferImageLayout(m_RTSystem->GetRTCurrentFrame("HDR:BackBuffer", m_currentFrame).GetImage(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+        buff.TransferImageLayout(m_RTSystem->GetColorRTCurrentFrame("HDR:BackBuffer", m_currentFrame).GetImage(), VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+        buff.TransferImageLayout(m_RTSystem->GetDepthRTCurrentFrame("Swaphain:Depth", 0).GetImage(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, true);
         buff.TransferImageLayout(m_backBuffer.swapchain->GetImages()[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 
         m_postProcessSystem->ToneMap(buff, imageIndex, m_currentFrame);
@@ -233,6 +236,7 @@ namespace shift::gfx {
             m_controller.UpdateScreenSize(m_window.GetWidth(), m_window.GetHeight());
             if (!m_backBuffer.swapchain->Recreate(m_window.GetWidth(), m_window.GetHeight())) { return false; }
             m_RTSystem->CreateRenderTarget2D(m_window.GetWidth(), m_window.GetHeight(), VK_FORMAT_R16G16B16A16_SFLOAT, "HDR:BackBuffer");
+            m_RTSystem->CreateDepthTarget2D(m_window.GetWidth(), m_window.GetHeight(), m_context.device->FindSupportedDepthFormat(), "Swaphain:Depth");
             m_postProcessSystem->ProcessResize();
         }
 
@@ -249,6 +253,7 @@ namespace shift::gfx {
                 *success = false;
             }
             m_RTSystem->CreateRenderTarget2D(m_window.GetWidth(), m_window.GetHeight(), VK_FORMAT_R16G16B16A16_SFLOAT, "HDR:BackBuffer");
+            m_RTSystem->CreateDepthTarget2D(m_window.GetWidth(), m_window.GetHeight(), m_context.device->FindSupportedDepthFormat(), "Swaphain:Depth");
             m_postProcessSystem->ProcessResize();
             return UINT32_MAX;
         }

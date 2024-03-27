@@ -72,7 +72,8 @@ namespace shift {
                     VkImageLayout oldLayout,
                     VkImageLayout newLayout,
                     VkPipelineStageFlags srcStage,
-                    VkPipelineStageFlags dstStage) const;
+                    VkPipelineStageFlags dstStage,
+                    bool isDepth = false) const;
 
             void BindVertexBuffers(std::span<VkBuffer> buffers, std::span<VkDeviceSize> offsets, uint32_t firstBind) const;
 

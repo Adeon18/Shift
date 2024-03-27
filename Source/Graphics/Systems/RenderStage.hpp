@@ -11,6 +11,7 @@
 #include "Graphics/Abstraction/Images/Images.hpp"
 #include "Graphics/Abstraction/Descriptors/DescriptorManager.hpp"
 #include "Graphics/ShiftContextData.hpp"
+#include "Graphics/Systems/RenderTargetSystem.hpp"
 
 #include "Utility/Vulkan/InfoUtil.hpp"
 
@@ -49,7 +50,7 @@ namespace shift::gfx {
         std::optional<VkPipelineDepthStencilStateCreateInfo> depthStencilStateInfo = info::CreateDepthStencilStateInfo();
     };
 
-    bool CreateRenderStageFromInfo(const Device& device, const ShiftBackBuffer& backBuff, DescriptorManager& descManager , RenderStage &outStage, RenderStageCreateInfo info);
+    bool CreateRenderStageFromInfo(const Device& device, const ShiftBackBuffer& backBuff, DescriptorManager& descManager, RenderTargetSystem& rtManager, RenderStage &outStage, RenderStageCreateInfo info);
 } // shift::gfx
 
 #endif //SHIFT_RENDERSTAGE_HPP

@@ -32,7 +32,7 @@ namespace shift::gfx::ui {
         info.UseDynamicRendering = true;
 
         std::array<VkFormat, 1> formats{shiftBackBuffer.swapchain->GetFormat()};
-        info.PipelineRenderingCreateInfo = info::CreatePipelineRenderingInfo(formats, shiftBackBuffer.swapchain->GetDepthBufferFormat());
+        info.PipelineRenderingCreateInfo = info::CreatePipelineRenderingInfo(formats, {});
         ImGui_ImplVulkan_Init(&info);
 
         ImGui_ImplVulkan_CreateFontsTexture();

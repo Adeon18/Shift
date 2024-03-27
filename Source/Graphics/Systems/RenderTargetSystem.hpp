@@ -37,6 +37,8 @@ namespace shift::gfx {
 
         //! Create a render target and store it by name
         SGUID CreateRenderTarget2D(uint32_t width, uint32_t height, VkFormat format, const std::string& name);
+        //! Create a render target and store it by name
+        SGUID CreateDepthTarget2D(uint32_t width, uint32_t height, VkFormat format, const std::string& name);
 
         //! Check whether the ID of the RT is valid, or it was freed/recreated
         [[nodiscard]] bool IsValid(SGUID id);
@@ -44,13 +46,13 @@ namespace shift::gfx {
         //! Get the RT id by name for tracking the
         [[nodiscard]] SGUID IdByName(const std::string& name);
 
-        //! Store an existing VkImage by name
-        SGUID RegisterRenderTarget2D(VkImage image, VkFormat format, std::string name);
+        ColorRenderTerget2D& GetColorRTCurrentFrame(SGUID id, uint32_t currentFrame);
+        ColorRenderTerget2D& GetColorRTPrevFrame(SGUID id, uint32_t currentFrame);
+        ColorRenderTerget2D& GetColorRTCurrentFrame(const std::string& name, uint32_t currentFrame);
+        ColorRenderTerget2D& GetColorRTPrevFrame(const std::string& name, uint32_t currentFrame);
 
-        RenderTerget2D& GetRTCurrentFrame(SGUID id, uint32_t currentFrame);
-        RenderTerget2D& GetRTPrevFrame(SGUID id, uint32_t currentFrame);
-        RenderTerget2D& GetRTCurrentFrame(const std::string& name, uint32_t currentFrame);
-        RenderTerget2D& GetRTPrevFrame(const std::string& name, uint32_t currentFrame);
+        DepthRenderTerget2D& GetDepthRTCurrentFrame(SGUID id, uint32_t currentFrame);
+        DepthRenderTerget2D& GetDepthRTCurrentFrame(const std::string& name, uint32_t currentFrame);
 
         ~RenderTargetSystem() = default;
 
@@ -66,7 +68,9 @@ namespace shift::gfx {
         DescriptorManager& m_descriptorManager;
 
         std::unordered_map<std::string, SGUID> m_RTNameToId;
-        std::unordered_map<SGUID, std::array<std::unique_ptr<RenderTerget2D>, gutil::SHIFT_MAX_FRAMES_IN_FLIGHT>> m_renderTargets;
+        std::unordered_map<std::string, SGUID> m_DTNameToId;
+        std::unordered_map<SGUID, std::array<std::unique_ptr<ColorRenderTerget2D>, gutil::SHIFT_MAX_FRAMES_IN_FLIGHT>> m_renderTargets;
+        std::unordered_map<SGUID, std::array<std::unique_ptr<DepthRenderTerget2D>, gutil::SHIFT_MAX_FRAMES_IN_FLIGHT>> m_depthTargets;
     };
 } // shift::gfx
 

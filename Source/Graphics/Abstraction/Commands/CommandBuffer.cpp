@@ -142,7 +142,7 @@ namespace shift {
                     barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
                     break;
                 case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-                    barrier.dstAccessMask = barrier.dstAccessMask | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+                    barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
                     break;
                 case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
                     if (barrier.srcAccessMask == 0) {
@@ -162,10 +162,10 @@ namespace shift {
         }
 
         void CommandBuffer::TransferImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
-                                                VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage) const {
+                                                VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage, bool isDepth) const {
 
             VkImageSubresourceRange subresourceRange{};
-            subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            subresourceRange.aspectMask = (isDepth) ? VK_IMAGE_ASPECT_DEPTH_BIT: VK_IMAGE_ASPECT_COLOR_BIT;
             subresourceRange.baseMipLevel = 0;
             subresourceRange.levelCount = 1;
             subresourceRange.baseArrayLayer = 0;

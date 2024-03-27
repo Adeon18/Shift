@@ -82,8 +82,9 @@ namespace shift::gfx {
                 uint32_t height,
                 VkFormat format,
                 VkImageUsageFlags usage,
-                uint32_t mips = 1
-        ) : TextureBase(device, width, height, 1, mips, 1, format, usage, TextureDim::T_2D)
+                uint32_t mips = 1,
+                TextureType texType = TextureType::Color
+        ) : TextureBase(device, width, height, 1, mips, 1, format, usage, TextureDim::T_2D, texType)
         {
 
         }
@@ -103,20 +104,54 @@ namespace shift::gfx {
         }
     };
 
-    //! A class for a render target(like GBuffer Textures)
-    class RenderTerget2D: public Texture2D {
+    //! A class for a sampled render target(like GBuffer Textures)
+    class SampledRenderTerget2D: public Texture2D {
     public:
-        RenderTerget2D(
+        SampledRenderTerget2D(
                 const Device& device,
                 uint32_t width,
                 uint32_t height,
                 VkFormat format,
+                VkImageUsageFlags usage,
+                TextureType texType,
                 uint32_t mips = 1
-        ) : Texture2D(device, width, height, format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, mips)
+        ) : Texture2D(device, width, height, format, usage | VK_IMAGE_USAGE_SAMPLED_BIT, mips, texType)
         {
 
         }
     };
+
+    class ColorRenderTerget2D: public SampledRenderTerget2D {
+    public:
+        ColorRenderTerget2D(
+                const Device& device,
+                uint32_t width,
+                uint32_t height,
+                VkFormat format,
+                TextureType texType,
+                uint32_t mips = 1
+        ) : SampledRenderTerget2D(device, width, height, format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, texType, mips)
+        {
+
+        }
+    };
+
+    class DepthRenderTerget2D: public SampledRenderTerget2D {
+    public:
+        DepthRenderTerget2D(
+                const Device& device,
+                uint32_t width,
+                uint32_t height,
+                VkFormat format,
+                TextureType texType,
+                uint32_t mips = 1
+        ) : SampledRenderTerget2D(device, width, height, format, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, texType, mips)
+        {
+
+        }
+    };
+
+
 } // shift::gfx
 
 #endif //SHIFT_IMAGES_HPP

@@ -38,11 +38,9 @@ namespace shift {
             [[nodiscard]] VkSwapchainKHR Get() const { return m_swapChain; }
             [[nodiscard]] const std::vector<VkImageView>& GetImageViews() const { return m_swapChainImageViews; }
             [[nodiscard]] const std::vector<VkImage>& GetImages() const { return m_swapChainImages; }
-            [[nodiscard]] VkImageView GetDepthBufferView() const { return m_depthBuffer->GetView(); }
             [[nodiscard]] const SwapchainDescription& GetDesc() const { return m_swapchainDesc; }
             [[nodiscard]] VkExtent2D GetExtent() const { return m_swapchainDesc.swapChainExtent; }
             [[nodiscard]] VkFormat GetFormat() const { return m_swapchainDesc.swapChainImageFormat; }
-            [[nodiscard]] VkFormat GetDepthBufferFormat() const { return m_depthBuffer->GetFormat(); }
             [[nodiscard]] VkViewport GetViewport() const { return m_viewPort; }
             [[nodiscard]] VkRect2D GetScissor() const { return m_scissor; }
 
@@ -70,8 +68,6 @@ namespace shift {
 
             std::vector<VkImage> m_swapChainImages;
             std::vector<VkImageView> m_swapChainImageViews;
-
-            std::unique_ptr<DepthTexture> m_depthBuffer;
         };
     } // gfx
 } // shift

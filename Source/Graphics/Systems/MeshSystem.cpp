@@ -44,13 +44,13 @@ namespace shift::gfx {
         for (auto& [k, v]: RENDER_STAGE_INFOS) {
             switch (v.renderTargetType) {
                 case RenderStageCreateInfo::RT_Type::Forward:
-                    if (!CreateRenderStageFromInfo(m_device, m_backBufferData, m_descriptorManager, m_renderStagesForward[k], v)) {
+                    if (!CreateRenderStageFromInfo(m_device, m_backBufferData, m_descriptorManager, m_RTSystem, m_renderStagesForward[k], v)) {
                         spdlog::warn("MeshSystem failed to create Mesh Render Stage! Name: {}", v.name);
                     }
                     spdlog::debug("Created forward render stage: " + v.name);
                     break;
                 case RenderStageCreateInfo::RT_Type::Gbuffer:
-                    if (!CreateRenderStageFromInfo(m_device, m_backBufferData, m_descriptorManager, m_renderStagesDeferred[k], v)) {
+                    if (!CreateRenderStageFromInfo(m_device, m_backBufferData, m_descriptorManager, m_RTSystem, m_renderStagesDeferred[k], v)) {
                         spdlog::warn("MeshSystem failed to create Mesh Render Stage! Name: {}", v.name);
                     }
                     break;
@@ -150,8 +150,8 @@ namespace shift::gfx {
     void MeshSystem::RenderForwardPasses(const CommandBuffer& buffer, uint32_t currentImage, uint32_t currentFrame) {
         // TODO: FOR NOT TO BACKBUFFER
 //        auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_backBufferData.swapchain->GetImageViews()[currentImage]);
-        auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_RTSystem.GetRTCurrentFrame("HDR:BackBuffer", currentFrame).GetView());
-        auto depthAttInfo = info::CreateRenderingAttachmentInfo(m_backBufferData.swapchain->GetDepthBufferView(), false, {1.0f, 0});
+        auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_RTSystem.GetColorRTCurrentFrame("HDR:BackBuffer", currentFrame).GetView());
+        auto depthAttInfo = info::CreateRenderingAttachmentInfo(m_RTSystem.GetDepthRTCurrentFrame("Swaphain:Depth", 0).GetView(), false, {1.0f, 0});
 
         VkRenderingInfoKHR renderInfo{};
         renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
