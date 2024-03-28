@@ -21,82 +21,68 @@ namespace shift::gfx {
         //! If the RT was created with such name, recreate it, used for window resize
         if (IsReplaced) {
             prevId = m_RTNameToId[name];
-            for (uint32_t i = 0; i < gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
-                m_renderTargets[prevId][i].reset();
-            }
+            m_renderTargets[prevId].reset();
             m_renderTargets.erase(prevId);
             spdlog::info("Recreated RT: " + name);
         }
 
         auto id = GUIDGenerator::GetInstance().Guid();
         m_RTNameToId[name] = id;
-        for (uint32_t i = 0; i < gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
-            m_renderTargets[id][i] = std::make_unique<ColorRenderTerget2D>(m_device, width, height, format, TextureType::Color);
+        m_renderTargets[id] = std::make_unique<ColorRenderTerget2D>(m_device, width, height, format, TextureType::Color);
 
-            if (!IsReplaced) {
-                m_UI.textureIdToDescriptorIdLUT[id][i] = m_descriptorManager.AllocateImGuiSet(ImGuiSetLayoutType::TEXTURE);
-            } else {
-                m_UI.textureIdToDescriptorIdLUT[id][i] = m_UI.textureIdToDescriptorIdLUT[prevId][i];
-            }
-            auto& texSet = m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, m_UI.textureIdToDescriptorIdLUT[id][i]);
-            texSet.UpdateImage(0, m_renderTargets[id][i]->GetView(), m_samplerManager.GetLinearSampler());
-            texSet.ProcessUpdates();
+        if (!IsReplaced) {
+            m_UI.textureIdToDescriptorIdLUT[id] = m_descriptorManager.AllocateImGuiSet(ImGuiSetLayoutType::TEXTURE);
+        } else {
+            m_UI.textureIdToDescriptorIdLUT[id] = m_UI.textureIdToDescriptorIdLUT[prevId];
         }
+        auto& texSet = m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, m_UI.textureIdToDescriptorIdLUT[id]);
+        texSet.UpdateImage(0, m_renderTargets[id]->GetView(), m_samplerManager.GetLinearSampler());
+        texSet.ProcessUpdates();
+
         // Erase old id
         m_UI.textureIdToDescriptorIdLUT.erase(prevId);
 
         return id;
     }
 
+    // TODO: Code duplication
     SGUID RenderTargetSystem::CreateDepthTarget2D(uint32_t width, uint32_t height, VkFormat format, const std::string& name) {
         bool IsReplaced = (m_DTNameToId[name] != 0);
         SGUID prevId{};
         //! If the RT was created with such name, recreate it, used for window resize
         if (IsReplaced) {
             prevId = m_DTNameToId[name];
-            for (uint32_t i = 0; i < gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
-                m_depthTargets[prevId][i].reset();
-            }
+            m_depthTargets[prevId].reset();
             m_depthTargets.erase(prevId);
             spdlog::info("Recreated Depth Target: " + name);
         }
 
         auto id = GUIDGenerator::GetInstance().Guid();
         m_DTNameToId[name] = id;
-        for (uint32_t i = 0; i < gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
-            m_depthTargets[id][i] = std::make_unique<DepthRenderTerget2D>(m_device, width, height, format, TextureType::Depth);
 
-            if (!IsReplaced) {
-                m_UI.textureIdToDescriptorIdLUT[id][i] = m_descriptorManager.AllocateImGuiSet(ImGuiSetLayoutType::TEXTURE);
-            } else {
-                m_UI.textureIdToDescriptorIdLUT[id][i] = m_UI.textureIdToDescriptorIdLUT[prevId][i];
-            }
-            auto& texSet = m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, m_UI.textureIdToDescriptorIdLUT[id][i]);
-            texSet.UpdateImage(0, m_depthTargets[id][i]->GetView(), m_samplerManager.GetLinearSampler());
-            texSet.ProcessUpdates();
+        m_depthTargets[id] = std::make_unique<DepthRenderTerget2D>(m_device, width, height, format, TextureType::Depth);
+
+        if (!IsReplaced) {
+            m_UI.textureIdToDescriptorIdLUT[id] = m_descriptorManager.AllocateImGuiSet(ImGuiSetLayoutType::TEXTURE);
+        } else {
+            m_UI.textureIdToDescriptorIdLUT[id] = m_UI.textureIdToDescriptorIdLUT[prevId];
         }
+        auto& texSet = m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, m_UI.textureIdToDescriptorIdLUT[id]);
+        texSet.UpdateImage(0, m_depthTargets[id]->GetView(), m_samplerManager.GetLinearSampler());
+        texSet.ProcessUpdates();
+
         // Erase old id
         m_UI.textureIdToDescriptorIdLUT.erase(prevId);
 
         return id;
     }
 
-    ColorRenderTerget2D &RenderTargetSystem::GetColorRTCurrentFrame(SGUID id, uint32_t currentFrame) {
-        return *m_renderTargets[id][currentFrame];
+    ColorRenderTerget2D &RenderTargetSystem::GetColorRT(SGUID id) {
+        return *m_renderTargets[id];
     }
 
-    ColorRenderTerget2D &RenderTargetSystem::GetColorRTPrevFrame(SGUID id, uint32_t currentFrame) {
-        uint32_t prevFrame = currentFrame - 1;
-        prevFrame = (prevFrame == UINT32_MAX) ? gutil::SHIFT_MAX_FRAMES_IN_FLIGHT - 1: prevFrame;
-        return *m_renderTargets[id][prevFrame];
-    }
-
-    ColorRenderTerget2D &RenderTargetSystem::GetColorRTCurrentFrame(const std::string &name, uint32_t currentFrame) {
-        return GetColorRTCurrentFrame(m_RTNameToId[name], currentFrame);
-    }
-
-    ColorRenderTerget2D &RenderTargetSystem::GetColorRTPrevFrame(const std::string &name, uint32_t currentFrame) {
-        return GetColorRTPrevFrame(m_RTNameToId[name], currentFrame);
+    ColorRenderTerget2D &RenderTargetSystem::GetColorRT(const std::string &name) {
+        return GetColorRT(m_RTNameToId[name]);
     }
 
     bool RenderTargetSystem::IsValid(SGUID id) {
@@ -107,12 +93,12 @@ namespace shift::gfx {
         return m_RTNameToId[name];
     }
 
-    DepthRenderTerget2D &RenderTargetSystem::GetDepthRTCurrentFrame(SGUID id, uint32_t currentFrame) {
-        return *m_depthTargets[id][0];
+    DepthRenderTerget2D &RenderTargetSystem::GetDepthRT(SGUID id) {
+        return *m_depthTargets[id];
     }
 
-    DepthRenderTerget2D &RenderTargetSystem::GetDepthRTCurrentFrame(const std::string &name, uint32_t currentFrame) {
-        return *m_depthTargets[m_DTNameToId[name]][0];
+    DepthRenderTerget2D &RenderTargetSystem::GetDepthRT(const std::string &name) {
+        return *m_depthTargets[m_DTNameToId[name]];
     }
 
     void RenderTargetSystem::UI::Show(uint32_t currentFrame) {
@@ -136,10 +122,10 @@ namespace shift::gfx {
                 ImGui::PushID(id);
 
                 if (ImGui::CollapsingHeader(std::string{name + "##" + std::to_string(id)}.c_str())) {
-                    glm::ivec2 texSize = {m_system.m_renderTargets[id][currentFrame]->GetWidth(), m_system.m_renderTargets[id][currentFrame]->GetHeight()};
+                    glm::ivec2 texSize = {m_system.m_renderTargets[id]->GetWidth(), m_system.m_renderTargets[id]->GetHeight()};
                     float ratio = static_cast<float>(texSize.x) / static_cast<float>(texSize.y);
 
-                    auto set = m_system.m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, textureIdToDescriptorIdLUT[id][currentFrame]).Get();
+                    auto set = m_system.m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, textureIdToDescriptorIdLUT[id]).Get();
 
                     ImGui::Image(
                             set,
@@ -172,10 +158,10 @@ namespace shift::gfx {
                 ImGui::PushID(id);
 
                 if (ImGui::CollapsingHeader(std::string{name + "##" + std::to_string(id)}.c_str())) {
-                    glm::ivec2 texSize = {m_system.m_depthTargets[id][0]->GetWidth(), m_system.m_depthTargets[id][0]->GetHeight()};
+                    glm::ivec2 texSize = {m_system.m_depthTargets[id]->GetWidth(), m_system.m_depthTargets[id]->GetHeight()};
                     float ratio = static_cast<float>(texSize.x) / static_cast<float>(texSize.y);
 
-                    auto set = m_system.m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, textureIdToDescriptorIdLUT[id][0]).Get();
+                    auto set = m_system.m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, textureIdToDescriptorIdLUT[id]).Get();
 
                     ImGui::Image(
                             set,

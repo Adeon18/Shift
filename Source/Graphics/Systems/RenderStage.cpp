@@ -15,12 +15,12 @@ namespace shift::gfx {
             case RenderStageCreateInfo::RT_Type::Forward:
                 // TODO: FUCKING FIX
                 outStage.renderTargetFormats.push_back(VK_FORMAT_R16G16B16A16_SFLOAT);
-                outStage.depthTargetFormat = rtSystem.GetDepthRTCurrentFrame("Swaphain:Depth", 0).GetFormat();
+                outStage.depthTargetFormat = rtSystem.GetDepthRT(RenderTargetSystem::SWAPCHAIN_DEPTH).GetFormat();
                 break;
             case RenderStageCreateInfo::RT_Type::Swapchain:
                 // TODO: FUCKING FIX
                 outStage.renderTargetFormats.push_back(backBuff.swapchain->GetFormat());
-//                outStage.depthTargetFormat = rtSystem.GetDepthRTCurrentFrame("Swaphain:Depth", 0).GetFormat();
+//                outStage.depthTargetFormat = rtSystem.GetDepthRT("Swaphain:Depth", 0).GetFormat();
                 break;
         }
 

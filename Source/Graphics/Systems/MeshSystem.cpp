@@ -150,8 +150,8 @@ namespace shift::gfx {
     void MeshSystem::RenderForwardPasses(const CommandBuffer& buffer, uint32_t currentImage, uint32_t currentFrame) {
         // TODO: FOR NOT TO BACKBUFFER
 //        auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_backBufferData.swapchain->GetImageViews()[currentImage]);
-        auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_RTSystem.GetColorRTCurrentFrame("HDR:BackBuffer", currentFrame).GetView());
-        auto depthAttInfo = info::CreateRenderingAttachmentInfo(m_RTSystem.GetDepthRTCurrentFrame("Swaphain:Depth", 0).GetView(), false, {1.0f, 0});
+        auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_RTSystem.GetColorRT(RenderTargetSystem::HDR_BUFFER).GetView());
+        auto depthAttInfo = info::CreateRenderingAttachmentInfo(m_RTSystem.GetDepthRT(RenderTargetSystem::SWAPCHAIN_DEPTH).GetView(), false, {1.0f, 0});
 
         VkRenderingInfoKHR renderInfo{};
         renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;

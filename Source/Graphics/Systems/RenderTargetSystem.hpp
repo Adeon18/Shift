@@ -28,11 +28,14 @@ namespace shift::gfx {
             virtual void Item() override { ui::UIToolComponent::Item(); }
             virtual void Show(uint32_t currentFrame) override;
 
-            std::unordered_map<SGUID, std::array<SGUID, gutil::SHIFT_MAX_FRAMES_IN_FLIGHT>> textureIdToDescriptorIdLUT;
+            std::unordered_map<SGUID, SGUID> textureIdToDescriptorIdLUT;
         private:
             RenderTargetSystem& m_system;
         };
     public:
+        inline static std::string HDR_BUFFER = "HDR:RTF16";
+        inline static std::string SWAPCHAIN_DEPTH = "Swapchain:Depth";
+
         RenderTargetSystem(const Device& device, const SamplerManager& samplerManager, DescriptorManager& descriptorManager);
 
         //! Create a render target and store it by name
@@ -46,13 +49,11 @@ namespace shift::gfx {
         //! Get the RT id by name for tracking the
         [[nodiscard]] SGUID IdByName(const std::string& name);
 
-        ColorRenderTerget2D& GetColorRTCurrentFrame(SGUID id, uint32_t currentFrame);
-        ColorRenderTerget2D& GetColorRTPrevFrame(SGUID id, uint32_t currentFrame);
-        ColorRenderTerget2D& GetColorRTCurrentFrame(const std::string& name, uint32_t currentFrame);
-        ColorRenderTerget2D& GetColorRTPrevFrame(const std::string& name, uint32_t currentFrame);
+        ColorRenderTerget2D& GetColorRT(SGUID id);
+        ColorRenderTerget2D& GetColorRT(const std::string& name);
 
-        DepthRenderTerget2D& GetDepthRTCurrentFrame(SGUID id, uint32_t currentFrame);
-        DepthRenderTerget2D& GetDepthRTCurrentFrame(const std::string& name, uint32_t currentFrame);
+        DepthRenderTerget2D& GetDepthRT(SGUID id);
+        DepthRenderTerget2D& GetDepthRT(const std::string& name);
 
         ~RenderTargetSystem() = default;
 
@@ -69,8 +70,8 @@ namespace shift::gfx {
 
         std::unordered_map<std::string, SGUID> m_RTNameToId;
         std::unordered_map<std::string, SGUID> m_DTNameToId;
-        std::unordered_map<SGUID, std::array<std::unique_ptr<ColorRenderTerget2D>, gutil::SHIFT_MAX_FRAMES_IN_FLIGHT>> m_renderTargets;
-        std::unordered_map<SGUID, std::array<std::unique_ptr<DepthRenderTerget2D>, gutil::SHIFT_MAX_FRAMES_IN_FLIGHT>> m_depthTargets;
+        std::unordered_map<SGUID, std::unique_ptr<ColorRenderTerget2D>> m_renderTargets;
+        std::unordered_map<SGUID, std::unique_ptr<DepthRenderTerget2D>> m_depthTargets;
     };
 } // shift::gfx
 

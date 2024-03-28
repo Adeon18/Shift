@@ -23,7 +23,7 @@ namespace shift::gfx {
         for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
             // TODO: should be dependent on material, AND THIS IS SO SHIT
             auto& perObjSet = m_descriptorManager.GetPerMaterialSet(m_postProcessSetGuid, i);
-            perObjSet.UpdateImage(0, m_RTSystem.GetColorRTCurrentFrame("HDR:BackBuffer", i).GetView(), m_samplerManager.GetPointSampler());
+            perObjSet.UpdateImage(0, m_RTSystem.GetColorRT(RenderTargetSystem::HDR_BUFFER).GetView(), m_samplerManager.GetPointSampler());
             perObjSet.ProcessUpdates();
         }
     }
@@ -50,7 +50,7 @@ namespace shift::gfx {
         for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
 
             auto &perObjSet = m_descriptorManager.GetPerMaterialSet(m_postProcessSetGuid, i);
-            perObjSet.UpdateImage(0, m_RTSystem.GetColorRTCurrentFrame("HDR:BackBuffer", i).GetView(),
+            perObjSet.UpdateImage(0, m_RTSystem.GetColorRT(RenderTargetSystem::HDR_BUFFER).GetView(),
                                   m_samplerManager.GetPointSampler());
             perObjSet.ProcessUpdates();
         }
