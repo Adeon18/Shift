@@ -42,7 +42,12 @@ namespace shift::gfx {
 
         auto bindingDescription = gfx::Vertex::getBindingDescription();
         auto attributeDescriptions = gfx::Vertex::getAttributeDescriptions();
-        outStage.pipeline->SetInputStateInfo(shift::info::CreateInputStateInfo(attributeDescriptions, {&bindingDescription, 1}), VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+        if (info.renderTargetType != RenderStageCreateInfo::RT_Type::Swapchain) {
+            outStage.pipeline->SetInputStateInfo(shift::info::CreateInputStateInfo(attributeDescriptions, {&bindingDescription, 1}));
+        } else {
+            outStage.pipeline->SetInputStateInfo(shift::info::CreateInputStateInfo({}, {}));
+        }
+        outStage.pipeline->SetTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
         outStage.pipeline->SetViewPortState();
         outStage.pipeline->SetDynamicState(info.dynamicStates);
         outStage.pipeline->SetRasterizerInfo(*info.rasterizerInfo);

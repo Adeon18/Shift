@@ -15,11 +15,39 @@
 #include "Graphics/ShiftContextData.hpp"
 
 namespace shift::gfx {
-    enum class PostProcessPass {
-        Reinhard_ToneMapping
+    enum class ToneMapPass {
+        Reinhard_ToneMapping = 0,
+        LumaReinhard_ToneMapping = 1,
+        RomBin_ToneMapping = 2,
+        Uncharted2_ToneMapping = 3,
+        ACES_ToneMapping = 4,
+        Count = 5 // Total count
     };
 
     class PostProcessSystem {
+        class UI: public ui::UIToolComponent {
+        public:
+            explicit UI(std::string name, PostProcessSystem& system): ui::UIToolComponent(std::move(name)), m_system{system} {
+                ui::UIManager::GetInstance().RegisterToolComponent(this);
+            }
+
+            virtual void Item() override { ui::UIToolComponent::Item(); }
+            virtual void Show(uint32_t currentFrame) override;
+
+            //! Reinhard by default
+            ToneMapPass chosenOperator = ToneMapPass::Reinhard_ToneMapping;
+        private:
+            //! Indices have to be equal to the ones in ToneMapPass
+            std::array<const char*, static_cast<size_t>(ToneMapPass::Count)> m_toneMapOperatorNames{
+                "Reinhard",
+                "Reinhard Luma",
+                "Rom Bin Da House",
+                "Uncharted 2",
+                "ACES"
+            };
+
+            PostProcessSystem& m_system;
+        };
     public:
         PostProcessSystem(
                 const Device& device,
@@ -38,6 +66,9 @@ namespace shift::gfx {
         PostProcessSystem(const PostProcessSystem&) = delete;
         PostProcessSystem& operator=(const PostProcessSystem&) = delete;
     private:
+        //! UI
+        UI m_UI{"Post Process System", *this};
+
         //! Create all the render stages
         void CreateRenderStages();
 
@@ -53,10 +84,10 @@ namespace shift::gfx {
         //! Single for now
         SGUID m_postProcessSetGuid;
 
-        std::unordered_map<PostProcessPass, RenderStage> m_postProcessStages;
+        std::unordered_map<ToneMapPass, RenderStage> m_postProcessStages;
 
-        std::unordered_map<PostProcessPass, RenderStageCreateInfo> RENDER_STAGE_INFOS {
-                {PostProcessPass::Reinhard_ToneMapping,
+        std::unordered_map<ToneMapPass, RenderStageCreateInfo> RENDER_STAGE_INFOS {
+                {ToneMapPass::Reinhard_ToneMapping,
                         {
                                 .name = "Reinhard_ToneMapping",
                                 .shaderData = {"FullscreenTriangle.vert.spv", "ReinhardToneMap.frag.spv", "", "", ""},
@@ -64,6 +95,42 @@ namespace shift::gfx {
                                 .matSetLayoutType = MaterialSetLayoutType::POST_PROCESS,
                                 .renderTargetType = RenderStageCreateInfo::RT_Type::Swapchain
                         }
+                },
+                {ToneMapPass::LumaReinhard_ToneMapping,
+                     {
+                             .name = "LumaReinhard_ToneMapping",
+                             .shaderData = {"FullscreenTriangle.vert.spv", "LumaReinhardToneMap.frag.spv", "", "", ""},
+                             .viewSetLayoutType = ViewSetLayoutType::DEFAULT_CAMERA,
+                             .matSetLayoutType = MaterialSetLayoutType::POST_PROCESS,
+                             .renderTargetType = RenderStageCreateInfo::RT_Type::Swapchain
+                     }
+                },
+                {ToneMapPass::RomBin_ToneMapping,
+                     {
+                             .name = "RomBin_ToneMapping",
+                             .shaderData = {"FullscreenTriangle.vert.spv", "RomBinDaHouseToneMap.frag.spv", "", "", ""},
+                             .viewSetLayoutType = ViewSetLayoutType::DEFAULT_CAMERA,
+                             .matSetLayoutType = MaterialSetLayoutType::POST_PROCESS,
+                             .renderTargetType = RenderStageCreateInfo::RT_Type::Swapchain
+                     }
+                },
+                {ToneMapPass::Uncharted2_ToneMapping,
+                     {
+                             .name = "Uncharted2_ToneMapping",
+                             .shaderData = {"FullscreenTriangle.vert.spv", "Uncharted2ToneMap.frag.spv", "", "", ""},
+                             .viewSetLayoutType = ViewSetLayoutType::DEFAULT_CAMERA,
+                             .matSetLayoutType = MaterialSetLayoutType::POST_PROCESS,
+                             .renderTargetType = RenderStageCreateInfo::RT_Type::Swapchain
+                     }
+                },
+                {ToneMapPass::ACES_ToneMapping,
+                     {
+                             .name = "ACES_ToneMapping",
+                             .shaderData = {"FullscreenTriangle.vert.spv", "ACESToneMap.frag.spv", "", "", ""},
+                             .viewSetLayoutType = ViewSetLayoutType::DEFAULT_CAMERA,
+                             .matSetLayoutType = MaterialSetLayoutType::POST_PROCESS,
+                             .renderTargetType = RenderStageCreateInfo::RT_Type::Swapchain
+                     }
                 },
         };
     };

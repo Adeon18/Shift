@@ -1,0 +1,6 @@
+#ifndef EXTENSIONS_GLSL
+#define EXTENSIONS_GLSL
+
+
+
+#endif // EXTENSIONS_GLSL

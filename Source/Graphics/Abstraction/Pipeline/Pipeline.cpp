@@ -7,9 +7,11 @@ namespace shift {
             m_shaderStages.push_back(shader.GetStageInfo());
         }
 
-        void Pipeline::SetInputStateInfo(VkPipelineVertexInputStateCreateInfo info, VkPrimitiveTopology topology) {
+        void Pipeline::SetInputStateInfo(VkPipelineVertexInputStateCreateInfo info) {
             m_vertexInputInfo = info;
+        }
 
+        void Pipeline::SetTopology(VkPrimitiveTopology topology) {
             VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
             inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
             inputAssembly.topology = topology;

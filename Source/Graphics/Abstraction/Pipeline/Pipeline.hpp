@@ -18,7 +18,9 @@ namespace shift {
             void AddShaderStage(const Shader& shader);
 
             //! Set vertex state and input assembly data
-            void SetInputStateInfo(VkPipelineVertexInputStateCreateInfo info, VkPrimitiveTopology topology);
+            void SetInputStateInfo(VkPipelineVertexInputStateCreateInfo info);
+
+            void SetTopology(VkPrimitiveTopology topology);
 
             //! Set entire viewport state
             void SetViewPortState();

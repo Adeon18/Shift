@@ -74,17 +74,12 @@ namespace shift::gfx {
 
         buffer.BeginRendering(renderInfo);
 
-        auto& stage = m_postProcessStages[PostProcessPass::Reinhard_ToneMapping];
+        auto& stage = m_postProcessStages[m_UI.chosenOperator];
 
         buffer.BindPipeline(stage.pipeline->Get(), VK_PIPELINE_BIND_POINT_GRAPHICS);
 
         std::array<VkDescriptorSet, 1> sets{ m_descriptorManager.GetPerMaterialSet(m_postProcessSetGuid, currentFrame).Get() };
         buffer.BindDescriptorSets(sets, {}, stage.pipeline->GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, 0);
-
-//        std::array<VkBuffer, 1> vertexBuffers{ model->GetVertexBufferPtr().Get() };
-//        std::array<VkDeviceSize, 1> offsets{ 0 };
-//        buffer.BindVertexBuffers(vertexBuffers, offsets, 0);
-//        buffer.BindIndexBuffer(model->GetIndexBufferRef().Get(), 0);
 
         // DRAW THE FUCKING TRIANGLE
         buffer.Draw(3, 1, 0, 0);
@@ -92,5 +87,28 @@ namespace shift::gfx {
         ui::UIManager::GetInstance().EndFrame(buffer);
 
         buffer.EndRendering();
+    }
+
+    void PostProcessSystem::UI::Show(uint32_t currentFrame) {
+        if (m_shown) {
+            ImGui::Begin(m_name.c_str(), &m_shown);
+
+            // From ImGui Demo; line 1281
+            if (ImGui::BeginCombo("ToneMap Operator", m_toneMapOperatorNames[static_cast<size_t>(chosenOperator)], 0))
+            {
+                for (int n = 0; n < m_toneMapOperatorNames.size(); n++)
+                {
+                    const bool isSelected = (m_toneMapOperatorNames.size() == n);
+                    if (ImGui::Selectable(m_toneMapOperatorNames[n], isSelected))
+                        chosenOperator = static_cast<ToneMapPass>(n);
+
+                    // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+                    if (isSelected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            ImGui::End();
+        }
     }
 } // shift::gfx
