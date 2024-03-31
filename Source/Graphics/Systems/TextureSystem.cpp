@@ -25,7 +25,7 @@ namespace shift::gfx {
         CreateDefaultTextures();
     }
 
-    SGUID TextureSystem::LoadTexture(const std::string &path, VkFormat format, std::string name) {
+    SGUID TextureSystem::LoadTexture(const std::string &path, VkFormat format, const std::string& name, bool generateMips) {
         if (m_textureIdByName[path] != 0) {
             return m_textureIdByName[path];
         }
@@ -33,6 +33,7 @@ namespace shift::gfx {
         int texWidth, texHeight, texChannels;
         stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         VkDeviceSize imageSize = texWidth * texHeight * 4; // 4 bytes per pixel, MAYBE TODO?
+        uint32_t mipLevels = (generateMips) ? static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1: 1;
 
         if (!pixels) {
             spdlog::warn("Failed to read image!");
@@ -45,7 +46,7 @@ namespace shift::gfx {
 
         SGUID imageGUID = GUIDGenerator::GetInstance().Guid();
         m_textureIdByName[(name.empty()) ? path: name] = imageGUID;
-        m_textures[imageGUID] = std::make_unique<shift::gfx::Texture2D>(m_device, texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+        m_textures[imageGUID] = std::make_unique<shift::gfx::Texture2D>(m_device, texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, mipLevels);
 
         m_UI.textureIdToDescriptorIdLUT[imageGUID] = m_descriptorManager.AllocateImGuiSet(ImGuiSetLayoutType::TEXTURE);
         auto& texSet = m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, m_UI.textureIdToDescriptorIdLUT[imageGUID]);
@@ -53,29 +54,27 @@ namespace shift::gfx {
         texSet.ProcessUpdates();
 
         auto& bufferCopy = m_transPool.RequestCommandBuffer();
+        VkImageSubresourceRange subresourceRange{
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = mipLevels,
+            .baseArrayLayer = 0,
+            .layerCount = 1
+        };
+
         bufferCopy.TransferImageLayout(
                 m_textures[imageGUID]->GetImage(),
                 VK_IMAGE_LAYOUT_UNDEFINED,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                VK_PIPELINE_STAGE_TRANSFER_BIT
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                subresourceRange
         );
         bufferCopy.CopyBufferToImage(stagingBuff.Get(), m_textures[imageGUID]->GetImage(), m_textures[imageGUID]->GetWidth(), m_textures[imageGUID]->GetHeight());
         bufferCopy.EndCommandBuffer();
         bufferCopy.SubmitAndWait();
 
-        auto& bufferFinal = m_gfxPool.RequestCommandBuffer();
-
-        bufferFinal.TransferImageLayout(
-                m_textures[imageGUID]->GetImage(),
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
-        );
-
-        bufferFinal.EndCommandBuffer();
-        bufferFinal.SubmitAndWait();
+        GenerateMipsAndTransferToReadState(imageGUID);
 
         return imageGUID;
     }
@@ -139,6 +138,88 @@ namespace shift::gfx {
 
     TextureBase *TextureSystem::GetTexture(std::string name) {
         return m_textures[m_textureIdByName[name]].get();
+    }
+
+    void TextureSystem::GenerateMipsAndTransferToReadState(SGUID imageGUID) {
+        auto& bufferFinal = m_gfxPool.RequestCommandBuffer();
+
+        VkFormatProperties formatProperties;
+        vkGetPhysicalDeviceFormatProperties(m_device.GetPhysicalDevice(), m_textures[imageGUID]->GetFormat(), &formatProperties);
+        if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+            spdlog::warn("Texture system: cannot generate mips, as texture format does not support linear filtering!");
+        }
+
+        VkImageMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.image = m_textures[imageGUID]->GetImage();
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = 1;
+        barrier.subresourceRange.levelCount = 1;
+
+        int32_t mipWidth = m_textures[imageGUID]->GetWidth();
+        int32_t mipHeight = m_textures[imageGUID]->GetHeight();
+
+        for (uint32_t i = 1; i < m_textures[imageGUID]->GetMipCount(); i++) {
+            barrier.subresourceRange.baseMipLevel = i - 1;
+            barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+            bufferFinal.SetPipelineBarrierImage(
+                    VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    barrier, 0
+            );
+
+            VkImageBlit blit{};
+            blit.srcOffsets[0] = {0, 0, 0};
+            blit.srcOffsets[1] = {mipWidth, mipHeight, 1};
+            blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            blit.srcSubresource.mipLevel = i - 1;
+            blit.srcSubresource.baseArrayLayer = 0;
+            blit.srcSubresource.layerCount = 1;
+            blit.dstOffsets[0] = {0, 0, 0};
+            blit.dstOffsets[1] = { mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1 };
+            blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            blit.dstSubresource.mipLevel = i;
+            blit.dstSubresource.baseArrayLayer = 0;
+            blit.dstSubresource.layerCount = 1;
+
+            bufferFinal.BlitImage(m_textures[imageGUID]->GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                  m_textures[imageGUID]->GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                  {&blit, 1},
+                                  VK_FILTER_LINEAR);
+
+            barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+            barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+            bufferFinal.SetPipelineBarrierImage(
+                    VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    barrier, 0
+            );
+
+            if (mipWidth > 1) mipWidth /= 2;
+            if (mipHeight > 1) mipHeight /= 2;
+        }
+
+        barrier.subresourceRange.baseMipLevel = m_textures[imageGUID]->GetMipCount() - 1;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        bufferFinal.SetPipelineBarrierImage(
+                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                barrier, 0
+        );
+
+        bufferFinal.EndCommandBuffer();
+        bufferFinal.SubmitAndWait();
     }
 
     void TextureSystem::UI::Show(uint32_t currentFrame) {

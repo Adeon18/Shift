@@ -75,6 +75,8 @@ namespace shift {
                     VkPipelineStageFlags dstStage,
                     bool isDepth = false) const;
 
+            void BlitImage(VkImage srcImage, VkImageLayout srcLayout, VkImage dstImage, VkImageLayout dstLayout, std::span<VkImageBlit> blitRegions, VkFilter filter) const;
+
             void BindVertexBuffers(std::span<VkBuffer> buffers, std::span<VkDeviceSize> offsets, uint32_t firstBind) const;
 
             void BindIndexBuffer(VkBuffer buffers, uint32_t offset, VkIndexType idxType = VK_INDEX_TYPE_UINT16) const;

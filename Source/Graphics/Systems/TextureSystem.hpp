@@ -38,7 +38,7 @@ namespace shift::gfx {
                 DescriptorManager& descriptorManager
                 );
 
-        [[nodiscard]] SGUID LoadTexture(const std::string& path, VkFormat format, std::string name = "");
+        [[nodiscard]] SGUID LoadTexture(const std::string& path, VkFormat format, const std::string& name, bool generateMips);
         [[nodiscard]] TextureBase* GetTexture(SGUID guid);
         [[nodiscard]] TextureBase* GetTexture(std::string name);
 
@@ -49,10 +49,14 @@ namespace shift::gfx {
         [[nodiscard]] TextureBase* GetDefaultGreenTexture() { return GetTexture("GREEN"); }
         [[nodiscard]] TextureBase* GetDefaultBlueTexture() { return GetTexture("BLUE"); }
     private:
+        //! Create default 1x1 color textures
         void CreateDefaultTextures();
 
         //! Utility function for default color textures
         SGUID CreateDefaultColorTexture(const std::array<uint8_t, 4>& color, std::string name);
+
+        //! Generates mips for texture by id and trasfer it to be read in shader
+        void GenerateMipsAndTransferToReadState(SGUID textureId);
 
         //! UI component
         UI m_UI{"Texture System", *this};

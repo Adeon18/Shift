@@ -127,7 +127,7 @@ namespace shift::gfx {
                 material->GetTexture(textureType, 0, &path);
                 std::string fullTexturePath = util::GetDirectoryFromPath(filename) + path.C_Str();
                 // Load texture by full path and save the full path
-                auto guid = m_textureSystem.LoadTexture(fullTexturePath, VK_FORMAT_R8G8B8A8_SRGB);
+                auto guid = m_textureSystem.LoadTexture(fullTexturePath, VK_FORMAT_R8G8B8A8_SRGB, fullTexturePath, true);
 //                std::cout << fullTexturePath << " ID " << guid << std::endl;
                 modelMesh.texturePaths[MeshTextureType::DIFFUSE] = guid;
                 if (first) {

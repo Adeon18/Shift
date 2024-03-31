@@ -297,5 +297,15 @@ namespace shift {
             m_ins.CallEndRenderingExternal(m_buffer);
         }
 
+        void
+        CommandBuffer::BlitImage(VkImage srcImage, VkImageLayout srcLayout, VkImage dstImage, VkImageLayout dstLayout,
+                                 std::span<VkImageBlit> blitRegions, VkFilter filter) const {
+            vkCmdBlitImage(m_buffer,
+                           srcImage, srcLayout,
+                           dstImage, dstLayout,
+                           blitRegions.size(), blitRegions.data(),
+                           filter);
+        }
+
     } // gfx
 } // shift

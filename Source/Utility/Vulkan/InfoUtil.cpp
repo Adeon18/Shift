@@ -171,7 +171,7 @@ namespace shift {
             samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
             samplerInfo.mipLodBias = 0.0f;
             samplerInfo.minLod = 0.0f;
-            samplerInfo.maxLod = 0.0f;
+            samplerInfo.maxLod = 16.0f;
 
             return samplerInfo;
         }
