@@ -30,7 +30,7 @@ namespace shift::gfx {
         SGUID LoadModel(const std::string& filename);
     private:
 
-        void LoadTextures(const aiScene* pScene, std::shared_ptr<Model> modelPtr, aiTextureType textureType, const std::string& filename);
+        void LoadTextures(const aiScene* pScene, std::shared_ptr<Model> modelPtr, aiTextureType srcTexType, MeshTextureType dstTexType, const std::string& filename, bool generateMips = false);
         //! Print all the textures paths for each mesh given the scene
         void PrintAllTexturesPath(const aiScene* pScene);
     private:

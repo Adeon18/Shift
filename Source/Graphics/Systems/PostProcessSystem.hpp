@@ -35,7 +35,7 @@ namespace shift::gfx {
             virtual void Show(uint32_t currentFrame) override;
 
             //! Reinhard by default
-            ToneMapPass chosenOperator = ToneMapPass::Reinhard_ToneMapping;
+            ToneMapPass chosenOperator = ToneMapPass::ACES_ToneMapping;
         private:
             //! Indices have to be equal to the ones in ToneMapPass
             std::array<const char*, static_cast<size_t>(ToneMapPass::Count)> m_toneMapOperatorNames{

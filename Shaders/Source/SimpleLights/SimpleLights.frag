@@ -16,7 +16,7 @@ layout(set = 2, binding = 1) uniform sampler2D texSampler;
 void main() {
     vec4 color = texture(texSampler, fragTexCoord);
 
-    vec3 outRadiance = vec3(0.0f);
+    vec3 outRadiance = vec3(0.001f);
 
     for (uint i = 0; i < lights.lightCounts.x; ++i) {
         outRadiance += CalcDirectionalLightDiffuse(lights.directionalLights[i], outWorldNorm) * color.rgb;

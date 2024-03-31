@@ -23,7 +23,8 @@ namespace shift::gfx {
     enum class MeshPass {
         Emission_Forward,
         Textured_Forward,
-        SimpleLights_Forward
+        SimpleLights_Forward,
+        PBR_Forward
     };
 
     enum class Mobility {
@@ -136,6 +137,15 @@ namespace shift::gfx {
                                 .shaderData = {"SimpleLights.vert.spv", "SimpleLights.frag.spv", "", "", ""},
                                 .viewSetLayoutType = ViewSetLayoutType::DEFAULT_CAMERA,
                                 .matSetLayoutType = MaterialSetLayoutType::TEXTURED,
+                                .renderTargetType = RenderStageCreateInfo::RT_Type::Forward
+                        }
+                },
+                {MeshPass::PBR_Forward,
+                        {
+                                .name = "PBR",
+                                .shaderData = {"PBRCookTorrance.vert.spv", "PBRCookTorrance.frag.spv", "", "", ""},
+                                .viewSetLayoutType = ViewSetLayoutType::DEFAULT_CAMERA,
+                                .matSetLayoutType = MaterialSetLayoutType::PBR,
                                 .renderTargetType = RenderStageCreateInfo::RT_Type::Forward
                         }
                 },

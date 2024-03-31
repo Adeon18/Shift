@@ -63,6 +63,8 @@ namespace shift::gfx {
     }
 
     DescriptorSet::DescriptorSet(const shift::gfx::Device &device): m_device{device} {
+        m_imageInfos.reserve(16);
+        m_bufferInfos.reserve(16);
     }
 
     void DescriptorSet::UpdateImage(uint32_t bind, VkImageView view, VkSampler sampler) {

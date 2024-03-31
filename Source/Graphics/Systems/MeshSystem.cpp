@@ -68,6 +68,16 @@ namespace shift::gfx {
         );
 
         m_descriptorManager.CreatePerMaterialLayout(
+                MaterialSetLayoutType::PBR,
+                {
+                        {DescriptorType::UBO, 0, VK_SHADER_STAGE_VERTEX_BIT},
+                        {DescriptorType::SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
+                        {DescriptorType::SAMPLER, 2, VK_SHADER_STAGE_FRAGMENT_BIT},
+                        {DescriptorType::SAMPLER, 3, VK_SHADER_STAGE_FRAGMENT_BIT},
+                }
+        );
+
+        m_descriptorManager.CreatePerMaterialLayout(
                 MaterialSetLayoutType::EMISSION_ONLY,
                 {
                         {DescriptorType::UBO, 0, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT},
@@ -94,10 +104,12 @@ namespace shift::gfx {
             SGUID setID = m_descriptorManager.AllocatePerMaterialSet(stage.matSetLayoutType);
             m_bufferManager.AllocateUBO(setID, sizeof(PerDefaultObject));
 
-            auto* tex = m_textureSystem.GetTexture(mesh.texturePaths[gfx::MeshTextureType::DIFFUSE]);
+            auto* tex = m_textureSystem.GetTexture(mesh.texturePaths[gfx::MeshTextureType::Diffuse]);
+            TextureBase* normalMap = nullptr;
+            TextureBase* metRoughMap = nullptr;
             // TODO: Workaround for now
             if (!tex) {
-                tex = m_textureSystem.GetDefaultBlueTexture();
+                tex = m_textureSystem.GetDefaultBlackTexture();
             }
 
             for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
@@ -108,6 +120,17 @@ namespace shift::gfx {
                     case MaterialSetLayoutType::TEXTURED:
                         perObjSet.UpdateUBO(0, buff.Get(), 0, buff.GetSize());
                         perObjSet.UpdateImage(1, tex->GetView(), m_samplerManager.GetLinearSampler());
+                        break;
+                    case MaterialSetLayoutType::PBR:
+                        normalMap = m_textureSystem.GetTexture(mesh.texturePaths[gfx::MeshTextureType::NormalMap]);
+                        if (!normalMap) { normalMap = m_textureSystem.GetDefaultBlackTexture(); }
+                        metRoughMap = m_textureSystem.GetTexture(mesh.texturePaths[gfx::MeshTextureType::MetallicRoughness]);
+                        if (!metRoughMap) { metRoughMap = m_textureSystem.GetDefaultGrayTexture(); }
+
+                        perObjSet.UpdateUBO(0, buff.Get(), 0, buff.GetSize());
+                        perObjSet.UpdateImage(1, tex->GetView(), m_samplerManager.GetLinearSampler());
+                        perObjSet.UpdateImage(2, normalMap->GetView(), m_samplerManager.GetLinearSampler());
+                        perObjSet.UpdateImage(3, metRoughMap->GetView(), m_samplerManager.GetLinearSampler());
                         break;
                     case MaterialSetLayoutType::EMISSION_ONLY:
                         perObjSet.UpdateUBO(0, buff.Get(), 0, buff.GetSize());

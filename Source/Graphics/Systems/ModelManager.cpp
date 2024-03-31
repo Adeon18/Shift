@@ -74,9 +74,9 @@ namespace shift::gfx {
 
         // Load the textures
 //        PrintAllTexturesPath(assimpScene);
-        LoadTextures(assimpScene, modelPtr, aiTextureType_DIFFUSE, filename);
-//        LoadTextures(assimpScene, modelPtr, aiTextureType_NORMALS, filename);
-//        LoadTextures(assimpScene, modelPtr, aiTextureType_SHININESS, filename);
+        LoadTextures(assimpScene, modelPtr, aiTextureType_DIFFUSE, MeshTextureType::Diffuse, filename, true);
+        LoadTextures(assimpScene, modelPtr, aiTextureType_NORMALS, MeshTextureType::NormalMap, filename);
+        LoadTextures(assimpScene, modelPtr, aiTextureType_METALNESS, MeshTextureType::MetallicRoughness, filename, true);
 //        LoadTextures(assimpScene, modelPtr, aiTextureType_METALNESS, filename);
 
         std::function<void(aiNode*)> loadInstances = [&loadInstances, &modelPtr](aiNode* node)
@@ -108,32 +108,26 @@ namespace shift::gfx {
         m_loadedModels[modelID] = modelPtr;
         return modelID;
     }
-    void ModelManager::LoadTextures(const aiScene* pScene, std::shared_ptr<Model> modelPtr, aiTextureType textureType, const std::string& filename)
+    void ModelManager::LoadTextures(const aiScene* pScene, std::shared_ptr<Model> modelPtr, aiTextureType srcTexType, MeshTextureType dstTexType, const std::string& filename, bool generateMips)
     {
         uint32_t numMeshes = pScene->mNumMeshes;
 
-        bool first = true;
         // Load all meshes textures
         for (uint32_t i = 0; i < numMeshes; ++i) {
             auto& assimpMesh = pScene->mMeshes[i];
             auto& modelMesh = modelPtr->GetMeshes()[i];
             // Load textures
             aiMaterial* material = pScene->mMaterials[assimpMesh->mMaterialIndex];
-            uint32_t textureCount = material->GetTextureCount(textureType);
+            uint32_t textureCount = material->GetTextureCount(srcTexType);
 
-//            for (uint32_t t = 0; t < textureCount; ++t) {
+            // MAYBE TODO: Potential loop for texturecount
             if (textureCount > 0) {
                 aiString path;
-                material->GetTexture(textureType, 0, &path);
+                material->GetTexture(srcTexType, 0, &path);
                 std::string fullTexturePath = util::GetDirectoryFromPath(filename) + path.C_Str();
                 // Load texture by full path and save the full path
-                auto guid = m_textureSystem.LoadTexture(fullTexturePath, VK_FORMAT_R8G8B8A8_SRGB, fullTexturePath, true);
-//                std::cout << fullTexturePath << " ID " << guid << std::endl;
-                modelMesh.texturePaths[MeshTextureType::DIFFUSE] = guid;
-                if (first) {
-                    modelPtr->defaultTexId = guid;
-                    first = false;
-                }
+                auto guid = m_textureSystem.LoadTexture(fullTexturePath, VK_FORMAT_R8G8B8A8_SRGB, fullTexturePath, generateMips);
+                modelMesh.texturePaths[dstTexType] = guid;
             }
         }
     }

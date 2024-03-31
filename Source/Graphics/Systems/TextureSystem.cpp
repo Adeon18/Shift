@@ -283,6 +283,7 @@ namespace shift::gfx {
                         ImGui::LabelText(std::to_string(id).c_str(), "GUID");
                         std::string res = std::to_string(texSize.x) + "x" + std::to_string(texSize.y);
                         ImGui::LabelText(res.c_str(), "Texture Res");
+                        ImGui::LabelText(std::to_string(m_system.m_textures[id]->GetMipCount()).c_str(), "Mip Level Count");
                         ImGui::TreePop();
                     }
                 }

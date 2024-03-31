@@ -11,7 +11,9 @@
 
 namespace shift::gfx {
     enum class MeshTextureType {
-        DIFFUSE
+        Diffuse,
+        NormalMap,
+        MetallicRoughness
     };
 
     class Mesh {

@@ -19,6 +19,7 @@ namespace shift::gfx {
     enum class MaterialSetLayoutType {
         EMISSION_ONLY,
         TEXTURED,
+        PBR,
         //! TODO: NO, this is bad design
         POST_PROCESS
     };

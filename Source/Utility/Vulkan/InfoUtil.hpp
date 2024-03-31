@@ -68,7 +68,7 @@ namespace shift {
         VkPipelineDepthStencilStateCreateInfo CreateDepthStencilStateInfo();
 
         //! Create dynamic rendering attachment - for color attachments by default
-        VkRenderingAttachmentInfoKHR CreateRenderingAttachmentInfo(VkImageView view, bool isColor = true, VkClearValue = {{0.0f, 0.0f, 0.0f, 1.0f}});
+        VkRenderingAttachmentInfoKHR CreateRenderingAttachmentInfo(VkImageView view, bool isColor = true, VkClearValue = {{0.004f, 0.004f, 0.004f, 1.0f}});
 
         VkPipelineRenderingCreateInfoKHR CreatePipelineRenderingInfo(std::span<VkFormat> colorFormats, std::optional<VkFormat> depthFormat);
     } // info

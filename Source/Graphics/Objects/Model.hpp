@@ -26,8 +26,6 @@ namespace shift::gfx {
         //! Initializes the model GPU Vulkan buffer data with the CPU data stored in meshes
         void InitWithMeshData(const Device& m_device, const CommandBuffer& buffer);
 
-        // TODO: TEMP
-        SGUID defaultTexId;
     private:
         std::vector<Mesh> m_meshes;
         std::vector<MeshRange> m_ranges;
