@@ -109,7 +109,7 @@ namespace shift::gfx {
             TextureBase* metRoughMap = nullptr;
             // TODO: Workaround for now
             if (!tex) {
-                tex = m_textureSystem.GetDefaultBlackTexture();
+                tex = m_textureSystem.GetDefaultGrayTexture();
             }
 
             for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {

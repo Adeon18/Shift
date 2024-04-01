@@ -75,7 +75,7 @@ namespace shift::gfx {
         // Load the textures
 //        PrintAllTexturesPath(assimpScene);
         LoadTextures(assimpScene, modelPtr, aiTextureType_DIFFUSE, MeshTextureType::Diffuse, filename, true);
-        LoadTextures(assimpScene, modelPtr, aiTextureType_NORMALS, MeshTextureType::NormalMap, filename);
+        LoadTextures(assimpScene, modelPtr, aiTextureType_NORMALS, MeshTextureType::NormalMap, filename, true);
         LoadTextures(assimpScene, modelPtr, aiTextureType_METALNESS, MeshTextureType::MetallicRoughness, filename, true);
 //        LoadTextures(assimpScene, modelPtr, aiTextureType_METALNESS, filename);
 

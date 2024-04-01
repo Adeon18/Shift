@@ -19,7 +19,8 @@ layout(set = 2, binding = 2) uniform sampler2D TexNormals;
 layout(set = 2, binding = 3) uniform sampler2D TexMetallicRoughness;
 
 void main() {
-    vec3 albedo = texture(TexDiffuse, fragTexCoord).rgb;
+    vec4 colorTex = texture(TexDiffuse, fragTexCoord);
+    vec3 albedo = colorTex.rgb;
     vec3 micNorm = ToLinear(texture(TexNormals, fragTexCoord).rgb);
     micNorm = micNorm * 2.0 - 1.0;
     micNorm = normalize(TBN * micNorm);
@@ -41,12 +42,12 @@ void main() {
     vec3 outRadiance = 0.03f * occlusion * albedo.rgb;
 
     for (uint i = 0; i < lights.lightCounts.x; ++i) {
-        outRadiance += CalculateDirectionalLightRadiance(lights.directionalLights[i], outWorldNorm, viewDir, albedo, F0, metallic, roughness);
+        outRadiance += CalculateDirectionalLightRadiance(lights.directionalLights[i], micNorm, viewDir, albedo, F0, metallic, roughness);
     }
 
     for (uint i = 0; i < lights.lightCounts.y; ++i) {
-        outRadiance += CalculatePointLightRadiance(lights.pointLights[i], outWorldNorm, viewDir, outWorldPos, albedo, F0, metallic, roughness);
+        outRadiance += CalculatePointLightRadiance(lights.pointLights[i], micNorm, viewDir, outWorldPos, albedo, F0, metallic, roughness);
     }
 
-    outColor = vec4(vec3(outRadiance), 1.0f);
+    outColor = vec4(vec3(outRadiance), colorTex.a);
 }

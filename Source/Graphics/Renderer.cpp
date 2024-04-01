@@ -56,7 +56,7 @@ namespace shift::gfx {
 //        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/SimpleAmogusPink/scene.gltf");
 //        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../Sponza-master/Sponza-master/sponza.obj");
 //        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../sponza/scene.gltf");
-        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../pbr_tactical_helmet/scene.gltf");
+        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../human_skull/scene.gltf");
 
 //        for (int i = -16; i < 16; ++i) {
 //            for (int j = -16; j < 16; ++j) {
@@ -66,7 +66,7 @@ namespace shift::gfx {
 //        }
 
         m_meshSystem->AddInstance(MeshPass::PBR_Forward, Mobility::STATIC, amogus2,
-                                  glm::translate(glm::scale(glm::mat4(1), glm::vec3(0.1f)), glm::vec3(0.0, 0.0f, -0.0f)));
+                                  glm::translate(glm::scale(glm::mat4(1), glm::vec3(1.0f)), glm::vec3(0.0, 0.0f, -0.0f)));
 
         m_lightSystem->AddPointLight(glm::vec3(-2.0, 1.0, 0.0), glm::vec3(10.0, 10.0, 10.0));
         m_lightSystem->AddPointLight(glm::vec3(2.0, 1.0, 0.0), glm::vec3(10.0, 10.0, 10.0));
