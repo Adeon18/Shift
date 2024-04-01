@@ -8,11 +8,13 @@ namespace shift::gfx {
                            const ShiftBackBuffer &backBufferData,
                            const SamplerManager& samplerManager,
                            DescriptorManager &descManager,
+                           BufferManager &bufferManager,
                            RenderTargetSystem& RTSystem):
             m_device{device},
             m_backBufferData{backBufferData},
             m_samplerManager{samplerManager},
             m_descriptorManager{descManager},
+            m_bufManager{bufferManager},
             m_RTSystem{RTSystem}
     {
         CreateDescriptorLayouts();
@@ -20,11 +22,15 @@ namespace shift::gfx {
 
 
         m_postProcessSetGuid = m_descriptorManager.AllocatePerMaterialSet(MaterialSetLayoutType::POST_PROCESS);
+        m_bufManager.AllocateUBO(m_postProcessSetGuid, sizeof(PostProcessUBO));
         for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
-            // TODO: should be dependent on material, AND THIS IS SO SHIT
             auto& perObjSet = m_descriptorManager.GetPerMaterialSet(m_postProcessSetGuid, i);
+            auto& buff = m_bufManager.GetUBO(m_postProcessSetGuid, i);
             perObjSet.UpdateImage(0, m_RTSystem.GetColorRT(RenderTargetSystem::HDR_BUFFER).GetView(), m_samplerManager.GetPointSampler());
+            perObjSet.UpdateUBO(1, buff.Get(), 0, buff.GetSize());
             perObjSet.ProcessUpdates();
+
+            buff.Fill(&m_UBO, sizeof(m_UBO));
         }
     }
 
@@ -41,7 +47,8 @@ namespace shift::gfx {
         m_descriptorManager.CreatePerMaterialLayout(
                 MaterialSetLayoutType::POST_PROCESS,
                 {
-                        {DescriptorType::SAMPLER, 0, VK_SHADER_STAGE_FRAGMENT_BIT}
+                        {DescriptorType::SAMPLER, 0, VK_SHADER_STAGE_FRAGMENT_BIT},
+                        {DescriptorType::UBO, 1, VK_SHADER_STAGE_FRAGMENT_BIT}
                 }
         );
     }
@@ -57,9 +64,12 @@ namespace shift::gfx {
     }
 
     void PostProcessSystem::ToneMap(const CommandBuffer &buffer, uint32_t currentImage, uint32_t currentFrame) {
+        auto& buff = m_bufManager.GetUBO(m_postProcessSetGuid, currentFrame);
+        m_UBO.data.y = (m_UI.exposureEnabled) ? 1.0f: 0.0f;
+        m_UBO.data.z = (m_UI.gammaEnabled) ? 1.0f: 0.0f;
+        buff.Fill(&m_UBO, sizeof(m_UBO));
 
         auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_backBufferData.swapchain->GetImageViews()[currentImage]);
-//        auto depthAttInfo = info::CreateRenderingAttachmentInfo(m_backBufferData.swapchain->GetDepthBufferView(), false, {1.0f, 0});
 
         VkRenderingInfoKHR renderInfo{};
         renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
@@ -67,7 +77,6 @@ namespace shift::gfx {
         renderInfo.layerCount = 1;
         renderInfo.colorAttachmentCount = 1;
         renderInfo.pColorAttachments = &colorAttInfo;
-//        renderInfo.pDepthAttachment = &depthAttInfo;
 
         buffer.SetViewPort(m_backBufferData.swapchain->GetViewport());
         buffer.SetScissor(m_backBufferData.swapchain->GetScissor());
@@ -93,8 +102,16 @@ namespace shift::gfx {
         if (m_shown) {
             ImGui::Begin(m_name.c_str(), &m_shown);
 
+            ImGui::SeparatorText("Exposure");
+            ImGui::Checkbox("Enable Exposure", &exposureEnabled);
+            ImGui::SliderFloat("EV100", &m_system.m_UBO.data.x, -5.0f, 5.0f);
+
+            ImGui::SeparatorText("Gamma Correction");
+            ImGui::Checkbox("Enable", &gammaEnabled);
+
+            ImGui::SeparatorText("Tone Mapping");
             // From ImGui Demo; line 1281
-            if (ImGui::BeginCombo("ToneMap Operator", m_toneMapOperatorNames[static_cast<size_t>(chosenOperator)], 0))
+            if (ImGui::BeginCombo("Operator", m_toneMapOperatorNames[static_cast<size_t>(chosenOperator)], 0))
             {
                 for (int n = 0; n < m_toneMapOperatorNames.size(); n++)
                 {

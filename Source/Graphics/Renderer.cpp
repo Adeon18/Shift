@@ -43,7 +43,7 @@ namespace shift::gfx {
         m_RTSystem->CreateRenderTarget2D(m_window.GetWidth(), m_window.GetHeight(), VK_FORMAT_R16G16B16A16_SFLOAT, RenderTargetSystem::HDR_BUFFER);
         m_RTSystem->CreateDepthTarget2D(m_window.GetWidth(), m_window.GetHeight(), m_context.device->FindSupportedDepthFormat(), RenderTargetSystem::SWAPCHAIN_DEPTH);
         m_meshSystem = std::make_unique<MeshSystem>(*m_context.device, m_backBuffer, *m_samplerManager, *m_textureSystem, *m_modelManager, *m_bufferManager, *m_descriptorManager, *m_RTSystem, m_perViewIDs);
-        m_postProcessSystem = std::make_unique<PostProcessSystem>(*m_context.device, m_backBuffer, *m_samplerManager, *m_descriptorManager, *m_RTSystem);
+        m_postProcessSystem = std::make_unique<PostProcessSystem>(*m_context.device, m_backBuffer, *m_samplerManager, *m_descriptorManager, *m_bufferManager, *m_RTSystem);
         m_lightSystem = std::make_unique<LightSystem>(*m_descriptorManager, *m_bufferManager, *m_meshSystem, sphere);
 
         LoadScene();
@@ -68,8 +68,8 @@ namespace shift::gfx {
         m_meshSystem->AddInstance(MeshPass::PBR_Forward, Mobility::STATIC, amogus2,
                                   glm::translate(glm::scale(glm::mat4(1), glm::vec3(0.1f)), glm::vec3(0.0, 0.0f, -0.0f)));
 
-        m_lightSystem->AddPointLight(glm::vec3(-1.0, 1.0, 0.0), glm::vec3(1.0, 0.0, 0.0));
-        m_lightSystem->AddPointLight(glm::vec3(1.0, 1.0, 0.0), glm::vec3(0.0, 0.3, 0.0));
+        m_lightSystem->AddPointLight(glm::vec3(-2.0, 1.0, 0.0), glm::vec3(10.0, 10.0, 10.0));
+        m_lightSystem->AddPointLight(glm::vec3(2.0, 1.0, 0.0), glm::vec3(10.0, 10.0, 10.0));
 
         m_lightSystem->AddDirectionalLight(glm::vec3(0.0, -1.0, -1.0), glm::vec3(5.0, 5.0, 5.0));
 //        m_lightSystem->AddPointLight(glm::vec3(-3.0, -3.0, 0.0), glm::vec3(0.0, 1.0, 1.0));

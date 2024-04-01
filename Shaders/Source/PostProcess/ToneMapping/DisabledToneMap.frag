@@ -7,9 +7,7 @@
 void main() {
     vec3 HDR = texture(texSampler, texCoords).rgb;
     HDR = AdjustExposure(HDR, UBO.data.x, UBO.data.y);
-    vec3 LDR = Uncharted2ToneMapping(HDR);
-
-    LDR = GammaCorrect(LDR, GAMMA, UBO.data.z);
+    vec3 LDR = GammaCorrect(HDR, GAMMA, UBO.data.z);
 
     outColor = vec4(LDR, 1.0);
 }

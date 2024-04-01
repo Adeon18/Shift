@@ -21,7 +21,8 @@ namespace shift::gfx {
         RomBin_ToneMapping = 2,
         Uncharted2_ToneMapping = 3,
         ACES_ToneMapping = 4,
-        Count = 5 // Total count
+        Disabled = 5,
+        Count // Total count
     };
 
     class PostProcessSystem {
@@ -36,6 +37,9 @@ namespace shift::gfx {
 
             //! Reinhard by default
             ToneMapPass chosenOperator = ToneMapPass::ACES_ToneMapping;
+
+            bool exposureEnabled = true;
+            bool gammaEnabled = true;
         private:
             //! Indices have to be equal to the ones in ToneMapPass
             std::array<const char*, static_cast<size_t>(ToneMapPass::Count)> m_toneMapOperatorNames{
@@ -43,7 +47,8 @@ namespace shift::gfx {
                 "Reinhard Luma",
                 "Rom Bin Da House",
                 "Uncharted 2",
-                "ACES"
+                "ACES",
+                "Disabled"
             };
 
             PostProcessSystem& m_system;
@@ -54,6 +59,7 @@ namespace shift::gfx {
                 const ShiftBackBuffer& backBufferData,
                 const SamplerManager& samplerManager,
                 DescriptorManager &descManager,
+                BufferManager &bufManager,
                 RenderTargetSystem& RTSystem);
 
         void ToneMap(const CommandBuffer& buffer, uint32_t currentImage, uint32_t currentFrame);
@@ -66,6 +72,11 @@ namespace shift::gfx {
         PostProcessSystem(const PostProcessSystem&) = delete;
         PostProcessSystem& operator=(const PostProcessSystem&) = delete;
     private:
+        struct PostProcessUBO {
+            // x - exposure, y enable exposure
+            glm::vec4 data{0.0f};
+        };
+
         //! UI
         UI m_UI{"Post Process System", *this};
 
@@ -79,10 +90,12 @@ namespace shift::gfx {
         const ShiftBackBuffer& m_backBufferData;
         const SamplerManager& m_samplerManager;
         DescriptorManager& m_descriptorManager;
+        BufferManager &m_bufManager;
         RenderTargetSystem& m_RTSystem;
 
         //! Single for now
-        SGUID m_postProcessSetGuid;
+        SGUID m_postProcessSetGuid{};
+        PostProcessUBO m_UBO;
 
         std::unordered_map<ToneMapPass, RenderStage> m_postProcessStages;
 
@@ -131,6 +144,15 @@ namespace shift::gfx {
                              .matSetLayoutType = MaterialSetLayoutType::POST_PROCESS,
                              .renderTargetType = RenderStageCreateInfo::RT_Type::Swapchain
                      }
+                },
+                {ToneMapPass::Disabled,
+                        {
+                                .name = "None",
+                                .shaderData = {"FullscreenTriangle.vert.spv", "DisabledToneMap.frag.spv", "", "", ""},
+                                .viewSetLayoutType = ViewSetLayoutType::DEFAULT_CAMERA,
+                                .matSetLayoutType = MaterialSetLayoutType::POST_PROCESS,
+                                .renderTargetType = RenderStageCreateInfo::RT_Type::Swapchain
+                        }
                 },
         };
     };

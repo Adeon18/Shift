@@ -5,18 +5,27 @@ layout(location = 0) in vec2 texCoords;
 layout(location = 0) out vec4 outColor;
 
 layout(set = 0, binding = 0) uniform sampler2D texSampler;
+layout (set = 0, binding = 1) uniform PPUBO {
+    vec4 data;
+} UBO;
 
 #define GAMMA 2.2
 
-vec3 GammaCorrect(vec3 color, float gamma) {
-    return pow(color, vec3(1. / gamma));
+vec3 GammaCorrect(vec3 color, float gamma, float enable) {
+    return mix(color, pow(color, vec3(1. / gamma)), enable);
+}
+
+vec3 AdjustExposure(vec3 color, float EV100, float enable)
+{
+    float LMax = (78.0f / (0.65f * 100.0f)) * pow(2.0f, EV100);
+    return color * mix(1.0f, 1.0f / LMax, enable);
 }
 
 //! Base implementations taken from: https://www.shadertoy.com/view/sllXWr
 
 vec3 ReinhardToneMapping(vec3 color)
 {
-    float exposure = 1.5;
+    float exposure = 1.0;
     color *= exposure/(1. + color / exposure);
 
     return color;
