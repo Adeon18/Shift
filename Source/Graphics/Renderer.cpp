@@ -233,7 +233,7 @@ namespace shift::gfx {
 
         if (isOld || m_window.ShouldProcessResize()) {
             m_window.ProcessResize();
-            m_controller.UpdateScreenSize(m_window.GetWidth(), m_window.GetHeight());
+            m_controller->UpdateScreenSize(m_window.GetWidth(), m_window.GetHeight());
             if (!m_backBuffer.swapchain->Recreate(m_window.GetWidth(), m_window.GetHeight())) { return false; }
             m_RTSystem->CreateRenderTarget2D(m_window.GetWidth(), m_window.GetHeight(), VK_FORMAT_R16G16B16A16_SFLOAT, RenderTargetSystem::HDR_BUFFER);
             m_RTSystem->CreateDepthTarget2D(m_window.GetWidth(), m_window.GetHeight(), m_context.device->FindSupportedDepthFormat(), RenderTargetSystem::SWAPCHAIN_DEPTH);

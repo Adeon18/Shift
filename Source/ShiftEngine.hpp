@@ -38,7 +38,7 @@ namespace shift {
 
         std::unique_ptr<ShiftWindow> m_window;
 
-        ctrl::FlyingCameraController m_controller;
+        std::shared_ptr<ctrl::FlyingCameraController> m_controller;
         tool::FPSTimer m_timer;
     };
 } // shift

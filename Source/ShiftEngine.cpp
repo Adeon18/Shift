@@ -12,10 +12,12 @@ namespace shift {
 
         m_window = std::make_unique<shift::ShiftWindow>(width, height, "Shift");
 
+        const glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
+        std::pair<uint32_t, uint32_t> sizes{m_window->GetWidth(), m_window->GetHeight()};
+        m_controller = std::make_shared<ctrl::FlyingCameraController>(80.0f, sizes, pos);
+
         m_renderer = std::make_unique<gfx::Renderer>(*m_window, m_controller);
         if (!m_renderer->Init()) { return false;}
-
-        m_controller = ctrl::FlyingCameraController{80.0f, {m_window->GetWidth(), m_window->GetHeight()}, glm::vec3(0.0f, 0.0f, 0.0f)};
 
         return true;
     }
@@ -30,7 +32,7 @@ namespace shift {
                 m_window->Process();
 
                 HandleInput();
-                m_controller.CaptureInputAndApply(m_timer.GetDt());
+                m_controller->CaptureInputAndApply(m_timer.GetDt());
 
                 FillEngineData();
                 if (!m_renderer->RenderFrame(m_engineData)) {
@@ -50,12 +52,12 @@ namespace shift {
     }
 
     void ShiftEngine::FillEngineData() {
-        m_engineData.viewMatrix = m_controller.GetCamera().GetViewMatrix();
-        m_engineData.projMatrix = m_controller.GetCamera().GetProjectionMatrix();
-        m_engineData.camDirection = m_controller.GetDirection();
-        m_engineData.camPosition = m_controller.GetPosition();
-        m_engineData.camRight = m_controller.GetRightDir();
-        m_engineData.camUp = m_controller.GetUpDir();
+        m_engineData.viewMatrix = m_controller->GetCamera().GetViewMatrix();
+        m_engineData.projMatrix = m_controller->GetCamera().GetProjectionMatrix();
+        m_engineData.camDirection = m_controller->GetDirection();
+        m_engineData.camPosition = m_controller->GetPosition();
+        m_engineData.camRight = m_controller->GetRightDir();
+        m_engineData.camUp = m_controller->GetUpDir();
 
         m_engineData.winWidth = m_window->GetWidth();
         m_engineData.winHeight = m_window->GetHeight();
@@ -73,14 +75,10 @@ namespace shift {
             spdlog::debug("Shift FPS: {}", showFPS.second);
         }
 
-        if (inp::Keyboard::GetInstance().IsJustPressed(GLFW_KEY_ESCAPE)) {
-            spdlog::info("Cursor focus off");
-            m_window->SetCaptureCursor(false);
-        }
-
-        if (inp::Keyboard::GetInstance().IsJustPressed(GLFW_KEY_F)) {
-            spdlog::info("Cursor focus on");
+        if (inp::Mouse::GetInstance().isRightButtonPressed()) {
             m_window->SetCaptureCursor(true);
+        } else {
+            m_window->SetCaptureCursor(false);
         }
     }
 } // shift

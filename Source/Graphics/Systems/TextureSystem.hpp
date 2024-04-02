@@ -16,14 +16,13 @@
 
 namespace shift::gfx {
     class TextureSystem {
-        class UI: public ui::UIToolComponent {
+        class UI: public ui::UIWindowComponent {
         public:
             static constexpr uint32_t DEFAULT_UI_TEX_SIZE = 256;
-            explicit UI(std::string name, TextureSystem& system): ui::UIToolComponent(std::move(name)), m_system{system} {
-                ui::UIManager::GetInstance().RegisterToolComponent(this);
-            }
+            explicit UI(std::string name, std::string sName, TextureSystem& system): ui::UIWindowComponent{std::move(name), std::move(sName)}, m_system{system} {}
 
-            virtual void Item() override { ui::UIToolComponent::Item(); }
+
+            virtual void Item() override { ui::UIWindowComponent::Item(); }
             virtual void Show(uint32_t currentFrame) override;
 
             std::unordered_map<SGUID, SGUID> textureIdToDescriptorIdLUT;
@@ -61,7 +60,7 @@ namespace shift::gfx {
         void GenerateMipsAndTransferToReadState(SGUID textureId);
 
         //! UI component
-        UI m_UI{"Texture System", *this};
+        UI m_UI{"Texture System", "Tools", *this};
 
         const Device& m_device;
         const SamplerManager& m_samplerManager;

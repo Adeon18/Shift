@@ -13,10 +13,9 @@
 #include "imgui/imgui_internal.h"
 
 namespace shift::gfx::ui {
-    class UIToolComponent {
+    class UIWindowComponent {
     public:
-        explicit UIToolComponent(std::string winName): m_name{std::move(winName)} {}
-
+        explicit UIWindowComponent(std::string winName, std::string menuSectionName);
         virtual void Item() = 0
         {
             ImGui::MenuItem(m_name.c_str(), NULL, &m_shown);
@@ -26,32 +25,8 @@ namespace shift::gfx::ui {
 
     protected:
         std::string m_name;
+        std::string m_sectionName;
         bool m_shown = false;
-    };
-
-    class WLightManager {
-    public:
-        WLightManager(const WLightManager&) = delete;
-        WLightManager& operator=(const WLightManager&) = delete;
-
-        static WLightManager& GetInstance() {
-            static WLightManager u;
-            return u;
-        }
-
-        void Item() {
-            ImGui::MenuItem("ASS", NULL, &m_isOpen);
-        }
-
-        void Show() {
-
-        }
-    private:
-        WLightManager() {}
-
-
-
-        bool m_isOpen;
     };
 }
 

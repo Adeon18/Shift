@@ -1,6 +1,8 @@
 #ifndef SHIFT_UIMANAGER_HPP
 #define SHIFT_UIMANAGER_HPP
 
+#include <unordered_map>
+
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
 #include "imgui/imgui_impl_glfw.h"
@@ -44,14 +46,14 @@ namespace shift::gfx::ui {
 
         void EndFrame(const CommandBuffer& buffer);
 
-        void RegisterToolComponent(UIToolComponent* componentPtr);
+        void RegisterToolComponent(UIWindowComponent* componentPtr, const std::string& sectionName);
 
         //! Destroy imgui context
         void Destroy();
     private:
         UIManager() = default;
 
-        std::vector<UIToolComponent*> m_toolComponents;
+        std::unordered_map<std::string, std::vector<UIWindowComponent*>> m_toolComponents;
     };
 } // shift::gfx::ui
 

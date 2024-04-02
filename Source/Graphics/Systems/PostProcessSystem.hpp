@@ -26,13 +26,11 @@ namespace shift::gfx {
     };
 
     class PostProcessSystem {
-        class UI: public ui::UIToolComponent {
+        class UI: public ui::UIWindowComponent {
         public:
-            explicit UI(std::string name, PostProcessSystem& system): ui::UIToolComponent(std::move(name)), m_system{system} {
-                ui::UIManager::GetInstance().RegisterToolComponent(this);
-            }
+            explicit UI(std::string name, std::string sName, PostProcessSystem& system): ui::UIWindowComponent{std::move(name), std::move(sName)}, m_system{system} {}
 
-            virtual void Item() override { ui::UIToolComponent::Item(); }
+            virtual void Item() override { ui::UIWindowComponent::Item(); }
             virtual void Show(uint32_t currentFrame) override;
 
             //! Reinhard by default
@@ -78,7 +76,7 @@ namespace shift::gfx {
         };
 
         //! UI
-        UI m_UI{"Post Process System", *this};
+        UI m_UI{"Post Process System", "Tools", *this};
 
         //! Create all the render stages
         void CreateRenderStages();

@@ -16,13 +16,11 @@
 namespace shift::gfx {
     //! A system that manages lights, addition, deletion, updates
     class LightSystem {
-        class UI: public ui::UIToolComponent {
+        class UI: public ui::UIWindowComponent {
         public:
-            explicit UI(std::string name, LightSystem& system): ui::UIToolComponent(std::move(name)), m_system{system} {
-                ui::UIManager::GetInstance().RegisterToolComponent(this);
-            }
+            explicit UI(std::string name, std::string sName, LightSystem& system): ui::UIWindowComponent{std::move(name), std::move(sName)}, m_system{system} {}
 
-            virtual void Item() override { ui::UIToolComponent::Item(); }
+            virtual void Item() override { ui::UIWindowComponent::Item(); }
             virtual void Show(uint32_t currentFrame) override;
         private:
             LightSystem& m_system;
@@ -54,7 +52,7 @@ namespace shift::gfx {
         LightSystem(const LightSystem&) = delete;
         LightSystem& operator=(const LightSystem&) = delete;
     private:
-        UI m_UI{"Light System", *this};
+        UI m_UI{"Light System", "Tools", *this};
 
         template<typename T>
         struct LightEntry {

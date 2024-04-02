@@ -44,6 +44,11 @@ namespace shift {
             mouse.SetPos(xpos, ypos);
         }
 
+        static void MouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
+            inp::Mouse &mouse = inp::Mouse::GetInstance();
+            mouse.SetScrollData(xoffset, yoffset);
+        }
+
         void SetCaptureCursor(bool capture) {
             glfwSetInputMode(m_window, GLFW_CURSOR,
                              capture ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);

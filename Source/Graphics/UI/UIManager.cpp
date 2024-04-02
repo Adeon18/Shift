@@ -56,22 +56,28 @@ namespace shift::gfx::ui {
         ImGui::NewFrame();
         ImGuiWindowFlags window_flags = 0;
         window_flags |= ImGuiWindowFlags_MenuBar;
-        window_flags |= ImGuiWindowFlags_NoMove;
-        ImGui::Begin("Dear ImGui Demo", NULL, window_flags);
+        ImGui::Begin("Shift - A Rendering Engine", NULL, window_flags);
 
-        if (ImGui::BeginMenuBar())
-        {
-            if (ImGui::BeginMenu("Tools")) {
-                for (auto toolCompPtr: m_toolComponents) {
-                    toolCompPtr->Item();
+        uint32_t id = 0;
+        for (auto& [sectionName, component]: m_toolComponents) {
+            ImGui::PushID(id++);
+            if (ImGui::BeginMenuBar())
+            {
+                if (ImGui::BeginMenu(sectionName.c_str())) {
+                    for (auto toolCompPtr: component) {
+                        toolCompPtr->Item();
+                    }
+                    ImGui::EndMenu();
                 }
-                ImGui::EndMenu();
+
+                ImGui::EndMenuBar();
             }
 
-            ImGui::EndMenuBar();
-        }
-        for (auto toolCompPtr: m_toolComponents) {
-            toolCompPtr->Show(currentFrame);
+            for (auto toolCompPtr: component) {
+                toolCompPtr->Show(currentFrame);
+            }
+
+            ImGui::PopID();
         }
     }
 
@@ -81,7 +87,7 @@ namespace shift::gfx::ui {
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), buffer.Get(), VK_NULL_HANDLE);
     }
 
-    void UIManager::RegisterToolComponent(UIToolComponent* componentPtr) {
-        m_toolComponents.push_back(componentPtr);
+    void UIManager::RegisterToolComponent(UIWindowComponent* componentPtr, const std::string& sectionName) {
+        m_toolComponents[sectionName].push_back(componentPtr);
     }
 }

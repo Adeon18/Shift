@@ -19,15 +19,13 @@
 
 namespace shift::gfx {
     class RenderTargetSystem {
-        class UI: public ui::UIToolComponent {
+        class UI: public ui::UIWindowComponent {
         public:
             static constexpr uint32_t DEFAULT_UI_TEX_SIZE = 256;
 
-            explicit UI(std::string name, RenderTargetSystem& system): ui::UIToolComponent(std::move(name)), m_system{system} {
-                ui::UIManager::GetInstance().RegisterToolComponent(this);
-            }
+            explicit UI(std::string name, std::string sName, RenderTargetSystem& system): ui::UIWindowComponent{std::move(name), std::move(sName)}, m_system{system} {}
 
-            virtual void Item() override { ui::UIToolComponent::Item(); }
+            virtual void Item() override { ui::UIWindowComponent::Item(); }
             virtual void Show(uint32_t currentFrame) override;
 
             std::unordered_map<SGUID, SGUID> textureIdToDescriptorIdLUT;
@@ -65,7 +63,7 @@ namespace shift::gfx {
         RenderTargetSystem& operator=(const RenderTargetSystem&) = delete;
     private:
         //! UI component
-        UI m_UI{"Render Target System", *this};
+        UI m_UI{"Render Target System", "Tools", *this};
 
         const Device& m_device;
         const SamplerManager& m_samplerManager;

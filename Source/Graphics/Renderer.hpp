@@ -52,7 +52,9 @@ namespace shift::gfx {
     class Renderer {
 
     public:
-        Renderer(ShiftWindow& window, ctrl::FlyingCameraController& controller): m_window{window}, m_controller{controller} {}
+        Renderer(ShiftWindow& window, std::shared_ptr<ctrl::FlyingCameraController> controller): m_window{window}, m_controller(controller) {
+
+        }
 
         //! Init the renderer and all child elements
         bool Init();
@@ -75,7 +77,7 @@ namespace shift::gfx {
         void UpdateBuffers(const EngineData& engineData);
 
         ShiftWindow& m_window;
-        ctrl::FlyingCameraController& m_controller;
+        std::shared_ptr<ctrl::FlyingCameraController> m_controller;
 
         ShiftBackBuffer m_backBuffer;
         ShiftContext m_context;

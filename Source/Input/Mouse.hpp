@@ -24,12 +24,21 @@ namespace shift::inp {
         void UpdatePos() {
             m_prevXpos = m_xpos;
             m_prevYpos = m_ypos;
+
+            m_xOffset = 0;
+            m_yOffset = 0;
+        }
+
+        void SetScrollData(double xOffset, double yOffset) {
+            m_xOffset = xOffset;
+            m_yOffset = yOffset;
         }
 
         double GetXpos() { return m_xpos; }
         double GetYpos() { return m_ypos; }
         double GetXMovement() { return m_xpos - m_prevXpos; }
         double GetYMovement() { return m_ypos - m_prevYpos; }
+        double GetYScroll() { return m_yOffset; }
         std::pair<double, double> GetMovement() {
             return {GetXMovement(), GetYMovement()};
         }
@@ -64,6 +73,8 @@ namespace shift::inp {
 
         double m_xpos, m_ypos;
         double m_prevXpos, m_prevYpos;
+        double m_xOffset = 0.0f;
+        double m_yOffset = 0.0f;
     };
 } // shift::inp
 

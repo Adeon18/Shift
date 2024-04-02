@@ -13,10 +13,23 @@
 #include "Input/Mouse.hpp"
 #include "Graphics/Camera/EulerCamera.hpp"
 
+#include "Graphics/UI/UIWindowComponent.hpp"
+
 namespace shift::ctrl {
     class FlyingCameraController {
+        class UI: public gfx::ui::UIWindowComponent {
+        public:
+            explicit UI(std::string name, std::string sName, FlyingCameraController& system): gfx::ui::UIWindowComponent{std::move(name), std::move(sName)}, m_controller{system} {
+            }
+
+            virtual void Item() override { gfx::ui::UIWindowComponent::Item(); }
+            virtual void Show(uint32_t currentFrame) override;
+
+        private:
+            FlyingCameraController& m_controller;
+        };
+
         static constexpr float ROTATION_SPEED = 1.0f;
-        static constexpr float MOVEMENT_SPEED = 3.0f;
 
         inline static std::unordered_map<int, glm::vec3> MOVEMENT_BIND_MAP{
                 {GLFW_KEY_A, {-1.0f, 0.0f, 0.0f}},
@@ -59,8 +72,13 @@ namespace shift::ctrl {
         gfx::EulerCamera &GetCamera() { return m_camera; }
 
     private:
+        UI m_UI{"Camera Settings", "Settings", *this};
         gfx::EulerCamera m_camera;
 
+        float m_movementSpeed = 3.0f;
+        float m_movementSpeedChange = 0.25f;
+        float m_movementSpeedMin = 0.1f;
+        float m_movementSpeedMax = 20.0f;
     private:
         //! Handle Camera rotation
         void HandleRotation(float dt);
