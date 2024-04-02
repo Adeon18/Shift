@@ -18,6 +18,7 @@ namespace shift::gfx {
     class TextureSystem {
         class UI: public ui::UIToolComponent {
         public:
+            static constexpr uint32_t DEFAULT_UI_TEX_SIZE = 256;
             explicit UI(std::string name, TextureSystem& system): ui::UIToolComponent(std::move(name)), m_system{system} {
                 ui::UIManager::GetInstance().RegisterToolComponent(this);
             }
@@ -26,6 +27,7 @@ namespace shift::gfx {
             virtual void Show(uint32_t currentFrame) override;
 
             std::unordered_map<SGUID, SGUID> textureIdToDescriptorIdLUT;
+            std::unordered_map<SGUID, float> textureUIScales;
         private:
             TextureSystem& m_system;
         };

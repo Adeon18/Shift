@@ -35,12 +35,14 @@ namespace shift::gfx {
         } else {
             m_UI.textureIdToDescriptorIdLUT[id] = m_UI.textureIdToDescriptorIdLUT[prevId];
         }
+        m_UI.textureUIScales[id] = 1.0f;
         auto& texSet = m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, m_UI.textureIdToDescriptorIdLUT[id]);
         texSet.UpdateImage(0, m_renderTargets[id]->GetView(), m_samplerManager.GetLinearSampler());
         texSet.ProcessUpdates();
 
         // Erase old id
         m_UI.textureIdToDescriptorIdLUT.erase(prevId);
+        m_UI.textureUIScales.erase(prevId);
 
         return id;
     }
@@ -67,12 +69,14 @@ namespace shift::gfx {
         } else {
             m_UI.textureIdToDescriptorIdLUT[id] = m_UI.textureIdToDescriptorIdLUT[prevId];
         }
+        m_UI.textureUIScales[id] = 1.0f;
         auto& texSet = m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, m_UI.textureIdToDescriptorIdLUT[id]);
         texSet.UpdateImage(0, m_depthTargets[id]->GetView(), m_samplerManager.GetLinearSampler());
         texSet.ProcessUpdates();
 
         // Erase old id
         m_UI.textureIdToDescriptorIdLUT.erase(prevId);
+        m_UI.textureUIScales.erase(prevId);
 
         return id;
     }
@@ -125,11 +129,14 @@ namespace shift::gfx {
                     glm::ivec2 texSize = {m_system.m_renderTargets[id]->GetWidth(), m_system.m_renderTargets[id]->GetHeight()};
                     float ratio = static_cast<float>(texSize.x) / static_cast<float>(texSize.y);
 
+                    float &texViewScale = textureUIScales[id];
+                    ImGui::DragFloat("UI Texture Scale", &texViewScale, 0.05f, 0.05f, 16.0f);
+
                     auto set = m_system.m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, textureIdToDescriptorIdLUT[id]).Get();
 
                     ImGui::Image(
                             set,
-                            ImVec2(256 * ratio, 256),
+                            ImVec2(DEFAULT_UI_TEX_SIZE * ratio * texViewScale, DEFAULT_UI_TEX_SIZE * texViewScale),
                             ImVec2(0, 0),
                             ImVec2(1, 1),
                             ImVec4(1, 1, 1, 1),
@@ -163,9 +170,12 @@ namespace shift::gfx {
 
                     auto set = m_system.m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, textureIdToDescriptorIdLUT[id]).Get();
 
+                    float &texViewScale = textureUIScales[id];
+                    ImGui::DragFloat("UI Texture Scale", &texViewScale, 0.05f, 0.05f, 16.0f);
+
                     ImGui::Image(
                             set,
-                            ImVec2(256 * ratio, 256),
+                            ImVec2(DEFAULT_UI_TEX_SIZE * ratio * texViewScale, DEFAULT_UI_TEX_SIZE * texViewScale),
                             ImVec2(0, 0),
                             ImVec2(1, 1),
                             ImVec4(1, 1, 1, 1),

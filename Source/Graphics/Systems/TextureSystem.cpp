@@ -49,6 +49,7 @@ namespace shift::gfx {
         m_textures[imageGUID] = std::make_unique<shift::gfx::Texture2D>(m_device, texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, mipLevels);
 
         m_UI.textureIdToDescriptorIdLUT[imageGUID] = m_descriptorManager.AllocateImGuiSet(ImGuiSetLayoutType::TEXTURE);
+        m_UI.textureUIScales[imageGUID] = 1.0f;
         auto& texSet = m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, m_UI.textureIdToDescriptorIdLUT[imageGUID]);
         texSet.UpdateImage(0, m_textures[imageGUID]->GetView(), m_samplerManager.GetLinearSampler());
         texSet.ProcessUpdates();
@@ -104,6 +105,7 @@ namespace shift::gfx {
 
         // UI
         m_UI.textureIdToDescriptorIdLUT[imageGUID] = m_descriptorManager.AllocateImGuiSet(ImGuiSetLayoutType::TEXTURE);
+        m_UI.textureUIScales[imageGUID] = 1.0f;
         auto& texSet = m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, m_UI.textureIdToDescriptorIdLUT[imageGUID]);
         texSet.UpdateImage(0, m_textures[imageGUID]->GetView(), m_samplerManager.GetLinearSampler());
         texSet.ProcessUpdates();
@@ -247,14 +249,18 @@ namespace shift::gfx {
 
                 if (ImGui::CollapsingHeader(std::string{name + "##" + std::to_string(id)}.c_str())) {
                     glm::ivec2 texSize = {m_system.m_textures[id]->GetWidth(), m_system.m_textures[id]->GetHeight()};
+                    float ratio = static_cast<float>(texSize.x) / static_cast<float>(texSize.y);
 
                     auto set = m_system.m_descriptorManager.GetImGuiSet(ImGuiSetLayoutType::TEXTURE, textureIdToDescriptorIdLUT[id]).Get();
 
                     //ImVec2 texSizeIm = ImVec2{static_cast<float>((winSize.x - 256) * 0.5f), static_cast<float>((winSize.y - 256) * 0.5f)};
                     //ImGui::SetCursorPos(texSizeIm);
+                    float &texViewScale = textureUIScales[id];
+                    ImGui::DragFloat("UI Texture Scale", &texViewScale, 0.05f, 0.05f, 16.0f);
+
                     ImGui::Image(
                             set,
-                            ImVec2(256, 256),
+                            ImVec2(DEFAULT_UI_TEX_SIZE * ratio * texViewScale, DEFAULT_UI_TEX_SIZE * texViewScale),
                             ImVec2(0, 0),
                             ImVec2(1, 1),
                             ImVec4(1, 1, 1, 1),
