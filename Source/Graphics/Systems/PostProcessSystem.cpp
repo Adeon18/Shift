@@ -66,7 +66,7 @@ namespace shift::gfx {
     void PostProcessSystem::ToneMap(const CommandBuffer &buffer, uint32_t currentImage, uint32_t currentFrame) {
         auto& buff = m_bufManager.GetUBO(m_postProcessSetGuid, currentFrame);
         m_UBO.data.y = (m_UI.exposureEnabled) ? 1.0f: 0.0f;
-        m_UBO.data.z = (m_UI.gammaEnabled) ? 1.0f: 0.0f;
+//        m_UBO.data.z = (m_UI.gammaEnabled) ? 1.0f: 0.0f;
         buff.Fill(&m_UBO, sizeof(m_UBO));
 
         auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_backBufferData.swapchain->GetImageViews()[currentImage]);
@@ -106,8 +106,8 @@ namespace shift::gfx {
             ImGui::Checkbox("Enable Exposure", &exposureEnabled);
             ImGui::SliderFloat("EV100", &m_system.m_UBO.data.x, -5.0f, 5.0f);
 
-            ImGui::SeparatorText("Gamma Correction");
-            ImGui::Checkbox("Enable", &gammaEnabled);
+//            ImGui::SeparatorText("Gamma Correction");
+//            ImGui::Checkbox("Enable", &gammaEnabled);
 
             ImGui::SeparatorText("Tone Mapping");
             // From ImGui Demo; line 1281

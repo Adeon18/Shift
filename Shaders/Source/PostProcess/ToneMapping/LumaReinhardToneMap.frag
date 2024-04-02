@@ -9,7 +9,5 @@ void main() {
     HDR = AdjustExposure(HDR, UBO.data.x, UBO.data.y);
     vec3 LDR = LumaBasedReinhardToneMapping(HDR);
 
-    LDR = GammaCorrect(LDR, GAMMA, UBO.data.z);
-
     outColor = vec4(LDR, 1.0);
 }
