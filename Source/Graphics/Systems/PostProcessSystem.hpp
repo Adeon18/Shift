@@ -9,7 +9,7 @@
 
 #include "Graphics/Abstraction/Device/Device.hpp"
 #include "Graphics/Systems/TextureSystem.hpp"
-#include "Graphics/Systems/ModelManager.hpp"
+#include "Graphics/Systems/ModelSystem.hpp"
 #include "Graphics/Systems/RenderTargetSystem.hpp"
 #include "Graphics/Abstraction/Descriptors/BufferManager.hpp"
 #include "Graphics/ShiftContextData.hpp"

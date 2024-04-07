@@ -32,8 +32,8 @@ namespace shift::gfx {
         m_descriptorManager = std::make_unique<DescriptorManager>(*m_context.device);
         if (!m_descriptorManager->AllocatePools()) {return false;}
         m_textureSystem = std::make_unique<TextureSystem>(*m_context.device, *m_samplerManager, *m_context.graphicsPool, *m_context.transferPool, *m_descriptorManager);
-        m_modelManager = std::make_unique<ModelManager>(*m_context.device, *m_context.transferPool, *m_textureSystem);
-        auto sphere = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/Sphere/sphere.glb");
+        m_modelSystem = std::make_unique<ModelSystem>(*m_context.device, *m_context.transferPool, *m_textureSystem);
+        auto sphere = m_modelSystem->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/Sphere/sphere.glb");
 
         /// Must be created before meshsystem
         CreateDescriptors();
@@ -42,7 +42,7 @@ namespace shift::gfx {
         m_RTSystem = std::make_unique<RenderTargetSystem>(*m_context.device, *m_samplerManager, *m_descriptorManager);
         m_RTSystem->CreateRenderTarget2D(m_window.GetWidth(), m_window.GetHeight(), VK_FORMAT_R16G16B16A16_SFLOAT, RenderTargetSystem::HDR_BUFFER);
         m_RTSystem->CreateDepthTarget2D(m_window.GetWidth(), m_window.GetHeight(), m_context.device->FindSupportedDepthFormat(), RenderTargetSystem::SWAPCHAIN_DEPTH);
-        m_meshSystem = std::make_unique<MeshSystem>(*m_context.device, m_backBuffer, *m_samplerManager, *m_textureSystem, *m_modelManager, *m_bufferManager, *m_descriptorManager, *m_RTSystem, m_perViewIDs);
+        m_meshSystem = std::make_unique<MeshSystem>(*m_context.device, m_backBuffer, *m_samplerManager, *m_textureSystem, *m_modelSystem, *m_bufferManager, *m_descriptorManager, *m_RTSystem, m_perViewIDs);
         m_postProcessSystem = std::make_unique<PostProcessSystem>(*m_context.device, m_backBuffer, *m_samplerManager, *m_descriptorManager, *m_bufferManager, *m_RTSystem);
         m_lightSystem = std::make_unique<LightSystem>(*m_descriptorManager, *m_bufferManager, *m_meshSystem, sphere);
 
@@ -56,7 +56,7 @@ namespace shift::gfx {
 //        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/SimpleAmogusPink/scene.gltf");
 //        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../Sponza-master/Sponza-master/sponza.obj");
 //        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../sponza/scene.gltf");
-        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../human_skull/scene.gltf");
+        auto amogus2 = m_modelSystem->LoadModel(shift::util::GetShiftRoot() + "../human_skull/scene.gltf");
 
 //        for (int i = -16; i < 16; ++i) {
 //            for (int j = -16; j < 16; ++j) {
@@ -141,7 +141,7 @@ namespace shift::gfx {
         m_samplerManager.reset();
         m_textureSystem.reset();
         m_RTSystem.reset();
-        m_modelManager.reset();
+        m_modelSystem.reset();
         m_bufferManager.reset();
 
         for (size_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {

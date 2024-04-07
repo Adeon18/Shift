@@ -11,7 +11,7 @@
 
 #include "Graphics/Abstraction/Device/Device.hpp"
 #include "Graphics/Systems/TextureSystem.hpp"
-#include "Graphics/Systems/ModelManager.hpp"
+#include "Graphics/Systems/ModelSystem.hpp"
 #include "Graphics/Systems/RenderTargetSystem.hpp"
 #include "Graphics/Abstraction/Descriptors/BufferManager.hpp"
 #include "Graphics/ShiftContextData.hpp"
@@ -50,7 +50,7 @@ namespace shift::gfx {
                 const ShiftBackBuffer& backBufferData,
                 const SamplerManager& samplerManager,
                 TextureSystem& textureSystem,
-                ModelManager& modelManager,
+                ModelSystem& modelManager,
                 BufferManager& bufferManager,
                 DescriptorManager &descManager,
                 RenderTargetSystem& RTSystem,
@@ -100,7 +100,7 @@ namespace shift::gfx {
         const ShiftBackBuffer& m_backBufferData;
         const SamplerManager& m_samplerManager;
         TextureSystem& m_textureSystem;
-        ModelManager& m_modelManager;
+        ModelSystem& m_modelManager;
         DescriptorManager& m_descriptorManager;
         BufferManager& m_bufferManager;
         RenderTargetSystem& m_RTSystem;

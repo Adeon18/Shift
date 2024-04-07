@@ -18,7 +18,7 @@
 #include "Graphics/Abstraction/Descriptors/BufferManager.hpp"
 #include "Graphics/Abstraction/Images/SamplerManager.hpp"
 #include "Graphics/Systems/TextureSystem.hpp"
-#include "Graphics/Systems/ModelManager.hpp"
+#include "Graphics/Systems/ModelSystem.hpp"
 #include "Graphics/Systems/RenderStage.hpp"
 #include "Graphics/Systems/MeshSystem.hpp"
 #include "Graphics/Systems/LightSystem.hpp"
@@ -82,12 +82,12 @@ namespace shift::gfx {
         ShiftBackBuffer m_backBuffer;
         ShiftContext m_context;
 
-        std::unique_ptr<TextureSystem> m_textureSystem;
-        std::unique_ptr<ModelManager> m_modelManager;
+        std::unique_ptr<ModelSystem> m_modelSystem;
         std::unique_ptr<DescriptorManager> m_descriptorManager;
         std::unique_ptr<BufferManager> m_bufferManager;
         std::unique_ptr<SamplerManager> m_samplerManager;
 
+        std::unique_ptr<TextureSystem> m_textureSystem;
         std::unique_ptr<MeshSystem> m_meshSystem;
         std::unique_ptr<PostProcessSystem> m_postProcessSystem;
         std::unique_ptr<LightSystem> m_lightSystem;

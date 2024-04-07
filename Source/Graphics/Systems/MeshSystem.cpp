@@ -21,7 +21,7 @@ namespace shift::gfx {
                            const ShiftBackBuffer &backBufferData,
                            const SamplerManager& samplerManager,
                            TextureSystem &textureSystem,
-                           ModelManager &modelManager,
+                           ModelSystem &modelManager,
                            BufferManager &bufferManager,
                            DescriptorManager &descManager,
                            RenderTargetSystem& RTSystem,
