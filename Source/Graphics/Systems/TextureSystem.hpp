@@ -49,6 +49,7 @@ namespace shift::gfx {
         [[nodiscard]] TextureBase* GetDefaultRedTexture() { return GetTexture("RED"); }
         [[nodiscard]] TextureBase* GetDefaultGreenTexture() { return GetTexture("GREEN"); }
         [[nodiscard]] TextureBase* GetDefaultBlueTexture() { return GetTexture("BLUE"); }
+        [[nodiscard]] TextureBase* GetDefaultOpaqueTexture() { return GetTexture("BLACK_OPAQUE"); }
     private:
         //! Create default 1x1 color textures
         void CreateDefaultTextures();

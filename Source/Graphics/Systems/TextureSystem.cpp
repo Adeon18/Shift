@@ -91,6 +91,7 @@ namespace shift::gfx {
         CreateDefaultColorTexture({0, 255, 0, 255},     "GREEN");
         CreateDefaultColorTexture({0, 0, 255, 255},     "BLUE");
         CreateDefaultColorTexture({128, 128, 128, 128}, "GRAY");
+        CreateDefaultColorTexture({128, 128, 128, 0},   "BLACK_OPAQUE");
     }
 
     SGUID TextureSystem::CreateDefaultColorTexture(const std::array<uint8_t, 4>& color, std::string name) {

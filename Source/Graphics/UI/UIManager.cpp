@@ -56,7 +56,23 @@ namespace shift::gfx::ui {
         ImGui::NewFrame();
         ImGuiWindowFlags window_flags = 0;
         window_flags |= ImGuiWindowFlags_MenuBar;
-        ImGui::Begin("Shift - A Rendering Engine", NULL, window_flags);
+        ImGui::Begin("Shift - A Rendering Sandbox", NULL, window_flags);
+
+        ImGui::Text("Welcome to"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0.81f, 0.62f, 1.0f, 1.0f), "Shift!");
+
+        ImGui::Text("Shift is a rendering sandbox for computer graphics research.");
+        ImGui::Text("To move and rotate the camera, press RBM (Right Mouse Button) anywhere on the screen, then:");
+        ImGui::Text("\t> 'W' - Forwards");
+        ImGui::Text("\t> 'S' - Backwards");
+        ImGui::Text("\t> 'A' - Left");
+        ImGui::Text("\t> 'D' - Right");
+        ImGui::Text("\t> 'E' - Up");
+        ImGui::Text("\t> 'Q' - Down");
+        ImGui::Text("> Move the mouse to rotate the camera");
+        ImGui::Text("> Mouse wheel to increase/decrease camera speed");
+        ImGui::Text("> For more camera settings go to > Settings > Camera Settings");
+        ImGui::Spacing();
+        ImGui::Text("> To Open Shift's Tools go to > Tools > ...");
 
         uint32_t id = 0;
         for (auto& [sectionName, component]: m_toolComponents) {

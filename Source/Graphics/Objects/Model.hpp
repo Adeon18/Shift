@@ -12,10 +12,10 @@ namespace shift::gfx {
     public:
         struct MeshRange
         {
-            uint32_t vertexOffset; // offset in vertices
-            uint32_t indexOffset; // offset in indices
-            uint32_t vertexNum; // num of vertices
-            uint32_t indexNum; // num of indices
+            uint32_t vertexOffset;  // offset in vertices
+            uint32_t indexOffset;   // offset in indices
+            uint32_t vertexNum;     // num of vertices
+            uint32_t indexNum;      // num of indices
         };
 
         [[nodiscard]] std::vector<Mesh>& GetMeshes() { return m_meshes; }

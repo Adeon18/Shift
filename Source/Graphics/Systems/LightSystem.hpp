@@ -5,7 +5,7 @@
 #ifndef SHIFT_LIGHTSYSTEM_HPP
 #define SHIFT_LIGHTSYSTEM_HPP
 
-#include "MeshSystem.hpp"
+#include "GeometrySystem.hpp"
 
 #include "Graphics/Objects/LightTypes.hpp"
 #include "Graphics/Abstraction/Descriptors/UBOStructs.hpp"
@@ -27,7 +27,7 @@ namespace shift::gfx {
         };
     public:
         // TODO: remake the model vis based on name
-        LightSystem(DescriptorManager& dMan, BufferManager& bMan, MeshSystem& mSys, SGUID pointLightModel): m_descriptorManager{dMan}, m_bufferManager{bMan}, m_meshSystem{mSys}, m_pointLightModel{pointLightModel} {
+        LightSystem(DescriptorManager& dMan, BufferManager& bMan, GeometrySystem& mSys, SGUID pointLightModel): m_descriptorManager{dMan}, m_bufferManager{bMan}, m_meshSystem{mSys}, m_pointLightModel{pointLightModel} {
             m_lightBuffer.lightCounts = glm::ivec2(0, 0);
             m_lightBufferId = GUIDGenerator::GetInstance().Guid();
             VkDeviceSize size = sizeof(LightsPerFrame);
@@ -64,7 +64,7 @@ namespace shift::gfx {
 
         DescriptorManager& m_descriptorManager;
         BufferManager& m_bufferManager;
-        MeshSystem& m_meshSystem;
+        GeometrySystem& m_meshSystem;
 
         std::vector<LightEntry<DirectionalLight>> m_directinalLights;
         std::vector<LightEntry<PointLight>> m_pointLights;

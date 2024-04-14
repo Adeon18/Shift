@@ -28,9 +28,9 @@ void main() {
     //micNorm = outWorldNorm;
     vec3 MetRough = ToLinear(texture(TexMetallicRoughness, fragTexCoord).rgb);
 
-    float metallic = clamp(MetRough.b, 0.01f, 0.99f);
-    float roughness = clamp(MetRough.g, 0.01f, 0.99f);
-    float occlusion = MetRough.r;
+    float metallic = clamp(MetRough.b, 0.05f, 0.99f);
+    float roughness = clamp(MetRough.g, 0.05f, 0.99f);
+    float occlusion = clamp(MetRough.r, 0.03f, 1.0f);
     //roughness *= roughness;
     //metallic *= metallic;
 

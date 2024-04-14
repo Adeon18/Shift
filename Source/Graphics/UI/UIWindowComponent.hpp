@@ -16,10 +16,7 @@ namespace shift::gfx::ui {
     class UIWindowComponent {
     public:
         explicit UIWindowComponent(std::string winName, std::string menuSectionName);
-        virtual void Item() = 0
-        {
-            ImGui::MenuItem(m_name.c_str(), NULL, &m_shown);
-        }
+        virtual void Item() = 0;
 
         virtual void Show(uint32_t currentFrame) = 0;
 

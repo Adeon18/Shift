@@ -2,7 +2,7 @@
 // Created by otrush on 3/3/2024.
 //
 
-#include "MeshSystem.hpp"
+#include "GeometrySystem.hpp"
 #include "Graphics/UI/UIManager.hpp"
 
 namespace shift::gfx {
@@ -17,15 +17,15 @@ namespace shift::gfx {
         }
     }
 
-    MeshSystem::MeshSystem(const Device &device,
-                           const ShiftBackBuffer &backBufferData,
-                           const SamplerManager& samplerManager,
-                           TextureSystem &textureSystem,
-                           ModelSystem &modelManager,
-                           BufferManager &bufferManager,
-                           DescriptorManager &descManager,
-                           RenderTargetSystem& RTSystem,
-                           std::unordered_map<ViewSetLayoutType, SGUID>& viewIds):
+    GeometrySystem::GeometrySystem(const Device &device,
+                                   const ShiftBackBuffer &backBufferData,
+                                   const SamplerManager& samplerManager,
+                                   TextureSystem &textureSystem,
+                                   ModelSystem &modelManager,
+                                   BufferManager &bufferManager,
+                                   DescriptorManager &descManager,
+                                   RenderTargetSystem& RTSystem,
+                                   std::unordered_map<ViewSetLayoutType, SGUID>& viewIds):
                                 m_device{device},
                                 m_backBufferData{backBufferData},
                                 m_samplerManager{samplerManager},
@@ -40,25 +40,25 @@ namespace shift::gfx {
         CreateRenderStages();
     }
 
-    void MeshSystem::CreateRenderStages() {
+    void GeometrySystem::CreateRenderStages() {
         for (auto& [k, v]: RENDER_STAGE_INFOS) {
             switch (v.renderTargetType) {
                 case RenderStageCreateInfo::RT_Type::Forward:
                     if (!CreateRenderStageFromInfo(m_device, m_backBufferData, m_descriptorManager, m_RTSystem, m_renderStagesForward[k], v)) {
-                        spdlog::warn("MeshSystem failed to create Mesh Render Stage! Name: {}", v.name);
+                        spdlog::warn("GeometrySystem failed to create Mesh Render Stage! Name: {}", v.name);
                     }
                     spdlog::debug("Created forward render stage: " + v.name);
                     break;
                 case RenderStageCreateInfo::RT_Type::Gbuffer:
                     if (!CreateRenderStageFromInfo(m_device, m_backBufferData, m_descriptorManager, m_RTSystem, m_renderStagesDeferred[k], v)) {
-                        spdlog::warn("MeshSystem failed to create Mesh Render Stage! Name: {}", v.name);
+                        spdlog::warn("GeometrySystem failed to create Mesh Render Stage! Name: {}", v.name);
                     }
                     break;
             }
         }
     }
 
-    void MeshSystem::CreateDescriptorLayouts() {
+    void GeometrySystem::CreateDescriptorLayouts() {
         m_descriptorManager.CreatePerMaterialLayout(
                 MaterialSetLayoutType::TEXTURED,
                 {
@@ -85,7 +85,7 @@ namespace shift::gfx {
         );
     }
 
-    SGUID MeshSystem::AddInstance(MeshPass pass, Mobility mobility, SGUID modelID, const glm::mat4 &transformation, const glm::vec4& color) {
+    SGUID GeometrySystem::AddInstance(MeshPass pass, Mobility mobility, SGUID modelID, const glm::mat4 &transformation, const glm::vec4& color) {
         auto model = m_modelManager.GetModel(modelID);
 
         auto instanceID = GUIDGenerator::GetInstance().Guid();
@@ -94,7 +94,7 @@ namespace shift::gfx {
         for (uint32_t i = 0; i < model->GetMeshes().size(); ++i) {
             auto& mesh = model->GetMeshes()[i];
 
-            StaticInstance instance{};
+            GeometryInstance instance{};
             instance.meshId = instanceID + i;
             lastInsId = instance.meshId;
             instance.instanceID = instanceID;
@@ -166,11 +166,11 @@ namespace shift::gfx {
         }
     }
 
-    void MeshSystem::RenderAllPasses(const CommandBuffer& buffer, uint32_t currentImage, uint32_t currentFrame) {
+    void GeometrySystem::RenderAllPasses(const CommandBuffer& buffer, uint32_t currentImage, uint32_t currentFrame) {
         RenderForwardPasses(buffer, currentImage, currentFrame);
     }
 
-    void MeshSystem::RenderForwardPasses(const CommandBuffer& buffer, uint32_t currentImage, uint32_t currentFrame) {
+    void GeometrySystem::RenderForwardPasses(const CommandBuffer& buffer, uint32_t currentImage, uint32_t currentFrame) {
         // TODO: FOR NOT TO BACKBUFFER
 //        auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_backBufferData.swapchain->GetImageViews()[currentImage]);
         auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_RTSystem.GetColorRT(RenderTargetSystem::HDR_BUFFER).GetView());
@@ -196,7 +196,7 @@ namespace shift::gfx {
         buffer.EndRendering();
     }
 
-    void MeshSystem::UpdateInstances(uint32_t currentFrame) {
+    void GeometrySystem::UpdateInstances(uint32_t currentFrame) {
         for (const auto &[pass, instances]: m_dynamicInstances) {
             for (auto& [id, ins]: instances) {
                 auto& buff = m_bufferManager.GetUBO(ins.descriptorSetId, currentFrame);
@@ -205,7 +205,7 @@ namespace shift::gfx {
         }
     }
 
-    void MeshSystem::RenderMeshesFromStages(const CommandBuffer& buffer, std::unordered_map<MeshPass, RenderStage> &renderStages, uint32_t currentFrame) {
+    void GeometrySystem::RenderMeshesFromStages(const CommandBuffer& buffer, std::unordered_map<MeshPass, RenderStage> &renderStages, uint32_t currentFrame) {
         for (auto& [k, v]: renderStages) {
             if (m_staticInstances[k].empty() && m_dynamicInstances[k].empty()) continue;
 
@@ -246,14 +246,14 @@ namespace shift::gfx {
         }
     }
 
-    MeshSystem::StaticInstance &MeshSystem::GetDynamicInstance(MeshPass pass, SGUID id) {
+    GeometrySystem::GeometryInstance &GeometrySystem::GetDynamicInstance(MeshPass pass, SGUID id) {
         return m_dynamicInstances[pass][id];
     }
 
-    void MeshSystem::SetDynamicInstanceWorldPosition(MeshPass pass, SGUID id, const glm::vec3 &worldPos) {
+    void GeometrySystem::SetDynamicInstanceWorldPosition(MeshPass pass, SGUID id, const glm::vec3 &worldPos) {
         auto &ins = m_dynamicInstances[pass][id];
         if (ins.meshId == 0) {
-            spdlog::warn("MeshSystem: Cannot set instance position because instance at id=" + std::to_string(id) + " does not exist!");
+            spdlog::warn("GeometrySystem: Cannot set instance position because instance at id=" + std::to_string(id) + " does not exist!");
             return;
         }
 
@@ -261,10 +261,10 @@ namespace shift::gfx {
         ins.data.modelToWorldInv = glm::inverse(ins.data.modelToWorld);
     }
 
-    void MeshSystem::SetEmissionPassInstanceColor(SGUID id, const glm::vec4& color) {
+    void GeometrySystem::SetEmissionPassInstanceColor(SGUID id, const glm::vec4& color) {
         auto &ins = m_dynamicInstances[MeshPass::Emission_Forward][id];
         if (ins.meshId == 0) {
-            spdlog::warn("MeshSystem: Cannot set forward instance color because instance at id=" + std::to_string(id) + " does not exist!");
+            spdlog::warn("GeometrySystem: Cannot set forward instance color because instance at id=" + std::to_string(id) + " does not exist!");
             return;
         }
         ins.data.color = color;

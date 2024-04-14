@@ -42,7 +42,7 @@ namespace shift::gfx {
         m_RTSystem = std::make_unique<RenderTargetSystem>(*m_context.device, *m_samplerManager, *m_descriptorManager);
         m_RTSystem->CreateRenderTarget2D(m_window.GetWidth(), m_window.GetHeight(), VK_FORMAT_R16G16B16A16_SFLOAT, RenderTargetSystem::HDR_BUFFER);
         m_RTSystem->CreateDepthTarget2D(m_window.GetWidth(), m_window.GetHeight(), m_context.device->FindSupportedDepthFormat(), RenderTargetSystem::SWAPCHAIN_DEPTH);
-        m_meshSystem = std::make_unique<MeshSystem>(*m_context.device, m_backBuffer, *m_samplerManager, *m_textureSystem, *m_modelSystem, *m_bufferManager, *m_descriptorManager, *m_RTSystem, m_perViewIDs);
+        m_meshSystem = std::make_unique<GeometrySystem>(*m_context.device, m_backBuffer, *m_samplerManager, *m_textureSystem, *m_modelSystem, *m_bufferManager, *m_descriptorManager, *m_RTSystem, m_perViewIDs);
         m_postProcessSystem = std::make_unique<PostProcessSystem>(*m_context.device, m_backBuffer, *m_samplerManager, *m_descriptorManager, *m_bufferManager, *m_RTSystem);
         m_lightSystem = std::make_unique<LightSystem>(*m_descriptorManager, *m_bufferManager, *m_meshSystem, sphere);
 
@@ -50,13 +50,15 @@ namespace shift::gfx {
 
         ui::UIManager::GetInstance().CreateImGuiContext();
         ui::UIManager::GetInstance().InitImGuiForVulkan(m_context, m_backBuffer, m_window, m_descriptorManager->GetImGuiPool());
+
+        return true;
     }
 
     bool Renderer::LoadScene() {
 //        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/SimpleAmogusPink/scene.gltf");
 //        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../Sponza-master/Sponza-master/sponza.obj");
 //        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../sponza/scene.gltf");
-        auto amogus2 = m_modelSystem->LoadModel(shift::util::GetShiftRoot() + "../human_skull/scene.gltf");
+        auto amogus2 = m_modelSystem->LoadModel(shift::util::GetShiftRoot() + "../pbr_tactical_helmet/scene.gltf");
 
 //        for (int i = -16; i < 16; ++i) {
 //            for (int j = -16; j < 16; ++j) {
@@ -65,11 +67,16 @@ namespace shift::gfx {
 //            }
 //        }
 
+//        m_meshSystem->AddInstance(MeshPass::PBR_Forward, Mobility::STATIC, amogus2,
+//                                  glm::rotate(glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0, 0.0f, -3.0f)), glm::vec3(1.0f)), glm::pi<float>(), glm::vec3(0, 1, 0)));
+
         m_meshSystem->AddInstance(MeshPass::PBR_Forward, Mobility::STATIC, amogus2,
-                                  glm::translate(glm::scale(glm::mat4(1), glm::vec3(1.0f)), glm::vec3(0.0, 0.0f, -0.0f)));
+                                  glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0, 0.0f, -3.0f)), glm::vec3(0.1)));
 
         m_lightSystem->AddPointLight(glm::vec3(-2.0, 1.0, 0.0), glm::vec3(10.0, 10.0, 10.0));
         m_lightSystem->AddPointLight(glm::vec3(2.0, 1.0, 0.0), glm::vec3(10.0, 10.0, 10.0));
+        m_lightSystem->AddPointLight(glm::vec3(2.0, 2.0, 0.0), glm::vec3(10.0, 10.0, 10.0));
+        m_lightSystem->AddPointLight(glm::vec3(2.0, 2.0, 0.0), glm::vec3(10.0, 10.0, 10.0));
 
         m_lightSystem->AddDirectionalLight(glm::vec3(0.0, -1.0, -1.0), glm::vec3(5.0, 5.0, 5.0));
 //        m_lightSystem->AddPointLight(glm::vec3(-3.0, -3.0, 0.0), glm::vec3(0.0, 1.0, 1.0));
@@ -161,20 +168,18 @@ namespace shift::gfx {
     }
 
     void Renderer::CreateDescriptors() {
-        for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
-            m_descriptorManager->CreatePerFrameLayout(
-                    {
+        m_descriptorManager->CreatePerFrameLayout(
+                {
+                    {DescriptorType::UBO, 0, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT},
+                    {DescriptorType::UBO, 1, VK_SHADER_STAGE_FRAGMENT_BIT}
+                }
+        );
+        m_descriptorManager->CreatePerViewLayout(
+                ViewSetLayoutType::DEFAULT_CAMERA,
+                {
                         {DescriptorType::UBO, 0, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT},
-                        {DescriptorType::UBO, 1, VK_SHADER_STAGE_FRAGMENT_BIT}
-                    }
-            );
-            m_descriptorManager->CreatePerViewLayout(
-                    ViewSetLayoutType::DEFAULT_CAMERA,
-                    {
-                            {DescriptorType::UBO, 0, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT},
-                    }
-            );
-        }
+                }
+        );
         m_perViewIDs[ViewSetLayoutType::DEFAULT_CAMERA] = (m_descriptorManager->AllocatePerViewSet(ViewSetLayoutType::DEFAULT_CAMERA));
         m_perFrameID = m_descriptorManager->AllocatePerFrameSet();
 
