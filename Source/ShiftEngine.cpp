@@ -12,7 +12,7 @@ namespace shift {
 
         m_window = std::make_unique<shift::ShiftWindow>(width, height, "Shift");
 
-        const glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f);
+        const glm::vec3 pos = glm::vec3(0.0f, 0.0f, 1.0f);
         std::pair<uint32_t, uint32_t> sizes{m_window->GetWidth(), m_window->GetHeight()};
         m_controller = std::make_shared<ctrl::FlyingCameraController>(80.0f, sizes, pos);
 

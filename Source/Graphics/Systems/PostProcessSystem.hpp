@@ -72,7 +72,7 @@ namespace shift::gfx {
     private:
         struct PostProcessUBO {
             // x - exposure, y enable exposure
-            glm::vec4 data{0.0f};
+            glm::vec4 data{1.1f, 1.0f, 0.0f, 0.0f};
         };
 
         //! UI

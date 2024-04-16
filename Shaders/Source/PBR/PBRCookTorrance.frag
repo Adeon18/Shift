@@ -21,7 +21,7 @@ layout(set = 2, binding = 3) uniform sampler2D TexMetallicRoughness;
 void main() {
     vec4 colorTex = texture(TexDiffuse, fragTexCoord);
     vec3 albedo = colorTex.rgb;
-    vec3 micNorm = ToLinear(texture(TexNormals, fragTexCoord).rgb);
+    vec3 micNorm = texture(TexNormals, fragTexCoord).rgb;
     micNorm = micNorm * 2.0 - 1.0;
     micNorm = normalize(TBN * micNorm);
     micNorm = normalize(outWorldNorm + micNorm);
