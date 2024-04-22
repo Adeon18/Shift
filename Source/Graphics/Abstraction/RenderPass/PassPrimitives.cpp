@@ -80,7 +80,7 @@ namespace shift {
 
         void Subpass::BuildDescription() {
             description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-            description.colorAttachmentCount = colorAttachmentRefs.size();
+            description.colorAttachmentCount = static_cast<uint32_t>(colorAttachmentRefs.size());
             description.pColorAttachments = colorAttachmentRefs.data();
             description.pDepthStencilAttachment = &depthAttachmentRef;
         }

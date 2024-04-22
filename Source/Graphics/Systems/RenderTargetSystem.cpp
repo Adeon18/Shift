@@ -123,7 +123,7 @@ namespace shift::gfx {
                     continue;
                 }
 
-                ImGui::PushID(id);
+                ImGui::PushID(static_cast<int>(id));
 
                 if (ImGui::CollapsingHeader(std::string{name + "##" + std::to_string(id)}.c_str())) {
                     glm::ivec2 texSize = {m_system.m_renderTargets[id]->GetWidth(), m_system.m_renderTargets[id]->GetHeight()};
@@ -162,7 +162,7 @@ namespace shift::gfx {
                     continue;
                 }
 
-                ImGui::PushID(id);
+                ImGui::PushID(static_cast<int>(id));
 
                 if (ImGui::CollapsingHeader(std::string{name + "##" + std::to_string(id)}.c_str())) {
                     glm::ivec2 texSize = {m_system.m_depthTargets[id]->GetWidth(), m_system.m_depthTargets[id]->GetHeight()};

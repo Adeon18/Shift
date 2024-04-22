@@ -13,7 +13,8 @@ namespace shift::gfx {
             return m_loadedModels[id];
         }
 
-        spdlog::info("ModelManager: Model is not cached, will perform load.");
+        spdlog::warn("ModelManager: Model by SGUID {} is not cached!", id);
+        return nullptr;
     }
 
 

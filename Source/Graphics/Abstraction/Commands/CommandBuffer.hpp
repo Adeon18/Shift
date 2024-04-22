@@ -2,7 +2,7 @@
 #define SHIFT_COMMANDBUFFER_HPP
 
 // DANGER: Yeaaaaah, so this must be removed further in development
-#pragma optimize( "", off )
+//#pragma optimize( "", off )
 
 #include <vulkan/vulkan.h>
 

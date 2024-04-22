@@ -12,9 +12,8 @@ namespace shift::gfx {
             case MeshPass::Emission_Forward:
             case MeshPass::Textured_Forward:
                 return true;
-
-            return false;
         }
+        return false;
     }
 
     GeometrySystem::GeometrySystem(const Device &device,
@@ -163,6 +162,8 @@ namespace shift::gfx {
                 return m_staticInstances[pass].back().meshId;
             case Mobility::MOVABLE:
                 return lastInsId;
+            default:
+                return SGUID{0};
         }
     }
 

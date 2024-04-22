@@ -11,7 +11,7 @@ namespace shift::gfx {
             return 0;
         }
 
-        auto lightVisInsId = m_meshSystem.AddInstance(MeshPass::Emission_Forward, Mobility::MOVABLE, m_pointLightModel, glm::scale(glm::translate(glm::mat4(1), position), glm::vec3(0.2)), glm::vec4(radiance, 1.0f));
+        auto lightVisInsId = m_meshSystem.AddInstance(MeshPass::Emission_Forward, Mobility::MOVABLE, m_pointLightModel, glm::scale(glm::translate(glm::mat4(1), position), glm::vec3(0.2f)), glm::vec4(radiance, 1.0f));
         m_pointLights.push_back(LightEntry<PointLight>{
                 .light = PointLight{.position=glm::vec4(position, 1.0f), .radiance=glm::vec4(radiance, 1.0f)},
                 .lightInsId = GUIDGenerator::GetInstance().Guid(),

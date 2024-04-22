@@ -184,9 +184,9 @@ namespace shift {
                     m_buffer,
                     srcStage, dstStage,
                     flags,
-                    memSpan.size(), memSpan.data(),
-                    bufMemSpan.size(), bufMemSpan.data(),
-                    imgSpan.size(), imgSpan.data()
+                    static_cast<uint32_t>(memSpan.size()), memSpan.data(),
+                    static_cast<uint32_t>(bufMemSpan.size()), bufMemSpan.data(),
+                    static_cast<uint32_t>(imgSpan.size()), imgSpan.data()
             );
         }
 
@@ -239,7 +239,7 @@ namespace shift {
             vkCmdBindVertexBuffers(
                     m_buffer,
                     firstBind,
-                    buffers.size(),
+                    static_cast<uint32_t>(buffers.size()),
                     buffers.data(),
                     offsets.data());
         }
@@ -275,8 +275,8 @@ namespace shift {
             vkCmdBindDescriptorSets(m_buffer,
                                     bindPoint,
                                     layout, firstSet,
-                                    descriptorSets.size(),descriptorSets.data(),
-                                    dynamicOffsets.size(), dynamicOffsets.data());
+                                    static_cast<uint32_t>(descriptorSets.size()),descriptorSets.data(),
+                                    static_cast<uint32_t>(dynamicOffsets.size()), dynamicOffsets.data());
         }
 
         void CommandBuffer::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex,
@@ -303,7 +303,7 @@ namespace shift {
             vkCmdBlitImage(m_buffer,
                            srcImage, srcLayout,
                            dstImage, dstLayout,
-                           blitRegions.size(), blitRegions.data(),
+                           static_cast<uint32_t>(blitRegions.size()), blitRegions.data(),
                            filter);
         }
 

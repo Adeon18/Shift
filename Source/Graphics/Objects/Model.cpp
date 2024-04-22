@@ -7,8 +7,8 @@ namespace shift::gfx {
         uint32_t totalVerticeCount = 0;
         uint32_t totalIndiceCount = 0;
         for (auto& mesh : m_meshes) {
-            totalVerticeCount += mesh.vertices.size();
-            totalIndiceCount += mesh.triangles.size() * 3;
+            totalVerticeCount += static_cast<uint32_t>(mesh.vertices.size());
+            totalIndiceCount += static_cast<uint32_t>(mesh.triangles.size()) * 3u;
         }
 
         std::vector<Vertex> vertices(totalVerticeCount);
@@ -26,8 +26,8 @@ namespace shift::gfx {
                 indices[totalIndexOffset + i * 3 + 1] = mesh.triangles[i].indices[1];
                 indices[totalIndexOffset + i * 3 + 2] = mesh.triangles[i].indices[2];
             }
-            totalVertexOffset += mesh.vertices.size();
-            totalIndexOffset += mesh.triangles.size() * 3;
+            totalVertexOffset += static_cast<uint32_t>(mesh.vertices.size());
+            totalIndexOffset += static_cast<uint32_t>(mesh.triangles.size()) * 3u;
         }
 
         m_vertexBuffer = std::make_unique<VertexBuffer>(device, sizeof(vertices[0]) * vertices.size());

@@ -11,7 +11,7 @@ namespace shift::ctrl {
 
     void FlyingCameraController::CaptureInputAndApply(float dt) {
         if (inp::Keyboard::GetInstance().IsPressed(GLFW_MOUSE_BUTTON_RIGHT)) {
-            m_movementSpeed += inp::Mouse::GetInstance().GetYScroll() * m_movementSpeedChange;
+            m_movementSpeed += static_cast<float>(inp::Mouse::GetInstance().GetYScroll()) * m_movementSpeedChange;
             m_movementSpeed = glm::clamp(m_movementSpeed, m_movementSpeedMin, m_movementSpeedMax);
             HandleRotation(dt);
             HandleMovement(dt);
@@ -31,8 +31,8 @@ namespace shift::ctrl {
 
         glm::vec3 rotation{0.0f, 0.0f, 0.0f};
 
-        rotation.x -= inp::Mouse::GetInstance().GetYMovement() * ROTATION_SPEED * m_camera.GetScreenRatio();
-        rotation.y -= inp::Mouse::GetInstance().GetXMovement() * ROTATION_SPEED * m_camera.GetScreenRatio();
+        rotation.x -= static_cast<float>(inp::Mouse::GetInstance().GetYMovement()) * ROTATION_SPEED * m_camera.GetScreenRatio();
+        rotation.y -= static_cast<float>(inp::Mouse::GetInstance().GetXMovement()) * ROTATION_SPEED * m_camera.GetScreenRatio();
 
         if (glm::length(rotation) > 0) {
             m_camera.AddRotation(rotation * dt);

@@ -58,15 +58,15 @@ namespace shift {
             VkSubmitInfo submitInfo{};
             submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-            submitInfo.waitSemaphoreCount = waitSemSpan.size();
+            submitInfo.waitSemaphoreCount = static_cast<uint32_t>(waitSemSpan.size());
             submitInfo.pWaitSemaphores = waitSemSpan.data();
             submitInfo.pWaitDstStageMask = pipelineWaitStageMask;
             // Which command buffer to use
-            submitInfo.commandBufferCount = cmdBufSpan.size();
+            submitInfo.commandBufferCount = static_cast<uint32_t>(cmdBufSpan.size());
             submitInfo.pCommandBuffers = cmdBufSpan.data();
 
             // Which semaphores to wait for after render is finished
-            submitInfo.signalSemaphoreCount = sigSemSpan.size();
+            submitInfo.signalSemaphoreCount = static_cast<uint32_t>(sigSemSpan.size());
             submitInfo.pSignalSemaphores = sigSemSpan.data();
 
             return submitInfo;
@@ -85,7 +85,7 @@ namespace shift {
         VkPipelineVertexInputStateCreateInfo CreateInputStateInfo(const std::span<VkVertexInputAttributeDescription>& attDesc, const std::span<VkVertexInputBindingDescription>& bindDesc) {
             VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
             vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-            vertexInputInfo.vertexBindingDescriptionCount = bindDesc.size();
+            vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindDesc.size());
             vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attDesc.size());
             vertexInputInfo.pVertexBindingDescriptions = bindDesc.data();
             vertexInputInfo.pVertexAttributeDescriptions = attDesc.data();
@@ -207,7 +207,7 @@ namespace shift {
         VkPipelineRenderingCreateInfoKHR CreatePipelineRenderingInfo(std::span<VkFormat> colorFormats, std::optional<VkFormat> depthFormat) {
             VkPipelineRenderingCreateInfoKHR pipelineRenderingCreateInfo{};
             pipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
-            pipelineRenderingCreateInfo.colorAttachmentCount = colorFormats.size();
+            pipelineRenderingCreateInfo.colorAttachmentCount = static_cast<uint32_t>(colorFormats.size());
             pipelineRenderingCreateInfo.pColorAttachmentFormats = colorFormats.data();
             if (depthFormat.has_value()) {
                 pipelineRenderingCreateInfo.depthAttachmentFormat = *depthFormat;

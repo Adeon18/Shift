@@ -58,7 +58,7 @@ namespace shift {
             VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
             pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
             // You can specify mode than 1 layouts, why tho? - Because we can have multiple sets per pipeline
-            pipelineLayoutInfo.setLayoutCount = descSetLayout.size(); // Optional
+            pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descSetLayout.size()); // Optional
             pipelineLayoutInfo.pSetLayouts = descSetLayout.data(); // Optional
             pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
             pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
@@ -71,7 +71,7 @@ namespace shift {
             VkGraphicsPipelineCreateInfo pipelineInfo{};
             pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
             pipelineInfo.pNext = (m_dynamicRenderingInfo.has_value()) ? &m_dynamicRenderingInfo.value(): nullptr;
-            pipelineInfo.stageCount = m_shaderStages.size();
+            pipelineInfo.stageCount = static_cast<uint32_t>(m_shaderStages.size());
             pipelineInfo.pStages = m_shaderStages.data();
             // Fixed function stage
             pipelineInfo.pVertexInputState = (m_vertexInputInfo.has_value()) ? &m_vertexInputInfo.value(): nullptr;

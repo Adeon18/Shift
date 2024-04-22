@@ -63,7 +63,8 @@ namespace shift {
 
             auto& placedBuf = m_commandBuffers[type].emplace_back(m_device, m_instance, m_commandPool, m_type);
 
-            spdlog::debug("Created new buffer. Number {}, Type: {}", m_commandBuffers.size(), static_cast<int>(type));
+
+            spdlog::debug("Created new buffer. Number {}, Type: {}", m_commandBuffers[type].size(), static_cast<int>(type));
 
             return placedBuf;
         }

@@ -288,6 +288,8 @@ namespace shift {
                 }
             }
             spdlog::error("Failed to find supported depth format!");
+
+            return VkFormat::VK_FORMAT_UNDEFINED;
         }
     } // gfx
 } // shift

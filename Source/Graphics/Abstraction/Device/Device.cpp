@@ -60,7 +60,7 @@ namespace shift {
             createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
             createInfo.pQueueCreateInfos = queueCreateInfos.data();
             createInfo.pEnabledFeatures = &deviceFeatures;
-            createInfo.enabledExtensionCount = gutil::DEVICE_EXTENSIONS.size();
+            createInfo.enabledExtensionCount = static_cast<uint32_t>(gutil::DEVICE_EXTENSIONS.size());
             createInfo.ppEnabledExtensionNames = gutil::DEVICE_EXTENSIONS.data();
 #if SHIFT_VALIDATION
                 createInfo.enabledLayerCount = static_cast<uint32_t>(shift::gutil::VALIDATION_LAYERS.size());

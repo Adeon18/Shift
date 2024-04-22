@@ -6,7 +6,7 @@ namespace shift::gfx {
         VkFramebufferCreateInfo framebufferInfo{};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         framebufferInfo.renderPass = pass;
-        framebufferInfo.attachmentCount = views.size();
+        framebufferInfo.attachmentCount = static_cast<uint32_t>(views.size());
         framebufferInfo.pAttachments = views.data();
         framebufferInfo.width = extent.width;
         framebufferInfo.height = extent.height;

@@ -61,6 +61,7 @@ target_compile_definitions(
         PRIVATE
         SHIFT_ROOT="${PROJECT_SOURCE_DIR}"
         SHIFT_VALIDATION=1
+        _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
 )
 target_compile_definitions(
         ${PROJECT_NAME}

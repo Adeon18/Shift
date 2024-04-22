@@ -54,7 +54,7 @@ namespace shift {
             //! But you can make it exclusive, WHICH IS FASTER and explicitly transfer ownership from one family to another.
             if (indices.graphicsFamily != indices.presentFamily) {
                 createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-                createInfo.queueFamilyIndexCount = queueFamilyIndices.size();
+                createInfo.queueFamilyIndexCount = static_cast<uint32_t>(queueFamilyIndices.size());
                 createInfo.pQueueFamilyIndices = queueFamilyIndices.data();
             }
             else {
