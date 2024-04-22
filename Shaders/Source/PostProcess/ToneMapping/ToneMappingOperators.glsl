@@ -52,6 +52,7 @@ vec3 FilmicToneMapping(vec3 color)
 {
     color = max(vec3(0.), color - vec3(0.004));
     color = (color * (6.2 * color + .5)) / (color * (6.2 * color + 1.7) + 0.06);
+    color = pow(color, vec3(GAMMA));
     return color;
 }
 
@@ -103,6 +104,27 @@ vec3 ACESFitted(vec3 color)
 
     return color;
 }
+
+// https://www.shadertoy.com/view/llXyWr
+vec3 Tonemap_Lottes(vec3 color) {
+    // Lottes 2016, "Advanced Techniques and Optimization of HDR Color Pipelines"
+    const float a = 1.6;
+    const float d = 0.977;
+    const float hdrMax = 8.0;
+    const float midIn = 0.18;
+    const float midOut = 0.267;
+
+    // Can be precomputed
+    const float b =
+    (-pow(midIn, a) + pow(hdrMax, a) * midOut) /
+    ((pow(hdrMax, a * d) - pow(midIn, a * d)) * midOut);
+    const float c =
+    (pow(hdrMax, a * d) * pow(midIn, a) - pow(hdrMax, a) * pow(midIn, a * d) * midOut) /
+    ((pow(hdrMax, a * d) - pow(midIn, a * d)) * midOut);
+
+    return pow(color, vec3(a)) / (pow(color, vec3(a * d)) * b + c);
+}
+
 
 
 #endif // TONE_MAPPING_OPERATORS_GLSL

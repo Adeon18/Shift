@@ -18,7 +18,7 @@ namespace shift::gfx {
     enum class ToneMapPass {
         Reinhard_ToneMapping = 0,
         LumaReinhard_ToneMapping = 1,
-        RomBin_ToneMapping = 2,
+        Lotes_ToneMapping = 2,
         Uncharted2_ToneMapping = 3,
         ACES_ToneMapping = 4,
         Disabled = 5,
@@ -43,7 +43,7 @@ namespace shift::gfx {
             std::array<const char*, static_cast<size_t>(ToneMapPass::Count)> m_toneMapOperatorNames{
                 "Reinhard",
                 "Reinhard Luma",
-                "Rom Bin Da House",
+                "Lottes",
                 "Uncharted 2",
                 "ACES",
                 "Disabled"
@@ -116,10 +116,10 @@ namespace shift::gfx {
                              .renderTargetType = RenderStageCreateInfo::RT_Type::Swapchain
                      }
                 },
-                {ToneMapPass::RomBin_ToneMapping,
+                {ToneMapPass::Lotes_ToneMapping,
                      {
-                             .name = "RomBin_ToneMapping",
-                             .shaderData = {"FullscreenTriangle.vert.spv", "RomBinDaHouseToneMap.frag.spv", "", "", ""},
+                             .name = "Lotes_ToneMapping",
+                             .shaderData = {"FullscreenTriangle.vert.spv", "LotesToneMap.frag.spv", "", "", ""},
                              .viewSetLayoutType = ViewSetLayoutType::DEFAULT_CAMERA,
                              .matSetLayoutType = MaterialSetLayoutType::POST_PROCESS,
                              .renderTargetType = RenderStageCreateInfo::RT_Type::Swapchain

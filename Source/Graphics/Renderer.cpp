@@ -55,10 +55,22 @@ namespace shift::gfx {
     }
 
     bool Renderer::LoadScene() {
+        auto DefaultScullScene = [&]() {
+            auto skull = m_modelSystem->LoadModel(shift::util::GetShiftRoot() + "../human_skull/scene.gltf");
+            m_meshSystem->AddInstance(MeshPass::PBR_Forward, Mobility::STATIC, skull,
+                                      glm::rotate(glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0, 0.0f, -3.0f)), glm::vec3(1.0f)), glm::pi<float>(), glm::vec3(0, 1, 0)));
+            m_lightSystem->AddPointLight(glm::vec3(-2.0, 1.0, -2.0), glm::vec3(10.0, 0.0, 0.0));
+            m_lightSystem->AddPointLight(glm::vec3(2.0, 1.0, -2.0), glm::vec3(0.0, 0.0, 10.0));
+            m_lightSystem->AddPointLight(glm::vec3(0.0, -1.0, -1.0), glm::vec3(0.0, 10.0, 0.0));
+            m_lightSystem->AddPointLight(glm::vec3(0.0, 2.0, -2.0), glm::vec3(2.0, 2.0, 2.0));
+
+            m_lightSystem->AddDirectionalLight(glm::vec3(0.0, -1.0, -1.0), glm::vec3(5.0, 5.0, 5.0));
+        };
+
 //        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/SimpleAmogusPink/scene.gltf");
 //        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../Sponza-master/Sponza-master/sponza.obj");
-//        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../sponza/scene.gltf");
-        auto amogus2 = m_modelSystem->LoadModel(shift::util::GetShiftRoot() + "../human_skull/scene.gltf");
+         auto deagle = m_modelSystem->LoadModel(shift::util::GetShiftRoot() + "../desert_eagle/scene.gltf");
+
 
 //        for (int i = -16; i < 16; ++i) {
 //            for (int j = -16; j < 16; ++j) {
@@ -67,24 +79,17 @@ namespace shift::gfx {
 //            }
 //        }
 
-        m_meshSystem->AddInstance(MeshPass::PBR_Forward, Mobility::STATIC, amogus2,
-                                  glm::rotate(glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0, 0.0f, -3.0f)), glm::vec3(1.0f)), glm::pi<float>(), glm::vec3(0, 1, 0)));
 
-//        m_meshSystem->AddInstance(MeshPass::PBR_Forward, Mobility::STATIC, amogus2,
-//                                  glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0, 0.0f, -3.0f)), glm::vec3(1.0f)));
 
-        m_lightSystem->AddPointLight(glm::vec3(-2.0, 1.0, -2.0), glm::vec3(10.0, 0.0, 0.0));
-        m_lightSystem->AddPointLight(glm::vec3(2.0, 1.0, -2.0), glm::vec3(0.0, 0.0, 10.0));
-        m_lightSystem->AddPointLight(glm::vec3(0.0, -1.0, -1.0), glm::vec3(0.0, 10.0, 0.0));
-        m_lightSystem->AddPointLight(glm::vec3(0.0, 2.0, -2.0), glm::vec3(2.0, 2.0, 2.0));
+        m_meshSystem->AddInstance(MeshPass::PBR_Forward, Mobility::STATIC, deagle,
+                                  glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0, 0.0f, -2.0f)), glm::vec3(0.1f)));
+
+        m_lightSystem->AddPointLight(glm::vec3(-2.0, 2.0, -2.0), glm::vec3(10.0, 10.0, 0.0));
+        m_lightSystem->AddPointLight(glm::vec3(2.0, 2.0, -2.0), glm::vec3(0.0, 10.0, 10.0));
+        //m_lightSystem->AddPointLight(glm::vec3(0.0, -1.0, -1.0), glm::vec3(0.0, 10.0, 0.0));
+        //m_lightSystem->AddPointLight(glm::vec3(0.0, 2.0, -2.0), glm::vec3(2.0, 2.0, 2.0));
 
         m_lightSystem->AddDirectionalLight(glm::vec3(0.0, -1.0, -1.0), glm::vec3(5.0, 5.0, 5.0));
-//        m_lightSystem->AddPointLight(glm::vec3(-3.0, -3.0, 0.0), glm::vec3(0.0, 1.0, 1.0));
-//        m_lightSystem->AddPointLight(glm::vec3(-3.0, -3.0, 0.0), glm::vec3(1.0, 0.0, 1.0));
-//        m_lightSystem->AddPointLight(glm::vec3(-3.0, -3.0, 0.0), glm::vec3(1.0, 0.0, 1.0));
-//        m_lightSystem->AddPointLight(glm::vec3(-3.0, -3.0, 0.0), glm::vec3(1.0, 0.0, 1.0));
-//        m_lightSystem->AddPointLight(glm::vec3(-3.0, -3.0, 0.0), glm::vec3(1.0, 0.0, 1.0));
-//        m_lightSystem->AddPointLight(glm::vec3(-3.0, -3.0, 0.0), glm::vec3(1.0, 0.0, 1.0));
 
         return true;
     }

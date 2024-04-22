@@ -7,7 +7,7 @@
 void main() {
     vec3 HDR = texture(texSampler, texCoords).rgb;
     HDR = AdjustExposure(HDR, UBO.data.x, UBO.data.y);
-    vec3 LDR = RomBinDaHouseToneMapping(HDR);
+    vec3 LDR = Tonemap_Lottes(HDR);
 
     outColor = vec4(LDR, 1.0);
 }
