@@ -27,7 +27,6 @@ You can learn watch Shift rendering demo videos and images on the [website](http
 2. Open the .sln with the MSVC 2022.
 3. Set **Shift** as a startup project and build.
 4. _Pray, I Guess..._
-5. 
 ---
 
 ### Credits
