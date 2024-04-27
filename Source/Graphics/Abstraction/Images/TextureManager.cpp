@@ -2,8 +2,8 @@
 
 #include <array>
 
-#include <stb_image.h>
-#include <spdlog/spdlog.h>
+#include "stb_image.h"
+#include "spdlog/spdlog.h"
 
 #include "Graphics/Abstraction/Buffers/BasicBuffers.hpp"
 

@@ -3,12 +3,12 @@
 
 #include <unordered_map>
 
-#include <assimp/Importer.hpp>      // C++ importer interface
-#include <assimp/scene.h>           // Output data structure
-#include <assimp/postprocess.h>     // Post processing flags
+#include "assimp/Importer.hpp"      // C++ importer interface
+#include "assimp/scene.h"           // Output data structure
+#include "assimp/postprocess.h"     // Post processing flags
 
-#include "Graphics/Objects/Model.hpp"
-#include "TextureSystem.hpp"
+#include "Model.hpp"
+#include "Graphics/Abstraction/Images/TextureSystem.hpp"
 
 namespace shift::gfx {
     class ModelSystem {
