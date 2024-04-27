@@ -19,11 +19,11 @@ namespace shift::gfx {
     GeometrySystem::GeometrySystem(const Device &device,
                                    const ShiftBackBuffer &backBufferData,
                                    const SamplerManager& samplerManager,
-                                   TextureSystem &textureSystem,
-                                   ModelSystem &modelManager,
+                                   TextureManager &textureSystem,
+                                   ModelManager &modelManager,
                                    BufferManager &bufferManager,
                                    DescriptorManager &descManager,
-                                   RenderTargetSystem& RTSystem,
+                                   RenderTargetManager& RTSystem,
                                    std::unordered_map<ViewSetLayoutType, SGUID>& viewIds):
                                 m_device{device},
                                 m_backBufferData{backBufferData},
@@ -174,8 +174,8 @@ namespace shift::gfx {
     void GeometrySystem::RenderForwardPasses(const CommandBuffer& buffer, uint32_t currentImage, uint32_t currentFrame) {
         // TODO: FOR NOT TO BACKBUFFER
 //        auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_backBufferData.swapchain->GetImageViews()[currentImage]);
-        auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_RTSystem.GetColorRT(RenderTargetSystem::HDR_BUFFER).GetView());
-        auto depthAttInfo = info::CreateRenderingAttachmentInfo(m_RTSystem.GetDepthRT(RenderTargetSystem::SWAPCHAIN_DEPTH).GetView(), false, {1.0f, 0});
+        auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_RTSystem.GetColorRT(RenderTargetManager::HDR_BUFFER).GetView());
+        auto depthAttInfo = info::CreateRenderingAttachmentInfo(m_RTSystem.GetDepthRT(RenderTargetManager::SWAPCHAIN_DEPTH).GetView(), false, {1.0f, 0});
 
         VkRenderingInfoKHR renderInfo{};
         renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;

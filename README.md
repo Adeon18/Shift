@@ -1,6 +1,28 @@
-# Shift
-Shift is a modern flexible Vulkan renderer that is designed to be simple, effective and easily extendable
+<p align="center"><img src="Assets/Textures/ShiftIcon.svg" align="center" width=256></p>
 
-Right now is in a very much dev state so it will build crossplatform but might not run.
+<h1 align="center">Shift: A Rendering Sandbox for Computer Graphics Research</h1>
 
-Set VULKAN_SDK_PATH in .env.cmake as path to your VulkanSDK and then cmake should do all the work(soon will be able to do even Vulkan)
+Shift is a modern rendering engine based on Vulkan API
+that was designed for the graphics programmers to learn, practice, research, and optimize various rendering techniques.
+
+You can learn watch Shift rendering demo videos and images on the [website](https://shift.notionlinker.com/)!
+
+<h3 align="center">Prerequisites</h3>
+
+1. Download the [MSVC 2022 compiler](https://visualstudio.microsoft.com/vs/features/cplusplus/) (is the only one supported as of Shift 1.0).
+2. Download the [LunarG Vulkan SDK](https://www.lunarg.com/vulkan-sdk/).
+3. Set the VULKAN_SDK_PATH to your SDK install directory.
+
+<h3 align="center">Building</h3>
+**Using Clion:**
+1. Open Shift as a new project and set the compiler to MSVC 2022 and build. Shift's CMake will do the rest.
+
+**Using MSVC 2022:**
+1. Generate the .sln with `mkdir Solution; cmake ..`.
+2. Open the .sln with the MSVC 2022.
+3. Set **Shift** as a startup project and build.
+4. _Pray, I Guess..._
+
+<h3 align="center">Credits</h3>
+- [Ostap "Ade0n" Trush](https://github.com/Adeon18): Development.
+- [Danylo Rudenko](https://github.com/danylorudenko): Mentorship.

@@ -1,5 +1,5 @@
-#ifndef SHIFT_MODELSYSTEM_HPP
-#define SHIFT_MODELSYSTEM_HPP
+#ifndef SHIFT_MODELMANAGER_HPP
+#define SHIFT_MODELMANAGER_HPP
 
 #include <unordered_map>
 
@@ -8,20 +8,20 @@
 #include "assimp/postprocess.h"     // Post processing flags
 
 #include "Model.hpp"
-#include "Graphics/Abstraction/Images/TextureSystem.hpp"
+#include "Graphics/Abstraction/Images/TextureManager.hpp"
 
 namespace shift::gfx {
-    class ModelSystem {
+    class ModelManager {
     public:
         static constexpr uint32_t IMPORT_FLAGS = uint32_t(
                 aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices  | aiProcess_PreTransformVertices
         );
     public:
-        ModelSystem(const Device& device, CommandPool& pool, TextureSystem& texSys): m_device{device}, m_pool{pool}, m_textureSystem{texSys} {}
+        ModelManager(const Device& device, CommandPool& pool, TextureManager& texSys): m_device{device}, m_pool{pool}, m_textureSystem{texSys} {}
 
-        ModelSystem() = default;
-        ModelSystem(const ModelSystem& other) = delete;
-        ModelSystem& operator=(const ModelSystem& other) = delete;
+        ModelManager() = default;
+        ModelManager(const ModelManager& other) = delete;
+        ModelManager& operator=(const ModelManager& other) = delete;
 
         //! Get model By Id, return null if not present, maybe TODO: slow
         std::shared_ptr<Model> GetModel(SGUID id);
@@ -36,7 +36,7 @@ namespace shift::gfx {
     private:
         const Device& m_device;
         CommandPool& m_pool;
-        TextureSystem& m_textureSystem;
+        TextureManager& m_textureSystem;
 
         std::unordered_map<SGUID, std::shared_ptr<Model>> m_loadedModels;
 
@@ -64,4 +64,4 @@ namespace shift::gfx {
     };
 } // shift::gfx
 
-#endif //SHIFT_MODELSYSTEM_HPP
+#endif //SHIFT_MODELMANAGER_HPP

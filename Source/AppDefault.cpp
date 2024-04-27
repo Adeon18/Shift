@@ -7,7 +7,7 @@
 int main() {
     shift::ShiftEngine shiftEngine;
 
-    shiftEngine.Init(800, 600);
+    shiftEngine.Init(1080, 720);
     shiftEngine.LoadScene("Placeholder");
     shiftEngine.Run();
 

@@ -1,5 +1,5 @@
 #include <iostream>
-#include "ModelSystem.hpp"
+#include "ModelManager.hpp"
 
 #include "Utility/UtilStandard.hpp"
 #include "Utility/Vulkan/InfoUtil.hpp"
@@ -7,7 +7,7 @@
 #include <glm/gtx/string_cast.hpp>
 
 namespace shift::gfx {
-    std::shared_ptr<Model> ModelSystem::GetModel(SGUID id)
+    std::shared_ptr<Model> ModelManager::GetModel(SGUID id)
     {
         if (m_loadedModels.find(id) != m_loadedModels.end()) {
             return m_loadedModels[id];
@@ -18,7 +18,7 @@ namespace shift::gfx {
     }
 
 
-    SGUID ModelSystem::LoadModel(const std::string& filename)
+    SGUID ModelManager::LoadModel(const std::string& filename)
     {
         Assimp::Importer importer;
         const aiScene* assimpScene = importer.ReadFile(filename, IMPORT_FLAGS);
@@ -109,7 +109,7 @@ namespace shift::gfx {
         m_loadedModels[modelID] = modelPtr;
         return modelID;
     }
-    void ModelSystem::LoadTextures(const aiScene* pScene, std::shared_ptr<Model> modelPtr, aiTextureType srcTexType, MeshTextureType dstTexType, const std::string& filename, bool generateMips)
+    void ModelManager::LoadTextures(const aiScene* pScene, std::shared_ptr<Model> modelPtr, aiTextureType srcTexType, MeshTextureType dstTexType, const std::string& filename, bool generateMips)
     {
         uint32_t numMeshes = pScene->mNumMeshes;
 
@@ -133,7 +133,7 @@ namespace shift::gfx {
         }
     }
 
-    void ModelSystem::PrintAllTexturesPath(const aiScene* pScene)
+    void ModelManager::PrintAllTexturesPath(const aiScene* pScene)
     {
         uint32_t numMeshes = pScene->mNumMeshes;
         std::cout << numMeshes << std::endl;

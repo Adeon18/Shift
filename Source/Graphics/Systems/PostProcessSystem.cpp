@@ -5,11 +5,11 @@
 
 namespace shift::gfx {
     PostProcessSystem::PostProcessSystem(const Device &device,
-                           const ShiftBackBuffer &backBufferData,
-                           const SamplerManager& samplerManager,
-                           DescriptorManager &descManager,
-                           BufferManager &bufferManager,
-                           RenderTargetSystem& RTSystem):
+                                         const ShiftBackBuffer &backBufferData,
+                                         const SamplerManager& samplerManager,
+                                         DescriptorManager &descManager,
+                                         BufferManager &bufferManager,
+                                         RenderTargetManager& RTSystem):
             m_device{device},
             m_backBufferData{backBufferData},
             m_samplerManager{samplerManager},
@@ -26,7 +26,7 @@ namespace shift::gfx {
         for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
             auto& perObjSet = m_descriptorManager.GetPerMaterialSet(m_postProcessSetGuid, i);
             auto& buff = m_bufManager.GetUBO(m_postProcessSetGuid, i);
-            perObjSet.UpdateImage(0, m_RTSystem.GetColorRT(RenderTargetSystem::HDR_BUFFER).GetView(), m_samplerManager.GetPointSampler());
+            perObjSet.UpdateImage(0, m_RTSystem.GetColorRT(RenderTargetManager::HDR_BUFFER).GetView(), m_samplerManager.GetPointSampler());
             perObjSet.UpdateUBO(1, buff.Get(), 0, buff.GetSize());
             perObjSet.ProcessUpdates();
 
@@ -57,7 +57,7 @@ namespace shift::gfx {
         for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
 
             auto &perObjSet = m_descriptorManager.GetPerMaterialSet(m_postProcessSetGuid, i);
-            perObjSet.UpdateImage(0, m_RTSystem.GetColorRT(RenderTargetSystem::HDR_BUFFER).GetView(),
+            perObjSet.UpdateImage(0, m_RTSystem.GetColorRT(RenderTargetManager::HDR_BUFFER).GetView(),
                                   m_samplerManager.GetPointSampler());
             perObjSet.ProcessUpdates();
         }

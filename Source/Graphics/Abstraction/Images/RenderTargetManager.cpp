@@ -2,20 +2,20 @@
 // Created by otrush on 3/23/2024.
 //
 
-#include "RenderTargetSystem.hpp"
+#include "RenderTargetManager.hpp"
 
 #include "Utility/UtilStandard.hpp"
 
 namespace shift::gfx {
-    RenderTargetSystem::RenderTargetSystem(const shift::gfx::Device &device,
-                                           const shift::gfx::SamplerManager &samplerManager,
-                                           shift::gfx::DescriptorManager &descriptorManager):
+    RenderTargetManager::RenderTargetManager(const shift::gfx::Device &device,
+                                             const shift::gfx::SamplerManager &samplerManager,
+                                             shift::gfx::DescriptorManager &descriptorManager):
                                                 m_device{device}, m_samplerManager{samplerManager}, m_descriptorManager{descriptorManager}
     {
 
     }
 
-    SGUID RenderTargetSystem::CreateRenderTarget2D(uint32_t width, uint32_t height, VkFormat format, const std::string& name) {
+    SGUID RenderTargetManager::CreateRenderTarget2D(uint32_t width, uint32_t height, VkFormat format, const std::string& name) {
         bool IsReplaced = (m_RTNameToId[name] != 0);
         SGUID prevId{};
         //! If the RT was created with such name, recreate it, used for window resize
@@ -48,7 +48,7 @@ namespace shift::gfx {
     }
 
     // TODO: Code duplication
-    SGUID RenderTargetSystem::CreateDepthTarget2D(uint32_t width, uint32_t height, VkFormat format, const std::string& name) {
+    SGUID RenderTargetManager::CreateDepthTarget2D(uint32_t width, uint32_t height, VkFormat format, const std::string& name) {
         bool IsReplaced = (m_DTNameToId[name] != 0);
         SGUID prevId{};
         //! If the RT was created with such name, recreate it, used for window resize
@@ -81,31 +81,31 @@ namespace shift::gfx {
         return id;
     }
 
-    ColorRenderTerget2D &RenderTargetSystem::GetColorRT(SGUID id) {
+    ColorRenderTerget2D &RenderTargetManager::GetColorRT(SGUID id) {
         return *m_renderTargets[id];
     }
 
-    ColorRenderTerget2D &RenderTargetSystem::GetColorRT(const std::string &name) {
+    ColorRenderTerget2D &RenderTargetManager::GetColorRT(const std::string &name) {
         return GetColorRT(m_RTNameToId[name]);
     }
 
-    bool RenderTargetSystem::IsValid(SGUID id) {
+    bool RenderTargetManager::IsValid(SGUID id) {
         return (m_renderTargets.find(id) != m_renderTargets.end());
     }
 
-    SGUID RenderTargetSystem::IdByName(const std::string &name) {
+    SGUID RenderTargetManager::IdByName(const std::string &name) {
         return m_RTNameToId[name];
     }
 
-    DepthRenderTerget2D &RenderTargetSystem::GetDepthRT(SGUID id) {
+    DepthRenderTerget2D &RenderTargetManager::GetDepthRT(SGUID id) {
         return *m_depthTargets[id];
     }
 
-    DepthRenderTerget2D &RenderTargetSystem::GetDepthRT(const std::string &name) {
+    DepthRenderTerget2D &RenderTargetManager::GetDepthRT(const std::string &name) {
         return *m_depthTargets[m_DTNameToId[name]];
     }
 
-    void RenderTargetSystem::UI::Show(uint32_t currentFrame) {
+    void RenderTargetManager::UI::Show(uint32_t currentFrame) {
         if (m_shown) {
             ImGui::Begin(m_name.c_str(), &m_shown);
 

@@ -10,9 +10,9 @@
 #include "RenderStage.hpp"
 
 #include "Graphics/Abstraction/Device/Device.hpp"
-#include "Graphics/Systems/TextureSystem.hpp"
-#include "Graphics/Systems/ModelSystem.hpp"
-#include "Graphics/Systems/RenderTargetSystem.hpp"
+#include "Graphics/Abstraction/Images/TextureManager.hpp"
+#include "Graphics/Abstraction/Geometry/ModelManager.hpp"
+#include "Graphics/Abstraction/Images/RenderTargetManager.hpp"
 #include "Graphics/Abstraction/Descriptors/BufferManager.hpp"
 #include "Graphics/ShiftContextData.hpp"
 
@@ -49,11 +49,11 @@ namespace shift::gfx {
                 const Device& device,
                 const ShiftBackBuffer& backBufferData,
                 const SamplerManager& samplerManager,
-                TextureSystem& textureSystem,
-                ModelSystem& modelManager,
+                TextureManager& textureSystem,
+                ModelManager& modelManager,
                 BufferManager& bufferManager,
                 DescriptorManager &descManager,
-                RenderTargetSystem& RTSystem,
+                RenderTargetManager& RTSystem,
                 std::unordered_map<ViewSetLayoutType, SGUID>& viewIds);
 
         SGUID AddInstance(MeshPass pass, Mobility mobility, SGUID modelID, const glm::mat4& transformation, const glm::vec4& color = {0.0f, 0.0f, 0.0f, 0.0f});
@@ -99,11 +99,11 @@ namespace shift::gfx {
         const Device& m_device;
         const ShiftBackBuffer& m_backBufferData;
         const SamplerManager& m_samplerManager;
-        TextureSystem& m_textureSystem;
-        ModelSystem& m_modelManager;
+        TextureManager& m_textureSystem;
+        ModelManager& m_modelManager;
         DescriptorManager& m_descriptorManager;
         BufferManager& m_bufferManager;
-        RenderTargetSystem& m_RTSystem;
+        RenderTargetManager& m_RTSystem;
         std::unordered_map<ViewSetLayoutType, SGUID>& m_perViewIDs;
 
         std::unordered_map<MeshPass, RenderStage> m_renderStagesForward;

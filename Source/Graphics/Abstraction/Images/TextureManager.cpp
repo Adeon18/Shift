@@ -1,4 +1,4 @@
-#include "TextureSystem.hpp"
+#include "TextureManager.hpp"
 
 #include <array>
 
@@ -11,11 +11,11 @@
 #include "Utility/UtilStandard.hpp"
 
 namespace shift::gfx {
-    TextureSystem::TextureSystem(const shift::gfx::Device &device,
-                                 const SamplerManager& samplerManager,
-                                 shift::gfx::CommandPool &graphicsPool,
-                                 shift::gfx::CommandPool &transferPool,
-                                 DescriptorManager& descriptorManager):
+    TextureManager::TextureManager(const shift::gfx::Device &device,
+                                   const SamplerManager& samplerManager,
+                                   shift::gfx::CommandPool &graphicsPool,
+                                   shift::gfx::CommandPool &transferPool,
+                                   DescriptorManager& descriptorManager):
                                     m_device{device},
                                     m_samplerManager{samplerManager},
                                     m_gfxPool{graphicsPool},
@@ -25,7 +25,7 @@ namespace shift::gfx {
         CreateDefaultTextures();
     }
 
-    SGUID TextureSystem::LoadTexture(const std::string &path, VkFormat format, const std::string& name, bool generateMips) {
+    SGUID TextureManager::LoadTexture(const std::string &path, VkFormat format, const std::string& name, bool generateMips) {
         if (m_textureIdByName[path] != 0) {
             return m_textureIdByName[path];
         }
@@ -80,11 +80,11 @@ namespace shift::gfx {
         return imageGUID;
     }
 
-    TextureBase *TextureSystem::GetTexture(SGUID guid) {
+    TextureBase *TextureManager::GetTexture(SGUID guid) {
         return m_textures[guid].get();
     }
 
-    void TextureSystem::CreateDefaultTextures() {
+    void TextureManager::CreateDefaultTextures() {
         CreateDefaultColorTexture({255, 255, 255, 255}, "WHITE");
         CreateDefaultColorTexture({0, 0, 0, 255},       "BLACK");
         CreateDefaultColorTexture({255, 0, 0, 255},     "RED");
@@ -94,7 +94,7 @@ namespace shift::gfx {
         CreateDefaultColorTexture({128, 128, 128, 0},   "BLACK_OPAQUE");
     }
 
-    SGUID TextureSystem::CreateDefaultColorTexture(const std::array<uint8_t, 4>& color, std::string name) {
+    SGUID TextureManager::CreateDefaultColorTexture(const std::array<uint8_t, 4>& color, std::string name) {
         const uint32_t size = sizeof(color);
 
         shift::gfx::StagingBuffer stagingBuff{m_device, size};
@@ -139,11 +139,11 @@ namespace shift::gfx {
         return imageGUID;
     }
 
-    TextureBase *TextureSystem::GetTexture(std::string name) {
+    TextureBase *TextureManager::GetTexture(std::string name) {
         return m_textures[m_textureIdByName[name]].get();
     }
 
-    void TextureSystem::GenerateMipsAndTransferToReadState(SGUID imageGUID) {
+    void TextureManager::GenerateMipsAndTransferToReadState(SGUID imageGUID) {
         auto& bufferFinal = m_gfxPool.RequestCommandBuffer();
 
         VkFormatProperties formatProperties;
@@ -225,7 +225,7 @@ namespace shift::gfx {
         bufferFinal.SubmitAndWait();
     }
 
-    void TextureSystem::UI::Show(uint32_t currentFrame) {
+    void TextureManager::UI::Show(uint32_t currentFrame) {
         if (m_shown) {
             ImGui::Begin(m_name.c_str(), &m_shown);
 

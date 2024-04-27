@@ -2,8 +2,8 @@
 // Created by otrush on 3/23/2024.
 //
 
-#ifndef SHIFT_RENDERTARGETSYSTEM_HPP
-#define SHIFT_RENDERTARGETSYSTEM_HPP
+#ifndef SHIFT_RENDERTARGETMANAGER_HPP
+#define SHIFT_RENDERTARGETMANAGER_HPP
 
 #include "Graphics/Abstraction/Device/Device.hpp"
 
@@ -18,12 +18,12 @@
 #include "Utility/Vulkan/UtilVulkan.hpp"
 
 namespace shift::gfx {
-    class RenderTargetSystem {
+    class RenderTargetManager {
         class UI: public ui::UIWindowComponent {
         public:
             static constexpr uint32_t DEFAULT_UI_TEX_SIZE = 256;
 
-            explicit UI(std::string name, std::string sName, RenderTargetSystem& system): ui::UIWindowComponent{std::move(name), std::move(sName)}, m_system{system} {}
+            explicit UI(std::string name, std::string sName, RenderTargetManager& system): ui::UIWindowComponent{std::move(name), std::move(sName)}, m_system{system} {}
 
             virtual void Item() override { ui::UIWindowComponent::Item(); }
             virtual void Show(uint32_t currentFrame) override;
@@ -31,13 +31,13 @@ namespace shift::gfx {
             std::unordered_map<SGUID, SGUID> textureIdToDescriptorIdLUT;
             std::unordered_map<SGUID, float> textureUIScales;
         private:
-            RenderTargetSystem& m_system;
+            RenderTargetManager& m_system;
         };
     public:
         inline static std::string HDR_BUFFER = "HDR:RTF16";
         inline static std::string SWAPCHAIN_DEPTH = "Swapchain:Depth";
 
-        RenderTargetSystem(const Device& device, const SamplerManager& samplerManager, DescriptorManager& descriptorManager);
+        RenderTargetManager(const Device& device, const SamplerManager& samplerManager, DescriptorManager& descriptorManager);
 
         //! Create a render target and store it by name
         SGUID CreateRenderTarget2D(uint32_t width, uint32_t height, VkFormat format, const std::string& name);
@@ -56,14 +56,14 @@ namespace shift::gfx {
         DepthRenderTerget2D& GetDepthRT(SGUID id);
         DepthRenderTerget2D& GetDepthRT(const std::string& name);
 
-        ~RenderTargetSystem() = default;
+        ~RenderTargetManager() = default;
 
-        RenderTargetSystem() = delete;
-        RenderTargetSystem(const RenderTargetSystem&) = delete;
-        RenderTargetSystem& operator=(const RenderTargetSystem&) = delete;
+        RenderTargetManager() = delete;
+        RenderTargetManager(const RenderTargetManager&) = delete;
+        RenderTargetManager& operator=(const RenderTargetManager&) = delete;
     private:
         //! UI component
-        UI m_UI{"Render Target System", "Tools", *this};
+        UI m_UI{"Render Target Manager", "Tools", *this};
 
         const Device& m_device;
         const SamplerManager& m_samplerManager;
@@ -76,4 +76,4 @@ namespace shift::gfx {
     };
 } // shift::gfx
 
-#endif //SHIFT_RENDERTARGETSYSTEM_HPP
+#endif //SHIFT_RENDERTARGETMANAGER_HPP

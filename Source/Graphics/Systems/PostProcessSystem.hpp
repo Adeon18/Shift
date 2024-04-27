@@ -8,9 +8,9 @@
 #include "RenderStage.hpp"
 
 #include "Graphics/Abstraction/Device/Device.hpp"
-#include "Graphics/Systems/TextureSystem.hpp"
-#include "Graphics/Systems/ModelSystem.hpp"
-#include "Graphics/Systems/RenderTargetSystem.hpp"
+#include "Graphics/Abstraction/Images/TextureManager.hpp"
+#include "Graphics/Abstraction/Geometry/ModelManager.hpp"
+#include "Graphics/Abstraction/Images/RenderTargetManager.hpp"
 #include "Graphics/Abstraction/Descriptors/BufferManager.hpp"
 #include "Graphics/ShiftContextData.hpp"
 
@@ -58,7 +58,7 @@ namespace shift::gfx {
                 const SamplerManager& samplerManager,
                 DescriptorManager &descManager,
                 BufferManager &bufManager,
-                RenderTargetSystem& RTSystem);
+                RenderTargetManager& RTSystem);
 
         void ToneMap(const CommandBuffer& buffer, uint32_t currentImage, uint32_t currentFrame);
 
@@ -89,7 +89,7 @@ namespace shift::gfx {
         const SamplerManager& m_samplerManager;
         DescriptorManager& m_descriptorManager;
         BufferManager &m_bufManager;
-        RenderTargetSystem& m_RTSystem;
+        RenderTargetManager& m_RTSystem;
 
         //! Single for now
         SGUID m_postProcessSetGuid{};

@@ -1,5 +1,5 @@
-#ifndef SHIFT_TEXTURESYSTEM_HPP
-#define SHIFT_TEXTURESYSTEM_HPP
+#ifndef SHIFT_TEXTUREMANAGER_HPP
+#define SHIFT_TEXTUREMANAGER_HPP
 
 #include <unordered_map>
 #include <memory>
@@ -15,11 +15,11 @@
 #include "Graphics/UI/UIManager.hpp"
 
 namespace shift::gfx {
-    class TextureSystem {
+    class TextureManager {
         class UI: public ui::UIWindowComponent {
         public:
             static constexpr uint32_t DEFAULT_UI_TEX_SIZE = 256;
-            explicit UI(std::string name, std::string sName, TextureSystem& system): ui::UIWindowComponent{std::move(name), std::move(sName)}, m_system{system} {}
+            explicit UI(std::string name, std::string sName, TextureManager& system): ui::UIWindowComponent{std::move(name), std::move(sName)}, m_system{system} {}
 
 
             virtual void Item() override { ui::UIWindowComponent::Item(); }
@@ -28,10 +28,10 @@ namespace shift::gfx {
             std::unordered_map<SGUID, SGUID> textureIdToDescriptorIdLUT;
             std::unordered_map<SGUID, float> textureUIScales;
         private:
-            TextureSystem& m_system;
+            TextureManager& m_system;
         };
     public:
-        TextureSystem(
+        TextureManager(
                 const Device& device,
                 const SamplerManager& samplerManager,
                 CommandPool& graphicsPool,
@@ -61,7 +61,7 @@ namespace shift::gfx {
         void GenerateMipsAndTransferToReadState(SGUID textureId);
 
         //! UI component
-        UI m_UI{"Texture System", "Tools", *this};
+        UI m_UI{"Texture Manager", "Tools", *this};
 
         const Device& m_device;
         const SamplerManager& m_samplerManager;
@@ -74,4 +74,4 @@ namespace shift::gfx {
     };
 }
 
-#endif //SHIFT_TEXTURESYSTEM_HPP
+#endif //SHIFT_TEXTUREMANAGER_HPP

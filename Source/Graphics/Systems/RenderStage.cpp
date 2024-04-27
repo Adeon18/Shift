@@ -2,10 +2,10 @@
 // Created by otrush on 3/3/2024.
 //
 #include "RenderStage.hpp"
-#include "Graphics/Objects/VertexStructures.hpp"
+#include "Graphics/Abstraction/Geometry/VertexStructures.hpp"
 
 namespace shift::gfx {
-    bool CreateRenderStageFromInfo(const Device& device, const ShiftBackBuffer& backBuff, DescriptorManager& descManager, RenderTargetSystem& rtSystem, RenderStage &outStage, RenderStageCreateInfo info) {
+    bool CreateRenderStageFromInfo(const Device& device, const ShiftBackBuffer& backBuff, DescriptorManager& descManager, RenderTargetManager& rtSystem, RenderStage &outStage, RenderStageCreateInfo info) {
         /// Filling base data
         outStage.name = info.name;
         outStage.viewSetLayoutType = info.viewSetLayoutType;
@@ -15,7 +15,7 @@ namespace shift::gfx {
             case RenderStageCreateInfo::RT_Type::Forward:
                 // TODO: FUCKING FIX
                 outStage.renderTargetFormats.push_back(VK_FORMAT_R16G16B16A16_SFLOAT);
-                outStage.depthTargetFormat = rtSystem.GetDepthRT(RenderTargetSystem::SWAPCHAIN_DEPTH).GetFormat();
+                outStage.depthTargetFormat = rtSystem.GetDepthRT(RenderTargetManager::SWAPCHAIN_DEPTH).GetFormat();
                 break;
             case RenderStageCreateInfo::RT_Type::Swapchain:
                 // TODO: FUCKING FIX
