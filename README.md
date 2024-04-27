@@ -7,13 +7,18 @@ that was designed for the graphics programmers to learn, practice, research, and
 
 You can learn watch Shift rendering demo videos and images on the [website](https://shift.notionlinker.com/)!
 
-<h3 align="center">Prerequisites</h3>
+---
 
-1. Download the [MSVC 2022 compiler](https://visualstudio.microsoft.com/vs/features/cplusplus/) (is the only one supported as of Shift 1.0).
+### Prerequisites
+
+1. Have a Windows 10/11.
+2. Download the [MSVC 2022 compiler](https://visualstudio.microsoft.com/vs/features/cplusplus/) (is the only one supported as of Shift 1.0).
 2. Download the [LunarG Vulkan SDK](https://www.lunarg.com/vulkan-sdk/).
 3. Set the VULKAN_SDK_PATH to your SDK install directory.
 
-<h3 align="center">Building</h3>
+---
+
+### Building
 **Using Clion:**
 1. Open Shift as a new project and set the compiler to MSVC 2022 and build. Shift's CMake will do the rest.
 
@@ -22,7 +27,9 @@ You can learn watch Shift rendering demo videos and images on the [website](http
 2. Open the .sln with the MSVC 2022.
 3. Set **Shift** as a startup project and build.
 4. _Pray, I Guess..._
+5. 
+---
 
-<h3 align="center">Credits</h3>
+### Credits
 - [Ostap "Ade0n" Trush](https://github.com/Adeon18): Development.
 - [Danylo Rudenko](https://github.com/danylorudenko): Mentorship.
