@@ -35,6 +35,8 @@ namespace shift::tool {
         //! Get the delta time
         float GetDt() const;
 
+        float GetFrameTimeInMs() const;
+
     private:
         // Time point to calculate seconds since the program start from shader
         std::chrono::time_point<sys_clock> m_progStart;

@@ -67,6 +67,7 @@ namespace shift {
         m_engineData.dt = m_timer.GetDt();
         m_engineData.fps = m_timer.GetFPSCurrent();
         m_engineData.secondsSinceStart = m_timer.GetSecondsSinceStart();
+        m_engineData.frameTimeMs = m_timer.GetFrameTimeInMs();
     }
 
     void ShiftEngine::HandleInput() {

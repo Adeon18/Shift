@@ -131,7 +131,7 @@ namespace shift::gfx {
                          .renderTargetType = RenderStageCreateInfo::RT_Type::Forward
                  }
                 },
-                {MeshPass::SimpleLights_Forward,
+               {MeshPass::SimpleLights_Forward,
                         {
                                 .name = "SimpleLights",
                                 .shaderData = {"SimpleLights.vert.spv", "SimpleLights.frag.spv", "", "", ""},

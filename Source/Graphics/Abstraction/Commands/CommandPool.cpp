@@ -32,7 +32,6 @@ namespace shift {
         const CommandBuffer& CommandPool::RequestCommandBufferManual(BUFFER_TYPE type, uint32_t frameIdx) {
             bool bufferInFlight = (type == BUFFER_TYPE::FLIGHT);
 
-
             uint32_t flightBuffersTaken = 0;
             // BIIIIIIG TODO: A HUGE PIECE OF ASS AND THIS IS JUST FOR CORRECT DEVELOPMENT WHILE I AM STUPID
             for (uint32_t i = 0; i < m_commandBuffers[type].size(); ++i) {

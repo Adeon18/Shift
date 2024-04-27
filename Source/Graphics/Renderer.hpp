@@ -24,6 +24,7 @@
 #include "Graphics/Systems/LightSystem.hpp"
 #include "Graphics/Systems/RenderTargetSystem.hpp"
 #include "Graphics/Systems/PostProcessSystem.hpp"
+#include "Graphics/Systems/ProfilingSystem.hpp"
 #include "Graphics/UI/UIManager.hpp"
 
 #include "Input/Controllers/Camera/FlyingCameraController.hpp"
@@ -47,6 +48,7 @@ namespace shift::gfx {
         float dt;
         float fps;
         float secondsSinceStart;
+        float frameTimeMs;
     };
 
     class Renderer {
@@ -92,6 +94,7 @@ namespace shift::gfx {
         std::unique_ptr<PostProcessSystem> m_postProcessSystem;
         std::unique_ptr<LightSystem> m_lightSystem;
         std::unique_ptr<RenderTargetSystem> m_RTSystem;
+        std::unique_ptr<ProfilingSystem> m_profilingSystem;
 
         uint32_t m_currentFrame = 0;
 

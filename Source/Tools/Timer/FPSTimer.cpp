@@ -10,7 +10,7 @@ namespace shift::tool {
 
         if (m_lag > m_fixed_dt) {
             ++m_ActualFPS;
-            m_lag -= m_fixed_dt;
+            m_lag = 0ns;
             return true;
         }
 
@@ -41,6 +41,12 @@ namespace shift::tool {
     }
     float FPSTimer::GetDt() const
     {
-        return static_cast<float>(m_fixed_dt.count()) / 1'000'000'000.0f;
+        return static_cast<float>(m_dt.count()) / 1'000'000'000.0f;
     }
+
+    float FPSTimer::GetFrameTimeInMs() const
+    {
+        return static_cast<float>(m_dt.count()) / 1'000'000.0f;
+    }
+
 } // shift::tool

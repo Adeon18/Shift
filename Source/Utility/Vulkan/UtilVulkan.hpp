@@ -20,7 +20,8 @@ namespace shift {
 
         const std::vector<const char*> DEVICE_EXTENSIONS = {
                 VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-                VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME
+                VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+                VK_EXT_HOST_QUERY_RESET_EXTENSION_NAME
         };
 
         static constexpr float DEFAULT_QUEUE_PRIORITY = 1.0f;

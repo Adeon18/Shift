@@ -106,6 +106,16 @@ namespace shift {
             else {
                 throw VulkanCreateResourceException("Failed to find a suitable GPU!");
             }
+
+            vkGetPhysicalDeviceProperties(m_physicalDevice, &m_deviceProperties);
+
+            if (m_deviceProperties.limits.timestampPeriod == 0) {
+                throw VulkanCreateResourceException("GPU does not support timestemp queries!");
+            }
+
+            if (!m_deviceProperties.limits.timestampComputeAndGraphics) {
+                throw VulkanCreateResourceException("GPU does not support timestamp queries for all queue families!");
+            }
         }
 
         VkImageView Device::CreateImageView(const VkImageViewCreateInfo& info) const {
@@ -298,6 +308,20 @@ namespace shift {
 
         void Device::DestroyFrameBuffer(VkFramebuffer buf) const {
             vkDestroyFramebuffer(m_device, buf, nullptr);
+        }
+
+        VkQueryPool Device::CreateQueryPool(const VkQueryPoolCreateInfo &info) const {
+            VkQueryPool pool;
+
+            if (vkCreateQueryPool(m_device, &info, nullptr, &pool) != VK_SUCCESS) {
+                spdlog::error("Failed to create VkQueryPool!");
+                return VK_NULL_HANDLE;
+            }
+            return pool;
+        }
+
+        void Device::DestroyQueryPool(VkQueryPool pool) const {
+            vkDestroyQueryPool(m_device, pool, nullptr);
         }
     } // gfx
 } // shift

@@ -58,10 +58,14 @@ namespace shift {
             [[nodiscard]] VkDescriptorSet AllocateDescriptorSet(const VkDescriptorSetAllocateInfo& info) const;
 
             [[nodiscard]] VkFramebuffer CreateFrameBuffer(const VkFramebufferCreateInfo& info) const;
-            [[nodiscard]] void DestroyFrameBuffer(VkFramebuffer buf) const;
+            void DestroyFrameBuffer(VkFramebuffer buf) const;
+
+            [[nodiscard]] VkQueryPool CreateQueryPool(const VkQueryPoolCreateInfo& info) const;
+            void DestroyQueryPool(VkQueryPool pool) const;
 
             [[nodiscard]] VkDevice Get() const { return m_device; }
             [[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const { return m_physicalDevice; }
+            [[nodiscard]] VkPhysicalDeviceProperties GetDeviceProperties() const { return m_deviceProperties; }
             [[nodiscard]] VmaAllocator GetAllocator() const { return m_allocator; }
             [[nodiscard]] VkQueue GetGraphicsQueue() const { return m_graphicsQueue; }
             [[nodiscard]] VkQueue GetPresentQueue() const { return m_presentQueue; }
@@ -76,6 +80,7 @@ namespace shift {
 
             VkDevice m_device = VK_NULL_HANDLE;
             VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;     // Destroyed implicitly at vkInstance destruction
+            VkPhysicalDeviceProperties m_deviceProperties{};
             VmaAllocator m_allocator = VK_NULL_HANDLE;
 
             VkQueue m_graphicsQueue = VK_NULL_HANDLE;

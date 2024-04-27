@@ -46,6 +46,8 @@ namespace shift::gfx {
         m_postProcessSystem = std::make_unique<PostProcessSystem>(*m_context.device, m_backBuffer, *m_samplerManager, *m_descriptorManager, *m_bufferManager, *m_RTSystem);
         m_lightSystem = std::make_unique<LightSystem>(*m_descriptorManager, *m_bufferManager, *m_meshSystem, sphere);
 
+        m_profilingSystem = std::make_unique<ProfilingSystem>(*m_context.device);
+
         LoadScene();
 
         ui::UIManager::GetInstance().CreateImGuiContext();
@@ -69,7 +71,7 @@ namespace shift::gfx {
 
 //        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/SimpleAmogusPink/scene.gltf");
 //        auto amogus2 = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../Sponza-master/Sponza-master/sponza.obj");
-         auto deagle = m_modelSystem->LoadModel(shift::util::GetShiftRoot() + "../desert_eagle/scene.gltf");
+         auto deagle = m_modelSystem->LoadModel(shift::util::GetShiftRoot() + "../sponza-gltf-pbr/sponza.glb");
 
 
 //        for (int i = -16; i < 16; ++i) {
@@ -82,14 +84,14 @@ namespace shift::gfx {
 
 
         m_meshSystem->AddInstance(MeshPass::PBR_Forward, Mobility::STATIC, deagle,
-                                  glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0, 0.0f, -2.0f)), glm::vec3(0.1f)));
+                                  glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0, 0.0f, -2.0f)), glm::vec3(2.f)));
 
-        m_lightSystem->AddPointLight(glm::vec3(-2.0, 2.0, -2.0), glm::vec3(10.0, 10.0, 0.0));
-        m_lightSystem->AddPointLight(glm::vec3(2.0, 2.0, -2.0), glm::vec3(0.0, 10.0, 10.0));
-        //m_lightSystem->AddPointLight(glm::vec3(0.0, -1.0, -1.0), glm::vec3(0.0, 10.0, 0.0));
-        //m_lightSystem->AddPointLight(glm::vec3(0.0, 2.0, -2.0), glm::vec3(2.0, 2.0, 2.0));
+        m_lightSystem->AddPointLight(glm::vec3(7.0, 2.0, -2.0), glm::vec3(50.0, 50.0, 0.0));
+        m_lightSystem->AddPointLight(glm::vec3(-9.0, 2.0, -2.0), glm::vec3(0.0, 50.0, 50.0));
+        m_lightSystem->AddPointLight(glm::vec3(2.0, 2.0, -2.0), glm::vec3(0.0, 50.0, 0.0));
+        m_lightSystem->AddPointLight(glm::vec3(-3.0, 2.0, -2.0), glm::vec3(50.0, 50.0, 50.0));
 
-        m_lightSystem->AddDirectionalLight(glm::vec3(0.0, -1.0, -1.0), glm::vec3(5.0, 5.0, 5.0));
+        //m_lightSystem->AddDirectionalLight(glm::vec3(0.0, -1.0, -1.0), glm::vec3(5.0, 5.0, 5.0));
 
         return true;
     }
@@ -98,6 +100,8 @@ namespace shift::gfx {
         ui::UIManager::GetInstance().BeginFrame(m_currentFrame);
 
         auto& buff = m_context.graphicsPool->RequestCommandBuffer(shift::gfx::BUFFER_TYPE::FLIGHT, m_currentFrame);
+        m_profilingSystem->ResetQueryPool(buff);
+
 
         /// Aquire availible swapchain image index
         bool aquireSuccess = true;
@@ -107,6 +111,8 @@ namespace shift::gfx {
         UpdateBuffers(engineData);
         m_lightSystem->UpdateAllLights(m_currentFrame);
         m_meshSystem->UpdateInstances(m_currentFrame);
+
+        m_profilingSystem->PutTimestamp(buff, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
         buff.TransferImageLayout(m_RTSystem->GetColorRT(RenderTargetSystem::HDR_BUFFER).GetImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
         buff.TransferImageLayout(m_RTSystem->GetDepthRT(RenderTargetSystem::SWAPCHAIN_DEPTH).GetImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, true);
@@ -120,8 +126,10 @@ namespace shift::gfx {
         m_postProcessSystem->ToneMap(buff, imageIndex, m_currentFrame);
 
         buff.TransferImageLayout(m_backBuffer.swapchain->GetImages()[imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
-        buff.EndCommandBuffer();
 
+        m_profilingSystem->PutTimestamp(buff, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+
+        buff.EndCommandBuffer();
 
         std::array<VkSemaphore, 1> waitSem{ m_imageAvailableSemaphores[m_currentFrame]->Get() };
         std::array<VkSemaphore, 1> sigSem{ m_renderFinishedSemaphores[m_currentFrame]->Get() };
@@ -133,6 +141,9 @@ namespace shift::gfx {
                 cmdBuf,
                 waitStages.data()
         ))) { return false; }
+
+        m_profilingSystem->PollQueryPoolResults();
+        m_profilingSystem->UpdateProfileData(engineData.frameTimeMs);
 
         if (!PresentFinalImage(imageIndex)) { return false; }
 
@@ -155,6 +166,7 @@ namespace shift::gfx {
         m_RTSystem.reset();
         m_modelSystem.reset();
         m_bufferManager.reset();
+        m_profilingSystem.reset();
 
         for (size_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
             m_imageAvailableSemaphores[i].reset();
