@@ -5,15 +5,16 @@
 Shift is a modern rendering engine based on Vulkan API
 that was designed for the graphics programmers to learn, practice, research, and optimize various rendering techniques.
 
-You can learn watch Shift rendering demo videos and images on the [website](https://shift.notionlinker.com/)!
+You can watch Shift rendering demo videos and images on the [website](https://shift.notionlinker.com/)!
 
 ---
 
 ### Prerequisites
 
 1. Have a Windows 10/11.
-2. Download the [MSVC 2022 compiler](https://visualstudio.microsoft.com/vs/features/cplusplus/) (is the only one supported as of Shift 1.0).
-2. Download the [LunarG Vulkan SDK](https://www.lunarg.com/vulkan-sdk/).
+2. Download [CMake](https://cmake.org/download/) (minimum version 3.4.0).
+3. Download the [MSVC 2022 compiler](https://visualstudio.microsoft.com/vs/features/cplusplus/) (is the only one supported as of Shift 1.0).
+2. Download the [LunarG Vulkan SDK](https://www.lunarg.com/vulkan-sdk/) version 1.3.261.1.
 3. Set the VULKAN_SDK_PATH to your SDK install directory.
 
 ---
