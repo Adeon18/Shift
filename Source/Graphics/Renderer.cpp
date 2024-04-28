@@ -59,6 +59,9 @@ namespace shift::gfx {
     bool Renderer::LoadScene() {
         auto DefaultScullScene = [&]() {
             auto skull = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/HumanSkull/scene.gltf");
+
+            if (!skull) { return false; }
+
             m_meshSystem->AddInstance(MeshPass::PBR_Forward, Mobility::STATIC, skull,
                                       glm::rotate(glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0, 0.0f, -3.0f)), glm::vec3(1.0f)), glm::pi<float>(), glm::vec3(0, 1, 0)));
             m_lightSystem->AddPointLight(glm::vec3(-2.0, 1.0, -2.0), glm::vec3(50.0, 0.0, 0.0));
@@ -67,11 +70,11 @@ namespace shift::gfx {
             m_lightSystem->AddPointLight(glm::vec3(0.0, 2.0, -2.0), glm::vec3(5.0, 5.0, 0.0));
 
             m_lightSystem->AddDirectionalLight(glm::vec3(0.0, -1.0, -1.0), glm::vec3(5.0, 5.0, 5.0));
+
+            return true;
         };
 
-        DefaultScullScene();
-
-        return true;
+        return DefaultScullScene();
     }
 
     bool Renderer::RenderFrame(const shift::gfx::EngineData &engineData) {

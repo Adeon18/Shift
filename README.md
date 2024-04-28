@@ -5,7 +5,7 @@
 Shift is a modern rendering engine based on Vulkan API
 that was designed for the graphics programmers to learn, practice, research, and optimize various rendering techniques.
 
-You can learn watch Shift rendering demo videos and images on the [website](https://shift.notionlinker.com/)!
+You can learn watch Shift rendering demo videos and images on the [webpage](https://shift.notionlinker.com/)!
 
 ---
 
@@ -27,8 +27,26 @@ You can learn watch Shift rendering demo videos and images on the [website](http
 2. Open the .sln with the MSVC 2022.
 3. Set **Shift** as a startup project and build.
 4. _Pray, I Guess..._
-5. 
 ---
+
+*Note: There will be a lot of warnings when building Assimp so don't get too scared:D*
+
+After running Shift you should get a skeleton:
+
+![img.png](./Assets/Renderings/Skull.png)
+
+If that is so, congrats! You are now running Shift!
+
+### Screenshots
+
+![](./Assets/Renderings/SponzaaaaaaaImage1.png)
+![](./Assets/Renderings/CameraRendering.png)
+![](./Assets/Renderings/SkeletonCropped1.png)
+![](./Assets/Renderings/Deagle2.png)
+![](./Assets/Renderings/TacticalHelmetImage2.png)
+![](./Assets/Renderings/SkullTrophy1Conf.png)
+
+*More demos, screenshots, additional documentation, and credits to 3D modelers are on the Shift [webpage](https://shift.notionlinker.com/)!*
 
 ### Credits
 - [Ostap "Ade0n" Trush](https://github.com/Adeon18): Development.
