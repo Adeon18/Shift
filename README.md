@@ -9,13 +9,35 @@ You can learn watch Shift rendering demo videos and images on the [webpage](http
 
 ---
 
+### Features
+
+This is a brief list of features of Shift:
+- Model loading (GLTF, FBX, OBJ and more).
+- Texture loading (PNG, TGA, JPG).
+- Light System with Directional and Point lights supported.
+- Physically Based Rendering.
+- HDR ToneMapping (Reinhard, Lottes, Uncharted 2 and ACES).
+- A unique UI based upon Dear ImGui that provides a view of textures and render targets in real-time.
+Also allows you to move and tweak lights.
+
+---
+
 ### Prerequisites
 
 1. Have a Windows 10/11.
 2. Download the [MSVC 2022 compiler](https://visualstudio.microsoft.com/vs/features/cplusplus/) (is the only one supported as of Shift 1.0).
 2. Download the [LunarG Vulkan SDK](https://www.lunarg.com/vulkan-sdk/).
-3. Set the VULKAN_SDK_PATH to your SDK install directory.
+3. Set the VULKAN_SDK_PATH in [.env.cmake](https://github.com/Adeon18/Shift/blob/main/.env.cmake) to your SDK install directory.
 
+#### Dependencies
+
+Shift CMake system pulls all dependencies except for the Vulkan related ones (that come with Vulkan SDK). Here is a list of them just in case:
+- [spdlog](hhttps://github.com/gabime/spdlog.git)
+- [GLFW](https://github.com/glfw/glfw.git)
+- [GLM](https://github.com/g-truc/glm.git)
+- [Dear ImGui](https://github.com/ocornut/imgui.git)
+- [Assimp](https://github.com/assimp/assimp.git)
+- [stb_image](https://github.com/nothings/stb.git): Provided as a header.
 ---
 
 ### Building
