@@ -63,22 +63,37 @@ Shift CMake system pulls all dependencies except for the Vulkan related ones (th
 
 After running Shift you should get a skeleton:
 
-![img.png](./Assets/Renderings/Skull.png)
+<p align="center">
+  <img src="./Assets/Renderings/Skull.png">
+</p>
 
 If that is so, congrats! You are now running Shift!
 
 ### Screenshots
 
 <p align="center">
-  <img width="1920" height="1018" src="./Assets/Renderings/SponzaaaaaaaImage1.png">
+  <img src="./Assets/Renderings/SponzaaaaaaaImage1.png">
 </p>
 
-![](./Assets/Renderings/SponzaaaaaaaImage1.png)
-![](./Assets/Renderings/CameraRendering.png)
-![](./Assets/Renderings/SkeletonCropped1.png)
-![](./Assets/Renderings/Deagle2.png)
-![](./Assets/Renderings/TacticalHelmetImage2.png)
-![](./Assets/Renderings/SkullTrophy1Conf.png)
+<p align="center">
+  <img src="./Assets/Renderings/CameraRendering.png">
+</p>
+
+<p align="center">
+  <img src="./Assets/Renderings/SkeletonCropped1.png">
+</p>
+
+<p align="center">
+  <img src="./Assets/Renderings/Deagle2.png">
+</p>
+
+<p align="center">
+  <img src="./Assets/Renderings/TacticalHelmetImage2.png">
+</p>
+
+<p align="center">
+  <img src="./Assets/Renderings/SkullTrophy1Conf.png">
+</p>
 
 *More demos, screenshots, additional documentation, and credits to 3D modelers are on the Shift [webpage](https://shift.notionlinker.com/)!*
 
