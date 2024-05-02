@@ -69,6 +69,10 @@ If that is so, congrats! You are now running Shift!
 
 ### Screenshots
 
+<p align="center">
+  <img width="1920" height="1018" src="./Assets/Renderings/SponzaaaaaaaImage1.png">
+</p>
+
 ![](./Assets/Renderings/SponzaaaaaaaImage1.png)
 ![](./Assets/Renderings/CameraRendering.png)
 ![](./Assets/Renderings/SkeletonCropped1.png)
