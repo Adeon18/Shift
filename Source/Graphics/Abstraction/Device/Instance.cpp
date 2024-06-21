@@ -52,10 +52,12 @@ namespace shift {
 
             PollDynamicRenderingFunctions();
 
-            setupDebugMessenger();
+#if SHIFT_VALIDATION
+            SetupDebugMessenger();
+#endif
         }
 
-        void Instance::setupDebugMessenger()  {
+        void Instance::SetupDebugMessenger()  {
 
             VkDebugUtilsMessengerCreateInfoEXT createInfo{};
             gutil::FillDebugMessengerCreateInfo(createInfo);

@@ -27,7 +27,7 @@ namespace shift {
 
             ~Instance();
         private:
-            void setupDebugMessenger();
+            void SetupDebugMessenger();
             void PollDynamicRenderingFunctions();
 
             VkInstance m_instance;
