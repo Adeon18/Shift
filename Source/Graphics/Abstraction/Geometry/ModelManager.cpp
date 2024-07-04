@@ -128,7 +128,7 @@ namespace shift::gfx {
                 std::string fullTexturePath = util::GetDirectoryFromPath(filename) + path.C_Str();
                 // Load texture by full path and save the full path
                 auto guid = m_textureSystem.LoadTexture(fullTexturePath, VK_FORMAT_R8G8B8A8_SRGB, fullTexturePath, generateMips);
-                modelMesh.texturePaths[dstTexType] = guid;
+                modelMesh.textures[dstTexType] = guid;
             }
         }
     }
@@ -149,6 +149,23 @@ namespace shift::gfx {
                     material->GetTexture(texType, t, &path);
                     std::cout << "path: " << path.C_Str() << std::endl;
                 }
+            }
+        }
+    }
+
+    void ModelManager::SetTextureForModelByType(
+            const SGUID modelID,
+            const uint32_t meshIdx,
+            MeshTextureType texType,
+            const SGUID textureID)
+    {
+        auto& meshes = m_loadedModels[modelID]->GetMeshes();
+
+        if (meshIdx != UINT32_MAX) {
+            meshes[meshIdx].textures[texType] = textureID;
+        } else {
+            for (auto& mesh: meshes) {
+                mesh.textures[texType] = textureID;
             }
         }
     }

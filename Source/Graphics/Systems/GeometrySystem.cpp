@@ -5,6 +5,8 @@
 #include "GeometrySystem.hpp"
 #include "Graphics/UI/UIManager.hpp"
 
+#include <glm/gtx/string_cast.hpp>
+
 namespace shift::gfx {
 
     bool IsMeshPassForward(MeshPass pass) {
@@ -103,7 +105,7 @@ namespace shift::gfx {
             SGUID setID = m_descriptorManager.AllocatePerMaterialSet(stage.matSetLayoutType);
             m_bufferManager.AllocateUBO(setID, sizeof(PerDefaultObject));
 
-            auto* tex = m_textureSystem.GetTexture(mesh.texturePaths[gfx::MeshTextureType::Diffuse]);
+            auto* tex = m_textureSystem.GetTexture(mesh.textures[gfx::MeshTextureType::Diffuse]);
             TextureBase* normalMap = nullptr;
             TextureBase* metRoughMap = nullptr;
             // TODO: Workaround for now
@@ -121,9 +123,9 @@ namespace shift::gfx {
                         perObjSet.UpdateImage(1, tex->GetView(), m_samplerManager.GetLinearSampler());
                         break;
                     case MaterialSetLayoutType::PBR:
-                        normalMap = m_textureSystem.GetTexture(mesh.texturePaths[gfx::MeshTextureType::NormalMap]);
+                        normalMap = m_textureSystem.GetTexture(mesh.textures[gfx::MeshTextureType::NormalMap]);
                         if (!normalMap) { normalMap = m_textureSystem.GetDefaultBlackTexture(); }
-                        metRoughMap = m_textureSystem.GetTexture(mesh.texturePaths[gfx::MeshTextureType::MetallicRoughness]);
+                        metRoughMap = m_textureSystem.GetTexture(mesh.textures[gfx::MeshTextureType::MetallicRoughness]);
                         if (!metRoughMap) { metRoughMap = m_textureSystem.GetDefaultGrayTexture(); }
 
                         perObjSet.UpdateUBO(0, buff.Get(), 0, buff.GetSize());
@@ -251,14 +253,42 @@ namespace shift::gfx {
         return m_dynamicInstances[pass][id];
     }
 
-    void GeometrySystem::SetDynamicInstanceWorldPosition(MeshPass pass, SGUID id, const glm::vec3 &worldPos) {
+    void GeometrySystem::SetDynamicInstanceWorldPosition(
+            MeshPass pass,
+            SGUID id,
+            const glm::vec3& worldPosition) {
         auto &ins = m_dynamicInstances[pass][id];
         if (ins.meshId == 0) {
             spdlog::warn("GeometrySystem: Cannot set instance position because instance at id=" + std::to_string(id) + " does not exist!");
             return;
         }
 
-        ins.data.modelToWorld[3] = glm::vec4(worldPos, 1);
+        glm::mat4 newWorldMatrix = glm::mat4(1.0f);
+        ins.data.modelToWorld[3] = glm::vec4(worldPosition, 1);
+        ins.data.modelToWorldInv = glm::inverse(ins.data.modelToWorld);
+    }
+
+    void GeometrySystem::SetDynamicInstanceWorldTransform(
+            MeshPass pass,
+            SGUID id,
+            const glm::vec3& worldPosition,
+            const glm::vec3& worldScale,
+            const glm::vec4& worldAxisRotationDeg) {
+        auto &ins = m_dynamicInstances[pass][id];
+        if (ins.meshId == 0) {
+            spdlog::warn("GeometrySystem: Cannot set instance position because instance at id=" + std::to_string(id) + " does not exist!");
+            return;
+        }
+
+        glm::mat4 newWorldMatrix = glm::mat4(1.0f);
+        ins.data.modelToWorld = glm::rotate(
+                glm::scale(
+                    glm::translate(glm::mat4(1.0f), worldPosition),
+                    worldScale
+                ),
+                worldAxisRotationDeg.w,
+                glm::vec3(worldAxisRotationDeg)
+        );
         ins.data.modelToWorldInv = glm::inverse(ins.data.modelToWorld);
     }
 

@@ -24,8 +24,7 @@ namespace shift::gfx {
         std::vector<gfx::Vertex> vertices;
         std::vector<Triangle> triangles;
 
-        // The map of paths like: (texture_type, path);
-        std::unordered_map<MeshTextureType, SGUID> texturePaths;
+        std::unordered_map<MeshTextureType, SGUID> textures;
 
         glm::mat4 meshToModel;
         glm::mat4 meshToModelInv;

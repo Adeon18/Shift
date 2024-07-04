@@ -74,7 +74,28 @@ namespace shift::gfx {
             return true;
         };
 
-        return DefaultScullScene();
+        auto cube = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/Cube/Cube.glb");
+
+
+        auto skull = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/HumanSkull/scene.gltf");
+        auto sphere = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/Sphere/sphere.glb");
+        auto spz = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../sponza-gltf-pbr/sponza.glb");
+        auto deag = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../desert_eagle/scene.gltf");
+
+
+        //m_modelManager->SetTextureForModelByType(skull, UINT32_MAX, MeshTextureType::Diffuse, m_textureManager->LoadTexture(shift::util::GetShiftRoot() + "../Zbir/artist1.jpg", VK_FORMAT_R8G8B8A8_SRGB, "Myxa", true));
+        //m_debugUI.dummy = m_meshSystem->AddInstance(MeshPass::Textured_Forward, Mobility::MOVABLE, skull,
+                                 //glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0, 2.0f, -3.0f)), glm::vec3(1.0f)));
+
+        m_meshSystem->AddInstance(MeshPass::PBR_Forward, Mobility::STATIC, skull,
+                                  glm::scale(glm::mat4(1.0f), glm::vec3(2.0f)));
+
+        m_lightSystem->AddPointLight(glm::vec3(-2.0, 1.0, -2.0), glm::vec3(50.0, 0.0, 0.0));
+        m_lightSystem->AddPointLight(glm::vec3(2.0, 1.0, -2.0), glm::vec3(0.0, 0.0, 5.0));
+
+        m_lightSystem->AddDirectionalLight(glm::vec3(0.0, -1.0, -1.0), glm::vec3(5.0, 5.0, 5.0));
+
+        return true;
     }
 
     bool Renderer::RenderFrame(const shift::gfx::EngineData &engineData) {
@@ -82,7 +103,6 @@ namespace shift::gfx {
 
         auto& buff = m_context.graphicsPool->RequestCommandBuffer(shift::gfx::BUFFER_TYPE::FLIGHT, m_currentFrame);
         m_profilingSystem->ResetQueryPool(buff);
-
 
         /// Aquire availible swapchain image index
         bool aquireSuccess = true;
@@ -262,5 +282,17 @@ namespace shift::gfx {
         }
 
         return imageIndex;
+    }
+
+    void Renderer::UI::Show(uint32_t currentFrame) {
+        // TODO: Move this if into the UI MANAGER
+        if (m_shown) {
+            ImGui::Begin(m_name.c_str(), &m_shown);
+
+            ImGui::SliderFloat3("Rot", glm::value_ptr(rotation), 0.0f, 1.0f);
+            ImGui::SliderFloat("Speed", &rotSpeedIncrementTimes1k, 0.0f, 100.0f);
+
+            ImGui::End();
+        }
     }
 } // shift::gfx

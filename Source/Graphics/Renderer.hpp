@@ -52,7 +52,19 @@ namespace shift::gfx {
     };
 
     class Renderer {
+        class UI: public ui::UIWindowComponent {
+        public:
+            explicit UI(std::string name, std::string sName, Renderer& system): ui::UIWindowComponent{std::move(name), std::move(sName)}, m_system{system} {}
 
+            virtual void Item() override { ui::UIWindowComponent::Item(); }
+            virtual void Show(uint32_t currentFrame) override;
+
+            SGUID dummy;
+            glm::vec4 rotation{0.0f, 1.0f, 0.0f, 0.0f};
+            float rotSpeedIncrementTimes1k = 3.f;
+        private:
+            Renderer& m_system;
+        };
     public:
         Renderer(ShiftWindow& window, std::shared_ptr<ctrl::FlyingCameraController> controller): m_window{window}, m_controller(controller) {
 
@@ -105,6 +117,8 @@ namespace shift::gfx {
         // Sync primitives to comtrol the rendering of a frame
         std::vector<std::unique_ptr<Semaphore>> m_imageAvailableSemaphores;
         std::vector<std::unique_ptr<Semaphore>> m_renderFinishedSemaphores;
+
+        UI m_debugUI{"Master Renderer", "Debug", *this};
     };
 } // shift::gfx
 

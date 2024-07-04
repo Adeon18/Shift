@@ -19,7 +19,7 @@ namespace shift::gfx {
     public:
         ModelManager(const Device& device, CommandPool& pool, TextureManager& texSys): m_device{device}, m_pool{pool}, m_textureSystem{texSys} {}
 
-        ModelManager() = default;
+        ModelManager() = delete;
         ModelManager(const ModelManager& other) = delete;
         ModelManager& operator=(const ModelManager& other) = delete;
 
@@ -28,6 +28,9 @@ namespace shift::gfx {
 
         //! Load and cache the model into a map
         SGUID LoadModel(const std::string& filename);
+
+        //! Manually edit the model textures, if meshIdx == UINT32_MAX, replaces texType with specified texture for all meshes
+        void SetTextureForModelByType(const SGUID modelID, const uint32_t meshIdx, MeshTextureType texType, const SGUID textureID);
     private:
 
         void LoadTextures(const aiScene* pScene, std::shared_ptr<Model> modelPtr, aiTextureType srcTexType, MeshTextureType dstTexType, const std::string& filename, bool generateMips = false);

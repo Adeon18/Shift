@@ -61,7 +61,8 @@ namespace shift::gfx {
         //! TODO: Replace with separate fucntions for handling movement, etc
         GeometryInstance& GetDynamicInstance(MeshPass pass, SGUID id);
 
-        void SetDynamicInstanceWorldPosition(MeshPass pass, SGUID id, const glm::vec3& worldPos);
+        void SetDynamicInstanceWorldPosition(MeshPass pass, SGUID id, const glm::vec3& worldPosition);
+        void SetDynamicInstanceWorldTransform(MeshPass pass, SGUID id, const glm::vec3& worldPosition, const glm::vec3& worldScale = glm::vec3(1.0f), const glm::vec4& worldAxisRotationDeg = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f));
 
         //! TODO: Temporary function to set color for lights, used by LightSystem
         void SetEmissionPassInstanceColor(SGUID id, const glm::vec4& color);
