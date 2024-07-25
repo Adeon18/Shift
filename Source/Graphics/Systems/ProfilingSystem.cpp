@@ -2,6 +2,9 @@
 // Created by otrush on 4/25/2024.
 //
 
+#include <iostream>
+#include <numeric>
+
 #include "ProfilingSystem.hpp"
 
 namespace shift::gfx {
@@ -15,23 +18,26 @@ namespace shift::gfx {
         m_queryPool = m_device.CreateQueryPool(queryPoolInfo);
     }
 
-    void ProfilingSystem::UpdateProfileData(float currentFrameTime) {
+    void ProfilingSystem::UpdateProfileData(float currentFrameTime, uint32_t currentFrame) {
+        if (m_timeStamps[currentFrame * TIME_STAMPS_PER_FRAME * 2 + 1] == 0 ||
+            m_timeStamps[currentFrame * TIME_STAMPS_PER_FRAME * 2 + 3] == 0)
+        {
+            return;
+        }
+
         m_framesSinceStart++;
 
-        // Wait a second cuz why not
-        if (m_framesSinceStart < 10000u) { return; }
-
-        m_profilingStorage.gpuTimeLast = (m_timeStamps[0] > 0u && m_timeStamps[1] > 0u) ? static_cast<float>(m_timeStamps[1] - m_timeStamps[0]) * m_device.GetDeviceProperties().limits.timestampPeriod / 1'000'000.0f: m_profilingStorage.gpuTimeLast;
+        m_profilingStorage.gpuTimeLast = static_cast<float>(m_timeStamps[currentFrame * TIME_STAMPS_PER_FRAME * 2 + 2] - m_timeStamps[currentFrame * TIME_STAMPS_PER_FRAME * 2]) * m_device.GetDeviceProperties().limits.timestampPeriod / 1'000'000.0f;
         m_profilingStorage.frameTimeLast = currentFrameTime;
 
-        m_profilingStorage.gpuTimeTotal += m_profilingStorage.gpuTimeLast;
-        m_profilingStorage.frameTimeTotal += m_profilingStorage.frameTimeLast;
+        m_profilingStorage.gpuTimeLog[m_framesSinceStart % PROFILER_BUFFER_SIZE] = m_profilingStorage.gpuTimeLast;
+        m_profilingStorage.frameTimeLog[m_framesSinceStart % PROFILER_BUFFER_SIZE] = m_profilingStorage.frameTimeLast;
 
-        m_profilingStorage.gpuTimeMax = std::max(m_profilingStorage.gpuTimeMax, m_profilingStorage.gpuTimeLast);
-        m_profilingStorage.frameTimeMax = std::max(m_profilingStorage.frameTimeMax, m_profilingStorage.frameTimeLast);
+        m_profilingStorage.gpuTimeMax = *std::max_element(m_profilingStorage.gpuTimeLog.begin(), m_profilingStorage.gpuTimeLog.end());
+        m_profilingStorage.frameTimeMax = *std::max_element(m_profilingStorage.frameTimeLog.begin(), m_profilingStorage.frameTimeLog.end());
 
-        m_profilingStorage.gpuTimeAverage = m_profilingStorage.gpuTimeTotal / static_cast<double>(m_framesSinceStart - 10000u);
-        m_profilingStorage.frameTimeAverage = m_profilingStorage.frameTimeTotal / static_cast<double>(m_framesSinceStart - 10000u);
+        m_profilingStorage.gpuTimeAverage = std::accumulate(m_profilingStorage.gpuTimeLog.begin(), m_profilingStorage.gpuTimeLog.end(), 0.f) / static_cast<float>(PROFILER_BUFFER_SIZE);
+        m_profilingStorage.frameTimeAverage = std::accumulate(m_profilingStorage.frameTimeLog.begin(), m_profilingStorage.frameTimeLog.end(), 0.f) / static_cast<float>(PROFILER_BUFFER_SIZE);
     }
 
     void ProfilingSystem::ResetQueryPool(const CommandBuffer &buff) {
@@ -39,20 +45,25 @@ namespace shift::gfx {
         m_lastPutTimeStampIdx = 0u;
     }
 
-    void ProfilingSystem::PutTimestamp(const CommandBuffer &buff, VkPipelineStageFlagBits flags) {
-        vkCmdWriteTimestamp(buff.Get(), flags, m_queryPool, m_lastPutTimeStampIdx++);
+    void ProfilingSystem::PutTimestamp(const CommandBuffer& buff, uint32_t currentFrame, VkPipelineStageFlagBits flags) {
+        uint32_t timeStampIndex = currentFrame * TIME_STAMPS_PER_FRAME * 2u + m_lastPutTimeStampIdx;
+
+        if (m_timeStamps[timeStampIndex] != 0) {
+            vkCmdWriteTimestamp(buff.Get(), flags, m_queryPool, m_lastPutTimeStampIdx);
+        }
+        ++m_lastPutTimeStampIdx;
     }
 
-    void ProfilingSystem::PollQueryPoolResults() {
+    void ProfilingSystem::PollQueryPoolResults(uint32_t currentFrame) {
         vkGetQueryPoolResults(
                 m_device.Get(),
                 m_queryPool,
                 0,
                 m_lastPutTimeStampIdx,
-                m_timeStamps.size() * sizeof(uint64_t),
-                m_timeStamps.data(),
-                sizeof(uint64_t),
-                VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
+                m_lastPutTimeStampIdx * 2 * sizeof(uint64_t),
+                &m_timeStamps[TIME_STAMPS_PER_FRAME * shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT * currentFrame],
+                2 * sizeof(uint64_t),
+                VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT
         );
     }
 

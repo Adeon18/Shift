@@ -78,9 +78,9 @@ namespace shift::gfx {
 
 
         auto skull = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/HumanSkull/scene.gltf");
-        auto sphere = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/Sphere/sphere.glb");
-        auto spz = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../sponza-gltf-pbr/sponza.glb");
-        auto deag = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../desert_eagle/scene.gltf");
+        //auto sphere = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/Sphere/sphere.glb");
+        //auto spz = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../sponza-gltf-pbr/sponza.glb");
+        //auto deag = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../desert_eagle/scene.gltf");
 
 
         //m_modelManager->SetTextureForModelByType(skull, UINT32_MAX, MeshTextureType::Diffuse, m_textureManager->LoadTexture(shift::util::GetShiftRoot() + "../Zbir/artist1.jpg", VK_FORMAT_R8G8B8A8_SRGB, "Myxa", true));
@@ -113,7 +113,7 @@ namespace shift::gfx {
         m_lightSystem->UpdateAllLights(m_currentFrame);
         m_meshSystem->UpdateInstances(m_currentFrame);
 
-        m_profilingSystem->PutTimestamp(buff, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+        m_profilingSystem->PutTimestamp(buff, m_currentFrame, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
         buff.TransferImageLayout(m_RTManager->GetColorRT(RenderTargetManager::HDR_BUFFER).GetImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
         buff.TransferImageLayout(m_RTManager->GetDepthRT(RenderTargetManager::SWAPCHAIN_DEPTH).GetImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, true);
@@ -128,7 +128,7 @@ namespace shift::gfx {
 
         buff.TransferImageLayout(m_backBuffer.swapchain->GetImages()[imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 
-        m_profilingSystem->PutTimestamp(buff, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+        m_profilingSystem->PutTimestamp(buff, m_currentFrame, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 
         buff.EndCommandBuffer();
 
@@ -143,8 +143,8 @@ namespace shift::gfx {
                 waitStages.data()
         ))) { return false; }
 
-        m_profilingSystem->PollQueryPoolResults();
-        m_profilingSystem->UpdateProfileData(engineData.frameTimeMs);
+        m_profilingSystem->PollQueryPoolResults(m_currentFrame);
+        m_profilingSystem->UpdateProfileData(engineData.frameTimeMs, m_currentFrame);
 
         if (!PresentFinalImage(imageIndex)) { return false; }
 

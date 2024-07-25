@@ -86,7 +86,7 @@ namespace shift::gfx {
                     ImGui::SeparatorText(std::string{"Light " + std::to_string(lE.bufferIndex)}.c_str());
 
                     ImGui::DragFloat3("Position", glm::value_ptr(lE.light.position));
-                    // TODO: What the fuck
+                    // What the fuck
                     ImGui::ColorEdit3(std::string{"Radiance##" + std::to_string(lE.bufferIndex)}.c_str(), glm::value_ptr(lE.light.radiance));
 
                     if (ImGui::TreeNode("Misc")) {

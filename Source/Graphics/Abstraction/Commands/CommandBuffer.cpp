@@ -106,7 +106,7 @@ namespace shift {
             barrier.image = image;
             barrier.subresourceRange = subresourceRange;
 
-            // TODO: taken from https://github.com/inexorgame/vulkan-renderer
+            // Mostly Taken from https://github.com/inexorgame/vulkan-renderer
             switch (oldLayout) {
                 case VK_IMAGE_LAYOUT_UNDEFINED:
                     barrier.srcAccessMask = 0;

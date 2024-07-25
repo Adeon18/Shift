@@ -28,15 +28,16 @@ namespace shift::gfx {
 
         /// We leave room for extension
         static constexpr uint32_t TIME_STAMPS_PER_FRAME = 10;
+        static constexpr uint32_t PROFILER_BUFFER_SIZE = 2048;
     public:
         struct ProfilingStorage {
-            double gpuTimeTotal = 0.0f; // used to compute average
-            double gpuTimeAverage = 0.0f;
+            std::array<float, PROFILER_BUFFER_SIZE> gpuTimeLog{};
+            float gpuTimeAverage = 0.0f;
             float gpuTimeMax = 0.0f;
             float gpuTimeLast = 0.0f;
 
-            double frameTimeTotal = 0.0f; // used to compute average
-            double frameTimeAverage = 0.0f;
+            std::array<float, PROFILER_BUFFER_SIZE> frameTimeLog{};
+            float frameTimeAverage = 0.0f;
             float frameTimeMax = 0.0f;
             float frameTimeLast = 0.0f;
         };
@@ -44,15 +45,14 @@ namespace shift::gfx {
         explicit ProfilingSystem(const Device& device);
 
         //! Calculate internal profiling data to display in the engine
-        void UpdateProfileData(float currentFrameTime);
+        void UpdateProfileData(float currentFrameTime, uint32_t currentFrame);
 
         //! Reset the query pool of timings, must be done right after begin command buffer
         void ResetQueryPool(const CommandBuffer& buff);
         //! Put a timestamp at some CB
-        void PutTimestamp(const CommandBuffer& buff, VkPipelineStageFlagBits flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+        void PutTimestamp(const CommandBuffer& buff, uint32_t currentFrame, VkPipelineStageFlagBits flags);
 
-        //! Poll the results, TODO: IS A BLOCKING OPERATION
-        void PollQueryPoolResults();
+        void PollQueryPoolResults(uint32_t currentFrame);
 
         ~ProfilingSystem();
 
@@ -67,7 +67,7 @@ namespace shift::gfx {
         ProfilingStorage m_profilingStorage;
 
         VkQueryPool m_queryPool;
-        std::array<uint64_t, TIME_STAMPS_PER_FRAME> m_timeStamps;
+        std::array<uint64_t, 2u * TIME_STAMPS_PER_FRAME * shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT> m_timeStamps;
         uint32_t m_lastPutTimeStampIdx = 0u;
 
         uint64_t m_framesSinceStart = 0u;
