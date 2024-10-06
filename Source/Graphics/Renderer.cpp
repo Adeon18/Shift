@@ -8,19 +8,19 @@
 
 #include <glm/gtx/string_cast.hpp>
 
-namespace shift::gfx {
+namespace Shift::gfx {
     bool Renderer::Init() {
         try {
-            m_context.instance = std::make_unique<shift::gfx::Instance>("TestApp", VK_MAKE_VERSION(1, 0, 0), "ShiftEngine",
+            m_context.instance = std::make_unique<Shift::gfx::Instance>("TestApp", VK_MAKE_VERSION(1, 0, 0), "ShiftEngine",
                                                                         VK_MAKE_VERSION(1, 0, 0));
             m_backBuffer.windowSurface = std::make_unique<WindowSurface>(m_context.instance->Get(), m_window.GetHandle());
-            m_context.device = std::make_unique<shift::gfx::Device>(*m_context.instance, m_backBuffer.windowSurface->Get());
+            m_context.device = std::make_unique<Shift::gfx::Device>(*m_context.instance, m_backBuffer.windowSurface->Get());
         } catch (VulkanCreateResourceException &e) {
             spdlog::error(e.what());
             return false;
         }
 
-        m_backBuffer.swapchain = std::make_unique<shift::gfx::Swapchain>(*m_context.device, *m_backBuffer.windowSurface, m_window.GetWidth(), m_window.GetHeight());
+        m_backBuffer.swapchain = std::make_unique<Shift::gfx::Swapchain>(*m_context.device, *m_backBuffer.windowSurface, m_window.GetWidth(), m_window.GetHeight());
         if (!m_backBuffer.swapchain->IsValid()) { return false;}
 
         m_context.graphicsPool = std::make_unique<CommandPool>(*m_context.device, *m_context.instance, POOL_TYPE::GRAPHICS);
@@ -33,7 +33,7 @@ namespace shift::gfx {
         if (!m_descriptorManager->AllocatePools()) {return false;}
         m_textureManager = std::make_unique<TextureManager>(*m_context.device, *m_samplerManager, *m_context.graphicsPool, *m_context.transferPool, *m_descriptorManager);
         m_modelManager = std::make_unique<ModelManager>(*m_context.device, *m_context.transferPool, *m_textureManager);
-        auto sphere = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/Sphere/sphere.glb");
+        auto sphere = m_modelManager->LoadModel(Shift::util::GetShiftRoot() + "Assets/Models/Sphere/sphere.glb");
 
         /// Must be created before meshsystem
         CreateDescriptors();
@@ -58,7 +58,7 @@ namespace shift::gfx {
 
     bool Renderer::LoadScene() {
         auto DefaultScullScene = [&]() {
-            auto skull = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/HumanSkull/scene.gltf");
+            auto skull = m_modelManager->LoadModel(Shift::util::GetShiftRoot() + "Assets/Models/HumanSkull/scene.gltf");
 
             if (!skull) { return false; }
 
@@ -74,10 +74,10 @@ namespace shift::gfx {
             return true;
         };
 
-        auto cube = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/Cube/Cube.glb");
+        auto cube = m_modelManager->LoadModel(Shift::util::GetShiftRoot() + "Assets/Models/Cube/Cube.glb");
 
 
-        auto skull = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/HumanSkull/scene.gltf");
+        auto skull = m_modelManager->LoadModel(Shift::util::GetShiftRoot() + "Assets/Models/HumanSkull/scene.gltf");
         //auto sphere = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "Assets/Models/Sphere/sphere.glb");
         //auto spz = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../sponza-gltf-pbr/sponza.glb");
         //auto deag = m_modelManager->LoadModel(shift::util::GetShiftRoot() + "../desert_eagle/scene.gltf");
@@ -98,10 +98,10 @@ namespace shift::gfx {
         return true;
     }
 
-    bool Renderer::RenderFrame(const shift::gfx::EngineData &engineData) {
+    bool Renderer::RenderFrame(const Shift::gfx::EngineData &engineData) {
         ui::UIManager::GetInstance().BeginFrame(m_currentFrame);
 
-        auto& buff = m_context.graphicsPool->RequestCommandBuffer(shift::gfx::BUFFER_TYPE::FLIGHT, m_currentFrame);
+        auto& buff = m_context.graphicsPool->RequestCommandBuffer(Shift::gfx::BUFFER_TYPE::FLIGHT, m_currentFrame);
         m_profilingSystem->ResetQueryPool(buff);
 
         /// Aquire availible swapchain image index
@@ -149,7 +149,7 @@ namespace shift::gfx {
         if (!PresentFinalImage(imageIndex)) { return false; }
 
         // Update the current frame
-        m_currentFrame = (m_currentFrame + 1) % shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT;
+        m_currentFrame = (m_currentFrame + 1) % Shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT;
 
         return true;
     }
@@ -169,7 +169,7 @@ namespace shift::gfx {
         m_bufferManager.reset();
         m_profilingSystem.reset();
 
-        for (size_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
+        for (size_t i = 0; i < Shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
             m_imageAvailableSemaphores[i].reset();
             m_renderFinishedSemaphores[i].reset();
         }
@@ -206,7 +206,7 @@ namespace shift::gfx {
         bufferSize = sizeof(PerFrame);
         m_bufferManager->AllocateUBO(m_perFrameID, bufferSize);
 
-        for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
+        for (uint32_t i = 0; i < Shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
             auto& perFrameSet = m_descriptorManager->GetPerFrameSet(i);
             auto& buff = m_bufferManager->GetUBO(m_perFrameID, i);
             perFrameSet.UpdateUBO(0, buff.Get(), 0, buff.GetSize());
@@ -240,12 +240,12 @@ namespace shift::gfx {
     }
 
     void Renderer::CreateSyncPrimitives() {
-        m_imageAvailableSemaphores.resize(shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
-        m_renderFinishedSemaphores.resize(shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
+        m_imageAvailableSemaphores.resize(Shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
+        m_renderFinishedSemaphores.resize(Shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT);
 
-        for (size_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
-            m_imageAvailableSemaphores[i] = std::make_unique<shift::gfx::Semaphore>(*m_context.device);
-            m_renderFinishedSemaphores[i] = std::make_unique<shift::gfx::Semaphore>(*m_context.device);
+        for (size_t i = 0; i < Shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; i++) {
+            m_imageAvailableSemaphores[i] = std::make_unique<Shift::gfx::Semaphore>(*m_context.device);
+            m_renderFinishedSemaphores[i] = std::make_unique<Shift::gfx::Semaphore>(*m_context.device);
         }
     }
 

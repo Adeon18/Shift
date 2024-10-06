@@ -11,7 +11,7 @@
 #include "Graphics/Abstraction/Device/WindowSurface.hpp"
 #include "Graphics/Abstraction/Commands/CommandPool.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     struct ShiftBackBuffer {
         std::unique_ptr<Swapchain> swapchain;
         std::unique_ptr<WindowSurface> windowSurface;

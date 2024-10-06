@@ -6,10 +6,10 @@
 
 #include "Utility/UtilStandard.hpp"
 
-namespace shift::gfx {
-    RenderTargetManager::RenderTargetManager(const shift::gfx::Device &device,
-                                             const shift::gfx::SamplerManager &samplerManager,
-                                             shift::gfx::DescriptorManager &descriptorManager):
+namespace Shift::gfx {
+    RenderTargetManager::RenderTargetManager(const Shift::gfx::Device &device,
+                                             const Shift::gfx::SamplerManager &samplerManager,
+                                             Shift::gfx::DescriptorManager &descriptorManager):
                                                 m_device{device}, m_samplerManager{samplerManager}, m_descriptorManager{descriptorManager}
     {
 

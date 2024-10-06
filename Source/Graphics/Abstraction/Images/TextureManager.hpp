@@ -14,7 +14,7 @@
 #include "Graphics/UI/UIWindowComponent.hpp"
 #include "Graphics/UI/UIManager.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     class TextureManager {
         class UI: public ui::UIWindowComponent {
         public:

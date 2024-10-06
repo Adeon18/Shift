@@ -3,7 +3,7 @@
 #include "Utility/Vulkan/UtilVulkan.hpp"
 #include "Config/EngineConfig.hpp"
 
-namespace shift {
+namespace Shift {
     namespace gfx {
         Instance::Instance(std::string appName, uint32_t appVersion, std::string engName, uint32_t engVersion)
         {

@@ -7,7 +7,7 @@
 
 #include "Utility/UtilStandard.hpp"
 
-namespace shift {
+namespace Shift {
     namespace gfx {
         class Shader {
         public:

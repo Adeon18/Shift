@@ -15,7 +15,7 @@
 
 #include "Utility/Vulkan/InfoUtil.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     struct RenderStage {
         std::string name;
         std::unique_ptr<Pipeline> pipeline;
@@ -46,7 +46,7 @@ namespace shift::gfx {
         };
         std::optional<VkPipelineRasterizationStateCreateInfo> rasterizerInfo = info::CreateRasterStateInfo();
         std::optional<VkPipelineMultisampleStateCreateInfo> multisampleInfo = info::CreateMultisampleStateInfo();
-        std::optional<VkPipelineColorBlendAttachmentState> coloBlendAttInfo = shift::info::CreateBlendAttachmentState();
+        std::optional<VkPipelineColorBlendAttachmentState> coloBlendAttInfo = Shift::info::CreateBlendAttachmentState();
         std::optional<VkPipelineDepthStencilStateCreateInfo> depthStencilStateInfo = info::CreateDepthStencilStateInfo();
     };
 

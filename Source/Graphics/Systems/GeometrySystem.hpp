@@ -19,7 +19,7 @@
 #include "Graphics/Abstraction/Descriptors/UBOStructs.hpp"
 #include "Graphics/Abstraction/Images/SamplerManager.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     enum class MeshPass {
         Emission_Forward,
         Textured_Forward,

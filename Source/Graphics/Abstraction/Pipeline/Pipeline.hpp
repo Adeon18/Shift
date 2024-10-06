@@ -8,7 +8,7 @@
 #include "Shader.hpp"
 #include "Graphics/Abstraction/RenderPass/RenderPass.hpp"
 
-namespace shift {
+namespace Shift {
     namespace gfx {
         class Pipeline {
         public:

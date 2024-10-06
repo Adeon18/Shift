@@ -1,6 +1,6 @@
 #include "UtilVulkan.hpp"
 
-namespace shift {
+namespace Shift {
     namespace gutil {
         bool CheckValidationLayerSupport() {
             uint32_t layerCount;

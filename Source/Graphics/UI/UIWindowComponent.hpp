@@ -12,7 +12,7 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
 
-namespace shift::gfx::ui {
+namespace Shift::gfx::ui {
     class UIWindowComponent {
     public:
         explicit UIWindowComponent(std::string winName, std::string menuSectionName);

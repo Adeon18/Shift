@@ -3,7 +3,7 @@
 
 #include "Graphics/Abstraction/Device/Device.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     enum class TextureDim {
         T_1D,
         T_2D,

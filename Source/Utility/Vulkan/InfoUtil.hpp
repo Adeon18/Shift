@@ -11,7 +11,7 @@
 #include <vector>
 #include <optional>
 
-namespace shift {
+namespace Shift {
     namespace info {
         //! Create Info for Images View, by default no array and no mip levels.
         VkImageViewCreateInfo CreateImageViewInfo(

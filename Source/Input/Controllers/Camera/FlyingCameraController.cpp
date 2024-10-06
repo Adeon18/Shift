@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-namespace shift::ctrl {
+namespace Shift::ctrl {
     FlyingCameraController::FlyingCameraController(float fovDeg,
                                                    std::pair<uint32_t, uint32_t> screenWH,
                                                    const glm::vec3 &position)

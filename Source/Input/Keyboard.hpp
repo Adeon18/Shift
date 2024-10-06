@@ -6,7 +6,7 @@
 #include <iostream>
 #include <unordered_map>
 
-namespace shift::inp {
+namespace Shift::inp {
     class Keyboard {
     public:
         static Keyboard &GetInstance() {

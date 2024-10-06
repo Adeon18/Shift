@@ -12,7 +12,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace shift {
+namespace Shift {
     namespace gutil {
         const std::vector<const char*> VALIDATION_LAYERS = {
                 "VK_LAYER_KHRONOS_validation"

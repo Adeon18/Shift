@@ -2,7 +2,7 @@
 
 #include "Utility/Vulkan/InfoUtil.hpp"
 
-namespace shift {
+namespace Shift {
     namespace gfx {
         bool Shader::CreateStage() {
             auto code = util::ReadFile(m_path);

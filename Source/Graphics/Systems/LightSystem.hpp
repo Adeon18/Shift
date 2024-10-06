@@ -13,7 +13,7 @@
 #include "Graphics/UI/UIWindowComponent.hpp"
 #include "Graphics/UI/UIManager.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     //! A system that manages lights, addition, deletion, updates
     class LightSystem {
         class UI: public ui::UIWindowComponent {
@@ -33,7 +33,7 @@ namespace shift::gfx {
             VkDeviceSize size = sizeof(LightsPerFrame);
             m_bufferManager.AllocateUBO(m_lightBufferId, size);
 
-            for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
+            for (uint32_t i = 0; i < Shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
                 auto &perFrameSet = m_descriptorManager.GetPerFrameSet(i);
                 auto &buff = m_bufferManager.GetUBO(m_lightBufferId, i);
                 perFrameSet.UpdateUBO(1, buff.Get(), 0, buff.GetSize());

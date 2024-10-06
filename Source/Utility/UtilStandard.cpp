@@ -2,7 +2,7 @@
 
 #include <filesystem>
 
-namespace shift {
+namespace Shift {
     namespace util {
         std::vector<char> ReadFile(const std::string& filename) {
             // We start reading at the end in order to get the file size

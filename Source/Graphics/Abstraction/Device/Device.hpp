@@ -11,7 +11,7 @@
 
 #include "Instance.hpp"
 
-namespace shift {
+namespace Shift {
     namespace gfx {
         class Device {
         public:

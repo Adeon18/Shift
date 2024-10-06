@@ -17,7 +17,7 @@
 
 #include "Utility/Vulkan/UtilVulkan.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     class RenderTargetManager {
         class UI: public ui::UIWindowComponent {
         public:

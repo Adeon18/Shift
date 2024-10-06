@@ -5,7 +5,7 @@
 #include "Graphics/Objects/LightTypes.hpp"
 #include "Config/EngineConfig.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     struct PerFrame {
         /// These are vec3, for alignment
         glm::vec4 camPosition;

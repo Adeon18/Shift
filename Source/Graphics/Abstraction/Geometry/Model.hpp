@@ -7,7 +7,7 @@
 
 #include "Mesh.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     class Model {
     public:
         struct MeshRange

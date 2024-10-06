@@ -1,6 +1,6 @@
 #include "Pipeline.hpp"
 
-namespace shift {
+namespace Shift {
     namespace gfx {
 
         void Pipeline::AddShaderStage(const Shader &shader) {

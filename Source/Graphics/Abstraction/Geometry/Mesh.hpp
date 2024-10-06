@@ -9,7 +9,7 @@
 #include "Utility/GUIDGenerator/GUIDGenerator.hpp"
 #include "VertexStructures.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     enum class MeshTextureType {
         Diffuse,
         NormalMap,

@@ -6,7 +6,7 @@
 
 #include <glm/gtx/string_cast.hpp>
 
-namespace shift::gfx {
+namespace Shift::gfx {
     std::shared_ptr<Model> ModelManager::GetModel(SGUID id)
     {
         if (m_loadedModels.find(id) != m_loadedModels.end()) {

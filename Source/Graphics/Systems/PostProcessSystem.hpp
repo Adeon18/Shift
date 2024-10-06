@@ -14,7 +14,7 @@
 #include "Graphics/Abstraction/Descriptors/BufferManager.hpp"
 #include "Graphics/ShiftContextData.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     enum class ToneMapPass {
         Reinhard_ToneMapping = 0,
         LumaReinhard_ToneMapping = 1,

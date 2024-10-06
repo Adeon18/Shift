@@ -13,12 +13,12 @@
 #include "Graphics/Abstraction/Device/Device.hpp"
 #include "CommandBuffer.hpp"
 
-namespace shift {
+namespace Shift {
     namespace gfx {
         class CommandPool {
         public:
 
-            CommandPool(const shift::gfx::Device &device, const Instance& ins, POOL_TYPE type);
+            CommandPool(const Shift::gfx::Device &device, const Instance& ins, POOL_TYPE type);
 
             [[nodiscard]] bool IsValid() const { return m_commandPool != VK_NULL_HANDLE; }
 

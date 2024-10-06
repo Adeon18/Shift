@@ -11,7 +11,7 @@
 
 #include "Window/ShiftWindow.hpp"
 
-namespace shift {
+namespace Shift {
     namespace gfx {
         struct SwapchainDescription {
             VkSurfaceFormatKHR surfaceFormat;

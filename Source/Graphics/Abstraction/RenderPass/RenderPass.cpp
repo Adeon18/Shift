@@ -1,12 +1,12 @@
 #include "RenderPass.hpp"
 
-namespace shift {
+namespace Shift {
     namespace gfx {
-        void RenderPass::AddAttachment(const shift::gfx::Attachment &attachment) {
+        void RenderPass::AddAttachment(const Shift::gfx::Attachment &attachment) {
             m_attachmentData.push_back(attachment);
         }
 
-        void RenderPass::AddSubpass(const shift::gfx::Subpass &pass) {
+        void RenderPass::AddSubpass(const Shift::gfx::Subpass &pass) {
             m_subpassData.push_back(pass);
         }
 

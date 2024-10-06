@@ -6,7 +6,7 @@
 #include "glm/ext/scalar_constants.hpp"
 #include "glm/gtx/string_cast.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     EulerCamera::EulerCamera(float fov, uint32_t screenWidth, uint32_t screenHeight,
                    const glm::vec3 &position)
             : m_fov{fov}, m_position{position}, m_rotation{0.0f, 0.0f, 0.0f}, m_width{screenWidth}, m_height{screenHeight} {

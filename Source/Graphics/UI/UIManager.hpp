@@ -19,7 +19,7 @@
 
 #include "UIWindowComponent.hpp"
 
-namespace shift::gfx::ui {
+namespace Shift::gfx::ui {
     class UIManager {
     public:
         UIManager(const UIManager&) = delete;

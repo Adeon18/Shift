@@ -15,7 +15,7 @@
 
 #include "Graphics/UI/UIWindowComponent.hpp"
 
-namespace shift::ctrl {
+namespace Shift::ctrl {
     class FlyingCameraController {
         class UI: public gfx::ui::UIWindowComponent {
         public:

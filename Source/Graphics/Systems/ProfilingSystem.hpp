@@ -12,7 +12,7 @@
 
 #include "Graphics/UI/UIWindowComponent.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     //! This system is aimed to fully release in Shift 1.1
     //! Currently serves a purpose of showing FPS and CPU and GPU timings
     class ProfilingSystem {
@@ -67,7 +67,7 @@ namespace shift::gfx {
         ProfilingStorage m_profilingStorage;
 
         VkQueryPool m_queryPool;
-        std::array<uint64_t, 2u * TIME_STAMPS_PER_FRAME * shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT> m_timeStamps;
+        std::array<uint64_t, 2u * TIME_STAMPS_PER_FRAME * Shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT> m_timeStamps;
         uint32_t m_lastPutTimeStampIdx = 0u;
 
         uint64_t m_framesSinceStart = 0u;

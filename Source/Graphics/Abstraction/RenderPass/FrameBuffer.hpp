@@ -5,7 +5,7 @@
 
 #include "Graphics/Abstraction/Device/Device.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     //! A simple RAII wrapper over a framebuffer as a separate object
     class FrameBuffer {
     public:

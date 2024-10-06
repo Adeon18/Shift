@@ -10,7 +10,7 @@
 #include "Model.hpp"
 #include "Graphics/Abstraction/Images/TextureManager.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     class ModelManager {
     public:
         static constexpr uint32_t IMPORT_FLAGS = uint32_t(

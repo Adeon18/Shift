@@ -1,6 +1,6 @@
 #include "DescriptorManagement.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     void DescriptorLayout::AddUBOBinding(uint32_t bind, VkShaderStageFlags stages) {
         VkDescriptorSetLayoutBinding uboLayoutBinding{};
         uboLayoutBinding.binding = bind;
@@ -62,7 +62,7 @@ namespace shift::gfx {
         m_device.DestroyDescriptorPool(m_pool);
     }
 
-    DescriptorSet::DescriptorSet(const shift::gfx::Device &device): m_device{device} {
+    DescriptorSet::DescriptorSet(const Shift::gfx::Device &device): m_device{device} {
         m_imageInfos.reserve(16);
         m_bufferInfos.reserve(16);
     }

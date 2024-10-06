@@ -2,7 +2,7 @@
 
 #include "WindowSurface.hpp"
 
-namespace shift {
+namespace Shift {
     namespace gfx {
         WindowSurface::WindowSurface(const VkInstance ins, GLFWwindow *win): m_instance{ins} {
             if (const auto result = glfwCreateWindowSurface(ins, win, nullptr, &m_surface); result != VK_SUCCESS) {

@@ -3,7 +3,7 @@
 //
 #include "PostProcessSystem.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     PostProcessSystem::PostProcessSystem(const Device &device,
                                          const ShiftBackBuffer &backBufferData,
                                          const SamplerManager& samplerManager,
@@ -23,7 +23,7 @@ namespace shift::gfx {
 
         m_postProcessSetGuid = m_descriptorManager.AllocatePerMaterialSet(MaterialSetLayoutType::POST_PROCESS);
         m_bufManager.AllocateUBO(m_postProcessSetGuid, sizeof(PostProcessUBO));
-        for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
+        for (uint32_t i = 0; i < Shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
             auto& perObjSet = m_descriptorManager.GetPerMaterialSet(m_postProcessSetGuid, i);
             auto& buff = m_bufManager.GetUBO(m_postProcessSetGuid, i);
             perObjSet.UpdateImage(0, m_RTSystem.GetColorRT(RenderTargetManager::HDR_BUFFER).GetView(), m_samplerManager.GetPointSampler());
@@ -54,7 +54,7 @@ namespace shift::gfx {
     }
 
     void PostProcessSystem::ProcessResize() {
-        for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
+        for (uint32_t i = 0; i < Shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
 
             auto &perObjSet = m_descriptorManager.GetPerMaterialSet(m_postProcessSetGuid, i);
             perObjSet.UpdateImage(0, m_RTSystem.GetColorRT(RenderTargetManager::HDR_BUFFER).GetView(),

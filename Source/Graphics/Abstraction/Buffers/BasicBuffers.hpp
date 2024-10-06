@@ -5,7 +5,7 @@
 
 #include "Graphics/Abstraction/Device/Device.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     class Buffer {
     public:
         Buffer(

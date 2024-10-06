@@ -15,7 +15,7 @@
 #include "Utility/GUIDGenerator/GUIDGenerator.hpp"
 
 
-namespace shift::gfx {
+namespace Shift::gfx {
     enum class MaterialSetLayoutType {
         EMISSION_ONLY,
         TEXTURED,

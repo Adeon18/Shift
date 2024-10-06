@@ -29,7 +29,7 @@
 
 #include "Input/Controllers/Camera/FlyingCameraController.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     //! A struct with data that can change per-frame
     struct EngineData {
         /// Camera controller

@@ -12,7 +12,7 @@
 #include "Graphics/Abstraction/Device/Device.hpp"
 #include "Graphics/Abstraction/Synchronization/Fence.hpp"
 
-namespace shift {
+namespace Shift {
     namespace gfx {
         enum class POOL_TYPE {
             GRAPHICS,

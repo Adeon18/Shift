@@ -4,7 +4,7 @@
 #include "RenderStage.hpp"
 #include "Graphics/Abstraction/Geometry/VertexStructures.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     bool CreateRenderStageFromInfo(const Device& device, const ShiftBackBuffer& backBuff, DescriptorManager& descManager, RenderTargetManager& rtSystem, RenderStage &outStage, RenderStageCreateInfo info) {
         /// Filling base data
         outStage.name = info.name;
@@ -24,18 +24,18 @@ namespace shift::gfx {
                 break;
         }
 
-        outStage.pipeline = std::make_unique<shift::gfx::Pipeline>(device);
+        outStage.pipeline = std::make_unique<Shift::gfx::Pipeline>(device);
 
         std::string buildDir = util::GetShiftShaderBuildDir();
         std::array<std::unique_ptr<Shader>, 5> shaders;
         if (!info.shaderData[0].empty()) {
-            shaders[0] = std::make_unique<Shader>(device, buildDir + info.shaderData[0], shift::gfx::Shader::Type::Vertex);
+            shaders[0] = std::make_unique<Shader>(device, buildDir + info.shaderData[0], Shift::gfx::Shader::Type::Vertex);
             if (!shaders[0]->CreateStage()) {}
             outStage.pipeline->AddShaderStage(*shaders[0]);
         }
 
         if (!info.shaderData[1].empty()) {
-            shaders[1] = std::make_unique<Shader>(device, buildDir + info.shaderData[1], shift::gfx::Shader::Type::Fragment);
+            shaders[1] = std::make_unique<Shader>(device, buildDir + info.shaderData[1], Shift::gfx::Shader::Type::Fragment);
             if (!shaders[1]->CreateStage()) {}
             outStage.pipeline->AddShaderStage(*shaders[1]);
         }
@@ -43,9 +43,9 @@ namespace shift::gfx {
         auto bindingDescription = gfx::Vertex::getBindingDescription();
         auto attributeDescriptions = gfx::Vertex::getAttributeDescriptions();
         if (info.renderTargetType != RenderStageCreateInfo::RT_Type::Swapchain) {
-            outStage.pipeline->SetInputStateInfo(shift::info::CreateInputStateInfo(attributeDescriptions, {&bindingDescription, 1}));
+            outStage.pipeline->SetInputStateInfo(Shift::info::CreateInputStateInfo(attributeDescriptions, {&bindingDescription, 1}));
         } else {
-            outStage.pipeline->SetInputStateInfo(shift::info::CreateInputStateInfo({}, {}));
+            outStage.pipeline->SetInputStateInfo(Shift::info::CreateInputStateInfo({}, {}));
         }
         outStage.pipeline->SetTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
         outStage.pipeline->SetViewPortState();

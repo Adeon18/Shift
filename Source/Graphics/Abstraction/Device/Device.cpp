@@ -4,7 +4,7 @@
 
 #include "Device.hpp"
 
-namespace shift {
+namespace Shift {
     namespace gfx {
         Device::Device(const Instance &inst, VkSurfaceKHR surface) {
             PickPhysicalDevice(inst.Get(), surface);
@@ -63,7 +63,7 @@ namespace shift {
             createInfo.enabledExtensionCount = static_cast<uint32_t>(gutil::DEVICE_EXTENSIONS.size());
             createInfo.ppEnabledExtensionNames = gutil::DEVICE_EXTENSIONS.data();
 #if SHIFT_VALIDATION
-                createInfo.enabledLayerCount = static_cast<uint32_t>(shift::gutil::VALIDATION_LAYERS.size());
+                createInfo.enabledLayerCount = static_cast<uint32_t>(Shift::gutil::VALIDATION_LAYERS.size());
                 createInfo.ppEnabledLayerNames = gutil::VALIDATION_LAYERS.data();
 #else
                 createInfo.enabledLayerCount = 0;

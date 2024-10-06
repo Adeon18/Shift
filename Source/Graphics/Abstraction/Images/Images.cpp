@@ -2,8 +2,8 @@
 
 #include "Utility/Vulkan/InfoUtil.hpp"
 
-namespace shift::gfx {
-    TextureBase::TextureBase(const shift::gfx::Device &device,
+namespace Shift::gfx {
+    TextureBase::TextureBase(const Shift::gfx::Device &device,
                      uint32_t width,
                      uint32_t height,
                      uint32_t depth,

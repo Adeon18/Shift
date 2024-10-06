@@ -7,7 +7,7 @@
 
 #include <glm/gtx/string_cast.hpp>
 
-namespace shift::gfx {
+namespace Shift::gfx {
 
     bool IsMeshPassForward(MeshPass pass) {
         switch (pass) {
@@ -113,7 +113,7 @@ namespace shift::gfx {
                 tex = m_textureSystem.GetDefaultGrayTexture();
             }
 
-            for (uint32_t i = 0; i < shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
+            for (uint32_t i = 0; i < Shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
                 // TODO: should be dependent on material, AND THIS IS SO SHIT
                 auto& perObjSet = m_descriptorManager.GetPerMaterialSet(setID, i);
                 auto& buff = m_bufferManager.GetUBO(setID, i);

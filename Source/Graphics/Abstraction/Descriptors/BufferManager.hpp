@@ -13,7 +13,7 @@
 
 #include "Utility/GUIDGenerator/GUIDGenerator.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     //! A manager designed to create and store buffers, handling per frame in flight data and storing them by UUID
     class BufferManager {
     public:

@@ -9,7 +9,7 @@
 
 #include "Utility/Vulkan/InfoUtil.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     //! A RAII storage for samplers
     class SamplerManager {
     public:

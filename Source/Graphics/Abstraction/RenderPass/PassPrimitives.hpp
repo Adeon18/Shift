@@ -4,7 +4,7 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 
-namespace shift {
+namespace Shift {
     namespace gfx {
         struct Attachment {
         public:

@@ -1,7 +1,7 @@
 #include "DescriptorManager.hpp"
 
-namespace shift::gfx {
-    DescriptorManager::DescriptorManager(const shift::gfx::Device &device): m_device{device} {
+namespace Shift::gfx {
+    DescriptorManager::DescriptorManager(const Shift::gfx::Device &device): m_device{device} {
         m_framePool = std::make_unique<DescriptorPool>(m_device);
         m_viewPool = std::make_unique<DescriptorPool>(m_device);
         m_matPool = std::make_unique<DescriptorPool>(m_device);

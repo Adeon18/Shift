@@ -10,11 +10,11 @@
 #include "Utility/Vulkan/InfoUtil.hpp"
 #include "Utility/UtilStandard.hpp"
 
-namespace shift::gfx {
-    TextureManager::TextureManager(const shift::gfx::Device &device,
+namespace Shift::gfx {
+    TextureManager::TextureManager(const Shift::gfx::Device &device,
                                    const SamplerManager& samplerManager,
-                                   shift::gfx::CommandPool &graphicsPool,
-                                   shift::gfx::CommandPool &transferPool,
+                                   Shift::gfx::CommandPool &graphicsPool,
+                                   Shift::gfx::CommandPool &transferPool,
                                    DescriptorManager& descriptorManager):
                                     m_device{device},
                                     m_samplerManager{samplerManager},
@@ -40,13 +40,13 @@ namespace shift::gfx {
             return SGUID{0};
         }
 
-        shift::gfx::StagingBuffer stagingBuff{m_device, imageSize};
+        Shift::gfx::StagingBuffer stagingBuff{m_device, imageSize};
         memcpy(stagingBuff.GetMappedBuffer(), pixels, static_cast<size_t>(imageSize));
         stbi_image_free(pixels);
 
         SGUID imageGUID = GUIDGenerator::GetInstance().Guid();
         m_textureIdByName[(name.empty()) ? path: name] = imageGUID;
-        m_textures[imageGUID] = std::make_unique<shift::gfx::Texture2D>(m_device, texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, mipLevels);
+        m_textures[imageGUID] = std::make_unique<Shift::gfx::Texture2D>(m_device, texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, mipLevels);
 
         m_UI.textureIdToDescriptorIdLUT[imageGUID] = m_descriptorManager.AllocateImGuiSet(ImGuiSetLayoutType::TEXTURE);
         m_UI.textureUIScales[imageGUID] = 1.0f;
@@ -97,12 +97,12 @@ namespace shift::gfx {
     SGUID TextureManager::CreateDefaultColorTexture(const std::array<uint8_t, 4>& color, std::string name) {
         const uint32_t size = sizeof(color);
 
-        shift::gfx::StagingBuffer stagingBuff{m_device, size};
+        Shift::gfx::StagingBuffer stagingBuff{m_device, size};
         memcpy(stagingBuff.GetMappedBuffer(), color.data(), static_cast<size_t>(size));
 
         SGUID imageGUID = GUIDGenerator::GetInstance().Guid();
         m_textureIdByName[name] = imageGUID;
-        m_textures[imageGUID] = std::make_unique<shift::gfx::Texture2D>(m_device, 1, 1, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+        m_textures[imageGUID] = std::make_unique<Shift::gfx::Texture2D>(m_device, 1, 1, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
         // UI
         m_UI.textureIdToDescriptorIdLUT[imageGUID] = m_descriptorManager.AllocateImGuiSet(ImGuiSetLayoutType::TEXTURE);

@@ -5,7 +5,7 @@
 
 #include "Graphics/Abstraction/Device/Device.hpp"
 
-namespace shift {
+namespace Shift {
     namespace gfx {
         class RenderPass {
         public:

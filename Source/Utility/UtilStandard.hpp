@@ -9,7 +9,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <assimp/Importer.hpp>
 
-namespace shift {
+namespace Shift {
     namespace util {
         constexpr std::string GetShiftRoot() {
             return std::string{SHIFT_ROOT} + "/";

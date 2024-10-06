@@ -2,7 +2,7 @@
 
 #include "Utility/Vulkan/InfoUtil.hpp"
 
-namespace shift {
+namespace Shift {
     namespace gfx {
         Fence::Fence(const Device& device, bool isSignaled): m_device{device} {
             m_fence = m_device.CreateFence(info::CreateFenceInfo(isSignaled));

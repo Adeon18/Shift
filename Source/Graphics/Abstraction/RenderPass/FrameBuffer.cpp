@@ -1,7 +1,7 @@
 #include "FrameBuffer.hpp"
 
-namespace shift::gfx {
-    FrameBuffer::FrameBuffer(const shift::gfx::Device &device, VkRenderPass pass, VkExtent2D extent,
+namespace Shift::gfx {
+    FrameBuffer::FrameBuffer(const Shift::gfx::Device &device, VkRenderPass pass, VkExtent2D extent,
                              std::span<VkImageView> views): m_device{device} {
         VkFramebufferCreateInfo framebufferInfo{};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;

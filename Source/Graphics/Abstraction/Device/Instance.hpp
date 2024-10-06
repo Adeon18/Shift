@@ -11,7 +11,7 @@
 
 #include "Utility/Exceptions/VulkanExceptions.hpp"
 
-namespace shift {
+namespace Shift {
     namespace gfx {
         class Instance {
         public:

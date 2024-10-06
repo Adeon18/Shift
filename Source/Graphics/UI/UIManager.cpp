@@ -5,7 +5,7 @@
 
 #include <array>
 
-namespace shift::gfx::ui {
+namespace Shift::gfx::ui {
     void UIManager::CreateImGuiContext() {
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
@@ -97,7 +97,7 @@ namespace shift::gfx::ui {
         }
     }
 
-    void UIManager::EndFrame(const shift::gfx::CommandBuffer &buffer) {
+    void UIManager::EndFrame(const Shift::gfx::CommandBuffer &buffer) {
         ImGui::End();
         ImGui::Render();
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), buffer.Get(), VK_NULL_HANDLE);

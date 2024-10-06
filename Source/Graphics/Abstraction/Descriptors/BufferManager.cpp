@@ -4,8 +4,8 @@
 
 #include "BufferManager.hpp"
 
-namespace shift::gfx {
-    void BufferManager::AllocateUBO(shift::SGUID id, VkDeviceSize size) {
+namespace Shift::gfx {
+    void BufferManager::AllocateUBO(Shift::SGUID id, VkDeviceSize size) {
         for (auto& buffPtr: m_uboStorage[id]) {
             buffPtr = std::make_unique<UniformBuffer>(m_device, size);
             if (!buffPtr->IsValid()) {

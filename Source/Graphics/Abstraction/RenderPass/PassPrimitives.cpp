@@ -1,6 +1,6 @@
 #include "PassPrimitives.hpp"
 
-namespace shift {
+namespace Shift {
     namespace gfx {
         Attachment::Attachment(VkFormat format, Type tp, uint32_t bind): type{tp} {
             description.format = format;

@@ -7,7 +7,7 @@
 
 #include "ProfilingSystem.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     ProfilingSystem::ProfilingSystem(const Device& device): m_device{device} {
         VkQueryPoolCreateInfo queryPoolInfo{};
         queryPoolInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
@@ -61,7 +61,7 @@ namespace shift::gfx {
                 0,
                 m_lastPutTimeStampIdx,
                 m_lastPutTimeStampIdx * 2 * sizeof(uint64_t),
-                &m_timeStamps[TIME_STAMPS_PER_FRAME * shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT * currentFrame],
+                &m_timeStamps[TIME_STAMPS_PER_FRAME * Shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT * currentFrame],
                 2 * sizeof(uint64_t),
                 VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT
         );

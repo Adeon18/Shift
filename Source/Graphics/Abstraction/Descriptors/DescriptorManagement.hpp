@@ -6,7 +6,7 @@
 #ifndef SHIFT_DESCRIPTORMANAGEMENT_HPP
 #define SHIFT_DESCRIPTORMANAGEMENT_HPP
 
-namespace shift::gfx {
+namespace Shift::gfx {
     class DescriptorLayout {
     public:
         DescriptorLayout(const Device& device): m_device{device} {}

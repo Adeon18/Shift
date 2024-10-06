@@ -1,6 +1,6 @@
 #include "InfoUtil.hpp"
 
-namespace shift {
+namespace Shift {
     namespace info {
         VkImageViewCreateInfo CreateImageViewInfo(
                 VkImage image,

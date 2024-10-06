@@ -2,9 +2,9 @@
 
 #include "Utility/Vulkan/InfoUtil.hpp"
 
-namespace shift {
+namespace Shift {
     namespace gfx {
-        Semaphore::Semaphore(const shift::gfx::Device &device): m_device{device} {
+        Semaphore::Semaphore(const Shift::gfx::Device &device): m_device{device} {
             m_semaphore = m_device.CreateSemaphore(info::CreateSemaphoreInfo());
         }
 

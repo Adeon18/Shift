@@ -7,7 +7,7 @@
 
 #include "Input/Mouse.hpp"
 
-namespace shift {
+namespace Shift {
 	class ShiftWindow {
     public:
 		ShiftWindow(uint32_t width, uint32_t height, std::string name);

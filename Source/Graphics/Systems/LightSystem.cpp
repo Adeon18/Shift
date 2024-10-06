@@ -4,7 +4,7 @@
 
 #include "LightSystem.hpp"
 
-namespace shift::gfx {
+namespace Shift::gfx {
     SGUID LightSystem::AddPointLight(const glm::vec3 position, const glm::vec3 radiance) {
         if (m_lightBuffer.lightCounts.y == cfg::POINT_LIGHT_MAX_COUNT) {
             spdlog::warn("Point Light limit reached on scene! Max count: " + std::to_string(cfg::POINT_LIGHT_MAX_COUNT));

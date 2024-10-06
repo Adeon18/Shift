@@ -4,7 +4,7 @@
 #include <exception>
 #include <string>
 
-namespace shift {
+namespace Shift {
     class VulkanCreateResourceException: public std::exception {
     public:
         VulkanCreateResourceException(std::string message): m_message{std::move(message)} {}
