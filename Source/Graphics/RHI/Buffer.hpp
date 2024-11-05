@@ -18,9 +18,8 @@ namespace Shift {
     concept IBuffer =
         std::is_default_constructible_v<Buffer> &&
         std::is_copy_constructible_v<Buffer> &&
-        std::is_move_constructible_v<Buffer> &&
         std::is_copy_assignable_v<Buffer> &&
-        std::is_move_assignable_v<Buffer> &&
+        std::is_destructible_v<Buffer> &&
     requires(Buffer InputBuffer, void* Data, uint64_t DataSize) {
         { InputBuffer.Map() } -> std::same_as<void*>;
         { InputBuffer.GetMapped() } -> std::same_as<void*>;

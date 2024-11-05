@@ -9,6 +9,7 @@
 #include <type_traits>
 
 #include "Base.hpp"
+#include "Types.hpp"
 
 namespace Shift {
     //! 1:1 with Vulkan
@@ -19,6 +20,11 @@ namespace Shift {
         Geometry = 1 << 3,
         Fragment = 1 << 4,
         Compute = 1 << 5,
+    };
+
+    struct ShaderStageDesc {
+        EShaderType Type;
+        Shader& Shader;
     };
 } // Shift
 

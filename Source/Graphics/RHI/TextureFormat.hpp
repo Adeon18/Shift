@@ -5,9 +5,22 @@
 #ifndef SHIFT_TEXTUREFORMAT_HPP
 #define SHIFT_TEXTUREFORMAT_HPP
 
-namespace shift {
+namespace Shift {
+    //! 1:1 with Vulkan (not everything is included)
+    enum class EResourceLayout {
+        Undefined = 0,
+        General = 1,
+        ColorAttachmentOptimal = 2,
+        DepthStencilAttachmentOptimal = 3,
+        DepthStencilReadOnlyOptimal = 4,
+        ShaderReadOnlyOptimal = 5,
+        TransferSrcOptimal = 6,
+        TransferDstOptimal = 7,
+        Preinitialized = 8,
+    };
+
     //! Shift Texture Formats
-    //! Note: 1:1 with Vulkan, and yes, I just copied them:D So licence is the Vulkan lincence:D
+    //! Note: 1:1 with Vulkan, and yes, I just copied them:D So licence is the Vulkan licence:D
     enum class ETextureFormat {
         UNDEFINED = 0,
         R4G4_UNORM_PACK8 = 1,
@@ -195,6 +208,6 @@ namespace shift {
         ASTC_12x12_UNORM_BLOCK = 183,
         ASTC_12x12_SRGB_BLOCK = 184,
     };
-} // shift
+} // Shift
 
 #endif //SHIFT_TEXTUREFORMAT_HPP

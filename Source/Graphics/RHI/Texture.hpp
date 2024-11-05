@@ -7,6 +7,7 @@
 
 #include <concepts>
 #include <type_traits>
+#include <string>
 
 #include "Base.hpp"
 #include "TextureFormat.hpp"
@@ -55,7 +56,42 @@ namespace Shift {
     };
     DEFINE_ENUM_CLASS_BITWISE_OPERATORS(ETextureAspect)
 
-    //!  A concept that acts as an interface for all Graphics API Buffer classes.
+    //! 1:1 with Vulkan
+    enum class ETilingMode {
+        Optimal,
+        Linear
+    };
+
+    //! 1:1 with Vulkan
+    struct TextureSubresourceRange {
+        ETextureAspect aspect;
+        uint32_t baseMipLevel;
+        uint32_t levelCount;
+        uint32_t baseArrayLayer;
+        uint32_t layerCount;
+    };
+
+    //! The texture description structure
+    //! For now there is no texture view as I believe it should be platform-specific
+    struct TextureDescriptor {
+        uint32_t width = 0;
+        uint32_t height = 0;
+        uint32_t depth = 1;
+        uint32_t mips = 1;
+        uint32_t levels = 1;
+
+        ETextureFormat format = ETextureFormat::R8G8B8A8_SRGB;
+        ETextureUsageFlags usageFlags = ETextureUsageFlags::Sampled;
+        ETextureType textureType = ETextureType::Texture2D;
+        ETextureAspect textureAspect = ETextureAspect::Color;
+        EResourceLayout resourceLayout = EResourceLayout::Undefined;
+        const char* name = "EMPTY";
+
+        //! TODO: [FEATURE] Cubemaps are not supported in Shift
+        bool isCubemap = false;
+    };
+
+    //! A concept that acts as an interface for all Graphics API Buffer classes.
     //! Yes, this could just be a base non-virtual class but such approach can be only followed with the Texture in
     //! Shift RHI design so I aint mixing styles:D
     //! \tparam Texture
@@ -63,9 +99,8 @@ namespace Shift {
     concept ITexture =
         std::is_default_constructible_v<Texture> &&
         std::is_copy_constructible_v<Texture> &&
-        std::is_move_constructible_v<Texture> &&
         std::is_copy_assignable_v<Texture> &&
-        std::is_move_assignable_v<Texture> &&
+        std::is_destructible_v<Texture> &&
     requires(Texture InputTexture) {
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetWidth() } -> std::same_as<uint32_t>;
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetHeight() } -> std::same_as<uint32_t>;
@@ -76,6 +111,7 @@ namespace Shift {
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetType() } -> std::same_as<ETextureType>;
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetAspect() } -> std::same_as<ETextureAspect>;
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetUsageFlags() } -> std::same_as<ETextureUsageFlags>;
+        { CONCEPT_CONST_VAR(Texture, InputTexture).GetView() };
     };
 } // Shift
 

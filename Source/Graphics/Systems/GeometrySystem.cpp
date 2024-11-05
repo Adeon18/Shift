@@ -113,10 +113,10 @@ namespace Shift::gfx {
                 tex = m_textureSystem.GetDefaultGrayTexture();
             }
 
-            for (uint32_t i = 0; i < Shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
+            for (uint32_t j = 0; j < Shift::gutil::SHIFT_MAX_FRAMES_IN_FLIGHT; ++j) {
                 // TODO: should be dependent on material, AND THIS IS SO SHIT
-                auto& perObjSet = m_descriptorManager.GetPerMaterialSet(setID, i);
-                auto& buff = m_bufferManager.GetUBO(setID, i);
+                auto& perObjSet = m_descriptorManager.GetPerMaterialSet(setID, j);
+                auto& buff = m_bufferManager.GetUBO(setID, j);
                 switch (stage.matSetLayoutType) {
                     case MaterialSetLayoutType::TEXTURED:
                         perObjSet.UpdateUBO(0, buff.Get(), 0, buff.GetSize());
