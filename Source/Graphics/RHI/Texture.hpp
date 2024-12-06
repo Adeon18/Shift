@@ -10,6 +10,7 @@
 #include <string>
 
 #include "Base.hpp"
+#include "Types.hpp"
 #include "TextureFormat.hpp"
 
 namespace Shift {
@@ -83,12 +84,80 @@ namespace Shift {
         ETextureFormat format = ETextureFormat::R8G8B8A8_SRGB;
         ETextureUsageFlags usageFlags = ETextureUsageFlags::Sampled;
         ETextureType textureType = ETextureType::Texture2D;
+        ETextureViewType textureViewType = ETextureViewType::View2D;
         ETextureAspect textureAspect = ETextureAspect::Color;
         EResourceLayout resourceLayout = EResourceLayout::Undefined;
         const char* name = "EMPTY";
 
-        //! TODO: [FEATURE] Cubemaps are not supported in Shift
-        bool isCubemap = false;
+        static TextureDescriptor CreateTexture2DDesc(
+            uint32_t width,
+            uint32_t height,
+            const char *name,
+            ETextureFormat format,
+            uint32_t mipCount,
+            ETextureUsageFlags usageFlags,
+            ETextureAspect textureAspect,
+            EResourceLayout resourceLayout = EResourceLayout::Undefined,
+            bool isCubemap = false
+        ) {
+            return {
+                .width = width,
+                .height = height,
+                .depth = 1,
+                .mips = mipCount,
+                .levels = 1,
+                .format = format,
+                .usageFlags = usageFlags,
+                .textureType = ETextureType::Texture2D,
+                .textureViewType = ETextureViewType::View2D,
+                .textureAspect = textureAspect,
+                .resourceLayout = resourceLayout,
+                .name = name
+            };
+        }
+
+        static TextureDescriptor CreateDepthTextureDesc(
+            uint32_t width,
+            uint32_t height,
+            const char *name,
+            ETextureFormat format
+        ) {
+            return CreateTexture2DDesc(width, height, name, format, 1, ETextureUsageFlags::DepthStencilAttachment, ETextureAspect::Depth);
+        }
+
+        static TextureDescriptor CreateSampledRenderTarget2DDesc(
+                uint32_t width,
+                uint32_t height,
+                const char *name,
+                ETextureFormat format,
+                ETextureUsageFlags usage,
+                ETextureAspect textureAspect,
+                uint32_t mipCount = 1
+        ) {
+            return CreateTexture2DDesc(width, height, name, format, mipCount, usage | ETextureUsageFlags::Sampled, textureAspect);
+        }
+
+        static TextureDescriptor CreateColorRenderTarget2DDesc(
+                uint32_t width,
+                uint32_t height,
+                const char *name,
+                ETextureFormat format,
+                ETextureUsageFlags usage,
+                uint32_t mipCount = 1
+        ) {
+            return CreateTexture2DDesc(width, height, name, format, mipCount, usage | ETextureUsageFlags::Sampled, ETextureAspect::Color);
+        }
+
+        static TextureDescriptor CreateDepthRenderTarget2D(
+                uint32_t width,
+                uint32_t height,
+                const char *name,
+                ETextureFormat format,
+                ETextureUsageFlags usage,
+                uint32_t mipCount = 1
+        ) {
+            return CreateTexture2DDesc(width, height, name, format, mipCount, usage | ETextureUsageFlags::Sampled, ETextureAspect::Depth);
+        }
     };
 
     //! A concept that acts as an interface for all Graphics API Buffer classes.
@@ -98,10 +167,10 @@ namespace Shift {
     template<typename Texture>
     concept ITexture =
         std::is_default_constructible_v<Texture> &&
-        std::is_copy_constructible_v<Texture> &&
-        std::is_copy_assignable_v<Texture> &&
-        std::is_destructible_v<Texture> &&
-    requires(Texture InputTexture) {
+        std::is_trivially_destructible_v<Texture> &&
+    requires(Texture InputTexture, const TextureDescriptor& TextureDesc, const Device* DevicePtr) {
+        { InputTexture.Init(DevicePtr, TextureDesc) } -> std::same_as<bool>;
+        { InputTexture.Destroy() } -> std::same_as<void>;
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetWidth() } -> std::same_as<uint32_t>;
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetHeight() } -> std::same_as<uint32_t>;
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetDepth() } -> std::same_as<uint32_t>;

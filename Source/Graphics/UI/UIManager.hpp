@@ -8,13 +8,13 @@
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_vulkan.h"
 
-#include "Utility/Vulkan/InfoUtil.hpp"
+#include "Utility/Vulkan/VKUtilInfo.hpp"
 
 #include "Graphics/ShiftContextData.hpp"
 #include "Graphics/Abstraction/Device/Device.hpp"
 #include "Graphics/Abstraction/Device/Swapchain.hpp"
-#include "Graphics/Abstraction/Descriptors/DescriptorManagement.hpp"
-#include "Graphics/Abstraction/Commands/CommandBuffer.hpp"
+#include "Graphics/Abstraction/DescriptorManagement.hpp"
+#include "Graphics/Abstraction/CommandBuffer.hpp"
 #include "Window/ShiftWindow.hpp"
 
 #include "UIWindowComponent.hpp"

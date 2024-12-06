@@ -9,7 +9,7 @@
 #include "Graphics/Abstraction/Device/Device.hpp"
 #include "Graphics/Abstraction/Device/Swapchain.hpp"
 #include "Graphics/Abstraction/Device/WindowSurface.hpp"
-#include "Graphics/Abstraction/Commands/CommandPool.hpp"
+#include "Graphics/Abstraction/CommandPool.hpp"
 
 namespace Shift::gfx {
     struct ShiftBackBuffer {

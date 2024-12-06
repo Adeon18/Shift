@@ -9,11 +9,11 @@
 
 #include "Graphics/Abstraction/Pipeline/Pipeline.hpp"
 #include "Graphics/Abstraction/Images/Images.hpp"
-#include "Graphics/Abstraction/Descriptors/DescriptorManager.hpp"
+#include "Graphics/Abstraction/DescriptorManager.hpp"
 #include "Graphics/ShiftContextData.hpp"
 #include "Graphics/Abstraction/Images/RenderTargetManager.hpp"
 
-#include "Utility/Vulkan/InfoUtil.hpp"
+#include "Utility/Vulkan/VKUtilInfo.hpp"
 
 namespace Shift::gfx {
     struct RenderStage {

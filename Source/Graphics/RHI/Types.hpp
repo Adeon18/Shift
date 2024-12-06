@@ -7,29 +7,33 @@
 
 namespace Shift {
 #ifdef SHIFT_VULKAN_BACKEND
-    class Shader_VK;
-    class Pipeline_VK;
-    class Buffer_VK;
-    class Texture_VK;
-    class ResourceSet_VK;
-    class Fence_VK;
-    class Semaphore_VK;
-    class Swapchain_VK;
-    class Sampler_VK;
-    class RenderPass_VK;
-    class CommandBuffer_VK;
+    namespace VK {
+        class Shader;
+        class Pipeline;
+        class Buffer;
+        class Texture;
+        class ResourceSet;
+        class Fence;
+        class Semaphore;
+        class Swapchain;
+        class Sampler;
+        class RenderPass;
+        class CommandBuffer;
+        class Device;
+    } // VK
 
-    using Shader = Shader_VK;
-    using Pipeline = Pipeline_VK;
-    using Buffer = Buffer_VK;
-    using Texture = Texture_VK;
-    using ResourceSet = ResourceSet_VK;
-    using Fence = Fence_VK;
-    using Semaphore = Semaphore_VK;
-    using Swapchain = Swapchain_VK;
-    using Sampler = Sampler_VK;
-    using RenderPass = RenderPass_VK;
-    using CommandBuffer = CommandBuffer_VK;
+    using Shader = VK::Shader;
+    using Pipeline = VK::Pipeline;
+    using Buffer = VK::Buffer;
+    using Texture = VK::Texture;
+    using ResourceSet = VK::ResourceSet;
+    using Fence = VK::Fence;
+    using Semaphore = VK::Semaphore;
+    using Swapchain = VK::Swapchain;
+    using Sampler = VK::Sampler;
+    using RenderPass = VK::RenderPass;
+    using CommandBuffer = VK::CommandBuffer;
+    using Device = VK::Device;
 #endif
 
 } // Shift

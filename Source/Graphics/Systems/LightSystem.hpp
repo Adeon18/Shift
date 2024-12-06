@@ -8,7 +8,7 @@
 #include "GeometrySystem.hpp"
 
 #include "Graphics/Objects/LightTypes.hpp"
-#include "Graphics/Abstraction/Descriptors/UBOStructs.hpp"
+#include "Graphics/Abstraction/UBOStructs.hpp"
 
 #include "Graphics/UI/UIWindowComponent.hpp"
 #include "Graphics/UI/UIManager.hpp"

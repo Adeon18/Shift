@@ -60,12 +60,21 @@ namespace Shift {
         EResourceLayout layout;
     };
 
+    enum class EPoolQueueType {
+        Graphics,
+        Transfer,
+        Compute,
+    };
+
+    enum class ECommandBufferType {
+        Default,
+        Flight
+    };
+
     template<typename CommandBuffer>
     concept ICommandBuffer =
         std::is_default_constructible_v<CommandBuffer> &&
-        std::is_copy_constructible_v<CommandBuffer> &&
-        std::is_copy_assignable_v<CommandBuffer> &&
-        std::is_destructible_v<CommandBuffer> &&
+        std::is_trivially_destructible_v<CommandBuffer> &&
     requires(
             CommandBuffer InputBuffer,
             const RenderPass& InputPass,
@@ -87,11 +96,12 @@ namespace Shift {
             EFilterMode filter
     ) {
         //! Basic
-        { InputBuffer.Begin() } -> std::same_as<void>;
-        { InputBuffer.End() } -> std::same_as<void>;
+        { InputBuffer.Begin() } -> std::same_as<bool>;
+        { InputBuffer.End() } -> std::same_as<bool>;
         { InputBuffer.Reset() } -> std::same_as<void>;
-        { InputBuffer.BeginRenderPass(InputPass) } -> std::same_as<void>;
-        { InputBuffer.EndRenderPass() } -> std::same_as<void>;
+        //! These are per-backend specific
+        //!{ InputBuffer.BeginRenderPass(InputPass) } -> std::same_as<void>;
+        //!{ InputBuffer.EndRenderPass() } -> std::same_as<void>;
         { InputBuffer.Wait() } -> std::same_as<void>;
         { InputBuffer.ResetFence() } -> std::same_as<void>;
         { InputBuffer.Submit() } -> std::same_as<bool>;
@@ -100,16 +110,17 @@ namespace Shift {
         { InputBuffer.SubmitAndWait(InputSemaphore, InputSemaphore) } -> std::same_as<bool>;// Wait and Sig Semaphores
         //! Copies
         { InputBuffer.CopyBufferToBuffer(InputBufferOpDesc, InputBufferOpDesc, size) } -> std::same_as<void>;
-        { InputBuffer.CopyBufferToTexture(InputBufferOpDesc, InputTextureCopyDesc, size) } -> std::same_as<void>;
-        { InputBuffer.CopyTextureToBuffer(InputTextureCopyDesc, InputBufferOpDesc, size) } -> std::same_as<void>; // TODO: Check
-        { InputBuffer.CopyTextureToTexture(InputTextureCopyDesc, InputTextureCopyDesc) } -> std::same_as<void>; // TODO: Check
+        { InputBuffer.CopyBufferToTexture(InputBufferOpDesc, InputTextureCopyDesc) } -> std::same_as<void>;
+        //{ InputBuffer.CopyTextureToBuffer(InputTextureCopyDesc, InputBufferOpDesc, size) } -> std::same_as<void>; // TODO: [FEATURE] Check
+        //{ InputBuffer.CopyTextureToTexture(InputTextureCopyDesc, InputTextureCopyDesc) } -> std::same_as<void>; // TODO: [FEATURE] Check
         //! Rendering
         { InputBuffer.BindGraphicsPipeline(InputPipeline) } -> std::same_as<void>;
         { InputBuffer.BindVertexBuffer(InputBufferOpDesc, firstBindPosition) } -> std::same_as<void>;
         { InputBuffer.BindVertexBuffers(InputBufferOpDescs, firstBindPosition) } -> std::same_as<void>;
         { InputBuffer.BindIndexBuffer(InputBufferOpDesc) } -> std::same_as<void>;
-        { InputBuffer.BindResourceSet(InputResourceSet, firstBindPosition) } -> std::same_as<void>;     // Dynamic offsets will be pulled out of my fucking ass
-        { InputBuffer.BindResourceSets(InputResourceSets, firstBindPosition) } -> std::same_as<void>;
+        // These will probably be per-backend specific too
+        //!{ InputBuffer.BindResourceSet(InputResourceSet, firstBindPosition) } -> std::same_as<void>;     // Dynamic offsets will be pulled out of my fucking ass
+        //!{ InputBuffer.BindResourceSets(InputResourceSets, firstBindPosition) } -> std::same_as<void>;
         { InputBuffer.Draw(InputDrawConfig) } -> std::same_as<void>;
         { InputBuffer.DrawIndexed(InputDrawIndexedConfig) } -> std::same_as<void>;
         //! Misc

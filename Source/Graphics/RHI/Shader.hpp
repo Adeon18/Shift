@@ -23,8 +23,19 @@ namespace Shift {
     };
 
     struct ShaderStageDesc {
-        EShaderType Type;
-        Shader& Shader;
+        EShaderType type;
+        Shader* handle;
+    };
+
+    template<typename Shader>
+    concept IShader =
+        std::is_default_constructible_v<Shader> &&
+        std::is_trivially_destructible_v<Shader> &&
+    requires (Shader InputShader, const Device* DevicePtr, EShaderType type, const char* str) {
+        //! Path and entry name strings
+        { InputShader.Init(DevicePtr, type, str, str) } -> std::same_as<bool>;
+        { CONCEPT_CONST_VAR(Shader, InputShader).GetType() } -> std::same_as<EShaderType>;
+        { InputShader.Destroy() } -> std::same_as<void>;
     };
 } // Shift
 

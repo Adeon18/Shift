@@ -3,8 +3,8 @@
 //
 
 #include "Renderer.hpp"
-#include "Graphics/Abstraction/Descriptors/UBOStructs.hpp"
-#include "Utility/Vulkan/InfoUtil.hpp"
+#include "Graphics/Abstraction/UBOStructs.hpp"
+#include "Utility/Vulkan/VKUtilInfo.hpp"
 
 #include <glm/gtx/string_cast.hpp>
 

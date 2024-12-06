@@ -69,7 +69,7 @@ namespace Shift::gfx {
 //        m_UBO.data.z = (m_UI.gammaEnabled) ? 1.0f: 0.0f;
         buff.Fill(&m_UBO, sizeof(m_UBO));
 
-        auto colorAttInfo = info::CreateRenderingAttachmentInfo(m_backBufferData.swapchain->GetImageViews()[currentImage]);
+        auto colorAttInfo = VK::Util::CreateRenderingAttachmentInfo(m_backBufferData.swapchain->GetImageViews()[currentImage]);
 
         VkRenderingInfoKHR renderInfo{};
         renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;

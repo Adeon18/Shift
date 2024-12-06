@@ -12,6 +12,7 @@
 #include "Base.hpp"
 #include "Types.hpp"
 #include "Shader.hpp"
+#include "TextureFormat.hpp"
 
 namespace Shift {
     //! Enum for stencil operations, 1:1 with Vulkan
@@ -137,10 +138,10 @@ namespace Shift {
         Geometry = 1 << 3,
         Fragment = 1 << 4,
         Compute = 1 << 5,
-        //! Shift custom
-        VertexFragment = Vertex | Fragment,
-        AllGraphics = Vertex | TesselationControl | TesselationEvaluation | Geometry | Fragment,
-        All = Vertex | TesselationControl | TesselationEvaluation | Geometry | Fragment | Compute
+//        //! Shift custom
+//        VertexFragment = Vertex | Fragment,
+//        AllGraphics = Vertex | TesselationControl | TesselationEvaluation | Geometry | Fragment,
+//        All = Vertex | TesselationControl | TesselationEvaluation | Geometry | Fragment | Compute
     };
     DEFINE_ENUM_CLASS_BITWISE_OPERATORS(EBindingVisibility)
 
@@ -150,7 +151,7 @@ namespace Shift {
             //! Main
             uint32_t binding = 0;
             EBindingType type = EBindingType::Sampler;
-            EBindingVisibility stageFlags = EBindingVisibility::VertexFragment;
+            EBindingVisibility stageFlags = EBindingVisibility::Vertex | EBindingVisibility::Fragment;
             //! Secondary
             uint32_t count = 1;
             bool isBindless = false;
@@ -168,14 +169,17 @@ namespace Shift {
         //! Batched vertex info
         struct VertexConfig {
             struct VertexBindingDesc {
-                uint32_t binding, stride;
+                uint32_t binding = 0u;
+                uint32_t stride = 0u;
                 EVertexInputRate inputRate = EVertexInputRate::PerVertex;
             };
             std::vector<VertexBindingDesc> vertexBindings;
 
             struct VertexAttributeDesc {
-                uint32_t location, binding, offset;
-                EVertexAttributeFormat format;
+                uint32_t location = 0u;
+                uint32_t binding = 0u;
+                uint32_t offset = 0u;
+                EVertexAttributeFormat format = EVertexAttributeFormat::R32G32B32_SignedFloat;
             };
             std::vector<VertexAttributeDesc> attributeDescs;
 
@@ -202,19 +206,20 @@ namespace Shift {
         } scissor;
 
         //! Rasterizer config
-        struct RasterizerDesc {
+        struct RasterizerStateDesc {
             bool depthClampEnable : 1 = false;
             bool rasterizerDiscardEnable : 1 = false;
 
             EPolygonMode polygoneMode = EPolygonMode::Fill;
             ECullMode cullMode = ECullMode::Back;
             EWindingOrder windingOrder = EWindingOrder::CounterClockwise;
+            float lineWidth = 1.0f; // next-gen
 
             struct DepthBias {
                 float clamp = 0.0f, constantFactor = 0.0f, slopeFactor = 0.0f;
                 bool enable = false;
             } depthBias;
-        } rasterizerDesc;
+        } rasterizerStateDesc;
 
         struct MultisampleDesc {
             // TODO: Support multisampling
@@ -240,6 +245,8 @@ namespace Shift {
                 EBlendFactor sourceAlphaBlendFactor = EBlendFactor::One;
                 EBlendFactor destinationAlphaBlendFactor = EBlendFactor::Zero;
                 EBlendOperation alphaBlendOperation = EBlendOperation::Add;
+
+                ETextureFormat format = ETextureFormat::UNDEFINED;
             };
             std::vector<ColorAttachmentConfig> attachments;
 
@@ -248,6 +255,8 @@ namespace Shift {
 
         //! Depth stencil configuration, similar to Vulakn as well
         struct DepthStencilConfig {
+            ETextureFormat depthFormat = ETextureFormat::UNDEFINED;
+            ETextureFormat stencilFormat = ETextureFormat::UNDEFINED;
             bool depthTestEnabled = false;
             bool depthWriteEnabled = false;
             ECompareOperation depthFunction = ECompareOperation::Never;
@@ -264,11 +273,9 @@ namespace Shift {
     template<typename Pipeline>
     concept IPipeline =
         std::is_default_constructible_v<Pipeline> &&
-        std::is_copy_constructible_v<Pipeline> &&
-        std::is_copy_assignable_v<Pipeline> &&
         std::is_destructible_v<Pipeline> &&
     requires(Pipeline InputPipeline, const PipelineDescriptor& Descriptor) {
-        { Pipeline(Descriptor) };
+        { InputPipeline.Destroy() } -> std::same_as<void>;
         { CONCEPT_CONST_VAR(Pipeline, InputPipeline).GetDescriptor() } -> std::same_as<const PipelineDescriptor&>;
     };
 } // Shift

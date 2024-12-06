@@ -8,7 +8,7 @@
 #include <array>
 
 #include "Graphics/Abstraction/Device/Device.hpp"
-#include "Graphics/Abstraction/Commands/CommandBuffer.hpp"
+#include "Graphics/Abstraction/CommandBuffer.hpp"
 
 #include "Graphics/UI/UIWindowComponent.hpp"
 

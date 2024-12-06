@@ -50,7 +50,7 @@ namespace Shift {
 
     //! The descriptor struct for a render pass. The render target is specified by name as it is an offline struct
     //! and the RT should be pulled by the graphics context by name at the render pass creation.
-    //! Note: this does not follow the laws of VkRenderPass but rather VK_KHR_Dynamic_Rendering extension
+    //! Note: this does not follow the laws of VkRenderPass but rather the VK_KHR_Dynamic_Rendering extension
     //! You can have multiple pipelines/draw calls that fit the same render pass
     struct RenderPassDescriptor {
         struct RenderPassAttachmentInfo {

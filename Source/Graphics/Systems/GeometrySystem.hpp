@@ -13,10 +13,10 @@
 #include "Graphics/Abstraction/Images/TextureManager.hpp"
 #include "Graphics/Abstraction/Geometry/ModelManager.hpp"
 #include "Graphics/Abstraction/Images/RenderTargetManager.hpp"
-#include "Graphics/Abstraction/Descriptors/BufferManager.hpp"
+#include "Graphics/Abstraction/BufferManager.hpp"
 #include "Graphics/ShiftContextData.hpp"
 
-#include "Graphics/Abstraction/Descriptors/UBOStructs.hpp"
+#include "Graphics/Abstraction/UBOStructs.hpp"
 #include "Graphics/Abstraction/Images/SamplerManager.hpp"
 
 namespace Shift::gfx {

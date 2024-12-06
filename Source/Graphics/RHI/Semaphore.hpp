@@ -9,14 +9,14 @@
 #include <type_traits>
 
 #include "Base.hpp"
+#include "Types.hpp"
 
 namespace Shift {
-    //! Due to implementation caveats, semaphore just ahs to be created
+    //! Due to implementation caveats, semaphore just has to be created
     template<typename Semaphore>
     concept ISemaphore =
         std::is_default_constructible_v<Semaphore> &&
-        std::is_copy_constructible_v<Semaphore> &&
-        std::is_copy_assignable_v<Semaphore>;
+        std::is_trivially_destructible_v<Semaphore>
 } // Shift
 
 #endif //SHIFT_SEMAPHORE_HPP
