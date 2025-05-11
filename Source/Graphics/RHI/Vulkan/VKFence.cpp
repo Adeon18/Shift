@@ -5,7 +5,7 @@
 namespace Shift::VK {
         bool Fence::Init(const Device* device, bool isSignaled) {
             m_device = device;
-            m_fence = m_device->CreateFence(info::CreateFenceInfo(isSignaled));
+            m_fence = m_device->CreateFence(Util::CreateFenceInfo(isSignaled));
             return m_fence == VK_NULL_HANDLE;
         }
 

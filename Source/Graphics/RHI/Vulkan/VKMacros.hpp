@@ -53,6 +53,7 @@ namespace Shift::VK {
 } // Shift::VK
 
 #define VkCheck(Func) Func != VK_SUCCESS
+#define VkNullCheck(Handle) Handle != VK_NULL_HANDLE
 #define VkCheckV(Func, ResultVar) VkResult ResultVar = Func; (ResultVar) != VK_SUCCESS
 
 //! Vk function that returns ReturnErr at failure, Verbose Logs

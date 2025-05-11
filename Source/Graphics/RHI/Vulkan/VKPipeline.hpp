@@ -23,7 +23,11 @@ namespace Shift::VK {
         //! \return true if successful, false otherwise
         [[nodiscard]] bool Init(const Device* device, const PipelineDescriptor& descriptor, std::span<VkDescriptorSetLayout> descLayouts);
 
+        //! API SPECIFIC, DO NOT USE UNLESS NESSESARY IN RHI SPECIFIC CODE
+        //! \return VkPipeline
         [[nodiscard]] VkPipeline VK_Get() const { return m_pipeline; }
+        //! API SPECIFIC, DO NOT USE UNLESS NESSESARY IN RHI SPECIFIC CODE
+        //! \return VkPipelineLayout
         [[nodiscard]] VkPipelineLayout VK_GetLayout() const { return m_layout; }
         [[nodiscard]] const PipelineDescriptor& GetDescriptor() const { return m_desc; }
 

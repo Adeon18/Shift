@@ -52,9 +52,14 @@ namespace Shift {
         ESamplerAddressMode addressModeW = ESamplerAddressMode::Repeat;
 
         float borderColor[4] = {0,0,0,1};
+        bool unnormalizedCoordinates = false;
 
         bool compareEnable = false;
         ECompareOperation compareFunction = ECompareOperation::None;
+
+        float mipLodBias = 0.0f;
+        float minLod = 0.0f;
+        float maxLod = 16.0f;
 
         //SamplerReductionMode reductionMode = SamplerReductionMode::Standard;
     };
@@ -63,8 +68,9 @@ namespace Shift {
     template<typename Sampler>
     concept ISampler =
         std::is_default_constructible_v<Sampler> &&
-    requires (const SamplerDescriptor SamplerDesc) {
-        { Sampler(SamplerDesc) };
+        std::is_trivially_destructible_v<Sampler> &&
+    requires (Sampler InputSampler, const Device* DevicePtr, const SamplerDescriptor SamplerDesc) {
+        { InputSampler.Init(DevicePtr, SamplerDesc) } -> std::same_as<bool>;
     };
 } // Shift
 

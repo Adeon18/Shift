@@ -180,6 +180,7 @@ namespace Shift {
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetType() } -> std::same_as<ETextureType>;
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetAspect() } -> std::same_as<ETextureAspect>;
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetUsageFlags() } -> std::same_as<ETextureUsageFlags>;
+        { CONCEPT_CONST_VAR(Texture, InputTexture).GetResourceLayout() } -> std::same_as<EResourceLayout>;
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetView() };
     };
 } // Shift

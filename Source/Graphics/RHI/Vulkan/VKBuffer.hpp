@@ -8,6 +8,7 @@
 
 namespace Shift::VK {
     class Buffer {
+        friend Shift::VK::ResourceSet;
     public:
         Buffer() = default;
         Buffer(const Buffer&) = delete;
@@ -19,9 +20,6 @@ namespace Shift::VK {
         //! \return false if failure
         [[nodiscard]] bool Init(const Device* device, const BufferDescriptor& desc);
 
-        //! This is NOT and RHI function and should be called ONLY in other Vulkan handles
-        //! \return The VkBuffer handle
-        [[nodiscard]] VkBuffer VK_Get() const { return m_buffer; }
         [[nodiscard]] uint64_t GetSize() const { return m_desc.size; }
         [[nodiscard]] const char* GetName() const { return m_desc.name; }
 
@@ -45,6 +43,10 @@ namespace Shift::VK {
 
         void Destroy();
         ~Buffer() = default;
+    private:
+        //! This is NOT and RHI function and should be called ONLY in other Vulkan handles
+        //! \return The VkBuffer handle
+        [[nodiscard]] VkBuffer VK_Get() const { return m_buffer; }
     private:
         const Device* m_device = nullptr;
 

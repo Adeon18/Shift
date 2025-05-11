@@ -6,7 +6,7 @@ namespace Shift::VK {
     bool Semaphore::Init(const Device *device) {
         m_device = device;
         m_semaphore = m_device->CreateSemaphore(Util::CreateSemaphoreInfo());
-        return m_semaphore == VK_NULL_HANDLE;
+        return VkNullCheck(m_semaphore);
     }
 
     void Semaphore::Destroy() {

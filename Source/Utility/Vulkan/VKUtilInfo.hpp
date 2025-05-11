@@ -61,7 +61,20 @@ namespace Shift::VK::Util {
     VkPipelineColorBlendStateCreateInfo CreateBlendStateInfo(const VkPipelineColorBlendAttachmentState& att);
 
     // TODO: Only basic args here
-    VkSamplerCreateInfo CreateSamplerInfo(VkFilter minFilter, VkFilter magFilter, VkSamplerAddressMode addressMode);
+    VkSamplerCreateInfo CreateSamplerInfo(
+            VkFilter minFilter,
+            VkFilter magFilter,
+            VkSamplerMipmapMode mipFilter,
+            VkSamplerAddressMode addressModeU,
+            VkSamplerAddressMode addressModeV,
+            VkSamplerAddressMode addressModeW,
+            bool unnormalizedCoordinates = false,
+            bool compareEnable = false,
+            VkCompareOp compareOp = VK_COMPARE_OP_ALWAYS,
+            float mipLodBias = 0.0f,
+            float minLod = 0.0f,
+            float maxLod = 16.0f
+    );
 
     // TODO: Only basic args for now
     VkPipelineDepthStencilStateCreateInfo CreateDepthStencilStateInfo();

@@ -24,7 +24,7 @@ namespace Shift::VK {
 
         m_stageInfo.stage = Util::ShiftToVKShaderType(type);
 
-        return m_module != VK_NULL_HANDLE;
+        return VkNullCheck(m_module);
     }
 
     void Shader::Destroy() {

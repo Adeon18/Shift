@@ -70,15 +70,14 @@ namespace Shift {
 
     //! RenderPass interface is largely free and up for implementation as different APIs have different implementation
     //! caveats.
-    template<typename RenderPass>
-    concept IRenderPass =
-        std::is_default_constructible_v<RenderPass> &&
-        std::is_copy_constructible_v<RenderPass> &&
-        std::is_copy_assignable_v<RenderPass> &&
-        std::is_destructible_v<RenderPass> &&
-    requires(RenderPass InputRenderPass) {
-        { CONCEPT_CONST_VAR(RenderPass, InputRenderPass).GetDescriptor() } -> std::same_as<RenderPassDescriptor>;
-    };
+    //! NE NOTE - This is probably not needed as I can just pass the renderpass desc to the command buffer - it has everything
+//    template<typename RenderPass>
+//    concept IRenderPass =
+//        std::is_default_constructible_v<RenderPass> &&
+//        std::is_trivially_destructible_v<RenderPass> &&
+//    requires(RenderPass InputRenderPass, const Device* device, const RenderPassDescriptor& desc) {
+//        { InputRenderPass.Init(device, desc) } -> std::same_as<bool>;
+//    };
 } // Shift
 
 #endif //SHIFT_RENDERPASS_HPP

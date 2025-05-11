@@ -19,9 +19,11 @@ namespace Shift {
     template<typename Set>
     concept IResourceSet =
         std::is_destructible_v<Set> &&
+        std::is_default_constructible_v<Set> &&
     requires(
             Set InputSet,
-            const PipelineLayoutDescriptor& InputDescriptor,
+            // The device is formally here but in VK at least it is used in a private vk function
+            const Device* InputDevice,
             const Buffer& InputBuffer,
             const Texture& InputTexture,
             const Sampler& InputSampler,
@@ -29,11 +31,10 @@ namespace Shift {
             uint32_t offset,
             uint32_t size
     ) {
-        { Set(InputDescriptor) };
         { InputSet.UpdateUBO(bind, InputBuffer) } -> std::same_as<void>;
         { InputSet.UpdateUBO(bind, InputBuffer, size, offset) } -> std::same_as<void>;
         { InputSet.UpdateTexture(bind, InputTexture) } -> std::same_as<void>;
-        { InputSet.UpdateTexture(bind, InputSampler) } -> std::same_as<void>;
+        { InputSet.UpdateSampler(bind, InputSampler) } -> std::same_as<void>;
     };
 }
 

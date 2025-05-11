@@ -9,6 +9,7 @@ namespace Shift::VK {
     //! A RAII Wrapper for texture creation/destriction logic, it not mean to be used raw as has a ton of configs
     //! Meant to be used as a base class
     class Texture {
+        friend VK::ResourceSet;
     public:
         Texture() = default;
         Texture(const Texture&) = delete;
@@ -30,6 +31,7 @@ namespace Shift::VK {
         [[nodiscard]] ETextureType GetType() const { return m_textureDesc.textureType; }
         [[nodiscard]] ETextureAspect GetAspect() const { return m_textureDesc.textureAspect; }
         [[nodiscard]] ETextureUsageFlags GetUsageFlags() const { return m_textureDesc.usageFlags; }
+        [[nodiscard]] EResourceLayout GetResourceLayout() const { return m_textureDesc.resourceLayout; }
 
         void Destroy();
         ~Texture() = default;

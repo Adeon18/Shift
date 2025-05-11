@@ -24,7 +24,7 @@ namespace Shift::VK {
         //! Vertex Input
         VkPipelineVertexInputStateCreateInfo vertexInputInfo = Util::ShiftToVKVertexConfig(descriptor.vertexConfig);
 
-        //! Dynamic state (hardcoded for now as well
+        //! Dynamic state (hardcoded for now as well)
         const std::vector<VkDynamicState> dynamicStates = {
                 VK_DYNAMIC_STATE_VIEWPORT,
                 VK_DYNAMIC_STATE_SCISSOR
@@ -77,7 +77,7 @@ namespace Shift::VK {
         pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
         m_layout = m_device->CreatePipelineLayout(pipelineLayoutInfo);
-        if (m_layout == VK_NULL_HANDLE) {
+        if ( !(VkNullCheck(m_layout)) ) {
             return false;
         }
 
@@ -106,9 +106,10 @@ namespace Shift::VK {
 
         m_pipeline = m_device->CreateGraphicsPipeline(pipelineInfo);
 
-        return m_pipeline != VK_NULL_HANDLE;
+        return VkNullCheck(m_pipeline);
     }
 
+    //! Destroys pipeline and layout
     void Pipeline::Destroy() {
         m_device->DestroyPipeline(m_pipeline);
         m_device->DestroyPipelineLayout(m_layout);

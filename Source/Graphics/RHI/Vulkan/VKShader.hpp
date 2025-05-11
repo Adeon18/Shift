@@ -33,9 +33,9 @@ namespace Shift::VK {
 
         const Device* m_device = nullptr;
 
-        const char* m_path;
-        const char* m_entry;
-        EShaderType m_type;
+        const char* m_path = nullptr;
+        const char* m_entry = nullptr;
+        EShaderType m_type = EShaderType::Vertex;
 
         VkShaderModule m_module = VK_NULL_HANDLE;
         VkPipelineShaderStageCreateInfo m_stageInfo{};

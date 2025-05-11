@@ -140,11 +140,11 @@ namespace Shift::VK {
     }
 
     bool Swapchain::IsValid() const {
-        return m_swapChain != VK_NULL_HANDLE &&
+        return VkNullCheck(m_swapChain) &&
             std::all_of(m_swapChainImageViews.begin(), m_swapChainImageViews.end(),
                         [](VkImageView view)
             {
-                return view != VK_NULL_HANDLE;
+                return VkNullCheck(view);
             });
     }
 

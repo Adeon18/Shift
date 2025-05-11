@@ -152,26 +152,39 @@ namespace Shift::VK::Util {
         return colorBlending;
     }
 
-    VkSamplerCreateInfo CreateSamplerInfo(VkFilter minFilter, VkFilter magFilter, VkSamplerAddressMode addressMode) {
+    VkSamplerCreateInfo CreateSamplerInfo(
+        VkFilter minFilter,
+        VkFilter magFilter,
+        VkSamplerMipmapMode mipFilter,
+        VkSamplerAddressMode addressModeU,
+        VkSamplerAddressMode addressModeV,
+        VkSamplerAddressMode addressModeW,
+        bool unnormalizedCoordinates,
+        bool compareEnable,
+        VkCompareOp compareOp,
+        float mipLodBias,
+        float minLod,
+        float maxLod)
+    {
         VkSamplerCreateInfo samplerInfo{};
         samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
         samplerInfo.magFilter = magFilter;
         samplerInfo.minFilter = minFilter;
-        samplerInfo.addressModeU = addressMode;
-        samplerInfo.addressModeV = addressMode;
-        samplerInfo.addressModeW = addressMode;
+        samplerInfo.addressModeU = addressModeU;
+        samplerInfo.addressModeV = addressModeV;
+        samplerInfo.addressModeW = addressModeW;
         samplerInfo.anisotropyEnable = VK_FALSE;
         samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
         // You can either use UVs or [0, width/height] coordinates
-        samplerInfo.unnormalizedCoordinates = VK_FALSE;
+        samplerInfo.unnormalizedCoordinates = unnormalizedCoordinates;
         // This is for PCF
-        samplerInfo.compareEnable = VK_FALSE;
-        samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+        samplerInfo.compareEnable = compareEnable;
+        samplerInfo.compareOp = compareOp;
         // This is mipmapping information
-        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-        samplerInfo.mipLodBias = 0.0f;
-        samplerInfo.minLod = 0.0f;
-        samplerInfo.maxLod = 16.0f;
+        samplerInfo.mipmapMode = mipFilter;
+        samplerInfo.mipLodBias = mipLodBias;
+        samplerInfo.minLod = minLod;
+        samplerInfo.maxLod = maxLod;
 
         return samplerInfo;
     }
