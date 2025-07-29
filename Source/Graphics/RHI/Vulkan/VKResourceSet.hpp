@@ -12,6 +12,10 @@ namespace Shift::VK {
         ResourceSet(const ResourceSet&) = delete;
         ResourceSet& operator=(const ResourceSet&) = delete;
 
+        //! Init the resource set (just fills infos, the api related logic is in the RHI wrapper)
+        //! \param device - device lol
+        void Init(const Device* device);
+
         //! Update UBO at whole buffer size
         //! \param bind
         //! \param InputBuffer
@@ -38,13 +42,6 @@ namespace Shift::VK {
         void Apply();
 
         ~ResourceSet()=default;
-
-    private:
-        //! A private API specific function which should only be called from the RHI wrapper
-        //! Also you cannot just init the resource set from the API agnostic interface because fuck you
-        //! \param pool
-        //! \param layout
-        bool VK_InitAndAllocate(const Device* device, VkDescriptorPool pool, VkDescriptorSetLayout layout);
     private:
         const Device* m_device;
 

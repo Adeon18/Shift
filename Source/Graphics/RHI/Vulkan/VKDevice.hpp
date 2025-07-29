@@ -116,11 +116,15 @@ namespace Shift::VK {
         //! Destroy a VkDescriptorPool
         //! \param pool VkDescriptorPool to destroy
         void DestroyDescriptorPool(VkDescriptorPool pool) const;
+        //! Reset a VkDescriptorPool
+        //! \param pool VkDescriptorPool to reset
+        void ResetDescriptorPool(VkDescriptorPool pool) const;
 
         //! Create a VkDescriptorSet
         //! \param info VkDescriptorSetAllocateInfo
-        //! \return VK_NULL_HANDLE if creation failed, else VkDescriptorSet
-        [[nodiscard]] VkDescriptorSet AllocateDescriptorSet(const VkDescriptorSetAllocateInfo& info) const;
+        //! \param info result - a pointer to the error code - for external ckecking
+        //! \return  VkDescriptorSet
+        [[nodiscard]] VkDescriptorSet AllocateDescriptorSet(const VkDescriptorSetAllocateInfo& info, VkResult *result) const;
 
         //! Create a VkFramebuffer
         //! \param info VkFramebufferCreateInfo

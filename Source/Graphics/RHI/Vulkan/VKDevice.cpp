@@ -257,12 +257,9 @@ namespace Shift::VK {
         vkDestroyDescriptorPool(m_device, pool, nullptr);
     }
 
-    VkDescriptorSet Device::AllocateDescriptorSet(const VkDescriptorSetAllocateInfo &info) const {
+    VkDescriptorSet Device::AllocateDescriptorSet(const VkDescriptorSetAllocateInfo &info, VkResult *result) const {
         VkDescriptorSet dset;
-        if ( VkCheck(vkAllocateDescriptorSets(m_device, &info, &dset)) ) {
-            Log(Error, "Failed to allocate VkDescriptorSet!");
-            return VK_NULL_HANDLE;
-        }
+        *result = vkAllocateDescriptorSets(m_device, &info, &dset);
         return dset;
     }
 
@@ -333,5 +330,9 @@ namespace Shift::VK {
 
     void Device::DestroyQueryPool(VkQueryPool pool) const {
         vkDestroyQueryPool(m_device, pool, nullptr);
+    }
+
+    void Device::ResetDescriptorPool(VkDescriptorPool pool) const {
+        vkResetDescriptorPool(m_device, pool, 0);
     }
 } // Shift::VK

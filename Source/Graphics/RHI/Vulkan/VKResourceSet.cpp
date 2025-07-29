@@ -7,7 +7,7 @@
 #include "Utility/Vulkan/VKUtilRHI.hpp"
 
 namespace Shift::VK {
-    bool ResourceSet::VK_InitAndAllocate(const Shift::VK::Device *device, VkDescriptorPool pool, VkDescriptorSetLayout layout) {
+    void ResourceSet::Init(const Device *device) {
         m_device = device;
 
         const uint32_t DEFAULT_INFO_SIZE = 16;
@@ -15,15 +15,6 @@ namespace Shift::VK {
         m_imageInfos.reserve(DEFAULT_INFO_SIZE);
         m_bufferInfos.reserve(DEFAULT_INFO_SIZE);
         m_samplerInfos.reserve(DEFAULT_INFO_SIZE);
-
-        VkDescriptorSetAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = pool;
-        allocInfo.descriptorSetCount = 1;
-        allocInfo.pSetLayouts = &layout;
-
-        m_set = m_device->AllocateDescriptorSet(allocInfo);
-        return VkNullCheck(m_set);
     }
 
     void ResourceSet::UpdateUBO(uint32_t bind, const VK::Buffer &InputBuffer) {\

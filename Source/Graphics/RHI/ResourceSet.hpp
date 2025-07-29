@@ -31,6 +31,7 @@ namespace Shift {
             uint32_t offset,
             uint32_t size
     ) {
+        { InputSet.Init(InputDevice) } -> std::same_as<void>;
         { InputSet.UpdateUBO(bind, InputBuffer) } -> std::same_as<void>;
         { InputSet.UpdateUBO(bind, InputBuffer, size, offset) } -> std::same_as<void>;
         { InputSet.UpdateTexture(bind, InputTexture) } -> std::same_as<void>;
