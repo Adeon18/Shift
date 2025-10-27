@@ -18,7 +18,9 @@ namespace Shift::VK {
         //! \return false if failed to initialize
         bool Init(const Device* device);
 
+        //! TODO [FIX] VK_
         [[nodiscard]] VkSemaphore Get() const { return m_semaphore; }
+        [[nodiscard]] VkSemaphore* Ptr() const { return &m_semaphore; }
 
         //! Free the VkSemaphore
         void Destroy();

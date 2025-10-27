@@ -2,6 +2,12 @@
 
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 #include <iostream>
+#include <array>
+
+#include "VKBuffer.hpp"
+#include "VKSemaphore.hpp"
+#include "VKTexture.hpp"
+#include "../../../../cmake-build-release-mingw/_deps/glm-src/glm/gtx/pca.hpp"
 
 namespace Shift::VK {
     bool CommandBuffer::Init(const Device* device, const Instance* ins, VkCommandPool commandPool, EPoolQueueType type) {
@@ -17,7 +23,7 @@ namespace Shift::VK {
         allocInfo.commandBufferCount = 1;
 
         if ( VkCheck(vkAllocateCommandBuffers(m_device->Get(), &allocInfo, &m_buffer)) ) {
-            Log(Error, "Failed to create VkCommandPool!");
+            Log(Error, "Failed to create VkComandBuffer!");
             m_buffer = VK_NULL_HANDLE;
             return false;
         }
@@ -29,12 +35,17 @@ namespace Shift::VK {
        m_fence.Reset();
     }
 
-    bool CommandBuffer::BeginCommandBufferSingleTime() const {
-        return BeginCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+    void CommandBuffer::Reset() const {
+        ResetFence();
     }
 
-    bool CommandBuffer::BeginCommandBuffer(VkCommandBufferUsageFlags flags) const {
-        auto info = Util::CreateBeginCommandBufferInfo(flags);
+
+    // bool CommandBuffer::BeginCommandBufferSingleTime() const {
+    //     return BeginCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+    // }
+    //
+    bool CommandBuffer::Begin() const {
+        auto info = Util::CreateBeginCommandBufferInfo(0);
         if ( VkCheckV(vkBeginCommandBuffer(m_buffer, &info), res) ) {
             Log(Error, "Failed to begin command buffer! Code: %d", static_cast<int>(res));
             return false;
@@ -43,7 +54,7 @@ namespace Shift::VK {
         return true;
     }
 
-    bool CommandBuffer::EndCommandBuffer() const {
+    bool CommandBuffer::End() const {
         if ( VkCheckV(vkEndCommandBuffer(m_buffer), res)) {
             Log(Error, "Failed to end command buffer! Code: %d", static_cast<int>(res));
             return false;
@@ -51,21 +62,16 @@ namespace Shift::VK {
         return false;
     }
 
-
-    void CommandBuffer::CopyBuffer(VkBuffer src, VkBuffer dest, const VkBufferCopy copyRegion) const {
-        vkCmdCopyBuffer(m_buffer, src, dest, 1, &copyRegion);
-    }
-
-    void CommandBuffer::CopyBuffer(VkBuffer src, VkBuffer dest, VkDeviceSize size) const {
+    void CommandBuffer::CopyBufferToBuffer(const BufferOpDescriptor& srcBuf, const BufferOpDescriptor& dstBuf, uint32_t size) const {
         VkBufferCopy copyRegion{};
-        copyRegion.srcOffset = 0; // Optional
-        copyRegion.dstOffset = 0; // Optional
+        copyRegion.srcOffset = srcBuf.offset; // Optional
+        copyRegion.dstOffset = dstBuf.offset; // Optional
         copyRegion.size = size;
 
-        CopyBuffer(src, dest, copyRegion);
+        vkCmdCopyBuffer(m_buffer, srcBuf.buffer->VK_Get(), dstBuf.buffer->VK_Get(), 1, &copyRegion);
     }
 
-    void CommandBuffer::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) const {
+    void CommandBuffer::CopyBufferToTexture(const BufferOpDescriptor& srcBuf, const TextureCopyDescriptor& dstTex) const {
         VkBufferImageCopy region{};
         region.bufferOffset = 0;
         region.bufferRowLength = 0;
@@ -76,28 +82,22 @@ namespace Shift::VK {
         region.imageSubresource.baseArrayLayer = 0;
         region.imageSubresource.layerCount = 1;
 
-        region.imageOffset = { 0, 0, 0 };
+        region.imageOffset = {dstTex.offset.x, dstTex.offset.y, dstTex.offset.z };
         region.imageExtent = {
-                width,
-                height,
-                1
+                dstTex.size.x, dstTex.size.y, dstTex.size.z
         };
 
-        CopyBufferToImage(buffer, image, region);
-    }
-
-    void CommandBuffer::CopyBufferToImage(VkBuffer buffer, VkImage image, const VkBufferImageCopy copyRegion) const {
         vkCmdCopyBufferToImage(
-                m_buffer,
-                buffer,
-                image,
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                1,
-                &copyRegion
+            m_buffer,
+            srcBuf.buffer->VK_Get(),
+            dstTex.texture->GetImage(),
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1,
+            &region
         );
     }
 
-    void CommandBuffer::TransferImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
+    void CommandBuffer::VK_TransferImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
                                             VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage,
                                             VkImageSubresourceRange subresourceRange) const {
         VkImageMemoryBarrier barrier{};
@@ -163,10 +163,10 @@ namespace Shift::VK {
                 break;
         }
 
-        SetPipelineBarrierImage(srcStage, dstStage, barrier, 0);
+        VK_SetPipelineBarrierImage(srcStage, dstStage, barrier, 0);
     }
 
-    void CommandBuffer::TransferImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
+    void CommandBuffer::VK_TransferImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
                                             VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage, bool isDepth) const {
 
         VkImageSubresourceRange subresourceRange{};
@@ -176,14 +176,16 @@ namespace Shift::VK {
         subresourceRange.baseArrayLayer = 0;
         subresourceRange.layerCount = 1;
 
-        TransferImageLayout(image, oldLayout, newLayout, srcStage, dstStage, subresourceRange);
+        VK_TransferImageLayout(image, oldLayout, newLayout, srcStage, dstStage, subresourceRange);
     }
 
-    void CommandBuffer::SetPipelineBarrier(const VkPipelineStageFlags srcStage, const VkPipelineStageFlags dstStage,
-                                           const std::span<const VkImageMemoryBarrier> imgSpan,
-                                           const std::span<const VkMemoryBarrier> memSpan,
-                                           const std::span<const VkBufferMemoryBarrier> bufMemSpan,
-                                           const VkDependencyFlags flags) const {
+    void CommandBuffer::VK_SetPipelineBarrier(
+        VkPipelineStageFlags srcStage,  VkPipelineStageFlags dstStage,
+        std::span<VkImageMemoryBarrier> imgSpan,
+        std::span<VkMemoryBarrier> memSpan,
+        std::span<VkBufferMemoryBarrier> bufMemSpan,
+        VkDependencyFlags flags) const
+    {
 
         vkCmdPipelineBarrier(
                 m_buffer,
@@ -195,47 +197,59 @@ namespace Shift::VK {
         );
     }
 
-    void CommandBuffer::SetPipelineBarrierImage(const VkPipelineStageFlags srcStage,
-                                                const VkPipelineStageFlags dstStage,
-                                                const VkImageMemoryBarrier imgBarrier,
-                                                const VkDependencyFlags flags) const {
-        SetPipelineBarrier(srcStage, dstStage, {&imgBarrier, 1}, {}, {}, flags);
+    void CommandBuffer::VK_SetPipelineBarrierImage(
+        VkPipelineStageFlags srcStage,
+        VkPipelineStageFlags dstStage,
+        VkImageMemoryBarrier imgBarrier,
+        VkDependencyFlags flags) const
+    {
+        VK_SetPipelineBarrier(srcStage, dstStage, {&imgBarrier, 1}, {}, {}, flags);
     }
-
-    bool CommandBuffer::Submit() const {
-        return Submit(info::CreateSubmitInfo({}, {}, {&m_buffer, 1}, 0));
-    }
-
-    bool CommandBuffer::Submit(const VkSubmitInfo &info) const {
+    //
+    // bool CommandBuffer::Submit() const {
+    //     return Submit(Util::CreateSubmitInfo({}, {}, {&m_buffer, 1}, 0));
+    // }
+    //
+    bool CommandBuffer::Submit(const Semaphore& waitSemaphore, const Semaphore& sigSemaphore) const {
+        std::array<VkPipelineStageFlags, 1> waitStages{ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+        VkSubmitInfo info = Util::CreateSubmitInfo(
+                std::span{waitSemaphore.Ptr(), 1},
+                std::span{sigSemaphore.Ptr(), 1},
+                std::span{&m_buffer, 1},
+                waitStages.data()
+        );
         VkQueue submitQueue;
         switch (m_poolType) {
-            case POOL_TYPE::GRAPHICS:
-                submitQueue = m_device.GetGraphicsQueue();
+            case EPoolQueueType::Graphics:
+                submitQueue = m_device->GetGraphicsQueue();
                 break;
-            case POOL_TYPE::TRANSFER:
-                submitQueue = m_device.GetTransferQueue();
+            case EPoolQueueType::Transfer:
+                submitQueue = m_device->GetTransferQueue();
                 break;
+            default:
+                Log(Error, "Invalid pool type!");
+                return false;
         }
 
         if (int res = vkQueueSubmit(submitQueue,
                                     1,
                                     &info,
-                                    m_fence->Get()); res != VK_SUCCESS) {
+                                    m_fence.Get()); res != VK_SUCCESS) {
             spdlog::error("Failed to submit to queue! Code: {}", res);
             return false;
         }
         return true;
     }
 
-    bool CommandBuffer::SubmitAndWait() const {
-        bool res = Submit();
-        m_fence->Wait();
-        return res;
-    }
+    // bool CommandBuffer::SubmitAndWait() const {
+    //     bool res = Submit();
+    //     m_fence.Wait();
+    //     return res;
+    // }
 
-    bool CommandBuffer::SubmitAndWait(const VkSubmitInfo &info) const {
-        bool res = Submit(info);
-        m_fence->Wait();
+    bool CommandBuffer::SubmitAndWait(const Semaphore& waitSemaphore, const Semaphore& sigSemaphore) const {
+        bool res = Submit(waitSemaphore, sigSemaphore);
+        m_fence.Wait();
         return res;
     }
 

@@ -52,18 +52,18 @@ namespace Shift::VK {
         //! Wait for the fence to be signalled
         void Wait() const { m_fence.Wait(); };
 
-        //! Submit the buffer to a GPU queue (default info)
-        //! \return true if successful, false otherwise
-        [[nodiscard]] bool Submit() const;
+        // //! Submit the buffer to a GPU queue (default info)
+        // //! \return true if successful, false otherwise
+        // [[nodiscard]] bool Submit() const;
 
         //! Submit the buffer to a GPU queue with a custom info
         //! \param info Submit info
         //! \return true if successful, false otherwise
         [[nodiscard]] bool Submit(const Semaphore& waitSemaphore, const Semaphore& sigSemaphore) const;
 
-        //! Submit the buffer to a GPU queue (default info) and Wait for completion
-        //! \return true if successful, false otherwise
-        [[nodiscard]] bool SubmitAndWait() const;
+        // //! Submit the buffer to a GPU queue (default info) and Wait for completion
+        // //! \return true if successful, false otherwise
+        // [[nodiscard]] bool SubmitAndWait() const;
 
         //! Submit the buffer to a GPU queue with a custom info and Wait for completion
         //! \param info Submit info
@@ -76,12 +76,12 @@ namespace Shift::VK {
         //! \param srcBuf buffer + offset into the buffer
         //! \param dstBuf buffer + offset into the buffer
         //! \param size size to copy
-        void CopyBufferToBuffer(const BufferOpDescriptor& srcBuf, const BufferOpDescriptor& dstBuf, uint32_t size);
+        void CopyBufferToBuffer(const BufferOpDescriptor& srcBuf, const BufferOpDescriptor& dstBuf, uint32_t size) const;
 
         //! Copy buffer data to a texture
         //! \param srcBuf buffer + offset into the buffer
         //! \param srcTex texture + size to copy + offset + subresource range
-        void CopyBufferToTexture(const BufferOpDescriptor& srcBuf, const TextureCopyDescriptor& srcTex);
+        void CopyBufferToTexture(const BufferOpDescriptor& srcBuf, const TextureCopyDescriptor& dstTex) const;
 
         // TODO: [FEATURE]
         // void CopyTextureToBuffer(TextureCopyDescriptor srcTex, BufferOpDescriptor dstBuf, uint32_t size);

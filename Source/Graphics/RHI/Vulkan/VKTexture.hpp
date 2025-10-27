@@ -17,6 +17,7 @@ namespace Shift::VK {
 
         [[nodiscard]] bool Init(const Device* device, const TextureDescriptor& textureDesc);
 
+        //! TODO [FIX] make these VK_ and private!
         [[nodiscard]] VkImage GetImage() const { return m_image; }
         [[nodiscard]] VkImageView GetView() const { return m_imageView; }
         [[nodiscard]] VmaAllocation GetAlloc() const { return m_allocation; }
