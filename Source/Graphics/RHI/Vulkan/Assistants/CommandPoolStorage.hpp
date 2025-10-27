@@ -13,6 +13,7 @@ namespace Shift::VK {
     public:
         void Init(const Device *device, const Instance* ins);
 
+
         [[nodiscard]] const Instance* GetInstance() const { return m_instance ; }
 
         [[nodiscard]] VkCommandPool GetGraphics() { return m_graphicsPool; }
