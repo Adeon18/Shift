@@ -10,14 +10,14 @@ namespace Shift::VK {
     void ResourceSet::Init(const Device *device) {
         m_device = device;
 
-        const uint32_t DEFAULT_INFO_SIZE = 16;
+        static constexpr uint32_t DEFAULT_INFO_SIZE = 16;
 
         m_imageInfos.reserve(DEFAULT_INFO_SIZE);
         m_bufferInfos.reserve(DEFAULT_INFO_SIZE);
         m_samplerInfos.reserve(DEFAULT_INFO_SIZE);
     }
 
-    void ResourceSet::UpdateUBO(uint32_t bind, const VK::Buffer &InputBuffer) {\
+    void ResourceSet::UpdateUBO(uint32_t bind, const VK::Buffer &InputBuffer) {
         UpdateUBO(bind, InputBuffer, InputBuffer.GetSize(), 0);
     }
 

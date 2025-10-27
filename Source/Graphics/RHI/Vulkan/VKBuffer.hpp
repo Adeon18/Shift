@@ -9,6 +9,7 @@
 namespace Shift::VK {
     class Buffer {
         friend Shift::VK::ResourceSet;
+        friend Shift::VK::CommandBuffer;
     public:
         Buffer() = default;
         Buffer(const Buffer&) = delete;
