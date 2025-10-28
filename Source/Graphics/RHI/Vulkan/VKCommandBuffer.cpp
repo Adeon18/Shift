@@ -1,13 +1,15 @@
 #include "VKCommandBuffer.hpp"
 
 #include "Utility/Vulkan/VKUtilInfo.hpp"
+#include "Utility/Vulkan/VKUtilRHI.hpp"
 #include <iostream>
 #include <array>
+#include <winsock2.h>
 
 #include "VKBuffer.hpp"
+#include "VKPipeline.hpp"
 #include "VKSemaphore.hpp"
 #include "VKTexture.hpp"
-#include "../../../../cmake-build-release-mingw/_deps/glm-src/glm/gtx/pca.hpp"
 
 namespace Shift::VK {
     bool CommandBuffer::Init(const Device* device, const Instance* ins, VkCommandPool commandPool, EPoolQueueType type) {
@@ -253,41 +255,64 @@ namespace Shift::VK {
         return res;
     }
 
-    void CommandBuffer::BindVertexBuffers(std::span<VkBuffer> buffers, std::span<VkDeviceSize> offsets,
-                                          uint32_t firstBind) const {
+    void CommandBuffer::BindVertexBuffer(const BufferOpDescriptor& buffer, uint32_t bindIdx) const {
+        std::vector<VkDeviceSize> offsets{static_cast<VkDeviceSize>(bindIdx)};
+        std::vector<VkBuffer> buffers{buffer.buffer->VK_Get()};
         vkCmdBindVertexBuffers(
                 m_buffer,
-                firstBind,
-                static_cast<uint32_t>(buffers.size()),
+                bindIdx,
+                1,
                 buffers.data(),
                 offsets.data());
     }
 
-    void CommandBuffer::BindIndexBuffer(VkBuffer buffer, uint32_t offset, VkIndexType idxType) const {
-        vkCmdBindIndexBuffer(m_buffer, buffer, offset, idxType);
+    void CommandBuffer::BindVertexBuffers(std::span<BufferOpDescriptor> buffers, uint32_t firstBind) const {
+        std::vector<VkBuffer> buffs;
+        std::vector<VkDeviceSize> offsets;
+
+        buffs.reserve(buffers.size());
+        offsets.reserve(buffers.size());
+
+        for (auto&[b, o] : buffers) {
+            buffs.push_back(b->VK_Get());
+            offsets.push_back(o);
+        }
+
+        vkCmdBindVertexBuffers(
+                m_buffer,
+                firstBind,
+                static_cast<uint32_t>(buffers.size()),
+                buffs.data(),
+                offsets.data());
     }
 
-    void CommandBuffer::BindPipeline(VkPipeline pipeline, VkPipelineBindPoint bindPoint) const {
-        vkCmdBindPipeline(m_buffer, bindPoint, pipeline);
+    void CommandBuffer::BindIndexBuffer(const BufferOpDescriptor& buffer, EIndexSize indexSize) const {
+        vkCmdBindIndexBuffer(m_buffer, buffer.buffer->VK_Get(), buffer.offset, Util::ShiftToVKIndexType(indexSize));
     }
 
-    void CommandBuffer::BeginRenderPass(const VkRenderPassBeginInfo &info, VkSubpassContents contents) const {
-        vkCmdBeginRenderPass(m_buffer, &info, contents);
+    void CommandBuffer::BindGraphicsPipeline(const Pipeline& pipeline) const {
+        vkCmdBindPipeline(m_buffer, VkPipelineBindPoint::VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.VK_Get());
     }
 
-    void CommandBuffer::EndRenderPass() const {
-        vkCmdEndRenderPass(m_buffer);
+    void CommandBuffer::VK_BeginRenderPass(VkRenderingInfoKHR info) const {
+        m_ins->CallBeginRenderingExternal(m_buffer, info);
     }
 
-    void CommandBuffer::SetViewPort(VkViewport viewport) const {
-        vkCmdSetViewport(m_buffer, 0, 1, &viewport);
+    void CommandBuffer::VK_EndRenderPass() const {
+        m_ins->CallEndRenderingExternal(m_buffer);
     }
 
-    void CommandBuffer::SetScissor(VkRect2D scissor) const {
-        vkCmdSetScissor(m_buffer, 0, 1, &scissor);
+    void CommandBuffer::SetViewport(Viewport viewport) const {
+        VkViewport v = VkViewport{viewport.x, viewport.y, viewport.width, viewport.height, viewport.minDepth, viewport.maxDepth};
+        vkCmdSetViewport(m_buffer, 0, 1, &v);
     }
 
-    void CommandBuffer::BindDescriptorSets(const std::span<VkDescriptorSet> descriptorSets,
+    void CommandBuffer::SetScissor(Rect2D scissor) const {
+        VkRect2D s = VkRect2D{.offset.x = scissor.offset.x, .offset.y = scissor.offset.y, .extent.width = scissor.extent.x, .extent.height = scissor.extent.y};
+        vkCmdSetScissor(m_buffer, 0, 1, &s);
+    }
+
+    void CommandBuffer::VK_BindDescriptorSets(const std::span<VkDescriptorSet> descriptorSets,
                                            const std::span<const std::uint32_t> dynamicOffsets,
                                            const VkPipelineLayout layout, const VkPipelineBindPoint bindPoint,
                                            std::uint32_t firstSet) const {
@@ -298,31 +323,63 @@ namespace Shift::VK {
                                 static_cast<uint32_t>(dynamicOffsets.size()), dynamicOffsets.data());
     }
 
-    void CommandBuffer::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex,
-                                    int32_t vertexOffset, uint32_t firstInstance) const {
-        vkCmdDrawIndexed(m_buffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+    void CommandBuffer::DrawIndexed(const DrawIndexedConfig& drawConf) const {
+        vkCmdDrawIndexed(m_buffer, drawConf.indexCount, drawConf.instanceCount, drawConf.firstIndex, drawConf.vertexOffset, drawConf.firstInstance);
     }
 
-    void CommandBuffer::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex,
-                             uint32_t firstInstance) const {
-        vkCmdDraw(m_buffer, vertexCount, instanceCount, firstVertex, firstInstance);
-    }
-
-    void CommandBuffer::BeginRendering(VkRenderingInfoKHR info) const {
-        m_ins.CallBeginRenderingExternal(m_buffer, info);
-    }
-
-    void CommandBuffer::EndRendering() const {
-        m_ins.CallEndRenderingExternal(m_buffer);
+    void CommandBuffer::Draw(const DrawConfig& drawConf) const {
+        vkCmdDraw(m_buffer, drawConf.vertexCount, drawConf.instanceCount, drawConf.firstVertex, drawConf.firstInstance);
     }
 
     void
-    CommandBuffer::BlitImage(VkImage srcImage, VkImageLayout srcLayout, VkImage dstImage, VkImageLayout dstLayout,
-                             std::span<VkImageBlit> blitRegions, VkFilter filter) const {
+    CommandBuffer::BlitTexture(const TextureBlitData& srcTexture, const TextureBlitData& dstTexture, const TextureBlitRegion& blitRegion, EFilterMode filter) const {
+
+        auto ShiftToVKBlitRegion = [](const TextureBlitRegion& region) {
+            VkImageBlit blit;
+            blit.srcSubresource = VkImageSubresourceLayers{
+                .aspectMask = Util::ShiftToVKTextureAspect(region.srcSubresource.aspect),
+                .mipLevel = region.srcSubresource.levelCount,
+                .baseArrayLayer = region.srcSubresource.baseArrayLayer,
+                .layerCount = region.srcSubresource.layerCount
+            };
+            blit.dstSubresource = VkImageSubresourceLayers{
+                .aspectMask = Util::ShiftToVKTextureAspect(region.destSubresource.aspect),
+                .mipLevel = region.destSubresource.levelCount,
+                .baseArrayLayer = region.destSubresource.baseArrayLayer,
+                .layerCount = region.destSubresource.layerCount
+            };
+
+            blit.srcOffsets[0] = VkOffset3D{
+                .x = region.srcOffsets[0].x,
+                .y = region.srcOffsets[0].y,
+                .z = region.srcOffsets[0].z
+            };
+            blit.srcOffsets[1] = VkOffset3D{
+                .x = region.srcOffsets[1].x,
+                .y = region.srcOffsets[1].y,
+                .z = region.srcOffsets[1].z
+            };
+
+            blit.dstOffsets[0] = VkOffset3D{
+                .x = region.dstOffsets[0].x,
+                .y = region.dstOffsets[0].y,
+                .z = region.dstOffsets[0].z
+            };
+            blit.dstOffsets[1] = VkOffset3D{
+                .x = region.dstOffsets[1].x,
+                .y = region.dstOffsets[1].y,
+                .z = region.dstOffsets[1].z
+            };
+
+            return blit;
+        };
+
+        VkImageBlit blit = ShiftToVKBlitRegion(blitRegion);
+
         vkCmdBlitImage(m_buffer,
-                       srcImage, srcLayout,
-                       dstImage, dstLayout,
-                       static_cast<uint32_t>(blitRegions.size()), blitRegions.data(),
-                       filter);
+                       srcTexture.texture->GetImage(), Util::ShiftToVKResourceLayout(srcTexture.texture->GetResourceLayout()),
+                       dstTexture.texture->GetImage(), Util::ShiftToVKResourceLayout(dstTexture.texture->GetResourceLayout()),
+                       1, &blit,
+                       Util::ShiftToVKFilterMode(filter));
     }
 } // Shift::VK

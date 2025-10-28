@@ -44,10 +44,10 @@ namespace Shift::VK {
 
         //! Dynamic rendering extennsion integration, begin the RenderPass (not VkRenderPass but the adequate one)
         //! \param info VK Dynamic rendering info structure (should be ressolved at runtime from the RenderPass struct)
-        void BeginRenderPass(VkRenderingInfoKHR info) const;
+        void VK_BeginRenderPass(VkRenderingInfoKHR info) const;
 
         //! Dynamic rendering extension integration, end the RenderPass (not VkRenderPass but the adequate one)
-        void EndRenderPass() const;
+        void VK_EndRenderPass() const;
 
         //! Wait for the fence to be signalled
         void Wait() const { m_fence.Wait(); };
@@ -109,7 +109,7 @@ namespace Shift::VK {
         //! Bind an index buffer
         //! TODO: Add support for buffer indice sizes, current default and only type is uint16
         //! \param buffer buffer + offset into the buffer
-        void BindIndexBuffer(const BufferOpDescriptor& buffer) const;
+        void BindIndexBuffer(const BufferOpDescriptor& buffer, EIndexSize indexSize) const;
 
         //! Bind the graphics pipeline
         //! \param pipeline The Pipeline wrapper
@@ -208,8 +208,8 @@ namespace Shift::VK {
                 bool isDepth = false) const;
 
         // TODO: Temporary
-        [[nodiscard]] VkCommandBuffer Get() const { return m_buffer; }
-        [[nodiscard]] const VkCommandBuffer* Ptr() const { return &m_buffer; }
+        [[nodiscard]] VkCommandBuffer VK_Get() const { return m_buffer; }
+        [[nodiscard]] const VkCommandBuffer* VK_Ptr() const { return &m_buffer; }
 
         void Destroy();
         ~CommandBuffer() = default;

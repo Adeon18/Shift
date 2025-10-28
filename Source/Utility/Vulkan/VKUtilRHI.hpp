@@ -12,6 +12,7 @@
 #include "Graphics/RHI/Sampler.hpp"
 #include "Graphics/RHI/Pipeline.hpp"
 #include "Graphics/RHI/RenderPass.hpp"
+#include "Graphics/RHI/CommandBuffer.hpp"
 
 namespace Shift::VK::Util {
     //! Create a VkImageType from an ETextureType
@@ -180,6 +181,8 @@ namespace Shift::VK::Util {
     //! \param config The depth stencil configuration descriptor to convert
     //! \return The corresponding VkPipelineColorBlendStateCreateInfo structure
     VkPipelineDepthStencilStateCreateInfo ShiftToVKDepthStencilConfig(const PipelineDescriptor::DepthStencilConfig& config);
+
+    VkIndexType ShiftToVKIndexType(EIndexSize size);
 
     //!-------------------------------------VKTOShift-------------------------------------!//
 

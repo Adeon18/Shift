@@ -38,6 +38,13 @@ namespace Shift {
         uint32_t offset;
     };
 
+    //! Almost 1:1 with Vulkan
+    enum class EIndexSize {
+        UInt16 = 0,
+        UInt32 = 1,
+        UInt8 = 2,
+    };
+
     //! Texture data for a copy operation (based on Vulkan)
     struct TextureCopyDescriptor {
         Texture* texture;
@@ -49,9 +56,9 @@ namespace Shift {
     //! The region struct for blitting a texture (useful for mipmapping)
     struct TextureBlitRegion {
         TextureSubresourceRange srcSubresource;
-        Rect3D srcRect;
+        Offset3D srcOffsets[2];
         TextureSubresourceRange destSubresource;
-        Rect3D dstRect;
+        Offset3D dstOffsets[2];
     };
 
     //! Texture Data that you pass in during the blitting process
@@ -93,7 +100,8 @@ namespace Shift {
             std::span<ResourceSet> InputResourceSets,
             uint32_t firstBindPosition,
             uint32_t size,
-            EFilterMode filter
+            EFilterMode filter,
+            EIndexSize indexSize
     ) {
         //! Basic
         { InputBuffer.Begin() } -> std::same_as<bool>;
@@ -104,9 +112,9 @@ namespace Shift {
         //!{ InputBuffer.EndRenderPass() } -> std::same_as<void>;
         { InputBuffer.Wait() } -> std::same_as<void>;
         { InputBuffer.ResetFence() } -> std::same_as<void>;
-        { InputBuffer.Submit() } -> std::same_as<bool>;
+        // { InputBuffer.Submit() } -> std::same_as<bool>;
         { InputBuffer.Submit(InputSemaphore, InputSemaphore) } -> std::same_as<bool>;       // Wait and Sig Semaphores
-        { InputBuffer.SubmitAndWait() } -> std::same_as<bool>;
+        // { InputBuffer.SubmitAndWait() } -> std::same_as<bool>;
         { InputBuffer.SubmitAndWait(InputSemaphore, InputSemaphore) } -> std::same_as<bool>;// Wait and Sig Semaphores
         //! Copies
         { InputBuffer.CopyBufferToBuffer(InputBufferOpDesc, InputBufferOpDesc, size) } -> std::same_as<void>;
@@ -117,7 +125,7 @@ namespace Shift {
         { InputBuffer.BindGraphicsPipeline(InputPipeline) } -> std::same_as<void>;
         { InputBuffer.BindVertexBuffer(InputBufferOpDesc, firstBindPosition) } -> std::same_as<void>;
         { InputBuffer.BindVertexBuffers(InputBufferOpDescs, firstBindPosition) } -> std::same_as<void>;
-        { InputBuffer.BindIndexBuffer(InputBufferOpDesc) } -> std::same_as<void>;
+        { InputBuffer.BindIndexBuffer(InputBufferOpDesc, indexSize) } -> std::same_as<void>;
         // These will probably be per-backend specific too
         //!{ InputBuffer.BindResourceSet(InputResourceSet, firstBindPosition) } -> std::same_as<void>;     // Dynamic offsets will be pulled out of my fucking ass
         //!{ InputBuffer.BindResourceSets(InputResourceSets, firstBindPosition) } -> std::same_as<void>;

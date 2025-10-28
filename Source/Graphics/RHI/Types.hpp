@@ -22,6 +22,7 @@ namespace Shift {
         class Device;
     } // VK
 
+    //! This is what is exported as an interface
     using Shader = VK::Shader;
     using Pipeline = VK::Pipeline;
     using Buffer = VK::Buffer;
@@ -33,7 +34,6 @@ namespace Shift {
     using Sampler = VK::Sampler;
     using RenderPass = VK::RenderPass;
     using CommandBuffer = VK::CommandBuffer;
-    using Device = VK::Device;
 #endif
 
 } // Shift

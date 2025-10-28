@@ -220,6 +220,15 @@ namespace Shift::VK::Util {
         return depthStencil;
     }
 
+    VkIndexType ShiftToVKIndexType(EIndexSize size) {
+        switch (size) {
+            case EIndexSize::UInt16: return VK_INDEX_TYPE_UINT16;
+            case EIndexSize::UInt32: return VK_INDEX_TYPE_UINT32;
+            case EIndexSize::UInt8:  return VK_INDEX_TYPE_UINT8_EXT; // preferred portable alias
+            default: return VK_INDEX_TYPE_NONE_KHR; // fallback
+        }
+    }
+
     //!-------------------------------------VKTOShift-------------------------------------!//
 
     ETextureType VKToShiftTextureType(VkImageType type) {
