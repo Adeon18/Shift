@@ -96,6 +96,8 @@ namespace Shift::VK {
 
         m_scissor.offset = { 0, 0 };
         m_scissor.extent = m_swapchainDesc.swapChainExtent;
+
+        return true;
     }
 
     bool Swapchain::CreateImageViews() {

@@ -10,6 +10,7 @@
 
 #include "Base.hpp"
 #include "Types.hpp"
+#include "Shader.hpp"
 
 namespace Shift {
     //! 1:1 with Vulkan
@@ -22,6 +23,13 @@ namespace Shift {
         Compute = 1 << 5,
     };
 
+    struct ShaderDescriptor {
+        EShaderType type;
+        //! TODO: [FEATURE] probably not path but opcode here when I integrate slang
+        const char* path;
+        const char* entry;
+    };
+
     struct ShaderStageDesc {
         EShaderType type;
         Shader* handle;
@@ -31,9 +39,9 @@ namespace Shift {
     concept IShader =
         std::is_default_constructible_v<Shader> &&
         std::is_trivially_destructible_v<Shader> &&
-    requires (Shader InputShader, const Device* DevicePtr, EShaderType type, const char* str) {
+    requires (Shader InputShader, const Device* DevicePtr, EShaderType type, const ShaderDescriptor& desc) {
         //! Path and entry name strings
-        { InputShader.Init(DevicePtr, type, str, str) } -> std::same_as<bool>;
+        { InputShader.Init(DevicePtr, desc) } -> std::same_as<bool>;
         { CONCEPT_CONST_VAR(Shader, InputShader).GetType() } -> std::same_as<EShaderType>;
         { InputShader.Destroy() } -> std::same_as<void>;
     };

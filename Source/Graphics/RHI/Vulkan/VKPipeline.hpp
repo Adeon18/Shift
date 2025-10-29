@@ -19,9 +19,11 @@ namespace Shift::VK {
         //! Initialize a pipeline
         //! \param device
         //! \param descriptor The pipeline desc struct
+        //! \param shaders The runtime built shader strcutures with type and Data
         //! \param descLayouts The desc layouts have to already be created, for now we expect the API to create them beforehand
         //! \return true if successful, false otherwise
-        [[nodiscard]] bool Init(const Device* device, const PipelineDescriptor& descriptor, std::span<VkDescriptorSetLayout> descLayouts);
+        [[nodiscard]] bool Init(const Device* device, const PipelineDescriptor& descriptor, const std::vector<ShaderStageDesc>& shaders, std::span<VkDescriptorSetLayout> descLayouts);
+
 
         //! API SPECIFIC, DO NOT USE UNLESS NESSESARY IN RHI SPECIFIC CODE
         //! \return VkPipeline

@@ -4,14 +4,14 @@
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 
 namespace Shift::VK {
-    bool Pipeline::Init(const Device *device, const PipelineDescriptor &descriptor, std::span<VkDescriptorSetLayout> descLayouts) {
+    bool Pipeline::Init(const Device *device, const PipelineDescriptor &descriptor, const std::vector<ShaderStageDesc>& shaders, std::span<VkDescriptorSetLayout> descLayouts) {
         m_device = device;
         m_desc = descriptor;
 
         //! Shaders
         std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
-        shaderStages.reserve(descriptor.shaders.size());
-        for (auto& shader: descriptor.shaders) {
+        shaderStages.reserve(shaders.size());
+        for (auto& shader: shaders) {
             shaderStages.push_back(shader.handle->VK_GetStageInfo());
         }
 

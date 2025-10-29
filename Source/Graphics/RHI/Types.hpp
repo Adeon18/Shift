@@ -34,6 +34,7 @@ namespace Shift {
     using Sampler = VK::Sampler;
     using RenderPass = VK::RenderPass;
     using CommandBuffer = VK::CommandBuffer;
+    using Device = VK::Device;
 #endif
 
 } // Shift

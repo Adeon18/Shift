@@ -164,7 +164,6 @@ namespace Shift {
 
     //! The pipeline offline description structures (default values for all except viewport and scissor)
     struct PipelineDescriptor {
-        std::vector<ShaderStageDesc> shaders;
 
         //! Batched vertex info
         struct VertexConfig {

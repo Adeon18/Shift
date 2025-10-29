@@ -19,7 +19,7 @@ namespace Shift::VK {
         //! \param path Path to the shader file
         //! \param entry Function entrypoint name
         //! \return false if failed to create module
-        [[nodiscard]] bool Init(const Device* device, EShaderType type, const char* path, const char* entry = "main");
+        [[nodiscard]] bool Init(const Device* device, const ShaderDescriptor& desc);
 
         [[nodiscard]] EShaderType GetType() const { return m_type; }
 

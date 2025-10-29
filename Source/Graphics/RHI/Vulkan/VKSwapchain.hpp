@@ -47,7 +47,6 @@ namespace Shift::VK {
         //! \return false at total failure (no recreation possible), else true
         [[nodiscard]] bool Present(const Semaphore& semaphore, uint32_t imageIdx, bool* isOld);
 
-        //! TODO: These 3 should probably be removed and all of the logic that uses them should be in the swapchain
         [[nodiscard]] VkSwapchainKHR Get() const { return m_swapChain; }
         [[nodiscard]] const std::vector<VkImageView>& GetImageViews() const { return m_swapChainImageViews; }
         [[nodiscard]] const std::vector<VkImage>& GetImages() const { return m_swapChainImages; }

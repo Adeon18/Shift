@@ -6,11 +6,11 @@
 namespace Shift::VK {
     using namespace Shift::Util;
 
-    bool Shader::Init(const Device* device, EShaderType type, const char* path, const char* entry) {
+    bool Shader::Init(const Device* device, const ShaderDescriptor& desc) {
         m_device = device;
-        m_type = type;
-        m_path = path;
-        m_entry = entry;
+        m_type = desc.type;
+        m_path = desc.path;
+        m_entry = desc.entry;
 
         auto code = ReadFile(m_path);
 
@@ -22,7 +22,7 @@ namespace Shift::VK {
         // You can set constant explicitly which alloes vulkan to optimize shader code based on the constants
         m_stageInfo.pSpecializationInfo = nullptr;
 
-        m_stageInfo.stage = Util::ShiftToVKShaderType(type);
+        m_stageInfo.stage = Util::ShiftToVKShaderType(desc.type);
 
         return VkNullCheck(m_module);
     }
