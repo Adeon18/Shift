@@ -4,11 +4,14 @@
 
 #include "VKMacros.hpp"
 
+#include "Utility/Assertions.hpp"
+
 namespace Shift::VK {
     bool Device::Init(const Instance &inst, VkSurfaceKHR surface, const VkPhysicalDeviceFeatures& deviceFeatures) {
-        if (!PickPhysicalDevice(inst.Get(), surface)) return false;
-        if (!CreateLogicalDevice(deviceFeatures, surface))  return false;
-        if (!CreateAllocator(inst.Get()))  return false;
+        CheckCritical(PickPhysicalDevice(inst.Get(), surface), "Failed to pick the physical device!");
+        CheckCritical(CreateLogicalDevice(deviceFeatures, surface), "Failed to create logical device!");
+        CheckCritical(CreateAllocator(inst.Get()), "Failed to create the allocator!");
+        return true;
     }
 
     void Device::Destroy() {
