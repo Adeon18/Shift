@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-namespace shift::ctrl {
+namespace Shift::ctrl {
     FlyingCameraController::FlyingCameraController(float fovDeg,
                                                    std::pair<uint32_t, uint32_t> screenWH,
                                                    const glm::vec3 &position)
@@ -68,22 +68,22 @@ namespace shift::ctrl {
         return m_camera.GetUpDirection();
     }
 
-    void FlyingCameraController::UI::Show(uint32_t currentFrame) {
-        if (m_shown) {
-            ImGui::Begin(m_name.c_str(), &m_shown);
-
-            ImGui::SeparatorText("Speed Settings");
-            ImGui::DragFloat("Camera Speed", &m_controller.m_movementSpeed, 0.25f, m_controller.m_movementSpeedMin, m_controller.m_movementSpeedMax);
-            ImGui::DragFloat("Camera Speed Min Limit", &m_controller.m_movementSpeedMin, 0.25f, 0.001f, m_controller.m_movementSpeedMax);
-            ImGui::DragFloat("Camera Speed Max Limit", &m_controller.m_movementSpeedMax, 0.25f, m_controller.m_movementSpeedMin, 50.0f);
-
-            ImGui::SeparatorText("Camera Info");
-            auto& pos = m_controller.m_camera.GetPosition();
-            auto& dir = m_controller.m_camera.GetFrontDirection();
-            ImGui::Text("Position: %f %f %f", pos.x, pos.y, pos.z);
-            ImGui::Text("Direction: %f %f %f", dir.x, dir.y, dir.z);
-
-            ImGui::End();
-        }
-    }
+    // void FlyingCameraController::UI::Show(uint32_t currentFrame) {
+    //     if (m_shown) {
+    //         ImGui::Begin(m_name.c_str(), &m_shown);
+    //
+    //         ImGui::SeparatorText("Speed Settings");
+    //         ImGui::DragFloat("Camera Speed", &m_controller.m_movementSpeed, 0.25f, m_controller.m_movementSpeedMin, m_controller.m_movementSpeedMax);
+    //         ImGui::DragFloat("Camera Speed Min Limit", &m_controller.m_movementSpeedMin, 0.25f, 0.001f, m_controller.m_movementSpeedMax);
+    //         ImGui::DragFloat("Camera Speed Max Limit", &m_controller.m_movementSpeedMax, 0.25f, m_controller.m_movementSpeedMin, 50.0f);
+    //
+    //         ImGui::SeparatorText("Camera Info");
+    //         auto& pos = m_controller.m_camera.GetPosition();
+    //         auto& dir = m_controller.m_camera.GetFrontDirection();
+    //         ImGui::Text("Position: %f %f %f", pos.x, pos.y, pos.z);
+    //         ImGui::Text("Direction: %f %f %f", dir.x, dir.y, dir.z);
+    //
+    //         ImGui::End();
+    //     }
+    // }
 } // shift::ctrl

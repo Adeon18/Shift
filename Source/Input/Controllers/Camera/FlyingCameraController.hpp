@@ -15,19 +15,19 @@
 
 #include "Graphics/UI/UIWindowComponent.hpp"
 
-namespace shift::ctrl {
+namespace Shift::ctrl {
     class FlyingCameraController {
-        class UI: public gfx::ui::UIWindowComponent {
-        public:
-            explicit UI(std::string name, std::string sName, FlyingCameraController& system): gfx::ui::UIWindowComponent{std::move(name), std::move(sName)}, m_controller{system} {
-            }
-
-            virtual void Item() override { gfx::ui::UIWindowComponent::Item(); }
-            virtual void Show(uint32_t currentFrame) override;
-
-        private:
-            FlyingCameraController& m_controller;
-        };
+        // class UI: public gfx::ui::UIWindowComponent {
+        // public:
+        //     explicit UI(std::string name, std::string sName, FlyingCameraController& system): gfx::ui::UIWindowComponent{std::move(name), std::move(sName)}, m_controller{system} {
+        //     }
+        //
+        //     virtual void Item() override { gfx::ui::UIWindowComponent::Item(); }
+        //     virtual void Show(uint32_t currentFrame) override;
+        //
+        // private:
+        //     FlyingCameraController& m_controller;
+        // };
 
         static constexpr float ROTATION_SPEED = 1.0f;
 
@@ -72,7 +72,7 @@ namespace shift::ctrl {
         gfx::EulerCamera &GetCamera() { return m_camera; }
 
     private:
-        UI m_UI{"Camera Settings", "Settings", *this};
+        // UI m_UI{"Camera Settings", "Settings", *this};
         gfx::EulerCamera m_camera;
 
         float m_movementSpeed = 3.0f;

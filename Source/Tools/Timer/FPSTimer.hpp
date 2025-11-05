@@ -5,7 +5,7 @@
 #include <iostream>
 
 
-namespace shift::tool {
+namespace Shift::tool {
     using namespace std::chrono_literals;
 
     class FPSTimer {

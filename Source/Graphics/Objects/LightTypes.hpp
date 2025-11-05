@@ -7,7 +7,7 @@
 
 #include <glm/glm.hpp>
 
-namespace shift::gfx {
+namespace Shift::gfx {
     struct DirectionalLight {
         glm::vec4 direction;
         glm::vec4 radiance;

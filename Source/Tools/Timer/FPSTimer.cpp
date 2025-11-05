@@ -1,6 +1,6 @@
 #include "FPSTimer.hpp"
 
-namespace shift::tool {
+namespace Shift::tool {
     bool FPSTimer::HasFrameElapsed() {
         const auto current_time = clock::now();
         m_dt = current_time - m_base;

@@ -6,11 +6,11 @@
 
 #include "spdlog/spdlog.h"
 
-namespace shift {
+namespace Shift {
     bool ShiftEngine::Init(uint32_t width, uint32_t height) {
         spdlog::set_level(spdlog::level::debug);
 
-        m_window = std::make_unique<shift::ShiftWindow>(width, height, "Shift");
+        m_window = std::make_unique<Shift::ShiftWindow>(width, height, "Shift");
 
         const glm::vec3 pos = glm::vec3(0.0f, 0.0f, 1.0f);
         std::pair<uint32_t, uint32_t> sizes{m_window->GetWidth(), m_window->GetHeight()};

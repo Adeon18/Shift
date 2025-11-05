@@ -1,7 +1,7 @@
 include(./.env.cmake OPTIONAL RESULT_VARIABLE LOCAL_ENV)
 message(STATUS "Local .env.cmake: ${LOCAL_ENV}")
  
-cmake_minimum_required(VERSION 3.4.0)
+cmake_minimum_required(VERSION 3.6.0)
 set (CMAKE_CXX_STANDARD 20)
  
 set(NAME Shift)
@@ -61,6 +61,7 @@ target_compile_definitions(
         PRIVATE
         SHIFT_ROOT="${PROJECT_SOURCE_DIR}"
         SHIFT_VALIDATION=1
+        SHIFT_VULKAN_BACKEND
         _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
 )
 target_compile_definitions(

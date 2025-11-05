@@ -14,7 +14,7 @@
 #include "Window/ShiftWindow.hpp"
 #include "Tools/Timer/FPSTimer.hpp"
 
-namespace shift {
+namespace Shift {
     class ShiftEngine {
     public:
         ShiftEngine(): m_timer{3000.0f} {}

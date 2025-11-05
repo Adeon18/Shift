@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <random>
 
-namespace shift {
+namespace Shift {
     //! Shift GUID
     class SGUID {
     public:
@@ -36,9 +36,9 @@ namespace shift {
 
 namespace std {
     template<>
-    struct hash<shift::SGUID>
+    struct hash<Shift::SGUID>
     {
-        std::size_t operator()(const shift::SGUID& uuid) const {
+        std::size_t operator()(const Shift::SGUID& uuid) const {
             return hash<uint64_t>()((uint64_t)uuid);
         }
     };

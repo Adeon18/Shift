@@ -5,7 +5,7 @@
 #include "ShiftEngine.hpp"
 
 int main() {
-    shift::ShiftEngine shiftEngine;
+    Shift::ShiftEngine shiftEngine;
 
     shiftEngine.Init(1080, 720);
     shiftEngine.LoadScene("Placeholder");

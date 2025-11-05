@@ -5,7 +5,7 @@
 #include <GLFW/glfw3.h>
 #include <utility>
 
-namespace shift::inp {
+namespace Shift::inp {
     class Mouse {
     public:
         static Mouse &GetInstance() {
