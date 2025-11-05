@@ -2,6 +2,8 @@
 
 <h1 align="center">Shift: A Rendering Sandbox for Computer Graphics Research</h1>
 
+# NOTE: Shift is currently under big rewrite to be API agnostic so the main branch is unvalid. Go to develop to see the Shift 1.0 state
+
 Shift is a modern rendering engine based on the **Vulkan API**
 that was designed for the graphics programmers to learn, practice, research, and optimize various rendering techniques.
 
