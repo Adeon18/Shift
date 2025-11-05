@@ -36,7 +36,7 @@ namespace Shift::VK {
         //! \param initialSets The base amount of pool descriptor size
         //! \param poolRatios The descriptor type ration setup from PoolSizeRatio
         //! \return
-        bool Init(const Device* device, std::span<PoolSizeRatio> poolRatios, uint32_t initialSets = 4);
+        bool Init(const Device* device, uint32_t initialSets = 4);
 
         //! Clears all pools
         void Clear();

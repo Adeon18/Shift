@@ -12,16 +12,19 @@ namespace Shift::VK {
         friend VK::ResourceSet;
     public:
         Texture() = default;
-        Texture(const Texture&) = delete;
-        Texture& operator=(const Texture&) = delete;
 
-        [[nodiscard]] bool Init(const Device* device, const TextureDescriptor& textureDesc);
+        void Init(const Device* device, const TextureDescriptor& textureDesc);
+
+        [[nodiscard]] bool IsValid() const { return valid; }
 
         //! TODO [FIX] make these VK_ and private!
         [[nodiscard]] VkImage GetImage() const { return m_image; }
         [[nodiscard]] VkImageView GetView() const { return m_imageView; }
         [[nodiscard]] VmaAllocation GetAlloc() const { return m_allocation; }
         [[nodiscard]] VmaAllocationInfo GetAllocInfo() const { return m_allocationInfo; }
+
+        [[nodiscard]] VkPipelineStageFlags VK_GetStageFlags() const { return m_stageFlags; }
+        void VK_SetStageFlags(VkPipelineStageFlags stageFlags) const { m_stageFlags = stageFlags; }
 
         [[nodiscard]] uint32_t GetWidth() const { return m_textureDesc.width; }
         [[nodiscard]] uint32_t GetHeight() const { return m_textureDesc.height; }
@@ -32,6 +35,8 @@ namespace Shift::VK {
         [[nodiscard]] ETextureType GetType() const { return m_textureDesc.textureType; }
         [[nodiscard]] ETextureAspect GetAspect() const { return m_textureDesc.textureAspect; }
         [[nodiscard]] ETextureUsageFlags GetUsageFlags() const { return m_textureDesc.usageFlags; }
+
+        void SetResourceLayout(EResourceLayout layout) const { m_textureDesc.resourceLayout = layout; }
         [[nodiscard]] EResourceLayout GetResourceLayout() const { return m_textureDesc.resourceLayout; }
 
         void Destroy();
@@ -46,6 +51,12 @@ namespace Shift::VK {
         VkImageView m_imageView = VK_NULL_HANDLE;
         VmaAllocation m_allocation = VK_NULL_HANDLE;
         VmaAllocationInfo m_allocationInfo{};
+
+        //! These are just cached layouts, really, they are only used to keep track of the resource state to make transtion
+        //! functions cleaner
+        mutable VkPipelineStageFlags m_stageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+
+        bool valid = false;
 
         TextureDescriptor m_textureDesc{};
     };

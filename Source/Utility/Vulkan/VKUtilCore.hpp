@@ -25,7 +25,6 @@ namespace Shift::VK::Util {
     };
 
     static constexpr float DEFAULT_QUEUE_PRIORITY = 1.0f;
-    static constexpr uint32_t SHIFT_MAX_FRAMES_IN_FLIGHT = 2;
 
     //! This struct stores the resepctive queues for graphics, presentation and more
     //! INFO: I use separate queue family for transfers just to practice Vulkan here, each graphics queue

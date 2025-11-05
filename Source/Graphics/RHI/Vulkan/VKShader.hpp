@@ -11,15 +11,16 @@ namespace Shift::VK {
         friend VK::Pipeline;
     public:
         Shader() = default;
-        Shader(const Shader&) = delete;
-        Shader& operator=(const Shader&) = delete;
+
         //! Initialize the Shader module along with the respective pipeline info
         //! \param device
         //! \param type Shader type
         //! \param path Path to the shader file
         //! \param entry Function entrypoint name
         //! \return false if failed to create module
-        [[nodiscard]] bool Init(const Device* device, const ShaderDescriptor& desc);
+        void Init(const Device* device, const ShaderDescriptor& desc);
+
+        [[nodiscard]] bool IsValid() const { return valid; }
 
         [[nodiscard]] EShaderType GetType() const { return m_type; }
 
@@ -37,6 +38,7 @@ namespace Shift::VK {
         const char* m_entry = nullptr;
         EShaderType m_type = EShaderType::Vertex;
 
+        bool valid = false;
         VkShaderModule m_module = VK_NULL_HANDLE;
         VkPipelineShaderStageCreateInfo m_stageInfo{};
     };

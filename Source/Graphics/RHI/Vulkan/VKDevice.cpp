@@ -266,7 +266,7 @@ namespace Shift::VK {
     bool Device::CreateAllocator(VkInstance instance) {
         VmaAllocatorCreateInfo allocatorCreateInfo{};
         allocatorCreateInfo.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
-        allocatorCreateInfo.vulkanApiVersion = cfg::VULKAN_VERSION;
+        allocatorCreateInfo.vulkanApiVersion = Conf::VULKAN_VERSION;
         allocatorCreateInfo.physicalDevice = m_physicalDevice;
         allocatorCreateInfo.device = m_device;
         allocatorCreateInfo.instance = instance;

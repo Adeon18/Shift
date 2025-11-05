@@ -17,7 +17,32 @@ namespace Shift {
         TransferSrcOptimal = 6,
         TransferDstOptimal = 7,
         Preinitialized = 8,
+        Present = 1000001002,
     };
+
+
+    enum class EPipelineStageFlags : uint32_t
+    {
+        NoneBit                        = 0,
+        TopOfPipeBit                   = 1 << 0,
+        DrawIndirectBit                = 1 << 1,
+        VertexInputBit                 = 1 << 2,
+        VertexShaderBit                = 1 << 3,
+        TessellationControlShaderBit   = 1 << 4,
+        TessellationEvaluationShaderBit= 1 << 5,
+        GeometryShaderBit              = 1 << 6,
+        FragmentShaderBit              = 1 << 7,
+        EarlyFragmentTestsBit          = 1 << 8,
+        LateFragmentTestsBit           = 1 << 9,
+        ColorAttachmentOutputBit       = 1 << 10,
+        ComputeShaderBit               = 1 << 11,
+        TransferBit                    = 1 << 12,
+        BottomOfPipeBit                = 1 << 13,
+        HostBit                        = 1 << 14,
+        AllGraphicsBit                 = 1 << 15,
+        AllCommandsBit                 = 1 << 16,
+    };
+    DEFINE_ENUM_CLASS_BITWISE_OPERATORS(EPipelineStageFlags)
 
     //! Shift Texture Formats
     //! Note: 1:1 with Vulkan, and yes, I just copied them:D So licence is the Vulkan licence:D

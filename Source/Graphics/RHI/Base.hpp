@@ -87,40 +87,41 @@ namespace Shift {
 
 //! Define bitwise operators for an enum class, allowing usage as bitmasks.
 //! Taken from https://voithos.io/articles/enum-class-bitmasks/
-#define DEFINE_ENUM_CLASS_BITWISE_OPERATORS(Enum)                   \
-    inline constexpr Enum operator|(Enum Lhs, Enum Rhs) {           \
-        return static_cast<Enum>(                                   \
-            static_cast<std::underlying_type_t<Enum>>(Lhs) |        \
-            static_cast<std::underlying_type_t<Enum>>(Rhs));        \
-    }                                                               \
-    inline constexpr Enum operator&(Enum Lhs, Enum Rhs) {           \
-        return static_cast<Enum>(                                   \
-            static_cast<std::underlying_type_t<Enum>>(Lhs) &        \
-            static_cast<std::underlying_type_t<Enum>>(Rhs));        \
-    }                                                               \
-    inline constexpr Enum operator^(Enum Lhs, Enum Rhs) {           \
-        return static_cast<Enum>(                                   \
-            static_cast<std::underlying_type_t<Enum>>(Lhs) ^        \
-            static_cast<std::underlying_type_t<Enum>>(Rhs));        \
-    }                                                               \
-    inline constexpr Enum operator~(Enum E) {                       \
-        return static_cast<Enum>(                                   \
-            ~static_cast<std::underlying_type_t<Enum>>(E));         \
-    }                                                               \
-    inline Enum& operator|=(Enum& Lhs, Enum Rhs) {                  \
-        return Lhs = static_cast<Enum>(                             \
-                   static_cast<std::underlying_type_t<Enum>>(Lhs) | \
-                   static_cast<std::underlying_type_t<Enum>>(Lhs)); \
-    }                                                               \
-    inline Enum& operator&=(Enum& Lhs, Enum Rhs) {                  \
-        return Lhs = static_cast<Enum>(                             \
-                   static_cast<std::underlying_type_t<Enum>>(Lhs) & \
-                   static_cast<std::underlying_type_t<Enum>>(Lhs)); \
-    }                                                               \
-    inline Enum& operator^=(Enum& Lhs, Enum Rhs) {                  \
-        return Lhs = static_cast<Enum>(                             \
-                   static_cast<std::underlying_type_t<Enum>>(Lhs) ^ \
-                   static_cast<std::underlying_type_t<Enum>>(Lhs)); \
+#define DEFINE_ENUM_CLASS_BITWISE_OPERATORS(Enum)                                  \
+    inline constexpr Enum operator|(Enum lhs, Enum rhs) {                          \
+        using T = std::underlying_type_t<Enum>;                                    \
+        return static_cast<Enum>(static_cast<T>(lhs) | static_cast<T>(rhs));       \
+    }                                                                              \
+    inline constexpr Enum operator&(Enum lhs, Enum rhs) {                          \
+        using T = std::underlying_type_t<Enum>;                                    \
+        return static_cast<Enum>(static_cast<T>(lhs) & static_cast<T>(rhs));       \
+    }                                                                              \
+    inline constexpr Enum operator^(Enum lhs, Enum rhs) {                          \
+        using T = std::underlying_type_t<Enum>;                                    \
+        return static_cast<Enum>(static_cast<T>(lhs) ^ static_cast<T>(rhs));       \
+    }                                                                              \
+    inline constexpr Enum operator~(Enum e) {                                      \
+        using T = std::underlying_type_t<Enum>;                                    \
+        return static_cast<Enum>(~static_cast<T>(e));                              \
+    }                                                                              \
+    inline Enum& operator|=(Enum& lhs, Enum rhs) {                                 \
+        using T = std::underlying_type_t<Enum>;                                    \
+        lhs = static_cast<Enum>(static_cast<T>(lhs) | static_cast<T>(rhs));        \
+        return lhs;                                                                \
+    }                                                                              \
+    inline Enum& operator&=(Enum& lhs, Enum rhs) {                                 \
+        using T = std::underlying_type_t<Enum>;                                    \
+        lhs = static_cast<Enum>(static_cast<T>(lhs) & static_cast<T>(rhs));        \
+        return lhs;                                                                \
+    }                                                                              \
+    inline Enum& operator^=(Enum& lhs, Enum rhs) {                                 \
+        using T = std::underlying_type_t<Enum>;                                    \
+        lhs = static_cast<Enum>(static_cast<T>(lhs) ^ static_cast<T>(rhs));        \
+        return lhs;                                                                \
+    }                                                                              \
+    inline constexpr bool Any(Enum e) {                                            \
+        using T = std::underlying_type_t<Enum>;                                    \
+        return static_cast<T>(e) != 0;                                             \
     }
 
 #endif //SHIFT_BASE_HPP

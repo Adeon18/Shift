@@ -8,6 +8,7 @@
 #include "Graphics/RHI/Vulkan/VKDevice.hpp"
 #include "Graphics/RHI/Vulkan/VKInstance.hpp"
 #include "Graphics/RHI/Vulkan/VKWindowSurface.hpp"
+#include "Graphics/RHI/Vulkan/VKSwapchain.hpp"
 #include "Graphics/RHI/Vulkan/Assistants/CommandPoolStorage.hpp"
 #include "Graphics/RHI/Vulkan/Assistants/DescriptorLayoutCache.hpp"
 #include "Graphics/RHI/Vulkan/Assistants/DescriptorAllocator.hpp"
@@ -18,6 +19,7 @@ namespace Shift {
         VK::Instance instance;
         VK::Device device;
         VK::WindowSurface surface;
+        VK::Swapchain swapchain{};
 
         VK::DescriptorAllocator descAllocator;
         VK::DescriptorLayoutCache descLayoutCache;

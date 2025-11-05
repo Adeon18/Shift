@@ -24,10 +24,10 @@ namespace Shift {
     };
 
     struct ShaderDescriptor {
-        EShaderType type;
+        EShaderType type = EShaderType::Fragment;
         //! TODO: [FEATURE] probably not path but opcode here when I integrate slang
-        const char* path;
-        const char* entry;
+        std::string path = "";
+        std::string entry = "main";
     };
 
     struct ShaderStageDesc {
@@ -41,7 +41,8 @@ namespace Shift {
         std::is_trivially_destructible_v<Shader> &&
     requires (Shader InputShader, const Device* DevicePtr, EShaderType type, const ShaderDescriptor& desc) {
         //! Path and entry name strings
-        { InputShader.Init(DevicePtr, desc) } -> std::same_as<bool>;
+        { InputShader.Init(DevicePtr, desc) } -> std::same_as<void>;
+        { InputShader.IsValid() } -> std::same_as<bool>;
         { CONCEPT_CONST_VAR(Shader, InputShader).GetType() } -> std::same_as<EShaderType>;
         { InputShader.Destroy() } -> std::same_as<void>;
     };

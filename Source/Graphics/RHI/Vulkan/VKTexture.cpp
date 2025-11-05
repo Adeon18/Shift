@@ -4,7 +4,7 @@
 #include "Utility/Vulkan/VKUtilRHI.hpp"
 
 namespace Shift::VK {
-    bool Texture::Init(const Device *device, const TextureDescriptor& textureDesc) {
+    void Texture::Init(const Device *device, const TextureDescriptor &textureDesc) {
         m_device = device;
         m_textureDesc = textureDesc;
 
@@ -31,7 +31,8 @@ namespace Shift::VK {
 
         if ( VkCheck(vmaCreateImage(m_device->GetAllocator(), &imageInfo, &allocCreateInfo, &m_image, &m_allocation, &m_allocationInfo)) ) {
             Log(Warning, "Failed to allocate VkImage!");
-            return false;
+            valid = false;
+            return;
         }
 
         // TODO: [FEATURE]: For now does not support cubemaps
@@ -48,7 +49,7 @@ namespace Shift::VK {
 
         m_imageView = m_device->CreateImageView(Util::CreateImageViewInfo(m_image, viewType, Util::ShiftToVKTextureFormat(m_textureDesc.format), sRange));
 
-        return m_imageView != VK_NULL_HANDLE;
+        valid = m_imageView != VK_NULL_HANDLE;
     }
 
     void Texture::Destroy() {

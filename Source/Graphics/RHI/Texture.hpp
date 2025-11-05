@@ -86,7 +86,8 @@ namespace Shift {
         ETextureType textureType = ETextureType::Texture2D;
         ETextureViewType textureViewType = ETextureViewType::View2D;
         ETextureAspect textureAspect = ETextureAspect::Color;
-        EResourceLayout resourceLayout = EResourceLayout::Undefined;
+        //! THis is a tracker field for transitions, it can be changed
+        mutable EResourceLayout resourceLayout = EResourceLayout::Undefined;
         const char* name = "EMPTY";
 
         static TextureDescriptor CreateTexture2DDesc(
@@ -169,7 +170,8 @@ namespace Shift {
         std::is_default_constructible_v<Texture> &&
         std::is_trivially_destructible_v<Texture> &&
     requires(Texture InputTexture, const TextureDescriptor& TextureDesc, const Device* DevicePtr) {
-        { InputTexture.Init(DevicePtr, TextureDesc) } -> std::same_as<bool>;
+        { InputTexture.Init(DevicePtr, TextureDesc) } -> std::same_as<void>;
+        { InputTexture.IsValid() } -> std::same_as<bool>;
         { InputTexture.Destroy() } -> std::same_as<void>;
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetWidth() } -> std::same_as<uint32_t>;
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetHeight() } -> std::same_as<uint32_t>;

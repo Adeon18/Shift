@@ -8,26 +8,26 @@ namespace Shift::VK {
     void DescriptorLayoutCache::Init(const Device* device) {
         m_device = device;
     }
-    void DescriptorLayoutCache::Cleanup(){
+    void DescriptorLayoutCache::Destroy(){
         //delete every descriptor layout held
         for (auto pair : layoutCache){
             vkDestroyDescriptorSetLayout(m_device->Get(), pair.second, nullptr);
         }
     }
 
-    VkDescriptorSetLayout DescriptorLayoutCache::CreateDescriptorLayout(VkDescriptorSetLayoutCreateInfo* info){
+    VkDescriptorSetLayout DescriptorLayoutCache::CreateDescriptorLayout(const VkDescriptorSetLayoutCreateInfo& info){
         DescriptorLayoutInfo layoutinfo{};
-        layoutinfo.bindings.reserve(info->bindingCount);
+        layoutinfo.bindings.reserve(info.bindingCount);
         bool isSorted = true;
         int lastBinding = -1;
 
         //copy from the direct info struct into our own one
-        for (int i = 0; i < info->bindingCount; i++) {
-            layoutinfo.bindings.push_back(info->pBindings[i]);
+        for (int i = 0; i < info.bindingCount; i++) {
+            layoutinfo.bindings.push_back(info.pBindings[i]);
 
             // Check that the bindings are in strict increasing order
-            if (info->pBindings[i].binding > lastBinding) {
-                lastBinding = info->pBindings[i].binding;
+            if (info.pBindings[i].binding > lastBinding) {
+                lastBinding = info.pBindings[i].binding;
             }
             else{
                 isSorted = false;
@@ -47,7 +47,7 @@ namespace Shift::VK {
         }
         // Create a new one (not found)
         VkDescriptorSetLayout layout;
-        vkCreateDescriptorSetLayout(m_device->Get(), info, nullptr, &layout);
+        vkCreateDescriptorSetLayout(m_device->Get(), &info, nullptr, &layout);
 
         // Cache dat shi
         layoutCache[layoutinfo] = layout;

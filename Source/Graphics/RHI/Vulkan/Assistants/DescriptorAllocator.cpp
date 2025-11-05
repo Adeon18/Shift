@@ -1,10 +1,11 @@
 #include "DescriptorAllocator.hpp"
 
+
 namespace Shift::VK {
-    bool DescriptorAllocator::Init(const Device* device, std::span<PoolSizeRatio> poolRatios, uint32_t initialSets) {
+    bool DescriptorAllocator::Init(const Device* device, uint32_t initialSets) {
         m_device = device;
 
-        for (auto r: poolRatios) {
+        for (auto r: DEFAULT_SIZE_CONFIG) {
             m_sizeRatios.push_back(r);
         }
 
@@ -12,7 +13,9 @@ namespace Shift::VK {
 
         m_setsPerPool = initialSets * 2u;
 
-        m_readyPools.push_back(std::move(newPool));
+        m_readyPools.push_back(newPool);
+
+        return true;
     }
 
     void DescriptorAllocator::Destroy() {
@@ -40,7 +43,7 @@ namespace Shift::VK {
 
     VkDescriptorPool DescriptorAllocator::GetPool() {
         VkDescriptorPool newPool;
-        if (m_readyPools.size() != 0) {
+        if (!m_readyPools.empty()) {
             newPool = m_readyPools.back();
             m_readyPools.pop_back();
         }

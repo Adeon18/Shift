@@ -50,7 +50,7 @@ namespace Shift::VK {
         return flags;
     }
 
-    bool Buffer::Init(const Device *device, const BufferDescriptor& desc) {
+    void Buffer::Init(const Device *device, const BufferDescriptor& desc) {
         m_device = device;
         m_desc = desc;
 
@@ -66,9 +66,10 @@ namespace Shift::VK {
 
         if ( VkCheck(vmaCreateBuffer(m_device->GetAllocator(), &bufCreateInfo, &allocCreateInfo, &m_buffer, &m_allocation, &m_allocationInfo)) ) {
             Log(Error, "Failed to create/allocate VkBuffer!");
-            return false;
+            valid = false;
+            return;
         }
-        return true;
+        valid = true;
     }
 
     void *Buffer::Map() {

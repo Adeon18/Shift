@@ -6,11 +6,11 @@
 namespace Shift::VK {
     using namespace Shift::Util;
 
-    bool Shader::Init(const Device* device, const ShaderDescriptor& desc) {
+    void Shader::Init(const Device* device, const ShaderDescriptor& desc) {
         m_device = device;
         m_type = desc.type;
-        m_path = desc.path;
-        m_entry = desc.entry;
+        m_path = desc.path.c_str();
+        m_entry = desc.entry.c_str();
 
         auto code = ReadFile(m_path);
 
@@ -24,7 +24,7 @@ namespace Shift::VK {
 
         m_stageInfo.stage = Util::ShiftToVKShaderType(desc.type);
 
-        return VkNullCheck(m_module);
+        valid = VkNullCheck(m_module);
     }
 
     void Shader::Destroy() {

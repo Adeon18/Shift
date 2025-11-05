@@ -13,10 +13,10 @@ namespace Shift::VK {
     class DescriptorLayoutCache {
     public:
         void Init(const Device* device);
-        void Cleanup();
+        void Destroy();
 
         //! THe data conversion to this input format lies on the SRHI
-        VkDescriptorSetLayout CreateDescriptorLayout(VkDescriptorSetLayoutCreateInfo* info);
+        VkDescriptorSetLayout CreateDescriptorLayout(const VkDescriptorSetLayoutCreateInfo& info);
 
         //! Layout info stucture
         struct DescriptorLayoutInfo {

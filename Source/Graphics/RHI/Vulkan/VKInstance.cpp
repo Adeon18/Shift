@@ -17,7 +17,7 @@ namespace Shift::VK {
         appInfo.applicationVersion = appVersion;
         appInfo.pEngineName = engName.c_str();
         appInfo.engineVersion = engVersion;
-        appInfo.apiVersion = cfg::VULKAN_VERSION;
+        appInfo.apiVersion = Conf::VULKAN_VERSION;
 
         // This struct is NOT optional and tell about extensions and validation layers to use
         VkInstanceCreateInfo createInfo{};

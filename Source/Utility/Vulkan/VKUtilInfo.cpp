@@ -56,7 +56,6 @@ namespace Shift::VK::Util {
             ) {
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
         submitInfo.waitSemaphoreCount = static_cast<uint32_t>(waitSemSpan.size());
         submitInfo.pWaitSemaphores = waitSemSpan.data();
@@ -205,13 +204,13 @@ namespace Shift::VK::Util {
         return depthStencil;
     }
 
-    VkRenderingAttachmentInfoKHR CreateRenderingAttachmentInfo(VkImageView view, bool isColor, VkClearValue val) {
+    VkRenderingAttachmentInfoKHR CreateRenderingAttachmentInfo(VkImageView view, VkImageLayout layout, VkClearValue val, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp) {
         VkRenderingAttachmentInfoKHR colorAttachmentInfo{};
         colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
         colorAttachmentInfo.imageView = view;
-        colorAttachmentInfo.imageLayout = (isColor) ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL: VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachmentInfo.imageLayout = layout;
+        colorAttachmentInfo.loadOp = loadOp;
+        colorAttachmentInfo.storeOp = storeOp;
         colorAttachmentInfo.clearValue = val;
 
         return colorAttachmentInfo;

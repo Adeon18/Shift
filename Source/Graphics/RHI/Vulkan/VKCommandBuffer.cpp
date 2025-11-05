@@ -25,12 +25,12 @@ namespace Shift::VK {
         allocInfo.commandBufferCount = 1;
 
         if ( VkCheck(vkAllocateCommandBuffers(m_device->Get(), &allocInfo, &m_buffer)) ) {
-            Log(Error, "Failed to create VkComandBuffer!");
+            Log(Error, "Failed to create VkCommandBuffer!");
             m_buffer = VK_NULL_HANDLE;
             return false;
         }
 
-        return m_fence.Init(m_device, false);
+        return m_fence.Init(m_device, true);
     }
 
     void CommandBuffer::ResetFence() const {
@@ -39,6 +39,7 @@ namespace Shift::VK {
 
     void CommandBuffer::Reset() const {
         ResetFence();
+        vkResetCommandBuffer(m_buffer, 0);
     }
 
 
@@ -61,7 +62,7 @@ namespace Shift::VK {
             Log(Error, "Failed to end command buffer! Code: %d", static_cast<int>(res));
             return false;
         }
-        return false;
+        return true;
     }
 
     void CommandBuffer::CopyBufferToBuffer(const BufferOpDescriptor& srcBuf, const BufferOpDescriptor& dstBuf, uint32_t size) const {
@@ -133,6 +134,10 @@ namespace Shift::VK {
             case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
                 barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
                 break;
+            case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+                //! Nothing to wait for
+                barrier.srcAccessMask = 0;
+                break;
             default:
                 spdlog::error("Unsupported source layout!");
                 break;
@@ -181,6 +186,10 @@ namespace Shift::VK {
         VK_TransferImageLayout(image, oldLayout, newLayout, srcStage, dstStage, subresourceRange);
     }
 
+    void CommandBuffer::Destroy() {
+        m_fence.Destroy();
+    }
+
     void CommandBuffer::VK_SetPipelineBarrier(
         VkPipelineStageFlags srcStage,  VkPipelineStageFlags dstStage,
         std::span<VkImageMemoryBarrier> imgSpan,
@@ -207,11 +216,32 @@ namespace Shift::VK {
     {
         VK_SetPipelineBarrier(srcStage, dstStage, {&imgBarrier, 1}, {}, {}, flags);
     }
-    //
-    // bool CommandBuffer::Submit() const {
-    //     return Submit(Util::CreateSubmitInfo({}, {}, {&m_buffer, 1}, 0));
-    // }
-    //
+
+    bool CommandBuffer::Submit() const {
+        VkSubmitInfo info = Util::CreateSubmitInfo({}, {}, {&m_buffer, 1}, 0);
+        VkQueue submitQueue;
+        switch (m_poolType) {
+            case EPoolQueueType::Graphics:
+                submitQueue = m_device->GetGraphicsQueue();
+                break;
+            case EPoolQueueType::Transfer:
+                submitQueue = m_device->GetTransferQueue();
+                break;
+            default:
+                Log(Error, "Invalid pool type!");
+                return false;
+        }
+
+        if (int res = vkQueueSubmit(submitQueue,
+                                    1,
+                                    &info,
+                                    m_fence.Get()); res != VK_SUCCESS) {
+            Log(Error, "Failed to submit to queue! Code: {}", res);
+            return false;
+        }
+        return true;
+    }
+
     bool CommandBuffer::Submit(const Semaphore& waitSemaphore, const Semaphore& sigSemaphore) const {
         std::array<VkPipelineStageFlags, 1> waitStages{ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
         VkSubmitInfo info = Util::CreateSubmitInfo(
@@ -237,17 +267,17 @@ namespace Shift::VK {
                                     1,
                                     &info,
                                     m_fence.Get()); res != VK_SUCCESS) {
-            spdlog::error("Failed to submit to queue! Code: {}", res);
+            Log(Error, "Failed to submit to queue! Code: {}", res);
             return false;
         }
         return true;
     }
 
-    // bool CommandBuffer::SubmitAndWait() const {
-    //     bool res = Submit();
-    //     m_fence.Wait();
-    //     return res;
-    // }
+    bool CommandBuffer::SubmitAndWait() const {
+        bool res = Submit();
+        m_fence.Wait();
+        return res;
+    }
 
     bool CommandBuffer::SubmitAndWait(const Semaphore& waitSemaphore, const Semaphore& sigSemaphore) const {
         bool res = Submit(waitSemaphore, sigSemaphore);
@@ -308,7 +338,10 @@ namespace Shift::VK {
     }
 
     void CommandBuffer::SetScissor(Rect2D scissor) const {
-        VkRect2D s = VkRect2D{.offset.x = scissor.offset.x, .offset.y = scissor.offset.y, .extent.width = scissor.extent.x, .extent.height = scissor.extent.y};
+        VkRect2D s = VkRect2D{
+            .offset = VkOffset2D{.x = scissor.offset.x, .y = scissor.offset.y},
+            .extent = VkExtent2D{.width = scissor.extent.x, .height = scissor.extent.y}
+            };
         vkCmdSetScissor(m_buffer, 0, 1, &s);
     }
 

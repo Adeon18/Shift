@@ -9,12 +9,13 @@ namespace Shift::VK {
     class ResourceSet {
     public:
         ResourceSet() = default;
-        ResourceSet(const ResourceSet&) = delete;
-        ResourceSet& operator=(const ResourceSet&) = delete;
 
         //! Init the resource set (just fills infos, the api related logic is in the RHI wrapper)
         //! \param device - device lol
-        void Init(const Device* device);
+        //! \param set - descriptor set
+        void Init(const Device* device, VkDescriptorSet set);
+
+        [[nodiscard]] bool IsValid() const { return valid; }
 
         //! Update UBO at whole buffer size
         //! \param bind
@@ -54,6 +55,7 @@ namespace Shift::VK {
         std::vector<VkWriteDescriptorSet> m_writeSets;
 
         VkDescriptorSet m_set = VK_NULL_HANDLE;
+        bool valid = false;
     };
 
     ASSERT_INTERFACE(IResourceSet, ResourceSet);

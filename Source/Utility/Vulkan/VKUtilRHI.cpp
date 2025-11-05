@@ -34,7 +34,31 @@ namespace Shift::VK::Util {
     }
 
     VkImageLayout ShiftToVKResourceLayout(EResourceLayout layout) {
-        return static_cast<VkImageLayout>(layout);
+        switch (layout) {
+            case EResourceLayout::Undefined:
+                return VK_IMAGE_LAYOUT_UNDEFINED;
+            case EResourceLayout::General:
+                return VK_IMAGE_LAYOUT_GENERAL;
+            case EResourceLayout::ColorAttachmentOptimal:
+                return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            case EResourceLayout::DepthStencilAttachmentOptimal:
+                return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            case EResourceLayout::DepthStencilReadOnlyOptimal:
+                return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+            case EResourceLayout::ShaderReadOnlyOptimal:
+                return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            case EResourceLayout::TransferSrcOptimal:
+                return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+            case EResourceLayout::TransferDstOptimal:
+                return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            case EResourceLayout::Preinitialized:
+                return VK_IMAGE_LAYOUT_PREINITIALIZED;
+            case EResourceLayout::Present:
+                return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+            default:
+                // Use UNDEFINED as a safe fallback
+                return VK_IMAGE_LAYOUT_UNDEFINED;
+        }
     }
 
     VkFormat ShiftToVKTextureFormat(ETextureFormat format) {
@@ -43,6 +67,45 @@ namespace Shift::VK::Util {
 
     VkFormat ShiftToVKVertexFormat(EVertexAttributeFormat format) {
         return static_cast<VkFormat>(format);
+    }
+
+    VkFilter ShiftToVKFilterMode(EFilterMode mode) {
+        switch (mode) {
+            case EFilterMode::Nearest:
+                return VK_FILTER_NEAREST;
+            case EFilterMode::Linear:
+                return VK_FILTER_LINEAR;
+            default:
+                return VK_FILTER_NEAREST; // Safe fallback
+        }
+    }
+
+    VkSamplerAddressMode ShiftToVKSamplerAddressMode(ESamplerAddressMode addressMode) {
+        switch (addressMode) {
+            case ESamplerAddressMode::Repeat:
+                return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            case ESamplerAddressMode::RepeatMirror:
+                return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+            case ESamplerAddressMode::ClampEdge:
+                return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            case ESamplerAddressMode::ClampBorder:
+                return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+            case ESamplerAddressMode::MirrorClampEdge:
+                return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
+            default:
+                return VK_SAMPLER_ADDRESS_MODE_REPEAT; // Safe fallback
+        }
+    }
+
+    VkSamplerMipmapMode ShiftToVKMipMapMode(EMipMapMode mipMapMode) {
+        switch (mipMapMode) {
+            case EMipMapMode::Nearest:
+                return VK_SAMPLER_MIPMAP_MODE_NEAREST;
+            case EMipMapMode::Linear:
+                return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+            default:
+                return VK_SAMPLER_MIPMAP_MODE_NEAREST; // Safe fallback
+        }
     }
 
     VkAttachmentLoadOp ShiftToVKAttachmentLoadOperation(EAttachmentLoadOperation operation) {
@@ -113,25 +176,24 @@ namespace Shift::VK::Util {
         return static_cast<VkShaderStageFlagBits>(type);
     }
 
-    VkPipelineVertexInputStateCreateInfo ShiftToVKVertexConfig(const PipelineDescriptor::VertexConfig& config) {
+    //! TODO: [OPTIMIZATION] THis is a bit stupid as it creates a bind and attr descs every time we bind a pipeline. It is not much but it is still redundant
+    VkPipelineVertexInputStateCreateInfo ShiftToVKVertexConfig(const PipelineDescriptor::VertexConfig& config,  std::vector<VkVertexInputBindingDescription>* bindDesc, std::vector<VkVertexInputAttributeDescription>* attDesc) {
         VkPipelineVertexInputStateCreateInfo outInfo{};
         outInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
-        std::vector<VkVertexInputBindingDescription> bindDesc;
-        bindDesc.reserve(config.vertexBindings.size());
+        bindDesc->reserve(config.vertexBindings.size());
         for (const auto& bind: config.vertexBindings) {
-            bindDesc.emplace_back(bind.binding, bind.stride, ShiftToVKVertexInputRate(bind.inputRate));
+            bindDesc->emplace_back(bind.binding, bind.stride, ShiftToVKVertexInputRate(bind.inputRate));
         }
-        std::vector<VkVertexInputAttributeDescription> attDesc;
-        attDesc.reserve(config.attributeDescs.size());
+        attDesc->reserve(config.attributeDescs.size());
         for (const auto& attr: config.attributeDescs) {
-            attDesc.emplace_back(attr.location, attr.binding, ShiftToVKVertexFormat(attr.format), attr.offset);
+            attDesc->emplace_back(attr.location, attr.binding, ShiftToVKVertexFormat(attr.format), attr.offset);
         }
 
-        outInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindDesc.size());
-        outInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attDesc.size());
-        outInfo.pVertexBindingDescriptions = bindDesc.data();
-        outInfo.pVertexAttributeDescriptions = attDesc.data();
+        outInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindDesc->size());
+        outInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attDesc->size());
+        outInfo.pVertexBindingDescriptions = bindDesc->data();
+        outInfo.pVertexAttributeDescriptions = attDesc->data();
 
         return outInfo;
     }
@@ -229,6 +291,27 @@ namespace Shift::VK::Util {
         }
     }
 
+    VkPipelineStageFlags ShiftToVKPipelineStageFlags(EPipelineStageFlags flags) {
+        return static_cast<VkPipelineStageFlags>(static_cast<uint32_t>(flags));
+    }
+
+    //! TODO [FEATURE] only float clear color is supported for now!
+    VkClearValue ShiftToVKClearColor(const AttachmentClearValue &src) {
+        VkClearValue dst{};
+        dst.color.float32[0] = src.color.float32[0];
+        dst.color.float32[1] = src.color.float32[1];
+        dst.color.float32[2] = src.color.float32[2];
+        dst.color.float32[3] = src.color.float32[3];
+        return dst;
+    }
+
+    VkClearValue ShiftToVKClearDepthStencil(const AttachmentClearValue &src) {
+        VkClearValue dst{};
+        dst.depthStencil.depth   = src.depthStencil.depth;
+        dst.depthStencil.stencil = src.depthStencil.stencil;
+        return dst;
+    }
+
     //!-------------------------------------VKTOShift-------------------------------------!//
 
     ETextureType VKToShiftTextureType(VkImageType type) {
@@ -258,7 +341,31 @@ namespace Shift::VK::Util {
     }
 
     EResourceLayout VKToShiftResourceLayout(VkImageLayout layout) {
-        return static_cast<EResourceLayout>(layout);
+        switch (layout) {
+            case VK_IMAGE_LAYOUT_UNDEFINED:
+                return EResourceLayout::Undefined;
+            case VK_IMAGE_LAYOUT_GENERAL:
+                return EResourceLayout::General;
+            case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+                return EResourceLayout::ColorAttachmentOptimal;
+            case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+                return EResourceLayout::DepthStencilAttachmentOptimal;
+            case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+                return EResourceLayout::DepthStencilReadOnlyOptimal;
+            case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+                return EResourceLayout::ShaderReadOnlyOptimal;
+            case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+                return EResourceLayout::TransferSrcOptimal;
+            case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+                return EResourceLayout::TransferDstOptimal;
+            case VK_IMAGE_LAYOUT_PREINITIALIZED:
+                return EResourceLayout::Preinitialized;
+            case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+                return EResourceLayout::Present;
+            default:
+                // Handle unexpected or unsupported layouts gracefully
+                return EResourceLayout::Undefined;
+        }
     }
 
     ETextureFormat VKToShiftTextureFormat(VkFormat format) {
@@ -320,5 +427,9 @@ namespace Shift::VK::Util {
 
     EBindingVisibility VKToShiftBindingVisibility(VkShaderStageFlagBits visibility) {
         return static_cast<EBindingVisibility>(visibility);
+    }
+
+    EPipelineStageFlags VKToShiftPipelineStageFlags(VkPipelineStageFlags vkFlags) {
+        return static_cast<EPipelineStageFlags>(vkFlags);
     }
 } // Shift::VK::Util

@@ -12,6 +12,7 @@ namespace Shift::VK {
     class CommandPoolStorage {
     public:
         void Init(const Device *device, const Instance* ins);
+        void Destroy();
 
         [[nodiscard]] const Instance* GetInstance() const { return m_instance ; }
 

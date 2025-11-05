@@ -16,7 +16,7 @@ namespace Shift {
     template<typename Semaphore>
     concept ISemaphore =
         std::is_default_constructible_v<Semaphore> &&
-        std::is_trivially_destructible_v<Semaphore>
+        std::is_trivially_destructible_v<Semaphore>;
 } // Shift
 
 #endif //SHIFT_SEMAPHORE_HPP

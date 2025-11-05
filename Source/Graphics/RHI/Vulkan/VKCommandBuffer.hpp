@@ -13,8 +13,6 @@ namespace Shift::VK {
     class CommandBuffer {
     public:
         CommandBuffer() = default;
-        CommandBuffer(const CommandBuffer&) = delete;
-        CommandBuffer& operator=(const CommandBuffer&) = delete;
 
         [[nodiscard]] bool Init(const Device* device, const Instance* ins, VkCommandPool commandPool, EPoolQueueType type);
 
@@ -52,18 +50,18 @@ namespace Shift::VK {
         //! Wait for the fence to be signalled
         void Wait() const { m_fence.Wait(); };
 
-        // //! Submit the buffer to a GPU queue (default info)
-        // //! \return true if successful, false otherwise
-        // [[nodiscard]] bool Submit() const;
+        //! Submit the buffer to a GPU queue (default info)
+        //! \return true if successful, false otherwise
+        [[nodiscard]] bool Submit() const;
 
         //! Submit the buffer to a GPU queue with a custom info
         //! \param info Submit info
         //! \return true if successful, false otherwise
         [[nodiscard]] bool Submit(const Semaphore& waitSemaphore, const Semaphore& sigSemaphore) const;
 
-        // //! Submit the buffer to a GPU queue (default info) and Wait for completion
-        // //! \return true if successful, false otherwise
-        // [[nodiscard]] bool SubmitAndWait() const;
+        //! Submit the buffer to a GPU queue (default info) and Wait for completion
+        //! \return true if successful, false otherwise
+        [[nodiscard]] bool SubmitAndWait() const;
 
         //! Submit the buffer to a GPU queue with a custom info and Wait for completion
         //! \param info Submit info

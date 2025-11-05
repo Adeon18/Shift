@@ -70,7 +70,8 @@ namespace Shift {
         std::is_default_constructible_v<Sampler> &&
         std::is_trivially_destructible_v<Sampler> &&
     requires (Sampler InputSampler, const Device* DevicePtr, const SamplerDescriptor SamplerDesc) {
-        { InputSampler.Init(DevicePtr, SamplerDesc) } -> std::same_as<bool>;
+        { InputSampler.Init(DevicePtr, SamplerDesc) } -> std::same_as<void>;
+        { InputSampler.IsValid() } -> std::same_as<bool>;
     };
 } // Shift
 

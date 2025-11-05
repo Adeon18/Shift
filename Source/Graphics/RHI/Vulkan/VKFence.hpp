@@ -9,8 +9,6 @@ namespace Shift::VK {
     class Fence {
     public:
         Fence() = default;
-        Fence(const Fence&) = delete;
-        Fence& operator=(const Fence&) = delete;
 
         //! Initialize a fence
         //! \param device Pointer to a device wrapper

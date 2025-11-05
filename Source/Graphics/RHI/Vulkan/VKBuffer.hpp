@@ -5,6 +5,7 @@
 
 #include "VKDevice.hpp"
 #include "Graphics/RHI/Buffer.hpp"
+#include "Graphics/RHI/Shader.hpp"
 
 namespace Shift::VK {
     class Buffer {
@@ -12,14 +13,14 @@ namespace Shift::VK {
         friend Shift::VK::CommandBuffer;
     public:
         Buffer() = default;
-        Buffer(const Buffer&) = delete;
-        Buffer& operator=(const Buffer&) = delete;
 
         //! Create a Vulkan Buffer
         //! \param device
         //! \param desc RHI Buffer description
         //! \return false if failure
-        [[nodiscard]] bool Init(const Device* device, const BufferDescriptor& desc);
+        void Init(const Device* device, const BufferDescriptor& desc);
+
+        [[nodiscard]] bool IsValid() const { return valid; }
 
         [[nodiscard]] uint64_t GetSize() const { return m_desc.size; }
         [[nodiscard]] const char* GetName() const { return m_desc.name; }
@@ -54,6 +55,8 @@ namespace Shift::VK {
         VkBuffer m_buffer = VK_NULL_HANDLE;
         VmaAllocation m_allocation = VK_NULL_HANDLE;
         VmaAllocationInfo m_allocationInfo{};
+
+        bool valid = false;
 
         BufferDescriptor m_desc{};
     };

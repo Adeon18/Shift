@@ -22,6 +22,21 @@ namespace Shift::Util {
         return buffer;
     }
 
+    void StrSplitView(std::string_view str, char delimiter, std::vector<std::string_view> *outTokens) {
+        size_t start = 0;
+        while (true)
+        {
+            size_t pos = str.find(delimiter, start);
+            if (pos == std::string_view::npos)
+            {
+                outTokens->emplace_back(str.substr(start));
+                break;
+            }
+            outTokens->emplace_back(str.substr(start, pos - start));
+            start = pos + 1;
+        }
+    }
+
     std::string GetDirectoryFromPath(const std::string& path)
     {
         return std::filesystem::path{ path }.parent_path().string() + "/";

@@ -16,4 +16,9 @@ namespace Shift::VK {
         m_graphicsPool = m_device->CreateCommandPool(Util::CreateCommandPoolInfo(queueFamilyIndexGraphics));
         m_transferPool = m_device->CreateCommandPool(Util::CreateCommandPoolInfo(queueFamilyIndexTransfer));
     }
+
+    void CommandPoolStorage::Destroy() {
+        m_device->DestroyCommandPool(m_graphicsPool);
+        m_device->DestroyCommandPool(m_transferPool);
+    }
 }

@@ -4,7 +4,7 @@
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 
 namespace Shift::VK {
-    bool Pipeline::Init(const Device *device, const PipelineDescriptor &descriptor, const std::vector<ShaderStageDesc>& shaders, std::span<VkDescriptorSetLayout> descLayouts) {
+    void Pipeline::Init(const Device *device, const PipelineDescriptor &descriptor, const std::vector<ShaderStageDesc>& shaders, std::span<VkDescriptorSetLayout> descLayouts) {
         m_device = device;
         m_desc = descriptor;
 
@@ -22,7 +22,9 @@ namespace Shift::VK {
         inputAssemblyInfo.primitiveRestartEnable = VK_FALSE;
 
         //! Vertex Input
-        VkPipelineVertexInputStateCreateInfo vertexInputInfo = Util::ShiftToVKVertexConfig(descriptor.vertexConfig);
+        std::vector<VkVertexInputBindingDescription> bindDesc;
+        std::vector<VkVertexInputAttributeDescription> attDesc;
+        VkPipelineVertexInputStateCreateInfo vertexInputInfo = Util::ShiftToVKVertexConfig(descriptor.vertexConfig, &bindDesc, &attDesc);
 
         //! Dynamic state (hardcoded for now as well)
         const std::vector<VkDynamicState> dynamicStates = {
@@ -78,7 +80,8 @@ namespace Shift::VK {
 
         m_layout = m_device->CreatePipelineLayout(pipelineLayoutInfo);
         if ( !(VkNullCheck(m_layout)) ) {
-            return false;
+            valid = false;
+            return;
         }
 
         //! Pipeline itself
@@ -106,7 +109,7 @@ namespace Shift::VK {
 
         m_pipeline = m_device->CreateGraphicsPipeline(pipelineInfo);
 
-        return VkNullCheck(m_pipeline);
+        valid = VkNullCheck(m_pipeline);
     }
 
     //! Destroys pipeline and layout

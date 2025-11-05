@@ -50,6 +50,8 @@ namespace Shift::VK {
         [[nodiscard]] VkSwapchainKHR Get() const { return m_swapChain; }
         [[nodiscard]] const std::vector<VkImageView>& GetImageViews() const { return m_swapChainImageViews; }
         [[nodiscard]] const std::vector<VkImage>& GetImages() const { return m_swapChainImages; }
+        [[nodiscard]] std::vector<VkImageLayout>& GetImageLayouts() const { return m_swapChainImageLayouts; }
+        [[nodiscard]] std::vector<VkPipelineStageFlags>& GetImageStageFlags() const { return m_swapChainImageStageFlags; }
 
         [[nodiscard]] Extent2D GetExtent() const { return m_swapchainDesc.swapChainExtent; }
         [[nodiscard]] ETextureFormat GetFormat() const { return m_swapchainDesc.swapChainImageFormat; }
@@ -81,6 +83,8 @@ namespace Shift::VK {
 
         std::vector<VkImage> m_swapChainImages;
         std::vector<VkImageView> m_swapChainImageViews;
+        mutable std::vector<VkImageLayout> m_swapChainImageLayouts;
+        mutable std::vector<VkPipelineStageFlags> m_swapChainImageStageFlags;
     };
 
     ASSERT_INTERFACE(ISwapchain, Swapchain);

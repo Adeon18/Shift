@@ -5,6 +5,7 @@
 #include "VKSwapchain.hpp"
 #include <array>
 
+#include "Utility/Assertions.hpp"
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 #include "Utility/Vulkan/VKUtilRHI.hpp"
 
@@ -13,8 +14,10 @@ namespace Shift::VK {
         m_device = device;
         m_windowSurface = windowSurface;
         FillSwapchainDescription(width, height);
-        CreateSwapChain();
-        CreateImageViews();
+        CheckCritical(CreateSwapChain(), "Failed to create swapchain!");
+        CheckCritical(CreateImageViews(), "Failed to create image views!");
+
+        return true;
     }
 
     void Swapchain::FillSwapchainDescription(uint32_t width, uint32_t height) {
@@ -88,7 +91,7 @@ namespace Shift::VK {
 
         m_viewPort.x = 0.0f;
         //! TODO: BUG???
-        m_viewPort.y = 0.0f; //static_cast<float>(m_swapchainDesc.swapChainExtent.y);
+        m_viewPort.y = static_cast<float>(m_swapchainDesc.swapChainExtent.y);
         m_viewPort.width = static_cast<float>(m_swapchainDesc.swapChainExtent.x);
         m_viewPort.height = -static_cast<float>(m_swapchainDesc.swapChainExtent.y);
         m_viewPort.minDepth = 0.0f;
@@ -102,12 +105,16 @@ namespace Shift::VK {
 
     bool Swapchain::CreateImageViews() {
         m_swapChainImageViews.resize(m_swapChainImages.size());
+        m_swapChainImageLayouts.resize(m_swapChainImages.size());
+        m_swapChainImageStageFlags.resize(m_swapChainImages.size());
         bool success = true;
         for (size_t i = 0; i < m_swapChainImages.size(); i++) {
             m_swapChainImageViews[i] = m_device->CreateImageView(
                 Util::CreateImageViewInfo(m_swapChainImages[i], VK_IMAGE_VIEW_TYPE_2D, Util::ShiftToVKTextureFormat(m_swapchainDesc.swapChainImageFormat))
             );
             success = (success) ? m_swapChainImageViews[i] != VK_NULL_HANDLE: false;
+            m_swapChainImageLayouts[i] = VK_IMAGE_LAYOUT_UNDEFINED;
+            m_swapChainImageStageFlags[i] = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         }
         return success;
     }

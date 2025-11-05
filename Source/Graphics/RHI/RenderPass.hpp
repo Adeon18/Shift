@@ -64,6 +64,9 @@ namespace Shift {
             };
         };
 
+        Offset2D offset;
+        Extent2D extent;
+
         std::vector<RenderPassAttachmentInfo> colorAttachments;
         std::optional<RenderPassAttachmentInfo> depthAttachment;
     };

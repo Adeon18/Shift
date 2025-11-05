@@ -153,7 +153,7 @@ namespace Shift::VK::Util {
     //! Convert a VertexConfig structure to a Vulkan vertex input state create info structure
     //! \param config The vertex configuration descriptor to convert
     //! \return The corresponding VkPipelineVertexInputStateCreateInfo structure
-    VkPipelineVertexInputStateCreateInfo ShiftToVKVertexConfig(const PipelineDescriptor::VertexConfig& config);
+    VkPipelineVertexInputStateCreateInfo ShiftToVKVertexConfig(const PipelineDescriptor::VertexConfig& config,  std::vector<VkVertexInputBindingDescription>* bindDesc, std::vector<VkVertexInputAttributeDescription>* attDesc);
 
     //! Convert a RasterizerStateDesc structure to a Vulkan rasterization state create info structure
     //! \param desc The rasterizer state descriptor to convert
@@ -183,6 +183,18 @@ namespace Shift::VK::Util {
     VkPipelineDepthStencilStateCreateInfo ShiftToVKDepthStencilConfig(const PipelineDescriptor::DepthStencilConfig& config);
 
     VkIndexType ShiftToVKIndexType(EIndexSize size);
+
+    //!
+    //! @param flags
+    //! @return
+    VkPipelineStageFlags ShiftToVKPipelineStageFlags(EPipelineStageFlags flags);
+
+    VkClearValue ShiftToVKClearColor(const AttachmentClearValue& src);
+
+    VkClearValue ShiftToVKClearDepthStencil(const AttachmentClearValue& src);
+
+    inline VkOffset2D ShiftToVKOffset2D(const Offset2D& src) { return { src.x, src.y }; }
+    inline VkExtent2D ShiftToVKExtent2D(const Extent2D& src) { return { src.x, src.y }; }
 
     //!-------------------------------------VKTOShift-------------------------------------!//
 
@@ -300,6 +312,11 @@ namespace Shift::VK::Util {
     //! \param visibility The VkShaderStageFlags value to convert
     //! \return The corresponding EBindingVisibility
     EBindingVisibility VKToShiftBindingVisibility(VkShaderStageFlagBits visibility);
+
+    //!
+    //! @param vkFlags
+    //! @return
+    EPipelineStageFlags VKToShiftPipelineStageFlags(VkPipelineStageFlags vkFlags);
 }
 
 #endif //SHIFT_UTILRHI_HPP

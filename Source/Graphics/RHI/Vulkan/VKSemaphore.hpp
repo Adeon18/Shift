@@ -10,8 +10,6 @@ namespace Shift::VK {
     class Semaphore {
     public:
         Semaphore() = default;
-        Semaphore(const Semaphore&) = delete;
-        Semaphore& operator=(const Semaphore&) = delete;
 
         //! Initialize a VKSemaphore
         //! \param device The device wrapper ptr
@@ -20,7 +18,7 @@ namespace Shift::VK {
 
         //! TODO [FIX] VK_
         [[nodiscard]] VkSemaphore Get() const { return m_semaphore; }
-        [[nodiscard]] VkSemaphore* Ptr() const { return &m_semaphore; }
+        [[nodiscard]] const VkSemaphore* Ptr() const { return &m_semaphore; }
 
         //! Free the VkSemaphore
         void Destroy();
@@ -28,7 +26,7 @@ namespace Shift::VK {
     private:
         const Device* m_device = nullptr;
 
-        VkSemaphore m_semaphore;
+        VkSemaphore m_semaphore = VK_NULL_HANDLE;
     };
 
     ASSERT_INTERFACE(ISemaphore, Semaphore);

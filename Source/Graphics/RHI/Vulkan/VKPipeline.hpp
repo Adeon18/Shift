@@ -13,8 +13,6 @@ namespace Shift::VK {
     class Pipeline {
     public:
         Pipeline() = default;
-        Pipeline(const Pipeline&) = delete;
-        Pipeline& operator=(const Pipeline&) = delete;
 
         //! Initialize a pipeline
         //! \param device
@@ -22,8 +20,9 @@ namespace Shift::VK {
         //! \param shaders The runtime built shader strcutures with type and Data
         //! \param descLayouts The desc layouts have to already be created, for now we expect the API to create them beforehand
         //! \return true if successful, false otherwise
-        [[nodiscard]] bool Init(const Device* device, const PipelineDescriptor& descriptor, const std::vector<ShaderStageDesc>& shaders, std::span<VkDescriptorSetLayout> descLayouts);
+        [[nodiscard]] void Init(const Device* device, const PipelineDescriptor& descriptor, const std::vector<ShaderStageDesc>& shaders, std::span<VkDescriptorSetLayout> descLayouts);
 
+        [[nodiscard]] bool IsValid() const { return valid; }
 
         //! API SPECIFIC, DO NOT USE UNLESS NESSESARY IN RHI SPECIFIC CODE
         //! \return VkPipeline
@@ -42,6 +41,7 @@ namespace Shift::VK {
         VkPipelineLayout m_layout = VK_NULL_HANDLE;
 
         PipelineDescriptor m_desc;
+        bool valid = false;
     };
 
     ASSERT_INTERFACE(IPipeline, Pipeline);
