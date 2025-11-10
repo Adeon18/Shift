@@ -2,7 +2,7 @@
 #define SHIFT_VKSHADER_HPP
 
 #include "VKDevice.hpp"
-#include "Graphics/RHI/Shader.hpp"
+#include "Graphics/RHI/Common/Shader.hpp"
 
 #include "Utility/UtilStandard.hpp"
 

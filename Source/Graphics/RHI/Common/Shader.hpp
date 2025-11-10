@@ -10,7 +10,6 @@
 
 #include "Base.hpp"
 #include "Types.hpp"
-#include "Shader.hpp"
 
 namespace Shift {
     //! 1:1 with Vulkan

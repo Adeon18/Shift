@@ -3,7 +3,7 @@
 
 #include "VKDevice.hpp"
 
-#include "Graphics/RHI/Sampler.hpp"
+#include "Graphics/RHI/Common/Sampler.hpp"
 
 namespace Shift::VK {
     class Sampler {
@@ -15,7 +15,7 @@ namespace Shift::VK {
         //! \param device The VkDevice
         //! \param desc RHI desc
         //! \return true if successful, false otherwise
-        [[nodiscard]] void Init(const Device* device, const SamplerDescriptor& desc);
+        void Init(const Device* device, const SamplerDescriptor& desc);
 
         [[nodiscard]] bool IsValid() const { return valid; }
 

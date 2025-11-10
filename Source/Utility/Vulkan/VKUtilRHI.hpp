@@ -7,12 +7,12 @@
 
 #include <vulkan/vulkan.h>
 
-#include "Graphics/RHI/Texture.hpp"
-#include "Graphics/RHI/TextureFormat.hpp"
-#include "Graphics/RHI/Sampler.hpp"
-#include "Graphics/RHI/Pipeline.hpp"
-#include "Graphics/RHI/RenderPass.hpp"
-#include "Graphics/RHI/CommandBuffer.hpp"
+#include "Graphics/RHI/Common/Texture.hpp"
+#include "Graphics/RHI/Common/TextureFormat.hpp"
+#include "Graphics/RHI/Common/Sampler.hpp"
+#include "Graphics/RHI/Common/Pipeline.hpp"
+#include "Graphics/RHI/Common/RenderPass.hpp"
+#include "Graphics/RHI/Common/CommandBuffer.hpp"
 
 namespace Shift::VK::Util {
     //! Create a VkImageType from an ETextureType

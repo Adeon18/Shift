@@ -3,7 +3,7 @@
 
 #include "VKDevice.hpp"
 
-#include "Graphics/RHI/Texture.hpp"
+#include "Graphics/RHI/Common/Texture.hpp"
 
 namespace Shift::VK {
     //! A RAII Wrapper for texture creation/destriction logic, it not mean to be used raw as has a ton of configs

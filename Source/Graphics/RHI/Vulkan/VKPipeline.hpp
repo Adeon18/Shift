@@ -7,7 +7,7 @@
 #include "VKDevice.hpp"
 #include "VKShader.hpp"
 
-#include "Graphics/RHI/Pipeline.hpp"
+#include "../Common/Pipeline.hpp"
 
 namespace Shift::VK {
     class Pipeline {

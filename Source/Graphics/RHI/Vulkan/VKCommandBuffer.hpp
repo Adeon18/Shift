@@ -7,7 +7,7 @@
 #include "VKDevice.hpp"
 #include "VKFence.hpp"
 
-#include "Graphics/RHI/CommandBuffer.hpp"
+#include "../Common/CommandBuffer.hpp"
 
 namespace Shift::VK {
     class CommandBuffer {

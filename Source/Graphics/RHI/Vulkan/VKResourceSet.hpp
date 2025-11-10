@@ -3,7 +3,7 @@
 
 #include "VKDevice.hpp"
 
-#include "Graphics/RHI/ResourceSet.hpp"
+#include "../Common/ResourceSet.hpp"
 
 namespace Shift::VK {
     class ResourceSet {

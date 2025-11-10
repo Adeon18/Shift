@@ -3,7 +3,7 @@
 
 #include "VKDevice.hpp"
 
-#include "Graphics/RHI/Fence.hpp"
+#include "../Common/Fence.hpp"
 
 namespace Shift::VK {
     class Fence {

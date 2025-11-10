@@ -4,8 +4,8 @@
 #include <span>
 
 #include "VKDevice.hpp"
-#include "Graphics/RHI/Buffer.hpp"
-#include "Graphics/RHI/Shader.hpp"
+#include "Graphics/RHI/Common/Buffer.hpp"
+#include "Graphics/RHI/Common/Shader.hpp"
 
 namespace Shift::VK {
     class Buffer {

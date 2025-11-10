@@ -72,13 +72,14 @@ namespace Shift::gfx {
 
     bool Renderer::RenderFrame(const Shift::gfx::EngineData &engineData) {
 
-        CheckCritical(m_SRHI.BeginCmds(), "Failed to begin the command Buffer!");
 
+        CheckCritical(m_SRHI.BeginCmds(), "Failed to begin the command Buffer!");
         /// Aquire availible swapchain image index
 
         bool aquireSuccess = true;
         uint32_t imageIndex = AquireImage(&aquireSuccess);
         if (imageIndex == UINT32_MAX) { return aquireSuccess; }
+
 
         m_SRHI.TransitionSwapchainTexture(imageIndex, EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
 

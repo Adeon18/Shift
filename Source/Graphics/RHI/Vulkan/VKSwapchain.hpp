@@ -3,7 +3,7 @@
 
 #include "Utility/Vulkan/VKUtilCore.hpp"
 
-#include "Graphics/RHI/Swapchain.hpp"
+#include "Graphics/RHI/Common/Swapchain.hpp"
 #include "VKDevice.hpp"
 #include "VKWindowSurface.hpp"
 #include "VKSemaphore.hpp"

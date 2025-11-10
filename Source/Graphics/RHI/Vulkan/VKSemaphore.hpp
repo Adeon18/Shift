@@ -4,7 +4,7 @@
 #include <vulkan/vulkan.h>
 
 #include "VKDevice.hpp"
-#include "Graphics/RHI/Semaphore.hpp"
+#include "Graphics/RHI/Common/Semaphore.hpp"
 
 namespace Shift::VK {
     class Semaphore {

@@ -8,13 +8,14 @@
 #include <concepts>
 #include <array>
 
-#include "Types.hpp"
-#include "Texture.hpp"
-#include "Buffer.hpp"
-#include "Pipeline.hpp"
-#include "Sampler.hpp"
-#include "Swapchain.hpp"
-#include "RenderPass.hpp"
+#include "Common/Types.hpp"
+#include "Common/Texture.hpp"
+#include "Common/Buffer.hpp"
+#include "Common/Pipeline.hpp"
+#include "Common/Sampler.hpp"
+#include "Common/Swapchain.hpp"
+#include "Common/Shader.hpp"
+#include "Common/RenderPass.hpp"
 #include "Config/EngineConfig.hpp"
 
 #include "Utility/UtilStandard.hpp"
