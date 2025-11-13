@@ -27,14 +27,12 @@ namespace Shift::VK {
 
         [[nodiscard]] bool Init(const Device* device, const WindowSurface* windowSurface, uint32_t width, uint32_t height);
 
-        [[nodiscard]] bool IsValid() const;
-
         //! Aquire next image index(with check for swapchain changed boolean)
         //! \param semaphore Semaphore that is signalled when we get the image
         //! \param wasChanged boolean that is filled based on if the swapchain was successfully changed
         //! \param timeout max time to wait until success, default is UINT64_MAX
         //! \return The image index or UINT32_MAX if error
-        [[nodiscard]] uint32_t AquireNextImage(const Semaphore& semaphore, bool* wasChanged, uint64_t timeout = UINT64_MAX);
+        [[nodiscard]] uint32_t AquireNextImage(const BinarySemaphore& semaphore, bool* wasChanged, uint64_t timeout = UINT64_MAX);
         //! Wait for device commands and manually recreate the swapchain
         //! \param width
         //! \param height
@@ -45,13 +43,11 @@ namespace Shift::VK {
         //! \param imageIdx The image index in the swapchain to present
         //! \param isOld Is filled when the semaphore is old and should be recreated
         //! \return false at total failure (no recreation possible), else true
-        [[nodiscard]] bool Present(const Semaphore& semaphore, uint32_t imageIdx, bool* isOld);
+        [[nodiscard]] bool Present(const BinarySemaphore& semaphore, uint32_t imageIdx, bool* isOld);
 
         [[nodiscard]] VkSwapchainKHR Get() const { return m_swapChain; }
-        [[nodiscard]] const std::vector<VkImageView>& GetImageViews() const { return m_swapChainImageViews; }
+        [[nodiscard]] Texture& GetSwapchainTexture(uint32_t imageIdx) const { return m_swapChainTextures[imageIdx]; }
         [[nodiscard]] const std::vector<VkImage>& GetImages() const { return m_swapChainImages; }
-        [[nodiscard]] std::vector<VkImageLayout>& GetImageLayouts() const { return m_swapChainImageLayouts; }
-        [[nodiscard]] std::vector<VkPipelineStageFlags>& GetImageStageFlags() const { return m_swapChainImageStageFlags; }
 
         [[nodiscard]] Extent2D GetExtent() const { return m_swapchainDesc.swapChainExtent; }
         [[nodiscard]] ETextureFormat GetFormat() const { return m_swapchainDesc.swapChainImageFormat; }
@@ -81,10 +77,9 @@ namespace Shift::VK {
 
         Util::SwapChainSupportDetails m_swapChainSupportDetails;
 
+        //! Texture stores duplicated VkImage data as well as Image Views and the state of the resource
+        mutable std::vector<Texture> m_swapChainTextures;
         std::vector<VkImage> m_swapChainImages;
-        std::vector<VkImageView> m_swapChainImageViews;
-        mutable std::vector<VkImageLayout> m_swapChainImageLayouts;
-        mutable std::vector<VkPipelineStageFlags> m_swapChainImageStageFlags;
     };
 
     ASSERT_INTERFACE(ISwapchain, Swapchain);

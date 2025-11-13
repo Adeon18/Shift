@@ -31,6 +31,22 @@ namespace Shift::VK::Util {
         return semaphoreInfo;
     }
 
+    VkSemaphoreCreateInfo CreateSemaphoreInfo(const VkSemaphoreTypeCreateInfo& info) {
+        VkSemaphoreCreateInfo semaphoreInfo{};
+        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        semaphoreInfo.pNext = &info;
+        return semaphoreInfo;
+    }
+
+    VkSemaphoreTypeCreateInfo CreateTimelineSemaphoreInfo(uint64_t initialValue) {
+        VkSemaphoreTypeCreateInfo timelineCreateInfo{};
+        timelineCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
+        timelineCreateInfo.pNext = nullptr;
+        timelineCreateInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
+        timelineCreateInfo.initialValue = initialValue;
+        return timelineCreateInfo;
+    }
+
     VkCommandPoolCreateInfo CreateCommandPoolInfo(uint32_t queueFamilyIndex) {
         VkCommandPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -48,14 +64,28 @@ namespace Shift::VK::Util {
         return beginInfo;
     }
 
+    VkTimelineSemaphoreSubmitInfo CreateTimelineSemaphoreSubmitInfo(std::span<uint64_t> waitVals, std::span<uint64_t> sigVals) {
+        VkTimelineSemaphoreSubmitInfo timelineInfo{};
+        timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+        timelineInfo.pNext = nullptr;
+        timelineInfo.waitSemaphoreValueCount = waitVals.size();
+        timelineInfo.pWaitSemaphoreValues = waitVals.data();
+        timelineInfo.signalSemaphoreValueCount = sigVals.size();
+        timelineInfo.pSignalSemaphoreValues = sigVals.data();
+
+        return timelineInfo;
+    }
+
     VkSubmitInfo CreateSubmitInfo(
             std::span<const VkSemaphore> waitSemSpan,
             std::span<const VkSemaphore> sigSemSpan,
             std::span<const VkCommandBuffer> cmdBufSpan,
-            const VkPipelineStageFlags* pipelineWaitStageMask
+            const VkPipelineStageFlags* pipelineWaitStageMask,
+            const VkTimelineSemaphoreSubmitInfo& timelineInfo
             ) {
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.pNext = &timelineInfo;
 
         submitInfo.waitSemaphoreCount = static_cast<uint32_t>(waitSemSpan.size());
         submitInfo.pWaitSemaphores = waitSemSpan.data();

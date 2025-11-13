@@ -30,15 +30,10 @@ namespace Shift::VK {
             return false;
         }
 
-        return m_fence.Init(m_device, true);
-    }
-
-    void CommandBuffer::ResetFence() const {
-       m_fence.Reset();
+        return true;
     }
 
     void CommandBuffer::Reset() const {
-        ResetFence();
         vkResetCommandBuffer(m_buffer, 0);
     }
 
@@ -187,7 +182,6 @@ namespace Shift::VK {
     }
 
     void CommandBuffer::Destroy() {
-        m_fence.Destroy();
     }
 
     void CommandBuffer::VK_SetPipelineBarrier(
@@ -217,39 +211,64 @@ namespace Shift::VK {
         VK_SetPipelineBarrier(srcStage, dstStage, {&imgBarrier, 1}, {}, {}, flags);
     }
 
-    bool CommandBuffer::Submit() const {
-        VkSubmitInfo info = Util::CreateSubmitInfo({}, {}, {&m_buffer, 1}, 0);
-        VkQueue submitQueue;
-        switch (m_poolType) {
-            case EPoolQueueType::Graphics:
-                submitQueue = m_device->GetGraphicsQueue();
-                break;
-            case EPoolQueueType::Transfer:
-                submitQueue = m_device->GetTransferQueue();
-                break;
-            default:
-                Log(Error, "Invalid pool type!");
-                return false;
-        }
-
-        if (int res = vkQueueSubmit(submitQueue,
-                                    1,
-                                    &info,
-                                    m_fence.Get()); res != VK_SUCCESS) {
-            Log(Error, "Failed to submit to queue! Code: {}", res);
-            return false;
-        }
-        return true;
+    bool CommandBuffer::Submit(std::span<TimelineSemaphore*> waitSems, std::span<uint64_t> waitVals,
+        std::span<TimelineSemaphore*> signalSems, std::span<uint64_t> sigVals) const
+    {
+        return Submit(waitSems, waitVals, signalSems, sigVals, {}, {});
     }
 
-    bool CommandBuffer::Submit(const Semaphore& waitSemaphore, const Semaphore& sigSemaphore) const {
-        std::array<VkPipelineStageFlags, 1> waitStages{ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    bool CommandBuffer::Submit(std::span<TimelineSemaphore*> waitTimeSems, std::span<uint64_t> waitVals,
+        std::span<TimelineSemaphore*> signalTimeSems, std::span<uint64_t> sigVals,
+        std::span<BinarySemaphore*> waitBinSems, std::span<BinarySemaphore*> signalBinSems) const
+    {
+        assert(waitTimeSems.size() == waitVals.size());
+        assert(signalTimeSems.size() == sigVals.size());
+
+        std::vector<uint64_t> combinedWaitVals;
+        std::vector<uint64_t> combinedSignalVals;
+
+        combinedWaitVals.reserve(waitBinSems.size() + waitTimeSems.size());
+        combinedWaitVals.insert(combinedWaitVals.end(), waitBinSems.size(), 0ull); // binaries
+        combinedWaitVals.insert(combinedWaitVals.end(), waitVals.begin(), waitVals.end()); // timeline
+
+        combinedSignalVals.reserve(signalBinSems.size() + signalTimeSems.size());
+        combinedSignalVals.insert(combinedSignalVals.end(), signalBinSems.size(), 0ull); // binaries
+        combinedSignalVals.insert(combinedSignalVals.end(), sigVals.begin(), sigVals.end()); // timeline
+
+        VkTimelineSemaphoreSubmitInfo timelineInfo =
+            Util::CreateTimelineSemaphoreSubmitInfo(combinedWaitVals, combinedSignalVals);
+
+        std::vector<VkSemaphore> waitSemsVk;
+        std::vector<VkSemaphore> sigSemsVk;
+
+        std::vector<VkPipelineStageFlags> waitStages;
+
+        for (auto& sem: waitBinSems) {
+            waitSemsVk.push_back(sem->Get());
+            waitStages.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+        }
+
+        for (auto& sem: waitTimeSems) {
+            waitSemsVk.push_back(sem->Get());
+            waitStages.push_back(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+        }
+
+        for (auto& sem: signalBinSems) {
+            sigSemsVk.push_back(sem->Get());
+        }
+
+        for (auto& sem: signalTimeSems) {
+            sigSemsVk.push_back(sem->Get());
+        }
+
         VkSubmitInfo info = Util::CreateSubmitInfo(
-                std::span{waitSemaphore.Ptr(), 1},
-                std::span{sigSemaphore.Ptr(), 1},
+                waitSemsVk,
+                sigSemsVk,
                 std::span{&m_buffer, 1},
-                waitStages.data()
+                waitStages.data(),
+                timelineInfo
         );
+
         VkQueue submitQueue;
         switch (m_poolType) {
             case EPoolQueueType::Graphics:
@@ -263,27 +282,13 @@ namespace Shift::VK {
                 return false;
         }
 
-        if (int res = vkQueueSubmit(submitQueue,
-                                    1,
-                                    &info,
-                                    m_fence.Get()); res != VK_SUCCESS) {
+        if (int res = vkQueueSubmit(submitQueue, 1, &info, nullptr); res != VK_SUCCESS) {
             Log(Error, "Failed to submit to queue! Code: {}", res);
             return false;
         }
         return true;
     }
 
-    bool CommandBuffer::SubmitAndWait() const {
-        bool res = Submit();
-        m_fence.Wait();
-        return res;
-    }
-
-    bool CommandBuffer::SubmitAndWait(const Semaphore& waitSemaphore, const Semaphore& sigSemaphore) const {
-        bool res = Submit(waitSemaphore, sigSemaphore);
-        m_fence.Wait();
-        return res;
-    }
 
     void CommandBuffer::BindVertexBuffer(const BufferOpDescriptor& buffer, uint32_t bindIdx) const {
         std::vector<VkDeviceSize> offsets{static_cast<VkDeviceSize>(bindIdx)};

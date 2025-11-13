@@ -104,22 +104,21 @@ namespace Shift::VK {
     }
 
     bool Swapchain::CreateImageViews() {
-        m_swapChainImageViews.resize(m_swapChainImages.size());
-        m_swapChainImageLayouts.resize(m_swapChainImages.size());
-        m_swapChainImageStageFlags.resize(m_swapChainImages.size());
+        m_swapChainTextures.resize(m_swapChainImages.size());
         bool success = true;
         for (size_t i = 0; i < m_swapChainImages.size(); i++) {
-            m_swapChainImageViews[i] = m_device->CreateImageView(
+            m_swapChainTextures[i].m_image = m_swapChainImages[i];
+            m_swapChainTextures[i].m_imageView = m_device->CreateImageView(
                 Util::CreateImageViewInfo(m_swapChainImages[i], VK_IMAGE_VIEW_TYPE_2D, Util::ShiftToVKTextureFormat(m_swapchainDesc.swapChainImageFormat))
             );
-            success = (success) ? m_swapChainImageViews[i] != VK_NULL_HANDLE: false;
-            m_swapChainImageLayouts[i] = VK_IMAGE_LAYOUT_UNDEFINED;
-            m_swapChainImageStageFlags[i] = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            CheckExit(m_swapChainTextures[i].m_imageView != VK_NULL_HANDLE);
+            m_swapChainTextures[i].m_textureDesc.resourceLayout = Util::VKToShiftResourceLayout(VK_IMAGE_LAYOUT_UNDEFINED);
+            m_swapChainTextures[i].m_stageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         }
         return success;
     }
 
-    uint32_t Swapchain::AquireNextImage(const Semaphore& semaphore, bool* wasChanged, uint64_t timeout) {
+    uint32_t Swapchain::AquireNextImage(const BinarySemaphore& semaphore, bool* wasChanged, uint64_t timeout) {
         uint32_t imageIdx = 0;
         VkResult result = vkAcquireNextImageKHR(m_device->Get(), m_swapChain, timeout, semaphore.Get(), VK_NULL_HANDLE, &imageIdx);
 
@@ -139,27 +138,16 @@ namespace Shift::VK {
     bool Swapchain::Recreate(uint32_t width, uint32_t height) {
         vkDeviceWaitIdle(m_device->Get());
         FillSwapchainDescription(width, height);
-        CreateSwapChain();
-        CreateImageViews();
-        if (!IsValid()) {
-            return false;
-        }
+        CheckCritical(CreateSwapChain(), "Failed to create swapchain!");
+        CheckCritical(CreateImageViews(), "Failed to create image views!");
         Log(Info, "Recreated Swapchain");
         return true;
     }
 
-    bool Swapchain::IsValid() const {
-        return VkNullCheck(m_swapChain) &&
-            std::all_of(m_swapChainImageViews.begin(), m_swapChainImageViews.end(),
-                        [](VkImageView view)
-            {
-                return VkNullCheck(view);
-            });
-    }
 
     void Swapchain::DestroyImageViews() {
-        for (size_t i = 0; i < m_swapChainImageViews.size(); i++) {
-            vkDestroyImageView(m_device->Get(), m_swapChainImageViews[i], nullptr);
+        for (size_t i = 0; i < m_swapChainTextures.size(); i++) {
+            vkDestroyImageView(m_device->Get(), m_swapChainTextures[i].m_imageView, nullptr);
         }
     }
 
@@ -169,7 +157,7 @@ namespace Shift::VK {
         vkDestroySwapchainKHR(m_device->Get(), m_swapChain, nullptr);
     }
 
-    bool Swapchain::Present(const Semaphore &semaphore, uint32_t imageIdx, bool* isOld) {
+    bool Swapchain::Present(const BinarySemaphore &semaphore, uint32_t imageIdx, bool* isOld) {
         VkPresentInfoKHR presentInfo{};
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 

@@ -5,49 +5,9 @@
 #ifndef SHIFT_SRHI_HPP
 #define SHIFT_SRHI_HPP
 
-#include <concepts>
-#include <array>
+#include <atomic>
 
-#include "Common/Types.hpp"
-#include "Common/Texture.hpp"
-#include "Common/Buffer.hpp"
-#include "Common/Pipeline.hpp"
-#include "Common/Sampler.hpp"
-#include "Common/Swapchain.hpp"
-#include "Common/Shader.hpp"
-#include "Common/RenderPass.hpp"
-#include "Config/EngineConfig.hpp"
-
-#include "Utility/UtilStandard.hpp"
-#include "Utility/Assertions.hpp"
-
-namespace Shift {
-    namespace RHI {
-        struct Vulkan {
-            static constexpr const char* Name = "Vulkan";
-            // static constexpr bool SupportsBindless = true;
-        };
-
-        struct DX12 {
-            static constexpr const char* Name = "DX12";
-        };
-    } // RHI
-
-    // For now:D
-    template<typename T>
-    concept ValidAPI = std::same_as<T, RHI::Vulkan>;
-
-    //! Forward dec for further per API local constructs (device, instance, some descriptor specific stuff)
-    template<ValidAPI API> struct RHILocal {};
-
-} // Shift
-
-#ifdef SHIFT_VULKAN_BACKEND
-#include "Vulkan/VKRHI_Impl.hpp"
-#include "RHILocal_VK.hpp"
-#include "Utility/Vulkan/VKUtilRHI.hpp"
-#include "Utility/Vulkan/VKUtilInfo.hpp"
-#endif
+#include "RHIContext.hpp"
 
 namespace Shift {
     template<ValidAPI API>
@@ -69,95 +29,57 @@ namespace Shift {
         [[nodiscard]] Swapchain& GetSwapchain() { return m_local.swapchain; }
         [[nodiscard]] uint32_t SwapchainAquireImage(bool* wasChanged);
         [[nodiscard]] uint32_t SwapchainPresent(uint32_t imageIdx, bool* isOld);
+
+
         void NextFrame() { m_currentFrame = (++m_currentFrame) % Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; }
         uint32_t GetCurrentFrame() { return m_currentFrame; }
 
-        //! TODO: [FEATURE] Here we would have additional parameters for multicommand-buffer concurrency handling (probably)
-        [[nodiscard]] bool BeginCmds() const;
+        RHIContext<API>& GetGraphicsContext() { return m_graphicsContexts[m_currentFrame]; }
+        RHIContext<API>& GetComputeContext() { return m_computeContext; }
+        RHIContext<API>& GetTransferContext() { return m_transferContext; }
 
-        [[nodiscard]] bool EndCmds() const;
+        BinarySemaphore* GetSwapchainAcquireSemaphore(uint32_t imageIdx) { return &m_imageAvailable[imageIdx]; }
+        BinarySemaphore* GetSwapchainRenderFinishedSemaphore(uint32_t imageIdx) { return &m_renderFinished[imageIdx]; }
 
-        void ResetCmds() const;
+        RHIContext<API>* AcquireSecondaryGraphicsContext();
+        void ExecuteSecondaryGraphicsContexts();
 
-        bool SubmitCmds(uint32_t imageIdx) const;
-        bool SubmitCmdsAndWait(uint32_t imageIdx) const;
+        //! Waits until the swapchain binary semaprhores are released
+        void WaitForGraphicsContext();
 
-        void BeginRenderPass(const RenderPassDescriptor& desc, std::span<Texture*> colorTextures, std::optional<Texture*> depthTexture);
-        void BeginRenderPassToSwapchain(const RenderPassDescriptor& desc, uint32_t imageIdx, std::optional<Texture*> depthTexture);
+        RHIContext<API>::SubmitTimelinePayload GetTransferWaitPayload();
+        RHIContext<API>::SubmitTimelinePayload ReserveTransferSignalPayload();
 
-        void EndRenderPass();
+        RHIContext<API>::SubmitTimelinePayload GetGraphicsWaitPayload();
+        RHIContext<API>::SubmitTimelinePayload ReserveGraphicsSignalPayload();
 
-        ///! ------------------- Copy Buffer Commands ------------------- !///
-
-        //! Copy buffer data to another buffer
-        //! \param srcBuf buffer + offset into the buffer
-        //! \param dstBuf buffer + offset into the buffer
-        //! \param size size to copy
-        void CopyBufferToBuffer(const BufferOpDescriptor& srcBuf, const BufferOpDescriptor& dstBuf, uint32_t size) const;
-
-        //! Copy buffer data to a texture
-        //! \param srcBuf buffer + offset into the buffer
-        //! \param dstTex texture + size to copy + offset + subresource range
-        void CopyBufferToTexture(const BufferOpDescriptor& srcBuf, const TextureCopyDescriptor& dstTex) const;
-
-        ///! ------------------- Rendering Buffer Commands ------------------- !///
-
-        //! Bind a single vertex buffer
-        //! \param buffer buffer + offset into the buffer
-        //! \param bindIdx bind idx
-        void BindVertexBuffer(const BufferOpDescriptor& buffer, uint32_t bindIdx) const;
-
-        //! Bind a range of vertex buffers
-        //! \param buffers span of buffers + offsets into the buffers
-        //! \param firstBind bind idx for the first buffer
-        void BindVertexBuffers(std::span<BufferOpDescriptor> buffers, uint32_t firstBind) const;
-
-        //! Bind an index buffer
-        //! \param buffer buffer + offset into the buffer
-        void BindIndexBuffer(const BufferOpDescriptor& buffer, EIndexSize indexSize) const;
-
-        //! Bind the graphics pipeline
-        //! \param pipeline The Pipeline wrapper
-        void BindGraphicsPipeline(const Pipeline& pipeline) const;
-
-        void DrawIndexed(const DrawIndexedConfig& drawConf) const;
-
-        //! Draw/Draw instanced
-        //! \param drawConf draw configuration
-        void Draw(const DrawConfig& drawConf) const;
-
-        ///! ------------------- Mics Buffer Commands ------------------- !///
-
-        //! Blit the texture into the other texture
-        //! \param srcTexture source texture with sizes and extents
-        //! \param dstTexture destination texture with sizes and extents
-        //! \param blitRegion blit operation description
-        //! \param filter blit filter
-        void BlitTexture(const TextureBlitData& srcTexture, const TextureBlitData& dstTexture, const TextureBlitRegion& blitRegion, EFilterMode filter) const;
-
-        //! Set viewport, we don't support multiple
-        //! \param viewport Viewport struct
-        void SetViewport(const Viewport& viewport) const;
-
-        //! Set scissor
-        //! \param scissor scissor structure
-        void SetScissor(const Rect2D& scissor) const;
-
-        void TransitionTexture(const Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags);
-
-        void TransitionSwapchainTexture(uint32_t imageIdx, EResourceLayout newLayout, EPipelineStageFlags newStageFlags);
 
     private:
         RHILocal<API> m_local;
 
-        std::array<CommandBuffer, Conf::SHIFT_MAX_FRAMES_IN_FLIGHT> m_cmdBuffersFlight;
-        std::vector<CommandBuffer> m_cmdBuffersTransfer;
-        //! TODO [DX12] My ass has a feeling that DX12 does not do this
-        std::array<Semaphore, Conf::SHIFT_MAX_FRAMES_IN_FLIGHT> m_imgAvailableSemaphores;
-        //! Since the new VK validation layer spec you now have to ensure that the submit semaphores are per swapchain image
-        std::vector<Semaphore> m_renderFinishedSemaphores;
+        std::array<RHIContext<API>, Conf::SHIFT_MAX_FRAMES_IN_FLIGHT> m_graphicsContexts;
+
+        std::vector<RHIContext<API>> m_secondaryGraphicsContexts;
+        std::mutex m_secondaryPoolMutex;
+
+        // Single transfer/compute contexts (can be expanded to a pool)
+        RHIContext<API> m_transferContext;
+        RHIContext<API> m_computeContext;
 
         uint32_t m_currentFrame = 0;
+
+        // Timeline semaphores per queue type
+        TimelineSemaphore m_timelineGraphics;
+        TimelineSemaphore m_timelineTransfer;
+        TimelineSemaphore m_timelineCompute;
+
+        std::atomic<uint64_t> m_timelineGraphicsValue{0};
+        std::atomic<uint64_t> m_timelineTransferValue{0};
+        std::atomic<uint64_t> m_timelineComputeValue{0};
+
+        //! Swapchain-related semaphores
+        std::vector<BinarySemaphore> m_imageAvailable;
+        std::vector<BinarySemaphore> m_renderFinished;
     };
 
     template<ValidAPI API>
@@ -203,28 +125,34 @@ namespace Shift {
         m_local.descLayoutCache.Init(&m_local.device);
         CheckCritical(m_local.descAllocator.Init(&m_local.device), "Failed to create VK descriptor allocator!");
         CheckCritical(m_local.swapchain.Init(&m_local.device, &m_local.surface, width, height), "Failed to create VK swapchain!");
-        for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
-            CheckCritical(m_cmdBuffersFlight[i].Init(&m_local.device, &m_local.instance, m_local.cmdPoolStorage.GetGraphics(), EPoolQueueType::Graphics), "Failed to create VK command buffer in flight!");
-        }
-
-        // Only 1 transfer queue for now
-        CommandBuffer b;
-        CheckCritical(b.Init(&m_local.device, &m_local.instance, m_local.cmdPoolStorage.GetTransfer(), EPoolQueueType::Transfer), "Failed to create VK command buffer for tranfer!");
-        m_cmdBuffersTransfer.push_back(b);
-
-        CommandBuffer b2;
-        CheckCritical(b2.Init(&m_local.device, &m_local.instance, m_local.cmdPoolStorage.GetTransfer(), EPoolQueueType::Transfer), "Failed to create VK command buffer for tranfer 2!");
-        m_cmdBuffersTransfer.push_back(b2);
 #endif
 
         for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
-            CheckCritical(m_imgAvailableSemaphores[i].Init(&m_local.device), "Failed to create image available semaphore!");
-        }
-        for (uint32_t i = 0; i < m_local.swapchain.GetImages().size(); ++i) {
-            Semaphore& sem = m_renderFinishedSemaphores.emplace_back();
-            CheckCritical(sem.Init(&m_local.device), "Failed to create submit semaphore!");
+            CheckCritical(m_graphicsContexts[i].Init(&m_local, EContextType::Graphics, false), "Failed to create Graphics Context in flight!");
         }
 
+        // TODO: [FEATURE] Pooled secondary contexts
+        // m_secondaryGraphicsContexts.resize(Conf::MAX_SECONDARY_CONTEXTS);
+        // for (auto& ctx : m_secondaryGraphicsContexts) {
+        //     ctx.Init(&m_local, EContextType::Graphics, 0, true);
+        // }
+
+        // TODO: [FEATURE] Async COmpute COntext
+        // Only 1 transfer queue for now
+        // CheckCritical(m_computeContext.Init(&m_local, EContextType::Compute, false), "Failed to create Compute Context!");
+
+        CheckCritical(m_transferContext.Init(&m_local, EContextType::Transfer, false), "Failed to create Transfer Context!");
+
+        for (uint32_t i = 0; i < m_local.swapchain.GetImages().size(); ++i) {
+            BinarySemaphore& sem = m_renderFinished.emplace_back();
+            CheckCritical(sem.Init(&m_local.device), "Failed to create submit semaphore!");
+            BinarySemaphore& sem2 = m_imageAvailable.emplace_back();
+            CheckCritical(sem2.Init(&m_local.device), "Failed to create acqure image semaphore!");
+        }
+
+        // m_timelineCompute.Init(&m_local.device);
+        m_timelineGraphics.Init(&m_local.device, 0);
+        m_timelineTransfer.Init(&m_local.device, 0);
 
         return true;
     }
@@ -234,20 +162,15 @@ namespace Shift {
 
         m_local.swapchain.Destroy();
 
-        for (auto& sem: m_imgAvailableSemaphores) {
+        for (auto& sem: m_imageAvailable) {
             sem.Destroy();
         }
-        for (auto& sem: m_renderFinishedSemaphores) {
+        for (auto& sem: m_renderFinished) {
             sem.Destroy();
         }
 
-        //! cmd Destroy just destroys the fence
-        for (auto& cmd: m_cmdBuffersFlight) {
-            cmd.Destroy();
-        }
-        for (auto& cmd: m_cmdBuffersTransfer) {
-            cmd.Destroy();
-        }
+        m_timelineTransfer.Destroy();
+        m_timelineGraphics.Destroy();
 
         m_local.descLayoutCache.Destroy();
         m_local.descAllocator.Destroy();
@@ -291,120 +214,40 @@ namespace Shift {
 
     template<ValidAPI API>
     uint32_t RenderHardwareInterface<API>::SwapchainAquireImage(bool *wasChanged) {
-        return m_local.swapchain.AquireNextImage(m_imgAvailableSemaphores[m_currentFrame], wasChanged);
+        return m_local.swapchain.AquireNextImage(m_imageAvailable[m_currentFrame], wasChanged);
     }
 
     template<ValidAPI API>
     uint32_t RenderHardwareInterface<API>::SwapchainPresent(uint32_t imageIdx, bool *isOld) {
-        return m_local.swapchain.Present(m_renderFinishedSemaphores[imageIdx], imageIdx, isOld);
+        return m_local.swapchain.Present(m_renderFinished[imageIdx], imageIdx, isOld);
     }
 
     template<ValidAPI API>
-    bool RenderHardwareInterface<API>::BeginCmds() const {
-        if (!m_cmdBuffersFlight[m_currentFrame].IsAvailable()) {
-            m_cmdBuffersFlight[m_currentFrame].Wait();
-        }
-        m_cmdBuffersFlight[m_currentFrame].Reset();
-        return m_cmdBuffersFlight[m_currentFrame].Begin();
+    void RenderHardwareInterface<API>::WaitForGraphicsContext() {
+        m_timelineGraphics.Wait(m_timelineGraphicsValue);
     }
 
     template<ValidAPI API>
-    bool RenderHardwareInterface<API>::EndCmds() const {
-        return m_cmdBuffersFlight[m_currentFrame].End();
+    RHIContext<API>::SubmitTimelinePayload RenderHardwareInterface<API>::GetTransferWaitPayload() {
+        return { &m_timelineTransfer, m_timelineTransferValue.load(std::memory_order_acquire) };
     }
 
     template<ValidAPI API>
-    void RenderHardwareInterface<API>::ResetCmds() const {
-        return m_cmdBuffersFlight[m_currentFrame].Reset();
+    RHIContext<API>::SubmitTimelinePayload RenderHardwareInterface<API>::ReserveTransferSignalPayload() {
+        uint64_t newVal = m_timelineTransferValue.fetch_add(1, std::memory_order_acq_rel) + 1;
+        return { &m_timelineTransfer, newVal };
     }
 
     template<ValidAPI API>
-    bool RenderHardwareInterface<API>::SubmitCmds(uint32_t imageIdx) const {
-        return m_cmdBuffersFlight[m_currentFrame].Submit(m_imgAvailableSemaphores[m_currentFrame], m_renderFinishedSemaphores[imageIdx]);
+    RHIContext<API>::SubmitTimelinePayload RenderHardwareInterface<API>::GetGraphicsWaitPayload() {
+        return { &m_timelineGraphics, m_timelineGraphicsValue.load(std::memory_order_acquire) };
     }
 
     template<ValidAPI API>
-    bool RenderHardwareInterface<API>::SubmitCmdsAndWait(uint32_t imageIdx) const {
-        return m_cmdBuffersFlight[m_currentFrame].SubmitAndWait(m_imgAvailableSemaphores[m_currentFrame], m_renderFinishedSemaphores[imageIdx]);
+    RHIContext<API>::SubmitTimelinePayload RenderHardwareInterface<API>::ReserveGraphicsSignalPayload() {
+        uint64_t newVal = m_timelineGraphicsValue.fetch_add(1, std::memory_order_acq_rel) + 1;
+        return { &m_timelineGraphics, newVal };
     }
-
-
-    template<ValidAPI API>
-    void RenderHardwareInterface<API>::EndRenderPass() {
-#ifdef SHIFT_VULKAN_BACKEND
-        m_cmdBuffersFlight[m_currentFrame].VK_EndRenderPass();
-#endif
-    }
-
-    template<ValidAPI API>
-    void RenderHardwareInterface<API>::CopyBufferToBuffer(const BufferOpDescriptor &srcBuf,
-        const BufferOpDescriptor &dstBuf, uint32_t size) const {
-
-        m_cmdBuffersTransfer[m_currentFrame].Reset();
-        m_cmdBuffersTransfer[m_currentFrame].Begin();
-        m_cmdBuffersTransfer[m_currentFrame].CopyBufferToBuffer(srcBuf, dstBuf, size);
-        m_cmdBuffersTransfer[m_currentFrame].End();
-        m_cmdBuffersTransfer[m_currentFrame].SubmitAndWait();
-    }
-
-    template<ValidAPI API>
-    void RenderHardwareInterface<API>::CopyBufferToTexture(const BufferOpDescriptor &srcBuf,
-        const TextureCopyDescriptor &dstTex) const {
-        m_cmdBuffersTransfer[m_currentFrame].Reset();
-        m_cmdBuffersTransfer[m_currentFrame].Begin();
-        m_cmdBuffersTransfer[m_currentFrame].CopyBufferToTexture(srcBuf, dstTex);
-        m_cmdBuffersTransfer[m_currentFrame].End();
-        m_cmdBuffersTransfer[m_currentFrame].SubmitAndWait();
-    }
-
-    template<ValidAPI API>
-    void RenderHardwareInterface<API>::BindVertexBuffer(const BufferOpDescriptor &buffer, uint32_t bindIdx) const {
-        m_cmdBuffersFlight[m_currentFrame].BindVertexBuffer(buffer, bindIdx);
-    }
-
-    template<ValidAPI API>
-    void RenderHardwareInterface<API>::BindVertexBuffers(std::span<BufferOpDescriptor> buffers,
-        uint32_t firstBind) const {
-        m_cmdBuffersFlight[m_currentFrame].BindVertexBuffers(buffers, firstBind);
-    }
-
-    template<ValidAPI API>
-    void RenderHardwareInterface<API>::BindIndexBuffer(const BufferOpDescriptor &buffer, EIndexSize indexSize) const {
-        m_cmdBuffersFlight[m_currentFrame].BindIndexBuffer(buffer, indexSize);
-    }
-
-    template<ValidAPI API>
-    void RenderHardwareInterface<API>::BindGraphicsPipeline(const Pipeline &pipeline) const {
-        m_cmdBuffersFlight[m_currentFrame].BindGraphicsPipeline(pipeline);
-    }
-
-    template<ValidAPI API>
-    void RenderHardwareInterface<API>::DrawIndexed(const DrawIndexedConfig &drawConf) const {
-        m_cmdBuffersFlight[m_currentFrame].DrawIndexed(drawConf);
-    }
-
-    template<ValidAPI API>
-    void RenderHardwareInterface<API>::Draw(const DrawConfig &drawConf) const {
-        m_cmdBuffersFlight[m_currentFrame].Draw(drawConf);
-    }
-
-    template<ValidAPI API>
-    void RenderHardwareInterface<API>::BlitTexture(const TextureBlitData &srcTexture, const TextureBlitData &dstTexture,
-        const TextureBlitRegion &blitRegion, EFilterMode filter) const
-    {
-        m_cmdBuffersFlight[m_currentFrame].BlitTexture(srcTexture, dstTexture, blitRegion, filter);
-    }
-
-    template<ValidAPI API>
-    void RenderHardwareInterface<API>::SetViewport(const Viewport& viewport) const {
-        m_cmdBuffersFlight[m_currentFrame].SetViewport(viewport);
-    }
-
-    template<ValidAPI API>
-    void RenderHardwareInterface<API>::SetScissor(const Rect2D& scissor) const {
-        m_cmdBuffersFlight[m_currentFrame].SetScissor(scissor);
-    }
-
 
 
     //! ------------------------------- Vulkan Specific -------------------------------
@@ -479,142 +322,10 @@ namespace Shift {
         return rs;
     }
 
-
-    template<>
-    inline void RenderHardwareInterface<RHI::Vulkan>::BeginRenderPass(const RenderPassDescriptor& desc, std::span<Texture*> colorTextures, std::optional<Texture*> depthTexture) {
-
-        assert(desc.colorAttachments.size() == colorTextures.size());
-        assert(desc.depthAttachment.has_value() == depthTexture.has_value());
-
-        std::vector<VkRenderingAttachmentInfo> colorInfo;
-        std::optional<VkRenderingAttachmentInfo> depthInfo;
-        for (uint32_t i = 0; i < desc.colorAttachments.size(); i++) {
-            const Texture* colTex = colorTextures[i];
-            const RenderPassDescriptor::RenderPassAttachmentInfo& att = desc.colorAttachments[i];
-            colorInfo.push_back(VK::Util::CreateRenderingAttachmentInfo(
-                    colTex->GetView(),
-                    VK::Util::ShiftToVKResourceLayout(colTex->GetResourceLayout()),
-                    VK::Util::ShiftToVKClearColor(att.clearValue),
-                    VK::Util::ShiftToVKAttachmentLoadOperation(att.loadOperation),
-                    VK::Util::ShiftToVKAttachmentStoreOperation(att.storeOperation)
-                )
-            );
-        }
-
-        if (desc.depthAttachment.has_value()) {
-            const RenderPassDescriptor::RenderPassAttachmentInfo& att = desc.depthAttachment.value();
-            *depthInfo = VK::Util::CreateRenderingAttachmentInfo(
-                    (*depthTexture)->GetView(),
-                    VK::Util::ShiftToVKResourceLayout((*depthTexture)->GetResourceLayout()),
-                    VK::Util::ShiftToVKClearDepthStencil(att.clearValue),
-                    VK::Util::ShiftToVKAttachmentLoadOperation(att.loadOperation),
-                    VK::Util::ShiftToVKAttachmentStoreOperation(att.storeOperation)
-            );
-        }
-
-        VkRenderingInfoKHR renderInfo{};
-        renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
-        renderInfo.renderArea = {.offset = VK::Util::ShiftToVKOffset2D(desc.offset), .extent = VK::Util::ShiftToVKExtent2D(desc.extent)};
-        renderInfo.layerCount = 1;
-        renderInfo.colorAttachmentCount = 1;
-        renderInfo.pColorAttachments = colorInfo.data();
-        if (depthInfo.has_value()) {
-            renderInfo.pDepthAttachment = &depthInfo.value();
-        }
-
-        m_cmdBuffersFlight[m_currentFrame].VK_BeginRenderPass(renderInfo);
-    }
-
-    template<>
-    inline void RenderHardwareInterface<RHI::Vulkan>::BeginRenderPassToSwapchain(const RenderPassDescriptor& desc, uint32_t imageIdx, std::optional<Texture*> depthTexture) {
-
-        assert(desc.depthAttachment.has_value() == depthTexture.has_value());
-
-        std::vector<VkRenderingAttachmentInfo> colorInfo;
-        std::optional<VkRenderingAttachmentInfo> depthInfo;
-        const RenderPassDescriptor::RenderPassAttachmentInfo& att = desc.colorAttachments[0];
-        colorInfo.push_back(VK::Util::CreateRenderingAttachmentInfo(
-                m_local.swapchain.GetImageViews()[imageIdx],
-                m_local.swapchain.GetImageLayouts()[imageIdx],
-                VK::Util::ShiftToVKClearColor(att.clearValue),
-                VK::Util::ShiftToVKAttachmentLoadOperation(att.loadOperation),
-                VK::Util::ShiftToVKAttachmentStoreOperation(att.storeOperation)
-            )
-        );
-
-        if (desc.depthAttachment.has_value()) {
-            const RenderPassDescriptor::RenderPassAttachmentInfo& att = desc.depthAttachment.value();
-            *depthInfo = VK::Util::CreateRenderingAttachmentInfo(
-                    (*depthTexture)->GetView(),
-                    VK::Util::ShiftToVKResourceLayout((*depthTexture)->GetResourceLayout()),
-                    VK::Util::ShiftToVKClearDepthStencil(att.clearValue),
-                    VK::Util::ShiftToVKAttachmentLoadOperation(att.loadOperation),
-                    VK::Util::ShiftToVKAttachmentStoreOperation(att.storeOperation)
-            );
-        }
-
-        VkRenderingInfoKHR renderInfo{};
-        renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
-        renderInfo.renderArea = {.offset = VK::Util::ShiftToVKOffset2D(desc.offset), .extent = VK::Util::ShiftToVKExtent2D(desc.extent)};
-        renderInfo.layerCount = 1;
-        renderInfo.colorAttachmentCount = 1;
-        renderInfo.pColorAttachments = colorInfo.data();
-        if (depthInfo.has_value()) {
-            renderInfo.pDepthAttachment = &depthInfo.value();
-        }
-
-        m_cmdBuffersFlight[m_currentFrame].VK_BeginRenderPass(renderInfo);
-
-    }
-
-
-    //! Big TODO for now: This only works for the graphics queue
-    template<>
-    inline void RenderHardwareInterface<RHI::Vulkan>::TransitionTexture(const Texture &texture, EResourceLayout newLayout,
-        EPipelineStageFlags newStageFlags)
-    {
-
-        VkImageSubresourceRange subresourceRange{};
-        subresourceRange.aspectMask = VK::Util::ShiftToVKTextureAspect(texture.GetAspect());
-        subresourceRange.baseMipLevel = 0;
-        subresourceRange.levelCount = 1;
-        subresourceRange.baseArrayLayer = 0;
-        subresourceRange.layerCount = 1;
-
-        m_cmdBuffersFlight[m_currentFrame].VK_TransferImageLayout(
-            texture.GetImage(),
-            VK::Util::ShiftToVKResourceLayout(texture.GetResourceLayout()),
-            VK::Util::ShiftToVKResourceLayout(newLayout),
-            texture.VK_GetStageFlags(),
-            VK::Util::ShiftToVKPipelineStageFlags(newStageFlags)
-        );
-
-        texture.SetResourceLayout(newLayout);
-        texture.VK_SetStageFlags(VK::Util::ShiftToVKPipelineStageFlags(newStageFlags));
-    }
-
-    template<>
-    inline void RenderHardwareInterface<RHI::Vulkan>::TransitionSwapchainTexture(uint32_t imageIdx, EResourceLayout newLayout,
-        EPipelineStageFlags newStageFlags)
-    {
-        VkImageSubresourceRange subresourceRange{};
-        subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        subresourceRange.baseMipLevel = 0;
-        subresourceRange.levelCount = 1;
-        subresourceRange.baseArrayLayer = 0;
-        subresourceRange.layerCount = 1;
-
-        m_cmdBuffersFlight[m_currentFrame].VK_TransferImageLayout(
-            m_local.swapchain.GetImages()[imageIdx],
-            m_local.swapchain.GetImageLayouts()[imageIdx],
-            VK::Util::ShiftToVKResourceLayout(newLayout),
-            m_local.swapchain.GetImageStageFlags()[imageIdx],
-            VK::Util::ShiftToVKPipelineStageFlags(newStageFlags)
-        );
-
-        m_local.swapchain.GetImageLayouts()[imageIdx] = VK::Util::ShiftToVKResourceLayout(newLayout);
-        m_local.swapchain.GetImageStageFlags()[imageIdx] = VK::Util::ShiftToVKPipelineStageFlags(newStageFlags);
-    }
+#ifdef SHIFT_VULKAN_BACKEND
+    using SRHI = RenderHardwareInterface<RHI::Vulkan>;
+    using SRHIContext = RHIContext<RHI::Vulkan>;
+#endif
 } // Shift
 
 #endif //SHIFT_SRHI_HPP

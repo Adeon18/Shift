@@ -17,7 +17,7 @@ namespace Shift::VK {
         [[nodiscard]] const Instance* GetInstance() const { return m_instance ; }
 
         [[nodiscard]] VkCommandPool GetGraphics() { return m_graphicsPool; }
-        // [[nodiscard]] VkCommandPool GetPresent() { return m_presentPool; }
+        // [[nodiscard]] VkCommandPool GetCompute() { return m_computePool; }
         [[nodiscard]] VkCommandPool GetTransfer() { return m_transferPool; }
     private:
         const Device* m_device;
@@ -25,7 +25,7 @@ namespace Shift::VK {
 
         VkCommandPool m_transferPool;
         VkCommandPool m_graphicsPool;
-        // VkCommandPool m_presentPool;
+        // VkCommandPool m_computePool;
     };
 } // Shift::VK
 

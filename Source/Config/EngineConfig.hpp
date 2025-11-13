@@ -6,6 +6,7 @@
 namespace Shift {
     namespace Conf {
         static constexpr uint32_t VULKAN_VERSION = VK_API_VERSION_1_2;
+        static constexpr uint32_t MAX_SECONDARY_CONTEXTS = 4;
 
         static constexpr uint32_t DIRECTIONAL_LIGHT_MAX_COUNT = 2;
         static constexpr uint32_t POINT_LIGHT_MAX_COUNT = 6;

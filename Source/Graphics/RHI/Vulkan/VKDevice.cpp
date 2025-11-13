@@ -46,11 +46,18 @@ namespace Shift::VK {
         }
 
         // We will use the default features
-        // TODO: make this congigurable through constructor
+        // TODO [FEATURE]: make this congigurable through constructor
+
         VkPhysicalDeviceFeatures physDeviceFeatures{ deviceFeatures };
+
+        VkPhysicalDeviceTimelineSemaphoreFeatures timelineFeatures{};
+        timelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES;
+        timelineFeatures.pNext = nullptr;
+        timelineFeatures.timelineSemaphore = VK_TRUE;
 
         const VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature {
                 .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
+                .pNext = &timelineFeatures,
                 .dynamicRendering = VK_TRUE
         };
 
@@ -153,7 +160,7 @@ namespace Shift::VK {
     VkSemaphore Device::CreateSemaphore(const VkSemaphoreCreateInfo &info) const {
         VkSemaphore semaphore;
         if ( VkCheck(vkCreateSemaphore(m_device, &info, nullptr, &semaphore)) ) {
-            Log(Error, "Failed to create VkSemaphore!");
+            Log(Error, "Failed to create Binary VkSemaphore!");
             return VK_NULL_HANDLE;
         }
         return semaphore;

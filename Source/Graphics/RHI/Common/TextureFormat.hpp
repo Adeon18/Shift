@@ -21,26 +21,35 @@ namespace Shift {
     };
 
 
-    enum class EPipelineStageFlags : uint32_t
+    enum class EPipelineStageFlags : uint64_t
     {
         NoneBit                        = 0,
-        TopOfPipeBit                   = 1 << 0,
-        DrawIndirectBit                = 1 << 1,
-        VertexInputBit                 = 1 << 2,
-        VertexShaderBit                = 1 << 3,
-        TessellationControlShaderBit   = 1 << 4,
-        TessellationEvaluationShaderBit= 1 << 5,
-        GeometryShaderBit              = 1 << 6,
-        FragmentShaderBit              = 1 << 7,
-        EarlyFragmentTestsBit          = 1 << 8,
-        LateFragmentTestsBit           = 1 << 9,
-        ColorAttachmentOutputBit       = 1 << 10,
-        ComputeShaderBit               = 1 << 11,
-        TransferBit                    = 1 << 12,
-        BottomOfPipeBit                = 1 << 13,
-        HostBit                        = 1 << 14,
-        AllGraphicsBit                 = 1 << 15,
-        AllCommandsBit                 = 1 << 16,
+        TopOfPipeBit                   = 1ull << 0,
+        DrawIndirectBit                = 1ull << 1,
+        VertexInputBit                 = 1ull << 2,
+        VertexShaderBit                = 1ull << 3,
+        TessellationControlShaderBit   = 1ull << 4,
+        TessellationEvaluationShaderBit= 1ull << 5,
+        GeometryShaderBit              = 1ull << 6,
+        FragmentShaderBit              = 1ull << 7,
+        EarlyFragmentTestsBit          = 1ull << 8,
+        LateFragmentTestsBit           = 1ull << 9,
+        ColorAttachmentOutputBit       = 1ull << 10,
+        ComputeShaderBit               = 1ull << 11,
+        AllTransferBit                 = 1ull << 12,
+        BottomOfPipeBit                = 1ull << 13,
+        HostBit                        = 1ull << 14,
+        AllGraphicsBit                 = 1ull << 15,
+        AllCommandsBit                 = 1ull << 16,
+
+        // New in sync2
+        CopyBit                        = 1ull << 17,
+        ResolveBit                     = 1ull << 18,
+        BlitBit                        = 1ull << 19,
+        ClearBit                       = 1ull << 20,
+        IndexInputBit                  = 1ull << 21,
+        VertexAttributeInputBit        = 1ull << 22,
+        PreRasterizationShadersBit     = 1ull << 23,
     };
     DEFINE_ENUM_CLASS_BITWISE_OPERATORS(EPipelineStageFlags)
 

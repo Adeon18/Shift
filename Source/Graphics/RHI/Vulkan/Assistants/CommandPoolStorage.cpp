@@ -10,11 +10,12 @@ namespace Shift::VK {
         auto queueFamiliIndices = m_device->GetQueueFamilyIndices();
 
         uint32_t queueFamilyIndexGraphics = queueFamiliIndices.graphicsFamily.value();
-        // uint32_t queueFamilyIndexPresent = queueFamiliIndices..value();
+        // uint32_t queueFamilyIndexCompute = queueFamiliIndices.compuvalue();
         uint32_t queueFamilyIndexTransfer = queueFamiliIndices.transferFamily.value();
 
         m_graphicsPool = m_device->CreateCommandPool(Util::CreateCommandPoolInfo(queueFamilyIndexGraphics));
         m_transferPool = m_device->CreateCommandPool(Util::CreateCommandPoolInfo(queueFamilyIndexTransfer));
+        // m_computePool = m_device->CreateCommandPool(Util::CreateCommandPoolInfo(queueFamilyIndexTransfer));
     }
 
     void CommandPoolStorage::Destroy() {

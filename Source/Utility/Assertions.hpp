@@ -16,4 +16,12 @@
         } \
     } while (0)
 
+
+#define CheckExit(expr) \
+    do { \
+        if (!(expr)) { \
+            return false; \
+        } \
+    } while (0)
+
 #endif //SHIFT_ASSERTIONS_HP

@@ -10,6 +10,8 @@ namespace Shift::VK {
     //! Meant to be used as a base class
     class Texture {
         friend VK::ResourceSet;
+        //! Swapchain manually creates textures by filling the member variables to keep the RHI API Clean
+        friend VK::Swapchain;
     public:
         Texture() = default;
 

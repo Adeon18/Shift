@@ -31,17 +31,24 @@ namespace Shift::VK::Util {
     //! Create info for semaphore, basically empty struct wrapper
     VkSemaphoreCreateInfo CreateSemaphoreInfo();
 
+    VkSemaphoreCreateInfo CreateSemaphoreInfo(const VkSemaphoreTypeCreateInfo& info);
+
+    VkSemaphoreTypeCreateInfo CreateTimelineSemaphoreInfo(uint64_t initialValue);
+
     //! TODO: Currently flags are hardcoded
     VkCommandPoolCreateInfo CreateCommandPoolInfo(uint32_t queueFamilyIndex);
 
     VkCommandBufferBeginInfo CreateBeginCommandBufferInfo(VkCommandBufferUsageFlags flags);
+
+    VkTimelineSemaphoreSubmitInfo CreateTimelineSemaphoreSubmitInfo(std::span<uint64_t> waitVals, std::span<uint64_t> sigVals);
 
     //! Create the info for submitting jobs to queue
     VkSubmitInfo CreateSubmitInfo(
             std::span<const VkSemaphore> waitSemSpan,
             std::span<const VkSemaphore> sigSemSpan,
             std::span<const VkCommandBuffer> cmdBufSpan,
-            const VkPipelineStageFlags* pipelineWaitStageMask
+            const VkPipelineStageFlags* pipelineWaitStageMask,
+            const VkTimelineSemaphoreSubmitInfo& timelineInfo
     );
 
     VkShaderModuleCreateInfo CreateShaderModuleInfo(const std::span<char>& code);

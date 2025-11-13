@@ -14,7 +14,8 @@ namespace Shift {
         class Texture;
         class ResourceSet;
         class Fence;
-        class Semaphore;
+        class BinarySemaphore;
+        class TimelineSemaphore;
         class Swapchain;
         class Sampler;
         class RenderPass;
@@ -29,7 +30,8 @@ namespace Shift {
     using Texture = VK::Texture;
     using ResourceSet = VK::ResourceSet;
     using Fence = VK::Fence;
-    using Semaphore = VK::Semaphore;
+    using BinarySemaphore = VK::BinarySemaphore;
+    using TimelineSemaphore = VK::TimelineSemaphore;
     using Swapchain = VK::Swapchain;
     using Sampler = VK::Sampler;
     using RenderPass = VK::RenderPass;

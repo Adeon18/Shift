@@ -7,9 +7,9 @@
 #include "Graphics/RHI/Common/Semaphore.hpp"
 
 namespace Shift::VK {
-    class Semaphore {
+    class BinarySemaphore {
     public:
-        Semaphore() = default;
+        BinarySemaphore() = default;
 
         //! Initialize a VKSemaphore
         //! \param device The device wrapper ptr
@@ -22,14 +22,38 @@ namespace Shift::VK {
 
         //! Free the VkSemaphore
         void Destroy();
-        ~Semaphore() = default;
+        ~BinarySemaphore() = default;
     private:
         const Device* m_device = nullptr;
 
         VkSemaphore m_semaphore = VK_NULL_HANDLE;
     };
 
-    ASSERT_INTERFACE(ISemaphore, Semaphore);
+    class TimelineSemaphore {
+    public:
+        TimelineSemaphore() = default;
+
+        //! Initialize a VKSemaphore
+        //! \param device The device wrapper ptr
+        //! \return false if failed to initialize
+        bool Init(const Device* device, uint64_t initialValue);
+
+        //! TODO [FIX] VK_
+        [[nodiscard]] VkSemaphore Get() const { return m_semaphore; }
+        [[nodiscard]] const VkSemaphore* Ptr() const { return &m_semaphore; }
+
+        void Wait(uint64_t value);
+
+        //! Free the VkSemaphore
+        void Destroy();
+        ~TimelineSemaphore() = default;
+    private:
+        const Device* m_device = nullptr;
+
+        VkSemaphore m_semaphore = VK_NULL_HANDLE;
+    };
+
+    ASSERT_INTERFACE(ISemaphore, BinarySemaphore);
 } // Shift::VK
 
 #endif //SHIFT_VKSEMAPHORE_HPP

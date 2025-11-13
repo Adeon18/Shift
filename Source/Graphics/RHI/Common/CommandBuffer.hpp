@@ -95,7 +95,9 @@ namespace Shift {
             const Rect2D& InputScissor,
             const TextureBlitData& InputTextureBlitData,
             const TextureBlitRegion& InputBlitRegion,
-            const Semaphore& InputSemaphore,
+            std::span<BinarySemaphore*> InputBinSemaphoreSpan,
+            std::span<TimelineSemaphore*> InputTimeSemaphoreSpan,
+            std::span<uint64_t> InputTimeSemaphoreCounter,
             std::span<BufferOpDescriptor> InputBufferOpDescs,
             std::span<ResourceSet> InputResourceSets,
             uint32_t firstBindPosition,
@@ -110,13 +112,8 @@ namespace Shift {
         //! These are per-backend specific
         //!{ InputBuffer.BeginRenderPass(InputPass) } -> std::same_as<void>;
         //!{ InputBuffer.EndRenderPass() } -> std::same_as<void>;
-        { InputBuffer.Wait() } -> std::same_as<void>;
-        { InputBuffer.ResetFence() } -> std::same_as<void>;
-        // { InputBuffer.Submit() } -> std::same_as<bool>;
-        { InputBuffer.Submit(InputSemaphore, InputSemaphore) } -> std::same_as<bool>;       // Wait and Sig Semaphores
-        // { InputBuffer.SubmitAndWait() } -> std::same_as<bool>;
-        { InputBuffer.SubmitAndWait(InputSemaphore, InputSemaphore) } -> std::same_as<bool>;// Wait and Sig Semaphores
-        //! Copies
+        { InputBuffer.Submit(InputTimeSemaphoreSpan, InputTimeSemaphoreCounter, InputTimeSemaphoreSpan, InputTimeSemaphoreCounter) } -> std::same_as<bool>;
+        { InputBuffer.Submit(InputTimeSemaphoreSpan, InputTimeSemaphoreCounter, InputTimeSemaphoreSpan, InputTimeSemaphoreCounter, InputBinSemaphoreSpan, InputBinSemaphoreSpan) } -> std::same_as<bool>;
         { InputBuffer.CopyBufferToBuffer(InputBufferOpDesc, InputBufferOpDesc, size) } -> std::same_as<void>;
         { InputBuffer.CopyBufferToTexture(InputBufferOpDesc, InputTextureCopyDesc) } -> std::same_as<void>;
         //{ InputBuffer.CopyTextureToBuffer(InputTextureCopyDesc, InputBufferOpDesc, size) } -> std::same_as<void>; // TODO: [FEATURE] Check

@@ -76,9 +76,7 @@ namespace Shift::gfx {
         Shader ps;
         Buffer vertex;
 
-#ifdef SHIFT_VULKAN_BACKEND
-        RenderHardwareInterface<RHI::Vulkan> m_SRHI;
-#endif
+        SRHI m_SRHI;
 
         //! Shift API
         // ShiftBackBuffer m_backBuffer;

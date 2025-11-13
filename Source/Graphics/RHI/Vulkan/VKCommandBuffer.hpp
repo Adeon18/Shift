@@ -16,8 +16,6 @@ namespace Shift::VK {
 
         [[nodiscard]] bool Init(const Device* device, const Instance* ins, VkCommandPool commandPool, EPoolQueueType type);
 
-        [[nodiscard]] bool IsAvailable() const { return m_fence.Status() == VK_SUCCESS; }
-
         ///! ------------------- Basic Buffer Commands ------------------- !///
 
         //! Begin command buffer only for single time submit
@@ -37,9 +35,6 @@ namespace Shift::VK {
         //! Reset the entire buffer (same as ResetFence for now)
         void Reset() const;
 
-        //! Reset the buffer fence so we can know that it is free
-        void ResetFence() const;
-
         //! Dynamic rendering extennsion integration, begin the RenderPass (not VkRenderPass but the adequate one)
         //! \param info VK Dynamic rendering info structure (should be ressolved at runtime from the RenderPass struct)
         void VK_BeginRenderPass(VkRenderingInfoKHR info) const;
@@ -47,26 +42,21 @@ namespace Shift::VK {
         //! Dynamic rendering extension integration, end the RenderPass (not VkRenderPass but the adequate one)
         void VK_EndRenderPass() const;
 
-        //! Wait for the fence to be signalled
-        void Wait() const { m_fence.Wait(); };
+        [[nodiscard]] bool Submit(
+            std::span<TimelineSemaphore*> waitSems,
+            std::span<uint64_t> waitVals,
+            std::span<TimelineSemaphore*> signalSems,
+            std::span<uint64_t> sigVals
+        ) const;
 
-        //! Submit the buffer to a GPU queue (default info)
-        //! \return true if successful, false otherwise
-        [[nodiscard]] bool Submit() const;
-
-        //! Submit the buffer to a GPU queue with a custom info
-        //! \param info Submit info
-        //! \return true if successful, false otherwise
-        [[nodiscard]] bool Submit(const Semaphore& waitSemaphore, const Semaphore& sigSemaphore) const;
-
-        //! Submit the buffer to a GPU queue (default info) and Wait for completion
-        //! \return true if successful, false otherwise
-        [[nodiscard]] bool SubmitAndWait() const;
-
-        //! Submit the buffer to a GPU queue with a custom info and Wait for completion
-        //! \param info Submit info
-        //! \return true if successful, false otherwise
-        [[nodiscard]] bool SubmitAndWait(const Semaphore& waitSemaphore, const Semaphore& sigSemaphore) const;
+        [[nodiscard]] bool Submit(
+            std::span<TimelineSemaphore*> waitTimeSems,
+            std::span<uint64_t> waitVals,
+            std::span<TimelineSemaphore*> signalTimeSems,
+            std::span<uint64_t> sigVals,
+            std::span<BinarySemaphore*> waitBinSems,
+            std::span<BinarySemaphore*> signalBinSems
+        ) const;
 
         ///! ------------------- Copy Buffer Commands ------------------- !///
 
@@ -216,8 +206,6 @@ namespace Shift::VK {
         const Instance* m_ins = nullptr;
 
         VkCommandBuffer m_buffer = VK_NULL_HANDLE;
-
-        Fence m_fence;
 
         EPoolQueueType m_poolType = EPoolQueueType::Graphics;
     };

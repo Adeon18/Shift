@@ -59,8 +59,18 @@ namespace Shift::gfx {
             0.5f, -0.5f, 0.5f
         };
 
+        SRHIContext tctx = m_SRHI.GetTransferContext();
+        tctx.BeginCmds();
+
         staging.Fill(vertexData.data(), bufSize, 0);
-        m_SRHI.CopyBufferToBuffer({&staging, 0}, {&vertex, 0}, bufSize);
+        tctx.CopyBufferToBuffer({&staging, 0}, {&vertex, 0}, bufSize);
+
+
+        tctx.EndCmds();
+
+        std::array sigPayloads{m_SRHI.ReserveTransferSignalPayload()};
+        CheckCritical(tctx.SubmitCmds({}, sigPayloads), "Failed to submit transition context!");
+
         staging.Destroy();
 
         return true;
@@ -72,19 +82,20 @@ namespace Shift::gfx {
 
     bool Renderer::RenderFrame(const Shift::gfx::EngineData &engineData) {
 
-
-        CheckCritical(m_SRHI.BeginCmds(), "Failed to begin the command Buffer!");
+        m_SRHI.WaitForGraphicsContext();
+        SRHIContext gContext = m_SRHI.GetGraphicsContext();
+        gContext.ResetCmds();
+        CheckCritical(gContext.BeginCmds(), "Failed to begin the command Buffer!");
         /// Aquire availible swapchain image index
 
         bool aquireSuccess = true;
         uint32_t imageIndex = AquireImage(&aquireSuccess);
         if (imageIndex == UINT32_MAX) { return aquireSuccess; }
 
+        gContext.TransitionTexture(m_SRHI.GetSwapchain().GetSwapchainTexture(imageIndex), EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
 
-        m_SRHI.TransitionSwapchainTexture(imageIndex, EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
-
-        m_SRHI.SetScissor(m_SRHI.GetSwapchain().GetScissor());
-        m_SRHI.SetViewport(m_SRHI.GetSwapchain().GetViewport());
+        gContext.SetScissor(m_SRHI.GetSwapchain().GetScissor());
+        gContext.SetViewport(m_SRHI.GetSwapchain().GetViewport());
         RenderPassDescriptor renderPass;
         renderPass.colorAttachments.push_back(
             {
@@ -93,28 +104,31 @@ namespace Shift::gfx {
             }
         );
         renderPass.extent = m_SRHI.GetSwapchain().GetExtent();
-        m_SRHI.BeginRenderPassToSwapchain(renderPass, imageIndex, std::nullopt);
+        std::array colorTextures{&m_SRHI.GetSwapchain().GetSwapchainTexture(imageIndex)};
+        gContext.BeginRenderPass(renderPass, colorTextures, std::nullopt);
 
-        m_SRHI.BindGraphicsPipeline(p);
+        gContext.BindGraphicsPipeline(p);
 
-        m_SRHI.BindVertexBuffer({&vertex, 0}, 0);
+        gContext.BindVertexBuffer({&vertex, 0}, 0);
 
 
-        m_SRHI.Draw({3, 1, 0, 0});
-        m_SRHI.EndRenderPass();
+        gContext.Draw({3, 1, 0, 0});
+        gContext.EndRenderPass();
 
-        m_SRHI.TransitionSwapchainTexture(imageIndex, EResourceLayout::Present, EPipelineStageFlags::BottomOfPipeBit);
+        gContext.TransitionTexture(m_SRHI.GetSwapchain().GetSwapchainTexture(imageIndex), EResourceLayout::Present, EPipelineStageFlags::BottomOfPipeBit);
 
-        CheckCritical(m_SRHI.EndCmds(), "Failed to end the command Buffer!");
+        CheckCritical(gContext.EndCmds(), "Failed to end the command Buffer!");
 
-        CheckCritical(m_SRHI.SubmitCmds(imageIndex), "Failed and command submission!");
+        std::array waitPayloads{m_SRHI.GetTransferWaitPayload()};
+        std::array sigPayloads{m_SRHI.ReserveGraphicsSignalPayload()};
+        std::array imgAcquirePayload{m_SRHI.GetSwapchainAcquireSemaphore(m_SRHI.GetCurrentFrame())};
+        std::array renderFinishedPayload{m_SRHI.GetSwapchainRenderFinishedSemaphore(imageIndex)};
+        CheckCritical(gContext.SubmitCmds(waitPayloads, sigPayloads, imgAcquirePayload, renderFinishedPayload), "Failed to submit graphics context!");
 
         CheckCritical(PresentFinalImage(imageIndex), "Failed to present final image!");
 
         // Update the current frame
         m_SRHI.NextFrame();
-
-
 
         return true;
     }
