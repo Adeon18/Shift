@@ -133,6 +133,22 @@ namespace Shift {
         { InputBuffer.SetScissor(InputScissor) } -> std::same_as<void>;
         { InputBuffer.BlitTexture(InputTextureBlitData, InputTextureBlitData, InputBlitRegion, filter) } -> std::same_as<void>;
     };
+
+    template<typename CommandPool>
+    concept ICommandPool =
+        std::is_default_constructible_v<CommandPool> &&
+        std::is_trivially_destructible_v<CommandPool> &&
+    requires(
+            CommandPool InputPool,
+            EPoolQueueType type,
+            const Device* device
+    )
+    {
+        { InputPool.Init(device, type) } -> std::same_as<bool>;
+        { InputPool.GetType() } -> std::same_as<EPoolQueueType>;
+        { InputPool.Reset() } -> std::same_as<void>;
+        { InputPool.Destroy() } -> std::same_as<void>;
+    };
 } // Shift
 
 #endif //SHIFT_COMMANDBUFFER_HPP

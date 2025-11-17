@@ -9,7 +9,6 @@
 #include "Graphics/RHI/Vulkan/VKInstance.hpp"
 #include "Graphics/RHI/Vulkan/VKWindowSurface.hpp"
 #include "Graphics/RHI/Vulkan/VKSwapchain.hpp"
-#include "Graphics/RHI/Vulkan/Assistants/CommandPoolStorage.hpp"
 #include "Graphics/RHI/Vulkan/Assistants/DescriptorLayoutCache.hpp"
 #include "Graphics/RHI/Vulkan/Assistants/DescriptorAllocator.hpp"
 
@@ -23,7 +22,6 @@ namespace Shift {
 
         VK::DescriptorAllocator descAllocator;
         VK::DescriptorLayoutCache descLayoutCache;
-        VK::CommandPoolStorage cmdPoolStorage;
     };
 } // Shift
 

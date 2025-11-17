@@ -12,16 +12,49 @@
 #include "VKTexture.hpp"
 
 namespace Shift::VK {
-    bool CommandBuffer::Init(const Device* device, const Instance* ins, VkCommandPool commandPool, EPoolQueueType type) {
+    bool CommandPool::Init(const Device *device, EPoolQueueType type) {
+        m_device = device;
+        m_type = type;
+        auto queueFamiliIndices = m_device->GetQueueFamilyIndices();
+
+        uint32_t queueFamilyIndex = 0;
+        switch (m_type) {
+
+            case EPoolQueueType::Compute:
+                // queueFamilyIndex = queueFamiliIndices.computeFamily.value();
+                break;
+            case EPoolQueueType::Transfer:
+                queueFamilyIndex = queueFamiliIndices.transferFamily.value();
+                break;
+            case EPoolQueueType::Graphics:
+            default:
+                queueFamilyIndex = queueFamiliIndices.graphicsFamily.value();
+        }
+
+        m_commandPool = m_device->CreateCommandPool(Util::CreateCommandPoolInfo(queueFamilyIndex));
+
+        return VkNullCheck(m_commandPool);
+    }
+
+    void CommandPool::Reset() const {
+        vkResetCommandPool(m_device->Get(), m_commandPool, 0);
+    }
+
+    void CommandPool::Destroy() {
+        m_device->DestroyCommandPool(m_commandPool);
+    }
+
+    bool CommandBuffer::Init(const Device* device, const Instance* ins, const CommandPool& commandPool, bool isSecondary) {
         m_device = device;
         m_ins = ins;
-        m_poolType = type;
+        m_poolType = commandPool.GetType();
+        m_isSecondary = isSecondary;
 
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        allocInfo.commandPool = commandPool;
+        allocInfo.commandPool = commandPool.GetPool();
         // Primary can be submitted to the queue, secondary can be called from primary buffers and inversely
-        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.level = (m_isSecondary) ? VK_COMMAND_BUFFER_LEVEL_SECONDARY: VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         allocInfo.commandBufferCount = 1;
 
         if ( VkCheck(vkAllocateCommandBuffers(m_device->Get(), &allocInfo, &m_buffer)) ) {
@@ -43,7 +76,13 @@ namespace Shift::VK {
     // }
     //
     bool CommandBuffer::Begin() const {
-        auto info = Util::CreateBeginCommandBufferInfo(0);
+        VkCommandBufferInheritanceInfo inheritanceInfo{};
+        inheritanceInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+
+        auto info = Util::CreateBeginCommandBufferInfo(
+            m_isSecondary ? VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT : VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+            (m_isSecondary) ? &inheritanceInfo : nullptr
+        );
         if ( VkCheckV(vkBeginCommandBuffer(m_buffer, &info), res) ) {
             Log(Error, "Failed to begin command buffer! Code: %d", static_cast<int>(res));
             return false;
@@ -209,6 +248,21 @@ namespace Shift::VK {
         VkDependencyFlags flags) const
     {
         VK_SetPipelineBarrier(srcStage, dstStage, {&imgBarrier, 1}, {}, {}, flags);
+    }
+
+
+    void CommandBuffer::ExecuteSecondaryBuffers(std::span<CommandBuffer*> secondaryBuffs) const {
+        assert(!m_isSecondary);
+        assert(!secondaryBuffs.empty());
+
+        std::vector<VkCommandBuffer> vkSecondaries;
+        vkSecondaries.reserve(secondaryBuffs.size());
+        for (auto* sec : secondaryBuffs) {
+            assert(sec->m_isSecondary);
+            vkSecondaries.push_back(sec->m_buffer);
+        }
+
+        vkCmdExecuteCommands(m_buffer, static_cast<uint32_t>(vkSecondaries.size()), vkSecondaries.data());
     }
 
     bool CommandBuffer::Submit(std::span<TimelineSemaphore*> waitSems, std::span<uint64_t> waitVals,

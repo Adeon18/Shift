@@ -10,11 +10,32 @@
 #include "../Common/CommandBuffer.hpp"
 
 namespace Shift::VK {
+
+    class CommandPool {
+    public:
+        CommandPool() = default;
+
+        [[nodiscard]] bool Init(const Device *device, EPoolQueueType type);
+
+        void Reset() const;
+
+        [[nodiscard]] VkCommandPool GetPool() const { return m_commandPool; }
+        [[nodiscard]] EPoolQueueType GetType() const { return m_type; }
+
+        void Destroy();
+    private:
+        const Device *m_device = nullptr;
+
+        VkCommandPool m_commandPool = VK_NULL_HANDLE;
+        EPoolQueueType m_type;
+    };
+    ASSERT_INTERFACE(ICommandPool, CommandPool);
+
     class CommandBuffer {
     public:
         CommandBuffer() = default;
 
-        [[nodiscard]] bool Init(const Device* device, const Instance* ins, VkCommandPool commandPool, EPoolQueueType type);
+        [[nodiscard]] bool Init(const Device* device, const Instance* ins, const CommandPool& commandPool, bool isSecondary);
 
         ///! ------------------- Basic Buffer Commands ------------------- !///
 
@@ -41,6 +62,8 @@ namespace Shift::VK {
 
         //! Dynamic rendering extension integration, end the RenderPass (not VkRenderPass but the adequate one)
         void VK_EndRenderPass() const;
+
+        void ExecuteSecondaryBuffers(std::span<CommandBuffer*> secondaryBuffs) const;
 
         [[nodiscard]] bool Submit(
             std::span<TimelineSemaphore*> waitSems,
@@ -208,6 +231,7 @@ namespace Shift::VK {
         VkCommandBuffer m_buffer = VK_NULL_HANDLE;
 
         EPoolQueueType m_poolType = EPoolQueueType::Graphics;
+        bool m_isSecondary = false;
     };
 
     ASSERT_INTERFACE(ICommandBuffer, CommandBuffer);

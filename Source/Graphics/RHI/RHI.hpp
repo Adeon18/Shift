@@ -31,8 +31,8 @@ namespace Shift {
         [[nodiscard]] uint32_t SwapchainAquireImage(bool* wasChanged);
         [[nodiscard]] uint32_t SwapchainPresent(uint32_t imageIdx, bool* isOld);
 
+        void EndFrame();
 
-        void NextFrame() { m_currentFrame = (++m_currentFrame) % Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; }
         uint32_t GetCurrentFrame() { return m_currentFrame; }
 
         RHIContext<API>& GetGraphicsContext() { return m_graphicsContexts[m_currentFrame]; }
@@ -43,7 +43,7 @@ namespace Shift {
         BinarySemaphore* GetSwapchainRenderFinishedSemaphore(uint32_t imageIdx) { return &m_renderFinished[imageIdx]; }
 
         RHIContext<API>* AcquireSecondaryGraphicsContext();
-        void ExecuteSecondaryGraphicsContexts();
+        void ExecuteSecondaryGraphicsContexts(std::span<RHIContext<API>*> secondaries, RHIContext<API>::SubmitTimelinePayload releasePayload);
 
         //! Waits until the swapchain binary semaprhores are released
         void WaitForGraphicsContext();
@@ -64,8 +64,13 @@ namespace Shift {
         RHILocal<API> m_local;
 
         std::array<RHIContext<API>, Conf::SHIFT_MAX_FRAMES_IN_FLIGHT> m_graphicsContexts;
+        struct SecondaryContextData {
+            bool inUse = false;
+            bool submittedToPrimary = false;
+        };
 
         std::vector<RHIContext<API>> m_secondaryGraphicsContexts;
+        std::unordered_map<RHIContext<API>*, SecondaryContextData> m_secondaryGraphicsContextData;
         std::mutex m_secondaryPoolMutex;
 
         // Single transfer/compute contexts (can be expanded to a pool)
@@ -129,7 +134,6 @@ namespace Shift {
         CheckCritical(m_local.surface.Init(m_local.instance.Get(), window), "Failed to create VK surface!");
         //! TODO: Features (features could be pulled from API template arg, for now they are just default
         CheckCritical(m_local.device.Init(m_local.instance, m_local.surface.Get()), "Failed to create VK device!");
-        m_local.cmdPoolStorage.Init(&m_local.device, &m_local.instance);
         m_local.descLayoutCache.Init(&m_local.device);
         CheckCritical(m_local.descAllocator.Init(&m_local.device), "Failed to create VK descriptor allocator!");
         CheckCritical(m_local.swapchain.Init(&m_local.device, &m_local.surface, width, height), "Failed to create VK swapchain!");
@@ -139,11 +143,12 @@ namespace Shift {
             CheckCritical(m_graphicsContexts[i].Init(&m_local, EContextType::Graphics, false), "Failed to create Graphics Context in flight!");
         }
 
-        // TODO: [FEATURE] Pooled secondary contexts
-        // m_secondaryGraphicsContexts.resize(Conf::MAX_SECONDARY_CONTEXTS);
-        // for (auto& ctx : m_secondaryGraphicsContexts) {
-        //     ctx.Init(&m_local, EContextType::Graphics, 0, true);
-        // }
+        m_secondaryGraphicsContexts.resize(Conf::MAX_SECONDARY_CONTEXTS);
+        for (auto& ctx : m_secondaryGraphicsContexts) {
+            ctx.Init(&m_local, EContextType::Graphics, true);
+            m_secondaryGraphicsContextData[&ctx].inUse = false;
+            m_secondaryGraphicsContextData[&ctx].submittedToPrimary = false;
+        }
 
         // TODO: [FEATURE] Async COmpute COntext
         // Only 1 transfer queue for now
@@ -182,10 +187,19 @@ namespace Shift {
         m_timelineTransfer.Destroy();
         m_timelineGraphics.Destroy();
 
+        for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
+            m_graphicsContexts[i].Destroy();
+        }
+
+        for (auto& ctx : m_secondaryGraphicsContexts) {
+            ctx.Destroy();
+        }
+
+        m_transferContext.Destroy();
+
         m_local.descLayoutCache.Destroy();
         m_local.descAllocator.Destroy();
 
-        m_local.cmdPoolStorage.Destroy();
         m_local.surface.Destroy();
 
         m_local.device.Destroy();
@@ -230,6 +244,45 @@ namespace Shift {
     template<ValidAPI API>
     uint32_t RenderHardwareInterface<API>::SwapchainPresent(uint32_t imageIdx, bool *isOld) {
         return m_local.swapchain.Present(m_renderFinished[imageIdx], imageIdx, isOld);
+    }
+
+    template<ValidAPI API>
+    void RenderHardwareInterface<API>::EndFrame() {
+
+        m_currentFrame = (++m_currentFrame) % Conf::SHIFT_MAX_FRAMES_IN_FLIGHT;
+    }
+
+    template<ValidAPI API>
+    RHIContext<API>* RenderHardwareInterface<API>::AcquireSecondaryGraphicsContext() {
+        std::lock_guard<std::mutex> lock(m_secondaryPoolMutex);
+
+        for (auto& ctx : m_secondaryGraphicsContexts) {
+            if (!m_secondaryGraphicsContextData[&ctx].inUse) {
+                m_secondaryGraphicsContextData[&ctx].inUse = true;
+                ctx.ResetCmds();
+                return &ctx.context;
+            }
+        }
+
+        Log(Warning, "Failed to acquire secondary graphics context!");
+        return nullptr;
+    }
+
+    template<ValidAPI API>
+    void RenderHardwareInterface<API>::ExecuteSecondaryGraphicsContexts(std::span<RHIContext<API> *> secondaries,
+        typename RHIContext<API>::SubmitTimelinePayload releasePayload)
+    {
+        std::lock_guard<std::mutex> lock(m_secondaryPoolMutex);
+
+        std::vector<CommandBuffer*> secondaryBuffers;
+        for (RHIContext<API>* sec: secondaries) {
+            secondaryBuffers.push_back(sec->GetCommandBuffer());
+            m_secondaryGraphicsContextData[sec].submittedToPrimary = true;
+        }
+
+        m_graphicsContexts[m_currentFrame].ExecuteSecondaryGraphicsContexts(secondaryBuffers);
+
+        m_deferredExecutor.DeferExecute(releasePayload.semaphore, releasePayload.value, [this]())
     }
 
     template<ValidAPI API>

@@ -38,7 +38,7 @@ namespace Shift::VK::Util {
     //! TODO: Currently flags are hardcoded
     VkCommandPoolCreateInfo CreateCommandPoolInfo(uint32_t queueFamilyIndex);
 
-    VkCommandBufferBeginInfo CreateBeginCommandBufferInfo(VkCommandBufferUsageFlags flags);
+    VkCommandBufferBeginInfo CreateBeginCommandBufferInfo(VkCommandBufferUsageFlags flags, VkCommandBufferInheritanceInfo* inheritanceInfo);
 
     VkTimelineSemaphoreSubmitInfo CreateTimelineSemaphoreSubmitInfo(std::span<uint64_t> waitVals, std::span<uint64_t> sigVals);
 

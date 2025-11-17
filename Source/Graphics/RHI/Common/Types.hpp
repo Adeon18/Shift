@@ -20,6 +20,7 @@ namespace Shift {
         class Sampler;
         class RenderPass;
         class CommandBuffer;
+        class CommandPool;
         class Device;
     } // VK
 
@@ -36,6 +37,7 @@ namespace Shift {
     using Sampler = VK::Sampler;
     using RenderPass = VK::RenderPass;
     using CommandBuffer = VK::CommandBuffer;
+    using CommandPool = VK::CommandPool;
     using Device = VK::Device;
 #endif
 

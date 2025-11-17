@@ -61,6 +61,9 @@ namespace Shift {
 
         // Init for primary or secondary context
         bool Init(RHILocal<API>* local, EContextType type, bool secondary = false);
+        void Destroy();
+
+        [[nodiscard]] CommandBuffer& GetCommandBuffer() {return m_cmdBuffer;}
 
 
         //! TODO: [FEATURE] Here we would have additional parameters for multicommand-buffer concurrency handling (probably)
@@ -149,6 +152,7 @@ namespace Shift {
 
         RHILocal<API>* m_local = nullptr;
         CommandBuffer m_cmdBuffer;
+        CommandPool m_cmdPool;
         EContextType m_type = EContextType::Graphics;
         bool m_isSecondary = false;
     };
@@ -166,7 +170,7 @@ namespace Shift {
 
     template<ValidAPI API>
     void RHIContext<API>::ResetCmds() const {
-        return m_cmdBuffer.Reset();
+        m_cmdPool.Reset();
     }
 
 
@@ -278,20 +282,17 @@ namespace Shift {
         m_type = type;
         m_isSecondary = secondary;
 
-        //! TODO: Feature: No async compute lol, and no secondary support
-        auto GetPool = [&]() {
-            switch (m_type) {
-                case EContextType::Graphics: return m_local->cmdPoolStorage.GetGraphics();
-                // case EContextType::Compute:  return m_local->cmdPoolStorage.GetCompute();
-                case EContextType::Transfer: return m_local->cmdPoolStorage.GetTransfer();
-            }
-            return m_local->cmdPoolStorage.GetGraphics();
-        };
+        CheckCritical(m_cmdPool.Init(&m_local->device, GetQueueType(m_type)), "Failed to initialize command pool");
 
-        CheckCritical(m_cmdBuffer.Init(&m_local->device, &m_local->instance, GetPool(), GetQueueType(type)),
+        CheckCritical(m_cmdBuffer.Init(&m_local->device, &m_local->instance, m_cmdPool, m_isSecondary),
                       "Failed to init command buffer!");
 
         return true;
+    }
+
+    template<ValidAPI API>
+    void RHIContext<API>::Destroy() {
+        m_cmdPool.Destroy();
     }
 
     template<>

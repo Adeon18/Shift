@@ -50,16 +50,17 @@ namespace Shift::VK::Util {
     VkCommandPoolCreateInfo CreateCommandPoolInfo(uint32_t queueFamilyIndex) {
         VkCommandPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT ;
         poolInfo.queueFamilyIndex = queueFamilyIndex;
 
         return poolInfo;
     }
 
-    VkCommandBufferBeginInfo CreateBeginCommandBufferInfo(VkCommandBufferUsageFlags flags) {
+    VkCommandBufferBeginInfo CreateBeginCommandBufferInfo(VkCommandBufferUsageFlags flags, VkCommandBufferInheritanceInfo* inheritanceInfo) {
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         beginInfo.flags = flags;
+        if (inheritanceInfo) { beginInfo.pInheritanceInfo = inheritanceInfo; }
 
         return beginInfo;
     }
