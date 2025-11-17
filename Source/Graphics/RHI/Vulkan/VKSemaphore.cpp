@@ -21,6 +21,12 @@ namespace Shift::VK {
         return VkNullCheck(m_semaphore);
     }
 
+    uint64_t TimelineSemaphore::GetCurrentValue() const {
+        uint64_t value;
+        vkGetSemaphoreCounterValue(m_device->Get(), m_semaphore, &value);
+        return value;
+    }
+
     void TimelineSemaphore::Wait(uint64_t value) {
         VkSemaphoreWaitInfo waitInfo{};
         waitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;

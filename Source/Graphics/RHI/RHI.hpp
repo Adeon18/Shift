@@ -8,6 +8,7 @@
 #include <atomic>
 
 #include "RHIContext.hpp"
+#include "RHIDeferredExecutor.hpp"
 
 namespace Shift {
     template<ValidAPI API>
@@ -53,6 +54,11 @@ namespace Shift {
         RHIContext<API>::SubmitTimelinePayload GetGraphicsWaitPayload();
         RHIContext<API>::SubmitTimelinePayload ReserveGraphicsSignalPayload();
 
+        void DeferExecuteEndOfSession(RHIDeferredExecutor::Callback fn);
+        void DeferExecute(TimelineSemaphore* sem, uint64_t waitVal, RHIDeferredExecutor::Callback fn);
+
+        void ProcessDeferredCallbacks();
+
 
     private:
         RHILocal<API> m_local;
@@ -65,6 +71,8 @@ namespace Shift {
         // Single transfer/compute contexts (can be expanded to a pool)
         RHIContext<API> m_transferContext;
         RHIContext<API> m_computeContext;
+
+        RHIDeferredExecutor m_deferredExecutor;
 
         uint32_t m_currentFrame = 0;
 
@@ -160,6 +168,8 @@ namespace Shift {
     template<ValidAPI API>
     void RenderHardwareInterface<API>::Destroy() {
 
+        m_deferredExecutor.FlushAllDeferredCallbacks();
+
         m_local.swapchain.Destroy();
 
         for (auto& sem: m_imageAvailable) {
@@ -247,6 +257,23 @@ namespace Shift {
     RHIContext<API>::SubmitTimelinePayload RenderHardwareInterface<API>::ReserveGraphicsSignalPayload() {
         uint64_t newVal = m_timelineGraphicsValue.fetch_add(1, std::memory_order_acq_rel) + 1;
         return { &m_timelineGraphics, newVal };
+    }
+
+    template<ValidAPI API>
+    void RenderHardwareInterface<API>::DeferExecuteEndOfSession(RHIDeferredExecutor::Callback fn) {
+        m_deferredExecutor.DeferExecuteEndOfSession(fn);
+    }
+
+    template<ValidAPI API>
+    void RenderHardwareInterface<API>::DeferExecute(TimelineSemaphore *sem, uint64_t waitVal,
+        RHIDeferredExecutor::Callback fn)
+    {
+        m_deferredExecutor.DeferExecute(sem, waitVal, fn);
+    }
+
+    template<ValidAPI API>
+    void RenderHardwareInterface<API>::ProcessDeferredCallbacks() {
+        m_deferredExecutor.ProcessDeferredCallbacks();
     }
 
 

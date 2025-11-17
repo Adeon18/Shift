@@ -22,32 +22,16 @@ namespace Shift {
     };
 
     struct Offset2D {
-        Offset2D()=default;
-        Offset2D(const Offset2D&)=default;
-        Offset2D& operator=(const Offset2D&)=default;
-        Offset2D(const VkOffset2D& vkOff): x{vkOff.x}, y{vkOff.y} {}
-        Offset2D(int32_t xx, int32_t yy): x{xx}, y{yy} {}
-
         int32_t x = 0u;
         int32_t y = 0u;
     };
 
     struct Extent2D {
-        Extent2D()=default;
-        Extent2D(const Extent2D&)=default;
-        Extent2D& operator=(const Extent2D&)=default;
-        Extent2D(const VkExtent2D& vkEx): x{vkEx.width}, y{vkEx.height} {}
-
         uint32_t x = 0u;
         uint32_t y = 0u;
     };
 
     struct Rect2D {
-        Rect2D()=default;
-        Rect2D(const Rect2D&)=default;
-        Rect2D& operator=(const Rect2D&)=default;
-        Rect2D(const VkRect2D& vkRec): offset{vkRec.offset}, extent{vkRec.extent} {}
-
         Offset2D offset;
         Extent2D extent;
     };

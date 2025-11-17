@@ -71,7 +71,7 @@ namespace Shift::gfx {
         std::array sigPayloads{m_SRHI.ReserveTransferSignalPayload()};
         CheckCritical(tctx.SubmitCmds({}, sigPayloads), "Failed to submit transition context!");
 
-        staging.Destroy();
+        m_SRHI.DeferExecute(sigPayloads[0].semaphore, sigPayloads[0].value, [staging]() mutable { staging.Destroy(); });
 
         return true;
     }
@@ -126,6 +126,8 @@ namespace Shift::gfx {
         CheckCritical(gContext.SubmitCmds(waitPayloads, sigPayloads, imgAcquirePayload, renderFinishedPayload), "Failed to submit graphics context!");
 
         CheckCritical(PresentFinalImage(imageIndex), "Failed to present final image!");
+
+        m_SRHI.ProcessDeferredCallbacks();
 
         // Update the current frame
         m_SRHI.NextFrame();

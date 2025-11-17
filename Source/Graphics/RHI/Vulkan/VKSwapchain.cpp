@@ -26,7 +26,8 @@ namespace Shift::VK {
         m_swapchainDesc.surfaceFormat = Util::ChooseSwapSurfaceFormat(m_swapChainSupportDetails.formats);
         m_swapchainDesc.presentMode = Util::ChooseSwapPresentMode(m_swapChainSupportDetails.presentModes);
         m_swapchainDesc.swapChainImageFormat = Util::VKToShiftTextureFormat(m_swapchainDesc.surfaceFormat.format);
-        m_swapchainDesc.swapChainExtent = Extent2D{Util::ChooseSwapExtent(m_swapChainSupportDetails.capabilities, width, height)};
+        auto extent = Util::ChooseSwapExtent(m_swapChainSupportDetails.capabilities, width, height);
+        m_swapchainDesc.swapChainExtent = Extent2D{extent.width, extent.height};
     }
 
     bool Swapchain::CreateSwapChain() {

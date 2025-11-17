@@ -42,6 +42,8 @@ namespace Shift::VK {
         [[nodiscard]] VkSemaphore Get() const { return m_semaphore; }
         [[nodiscard]] const VkSemaphore* Ptr() const { return &m_semaphore; }
 
+        uint64_t GetCurrentValue() const;
+
         void Wait(uint64_t value);
 
         //! Free the VkSemaphore
