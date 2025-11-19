@@ -76,15 +76,42 @@ namespace Shift::VK {
     // }
     //
     bool CommandBuffer::Begin() const {
+        assert(!m_isSecondary);
+
+        auto info = Util::CreateBeginCommandBufferInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr);
+        if ( VkCheckV(vkBeginCommandBuffer(m_buffer, &info), res) ) {
+            Log(Error, "Failed to begin primary command buffer! Code: %d", static_cast<int>(res));
+            return false;
+        }
+
+        return true;
+    }
+
+    bool CommandBuffer::BeginSecondary(const SecondaryBufferBeginPayload &payload) const {
+        assert(m_isSecondary);
+
+        std::vector<VkFormat> colorFormats;
+
+        colorFormats.resize(payload.colorFormats.size());
+        for (uint32_t i = 0; i < payload.colorFormats.size(); ++i) {
+            colorFormats[i] = Util::ShiftToVKTextureFormat(payload.colorFormats[i]);
+        }
+
+        auto inheritanceRenderingInfo = Util::CreateInheritanceRenderingInfo(
+            colorFormats,
+            Util::ShiftToVKTextureFormat(payload.depthFormat.value_or(ETextureFormat::UNDEFINED)),
+             Util::ShiftToVKTextureFormat(payload.stencilFormat.value_or(ETextureFormat::UNDEFINED)),
+            VK_SAMPLE_COUNT_1_BIT
+        );
+
         VkCommandBufferInheritanceInfo inheritanceInfo{};
         inheritanceInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+        inheritanceInfo.pNext = &inheritanceRenderingInfo;
 
-        auto info = Util::CreateBeginCommandBufferInfo(
-            m_isSecondary ? VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT : VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-            (m_isSecondary) ? &inheritanceInfo : nullptr
-        );
+
+        auto info = Util::CreateBeginCommandBufferInfo(VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT | VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, &inheritanceInfo);
         if ( VkCheckV(vkBeginCommandBuffer(m_buffer, &info), res) ) {
-            Log(Error, "Failed to begin command buffer! Code: %d", static_cast<int>(res));
+            Log(Error, "Failed to begin secondary command buffer! Code: %d", static_cast<int>(res));
             return false;
         }
 

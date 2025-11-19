@@ -49,6 +49,8 @@ namespace Shift::VK {
         //! \return true if successful, false otherwise
         [[nodiscard]] bool Begin() const;
 
+        [[nodiscard]] bool BeginSecondary(const SecondaryBufferBeginPayload& payload) const;
+
         //! Begin command buffer
         //! \return true if successful, false otherwise
         [[nodiscard]] bool End() const;

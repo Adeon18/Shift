@@ -40,6 +40,13 @@ namespace Shift::VK::Util {
 
     VkCommandBufferBeginInfo CreateBeginCommandBufferInfo(VkCommandBufferUsageFlags flags, VkCommandBufferInheritanceInfo* inheritanceInfo);
 
+    VkCommandBufferInheritanceRenderingInfo CreateInheritanceRenderingInfo(
+        std::span<VkFormat> colorFormats,
+        VkFormat depthFormat,
+        VkFormat stencilFormat,
+        VkSampleCountFlagBits samples
+    );
+
     VkTimelineSemaphoreSubmitInfo CreateTimelineSemaphoreSubmitInfo(std::span<uint64_t> waitVals, std::span<uint64_t> sigVals);
 
     //! Create the info for submitting jobs to queue

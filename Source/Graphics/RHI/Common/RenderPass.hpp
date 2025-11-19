@@ -55,7 +55,6 @@ namespace Shift {
     struct RenderPassDescriptor {
         struct RenderPassAttachmentInfo {
             const char* renderTargetName = "EMPTY";
-            EResourceLayout renderTargetLayout = EResourceLayout::ColorAttachmentOptimal;
             EAttachmentLoadOperation loadOperation = EAttachmentLoadOperation::Clear;
             EAttachmentStoreOperation storeOperation = EAttachmentStoreOperation::Store;
             AttachmentClearValue clearValue = {
@@ -66,6 +65,8 @@ namespace Shift {
 
         Offset2D offset;
         Extent2D extent;
+
+        bool enableSecondaryCommandBuffers = false;
 
         std::vector<RenderPassAttachmentInfo> colorAttachments;
         std::optional<RenderPassAttachmentInfo> depthAttachment;

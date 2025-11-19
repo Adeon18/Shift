@@ -40,7 +40,7 @@ namespace Shift::gfx {
 
         p = m_SRHI.CreatePipeline(pipelineDescriptor, stages);
 
-        uint32_t bufSize = 3 * sizeof(float) * 3;
+        uint32_t bufSize = 3 * sizeof(float) * 6;
         BufferDescriptor bufferDescriptor;
         bufferDescriptor.type = EBufferType::Staging;
         bufferDescriptor.name = "Stage";
@@ -55,8 +55,11 @@ namespace Shift::gfx {
 
         std::vector<float> vertexData = {
             0.5f,  0.5f, 0.5f,
+            -0.0f, -0.5f, 0.5f,
+            0.5f, -0.5f, 0.5f,
+            -0.5f,  0.5f, 0.5f,
             -0.5f, -0.5f, 0.5f,
-            0.5f, -0.5f, 0.5f
+            0.0f, -0.5f, 0.5f
         };
 
         SRHIContext tctx = m_SRHI.GetTransferContext();
@@ -83,6 +86,7 @@ namespace Shift::gfx {
     bool Renderer::RenderFrame(const Shift::gfx::EngineData &engineData) {
 
         m_SRHI.WaitForGraphicsContext();
+
         SRHIContext gContext = m_SRHI.GetGraphicsContext();
         gContext.ResetCmds();
         CheckCritical(gContext.BeginCmds(), "Failed to begin the command Buffer!");
@@ -104,15 +108,61 @@ namespace Shift::gfx {
             }
         );
         renderPass.extent = m_SRHI.GetSwapchain().GetExtent();
+        renderPass.enableSecondaryCommandBuffers = true;
         std::array colorTextures{&m_SRHI.GetSwapchain().GetSwapchainTexture(imageIndex)};
         gContext.BeginRenderPass(renderPass, colorTextures, std::nullopt);
+        // Reserve a single graphics signal payload and use it both for:
+        // - telling the deferred executor when it's safe to free secondaries
+        // - signalling from the primary submit
+        auto graphicsSignal = m_SRHI.ReserveGraphicsSignalPayload();
 
-        gContext.BindGraphicsPipeline(p);
+        // Acquire two secondary contexts (for current frame)
+        SRHIContext* sec0 = m_SRHI.AcquireSecondaryGraphicsContext();
+        SRHIContext* sec1 = m_SRHI.AcquireSecondaryGraphicsContext();
 
-        gContext.BindVertexBuffer({&vertex, 0}, 0);
+        std::vector<ETextureFormat> colorTexturesFormats{};
+        for (auto& c: p.GetDescriptor().colorBlendConfig.attachments) {
+            colorTexturesFormats.push_back(c.format);
+        }
 
+        SecondaryBufferBeginPayload payload{
+            .colorFormats = colorTexturesFormats,
+            .depthFormat = p.GetDescriptor().depthStencilConfig.depthFormat,
+            .stencilFormat = p.GetDescriptor().depthStencilConfig.stencilFormat
+        };
 
-        gContext.Draw({3, 1, 0, 0});
+        if (sec0 && sec1) {
+            // Record secondaries on two threads.
+            auto record_secondary = [&](RHIContext<RHI::Vulkan>* sec) {
+                // NOTE: AcquireSecondaryGraphicsContext already called ResetCmds() on the context.
+                CheckCritical(sec->BeginSecondaryCmds(payload), "Failed to begin secondary command buffer!");
+
+                // Set scissor/viewport on the secondary so draw matches primary state
+                sec->SetScissor(m_SRHI.GetSwapchain().GetScissor());
+                sec->SetViewport(m_SRHI.GetSwapchain().GetViewport());
+
+                // Bind pipeline / vertex buffer and issue a draw (triangle)
+                sec->BindGraphicsPipeline(p);
+                sec->BindVertexBuffer({&vertex, 0}, 0);
+                sec->Draw({3, 1, (sec == sec0) ? 0u: 3u, 0});
+
+                CheckCritical(sec->EndCmds(), "Failed to end secondary command buffer!");
+                return true;
+            };
+
+            std::thread th0(record_secondary, sec0);
+            std::thread th1(record_secondary, sec1);
+
+            // Wait for both recording threads to finish before executing them in primary
+            th0.join();
+            th1.join();
+
+            // Execute the secondaries from the primary. Pass same graphicsSignal so
+            // deferred executor will free them only after GPU signals it.
+            std::array<RHIContext<RHI::Vulkan>*, 2> secondariesArr{sec0, sec1};
+            m_SRHI.ExecuteSecondaryGraphicsContexts(secondariesArr, graphicsSignal);
+        }
+
         gContext.EndRenderPass();
 
         gContext.TransitionTexture(m_SRHI.GetSwapchain().GetSwapchainTexture(imageIndex), EResourceLayout::Present, EPipelineStageFlags::BottomOfPipeBit);
@@ -130,7 +180,7 @@ namespace Shift::gfx {
         m_SRHI.ProcessDeferredCallbacks();
 
         // Update the current frame
-        m_SRHI.NextFrame();
+        m_SRHI.EndFrame();
 
         return true;
     }

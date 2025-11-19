@@ -67,9 +67,10 @@ namespace Shift {
         struct SecondaryContextData {
             bool inUse = false;
             bool submittedToPrimary = false;
+            uint32_t id = 0;
         };
 
-        std::vector<RHIContext<API>> m_secondaryGraphicsContexts;
+        std::array<std::vector<RHIContext<API>>, Conf::SHIFT_MAX_FRAMES_IN_FLIGHT> m_secondaryGraphicsContexts;
         std::unordered_map<RHIContext<API>*, SecondaryContextData> m_secondaryGraphicsContextData;
         std::mutex m_secondaryPoolMutex;
 
@@ -143,11 +144,14 @@ namespace Shift {
             CheckCritical(m_graphicsContexts[i].Init(&m_local, EContextType::Graphics, false), "Failed to create Graphics Context in flight!");
         }
 
-        m_secondaryGraphicsContexts.resize(Conf::MAX_SECONDARY_CONTEXTS);
-        for (auto& ctx : m_secondaryGraphicsContexts) {
-            ctx.Init(&m_local, EContextType::Graphics, true);
-            m_secondaryGraphicsContextData[&ctx].inUse = false;
-            m_secondaryGraphicsContextData[&ctx].submittedToPrimary = false;
+        for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
+            m_secondaryGraphicsContexts[i].resize(Conf::MAX_SECONDARY_CONTEXTS);
+            for (uint32_t j = 0; j < m_secondaryGraphicsContexts[i].size(); ++j) {
+                m_secondaryGraphicsContexts[i][j].Init(&m_local, EContextType::Graphics, true);
+                m_secondaryGraphicsContextData[&m_secondaryGraphicsContexts[i][j]].inUse = false;
+                m_secondaryGraphicsContextData[&m_secondaryGraphicsContexts[i][j]].submittedToPrimary = false;
+                m_secondaryGraphicsContextData[&m_secondaryGraphicsContexts[i][j]].id = Conf::MAX_SECONDARY_CONTEXTS * i + j;
+            }
         }
 
         // TODO: [FEATURE] Async COmpute COntext
@@ -191,8 +195,10 @@ namespace Shift {
             m_graphicsContexts[i].Destroy();
         }
 
-        for (auto& ctx : m_secondaryGraphicsContexts) {
-            ctx.Destroy();
+        for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
+            for (auto& ctx : m_secondaryGraphicsContexts[i]) {
+                ctx.Destroy();
+            }
         }
 
         m_transferContext.Destroy();
@@ -248,6 +254,7 @@ namespace Shift {
 
     template<ValidAPI API>
     void RenderHardwareInterface<API>::EndFrame() {
+        ProcessDeferredCallbacks();
 
         m_currentFrame = (++m_currentFrame) % Conf::SHIFT_MAX_FRAMES_IN_FLIGHT;
     }
@@ -256,11 +263,11 @@ namespace Shift {
     RHIContext<API>* RenderHardwareInterface<API>::AcquireSecondaryGraphicsContext() {
         std::lock_guard<std::mutex> lock(m_secondaryPoolMutex);
 
-        for (auto& ctx : m_secondaryGraphicsContexts) {
+        for (auto& ctx : m_secondaryGraphicsContexts[m_currentFrame]) {
             if (!m_secondaryGraphicsContextData[&ctx].inUse) {
                 m_secondaryGraphicsContextData[&ctx].inUse = true;
                 ctx.ResetCmds();
-                return &ctx.context;
+                return &ctx;
             }
         }
 
@@ -276,13 +283,21 @@ namespace Shift {
 
         std::vector<CommandBuffer*> secondaryBuffers;
         for (RHIContext<API>* sec: secondaries) {
-            secondaryBuffers.push_back(sec->GetCommandBuffer());
+            secondaryBuffers.push_back(&sec->GetCommandBuffer());
             m_secondaryGraphicsContextData[sec].submittedToPrimary = true;
         }
 
         m_graphicsContexts[m_currentFrame].ExecuteSecondaryGraphicsContexts(secondaryBuffers);
 
-        m_deferredExecutor.DeferExecute(releasePayload.semaphore, releasePayload.value, [this]())
+        std::vector<RHIContext<API>*> secondariesCopy(secondaries.begin(), secondaries.end());
+
+        m_deferredExecutor.DeferExecute(releasePayload.semaphore, releasePayload.value, [this, secondariesCopy = std::move(secondariesCopy)]() mutable {
+            std::lock_guard<std::mutex> lock(m_secondaryPoolMutex);
+            for (RHIContext<API>* sec: secondariesCopy) {
+                m_secondaryGraphicsContextData[sec].inUse = false;
+                m_secondaryGraphicsContextData[sec].submittedToPrimary = false;
+            }
+        });
     }
 
     template<ValidAPI API>

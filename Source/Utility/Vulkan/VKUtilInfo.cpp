@@ -65,6 +65,22 @@ namespace Shift::VK::Util {
         return beginInfo;
     }
 
+    VkCommandBufferInheritanceRenderingInfo CreateInheritanceRenderingInfo(
+        std::span<VkFormat> colorFormats,
+        VkFormat depthFormat,
+        VkFormat stencilFormat,
+        VkSampleCountFlagBits samples)
+    {
+        VkCommandBufferInheritanceRenderingInfo info{};
+        info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_RENDERING_INFO;
+        info.colorAttachmentCount   = static_cast<uint32_t>(colorFormats.size());
+        info.pColorAttachmentFormats = colorFormats.data();
+        info.depthAttachmentFormat   = depthFormat;
+        info.stencilAttachmentFormat = stencilFormat;
+        info.rasterizationSamples    = samples;
+        return info;
+    }
+
     VkTimelineSemaphoreSubmitInfo CreateTimelineSemaphoreSubmitInfo(std::span<uint64_t> waitVals, std::span<uint64_t> sigVals) {
         VkTimelineSemaphoreSubmitInfo timelineInfo{};
         timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;

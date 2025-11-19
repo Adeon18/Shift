@@ -78,6 +78,13 @@ namespace Shift {
         Flight
     };
 
+    struct SecondaryBufferBeginPayload {
+        std::span<ETextureFormat> colorFormats;
+        std::optional<ETextureFormat> depthFormat;
+        std::optional<ETextureFormat> stencilFormat;
+        //! TODO: [FEATURE]: Add MSAA sample counts here too, rn default is 1
+    };
+
     template<typename CommandBuffer>
     concept ICommandBuffer =
         std::is_default_constructible_v<CommandBuffer> &&
@@ -100,6 +107,8 @@ namespace Shift {
             std::span<uint64_t> InputTimeSemaphoreCounter,
             std::span<BufferOpDescriptor> InputBufferOpDescs,
             std::span<ResourceSet> InputResourceSets,
+            std::span<CommandBuffer*> InputCommandBuffers,
+            const SecondaryBufferBeginPayload& secondaryBufferBeginPayload,
             uint32_t firstBindPosition,
             uint32_t size,
             EFilterMode filter,
@@ -107,11 +116,13 @@ namespace Shift {
     ) {
         //! Basic
         { InputBuffer.Begin() } -> std::same_as<bool>;
+        { InputBuffer.BeginSecondary(secondaryBufferBeginPayload) } -> std::same_as<bool>;
         { InputBuffer.End() } -> std::same_as<bool>;
         { InputBuffer.Reset() } -> std::same_as<void>;
         //! These are per-backend specific
         //!{ InputBuffer.BeginRenderPass(InputPass) } -> std::same_as<void>;
         //!{ InputBuffer.EndRenderPass() } -> std::same_as<void>;
+        { InputBuffer.ExecuteSecondaryBuffers(InputCommandBuffers) } -> std::same_as<void>;
         { InputBuffer.Submit(InputTimeSemaphoreSpan, InputTimeSemaphoreCounter, InputTimeSemaphoreSpan, InputTimeSemaphoreCounter) } -> std::same_as<bool>;
         { InputBuffer.Submit(InputTimeSemaphoreSpan, InputTimeSemaphoreCounter, InputTimeSemaphoreSpan, InputTimeSemaphoreCounter, InputBinSemaphoreSpan, InputBinSemaphoreSpan) } -> std::same_as<bool>;
         { InputBuffer.CopyBufferToBuffer(InputBufferOpDesc, InputBufferOpDesc, size) } -> std::same_as<void>;

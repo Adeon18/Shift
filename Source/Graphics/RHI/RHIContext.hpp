@@ -69,6 +69,8 @@ namespace Shift {
         //! TODO: [FEATURE] Here we would have additional parameters for multicommand-buffer concurrency handling (probably)
         [[nodiscard]] bool BeginCmds() const;
 
+        [[nodiscard]] bool BeginSecondaryCmds(const SecondaryBufferBeginPayload& payload) const;
+
         [[nodiscard]] bool EndCmds() const;
 
         void ResetCmds() const;
@@ -82,6 +84,8 @@ namespace Shift {
         [[nodiscard]] bool SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads, std::span<SubmitTimelinePayload> sigSemPayloads) const;
 
         [[nodiscard]] bool SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads, std::span<SubmitTimelinePayload> sigSemPayloads, std::span<BinarySemaphore*> waitBinSems, std::span<BinarySemaphore*> sigBinSems) const;
+
+        void ExecuteSecondaryGraphicsContexts(std::span<CommandBuffer*> secondaryBuffs) const;
 
         void BeginRenderPass(const RenderPassDescriptor& desc, std::span<Texture*> colorTextures, std::optional<Texture*> depthTexture);
 
@@ -160,7 +164,14 @@ namespace Shift {
 
     template<ValidAPI API>
     bool RHIContext<API>::BeginCmds() const {
+        assert(!m_isSecondary);
         return m_cmdBuffer.Begin();
+    }
+
+    template<ValidAPI API>
+    bool RHIContext<API>::BeginSecondaryCmds(const SecondaryBufferBeginPayload &payload) const {
+        assert(m_isSecondary);
+        return m_cmdBuffer.BeginSecondary(payload);
     }
 
     template<ValidAPI API>
@@ -275,6 +286,11 @@ namespace Shift {
         return m_cmdBuffer.Submit(waitSems, waitVals, sigSems, sigVals, waitBinSems, sigBinSems);
     }
 
+    template<ValidAPI API>
+    void RHIContext<API>::ExecuteSecondaryGraphicsContexts(std::span<CommandBuffer *> secondaryBuffs) const {
+        m_cmdBuffer.ExecuteSecondaryBuffers(secondaryBuffs);
+    }
+
 
     template<>
     inline bool RHIContext<RHI::Vulkan>::Init(RHILocal<RHI::Vulkan> *local, EContextType type, bool secondary) {
@@ -329,6 +345,7 @@ namespace Shift {
 
         VkRenderingInfoKHR renderInfo{};
         renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
+        if (desc.enableSecondaryCommandBuffers) { renderInfo.flags |= VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT; };
         renderInfo.renderArea = {.offset = VK::Util::ShiftToVKOffset2D(desc.offset), .extent = VK::Util::ShiftToVKExtent2D(desc.extent)};
         renderInfo.layerCount = 1;
         renderInfo.colorAttachmentCount = 1;
