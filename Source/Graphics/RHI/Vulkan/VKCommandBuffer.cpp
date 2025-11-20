@@ -19,9 +19,8 @@ namespace Shift::VK {
 
         uint32_t queueFamilyIndex = 0;
         switch (m_type) {
-
             case EPoolQueueType::Compute:
-                // queueFamilyIndex = queueFamiliIndices.computeFamily.value();
+                queueFamilyIndex = queueFamiliIndices.computeFamily.value();
                 break;
             case EPoolQueueType::Transfer:
                 queueFamilyIndex = queueFamiliIndices.transferFamily.value();
@@ -357,6 +356,9 @@ namespace Shift::VK {
                 break;
             case EPoolQueueType::Transfer:
                 submitQueue = m_device->GetTransferQueue();
+                break;
+            case EPoolQueueType::Compute:
+                submitQueue = m_device->GetComputeQueue();
                 break;
             default:
                 Log(Error, "Invalid pool type!");

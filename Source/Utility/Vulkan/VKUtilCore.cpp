@@ -159,42 +159,85 @@ namespace Shift::VK::Util {
         }
 
         //! Here we just find the queue that supports graphics commands
-        //! TODO: You can add logic to prefer a single queue family that supports the most features to increase performance
-        QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface) {
+        QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface)
+        {
             QueueFamilyIndices indices;
 
-            uint32_t queueFamilyCount = 0;
-            vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+            uint32_t count = 0;
+            vkGetPhysicalDeviceQueueFamilyProperties(device, &count, nullptr);
 
-            std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-            vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+            std::vector<VkQueueFamilyProperties> families(count);
+            vkGetPhysicalDeviceQueueFamilyProperties(device, &count, families.data());
 
-            // Find at least one queue that supports graphics commands
-            int i = 0;
-            for (const auto& queueFamily : queueFamilies) {
-                if ((queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT) && !(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
-                    indices.transferFamily = i++;
-                    continue;
-                }
+            for (uint32_t i = 0; i < count; i++) {
+                const auto& f = families[i];
 
-                if ((queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
+                // --- GRAPHICS ---
+                if (!indices.graphicsFamily.has_value() &&
+                    (f.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+                {
                     indices.graphicsFamily = i;
                 }
-                // Fill presentation queue
+
+                // --- COMPUTE (prefer dedicated compute) ---
+                if (f.queueFlags & VK_QUEUE_COMPUTE_BIT)
+                {
+                    if (!indices.computeFamily.has_value())
+                        indices.computeFamily = i;
+
+                    // prefer compute-only queue
+                    if ((f.queueFlags & VK_QUEUE_COMPUTE_BIT) &&
+                        !(f.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+                    {
+                        indices.computeFamily = i;
+                    }
+                }
+
+                // --- TRANSFER (prefer dedicated transfer) ---
+                if (f.queueFlags & VK_QUEUE_TRANSFER_BIT)
+                {
+                    if (!indices.transferFamily.has_value())
+                        indices.transferFamily = i;
+
+                    if ((f.queueFlags & VK_QUEUE_TRANSFER_BIT) && !(f.queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
+                        indices.transferFamily = i;
+                    }
+
+                    // prefer queue with only TRANSFER
+                    if ((f.queueFlags & VK_QUEUE_TRANSFER_BIT) &&
+                        !(f.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
+                        !(f.queueFlags & VK_QUEUE_COMPUTE_BIT))
+                    {
+                        indices.transferFamily = i;
+                    }
+                }
+
+                // --- PRESENT ---
                 VkBool32 presentSupport = false;
                 vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
-                if (presentSupport) {
+                if (presentSupport && !indices.presentFamily.has_value()) {
                     indices.presentFamily = i;
                 }
-                if (indices.isComplete()) {
-                    break;
-                }
-                ++i;
             }
 
-            if (!indices.transferFamily.has_value()) {
+            // FALLBACKS:
+            if (!indices.computeFamily.has_value())
+                indices.computeFamily = indices.graphicsFamily;
+
+            if (!indices.transferFamily.has_value())
                 indices.transferFamily = indices.graphicsFamily;
+
+            if (!indices.presentFamily.has_value()) {
+                VkBool32 supports = false;
+                vkGetPhysicalDeviceSurfaceSupportKHR(device, *indices.graphicsFamily, surface, &supports);
+
+                if (supports) {
+                    indices.presentFamily = indices.graphicsFamily;
+                } else {
+                    Log(Critical, "No suitable present queue!");
+                }
             }
+
             return indices;
         }
 

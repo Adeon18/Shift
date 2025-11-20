@@ -154,9 +154,7 @@ namespace Shift {
             }
         }
 
-        // TODO: [FEATURE] Async COmpute COntext
-        // Only 1 transfer queue for now
-        // CheckCritical(m_computeContext.Init(&m_local, EContextType::Compute, false), "Failed to create Compute Context!");
+        CheckCritical(m_computeContext.Init(&m_local, EContextType::Compute, false), "Failed to create Compute Context!");
 
         CheckCritical(m_transferContext.Init(&m_local, EContextType::Transfer, false), "Failed to create Transfer Context!");
 
@@ -167,7 +165,7 @@ namespace Shift {
             CheckCritical(sem2.Init(&m_local.device), "Failed to create acqure image semaphore!");
         }
 
-        // m_timelineCompute.Init(&m_local.device);
+        m_timelineCompute.Init(&m_local.device, 0);
         m_timelineGraphics.Init(&m_local.device, 0);
         m_timelineTransfer.Init(&m_local.device, 0);
 
@@ -190,6 +188,7 @@ namespace Shift {
 
         m_timelineTransfer.Destroy();
         m_timelineGraphics.Destroy();
+        m_timelineCompute.Destroy();
 
         for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
             m_graphicsContexts[i].Destroy();
@@ -202,6 +201,7 @@ namespace Shift {
         }
 
         m_transferContext.Destroy();
+        m_computeContext.Destroy();
 
         m_local.descLayoutCache.Destroy();
         m_local.descAllocator.Destroy();

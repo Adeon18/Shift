@@ -21,19 +21,27 @@ namespace Shift::VK {
 
     bool Device::CreateLogicalDevice(const VkPhysicalDeviceFeatures& deviceFeatures, VkSurfaceKHR surface) {
         m_queueFamilyIndices = Util::FindQueueFamilies(m_physicalDevice, surface);
+        CheckExit(m_queueFamilyIndices.isComplete());
 
         // You don't really need more than 1 queue for each queue family
         // That is because you can create all the command buffers on multiple threads and submit them at once to the main thread
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-        std::set<uint32_t> uniqueQueueFamilies = {
-                m_queueFamilyIndices.graphicsFamily.value(),
-                m_queueFamilyIndices.presentFamily.value(),
-                m_queueFamilyIndices.transferFamily.value()
-        };
+        std::set<uint32_t> uniqueQueueFamilies;
 
-        Log(Trace, "Graphics family: " + std::to_string(*m_queueFamilyIndices.graphicsFamily));
-        Log(Trace, "Transfer family: " + std::to_string(*m_queueFamilyIndices.transferFamily));
-        Log(Trace, "Present family: " + std::to_string(*m_queueFamilyIndices.presentFamily));
+        // Always include graphics family
+        uniqueQueueFamilies.insert(m_queueFamilyIndices.graphicsFamily.value());
+
+        // Only include present if different
+        if (m_queueFamilyIndices.presentFamily.value() != m_queueFamilyIndices.graphicsFamily.value())
+            uniqueQueueFamilies.insert(m_queueFamilyIndices.presentFamily.value());
+
+        // Only include compute if different
+        if (m_queueFamilyIndices.computeFamily.value() != m_queueFamilyIndices.graphicsFamily.value())
+            uniqueQueueFamilies.insert(m_queueFamilyIndices.computeFamily.value());
+
+        // Only include transfer if different
+        if (m_queueFamilyIndices.transferFamily.value() != m_queueFamilyIndices.graphicsFamily.value())
+            uniqueQueueFamilies.insert(m_queueFamilyIndices.transferFamily.value());
 
         for (uint32_t queueFamily : uniqueQueueFamilies) {
             VkDeviceQueueCreateInfo queueCreateInfo{};
@@ -83,7 +91,9 @@ namespace Shift::VK {
         // Pull the queue handles
         vkGetDeviceQueue(m_device, m_queueFamilyIndices.graphicsFamily.value(), 0, &m_graphicsQueue);
         vkGetDeviceQueue(m_device, m_queueFamilyIndices.presentFamily.value(), 0, &m_presentQueue);
+        vkGetDeviceQueue(m_device, m_queueFamilyIndices.computeFamily.value(), 0, &m_computeQueue);
         vkGetDeviceQueue(m_device, m_queueFamilyIndices.transferFamily.value(), 0, &m_transferQueue);
+
 
         return true;
     }

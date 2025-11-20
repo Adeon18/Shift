@@ -50,21 +50,25 @@ namespace Shift::VK {
         // This parameter is used for render on screen, if you want ofscreen rendering for postprocess => VK_IMAGE_USAGE_TRANSFER_DST_BIT
         createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-        Util::QueueFamilyIndices indices = Util::FindQueueFamilies(m_device->GetPhysicalDevice(), m_windowSurface->Get());
-        std::array< uint32_t, 3 > queueFamilyIndices = { indices.graphicsFamily.value(), indices.presentFamily.value(), indices.transferFamily.value() };
+        //! ONly 2 queues are needed max
+        Util::QueueFamilyIndices indices = m_device->GetQueueFamilyIndices();
+        uint32_t queueFamilyIndices[2];
+        uint32_t uniqueFamilyCount = 0;
 
-        //! INFO: Basically we have queue families that may be different but work on the same image.
-        //! This means that they need to share the resource, the simpler way is to have the access to the resource be concurrent.
-        //! But you can make it exclusive, WHICH IS FASTER and explicitly transfer ownership from one family to another.
-        if (indices.graphicsFamily != indices.presentFamily) {
-            createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-            createInfo.queueFamilyIndexCount = static_cast<uint32_t>(queueFamilyIndices.size());
-            createInfo.pQueueFamilyIndices = queueFamilyIndices.data();
+        queueFamilyIndices[uniqueFamilyCount++] = indices.graphicsFamily.value();
+
+        if (indices.presentFamily.value() != indices.graphicsFamily.value()) {
+            queueFamilyIndices[uniqueFamilyCount++] = indices.presentFamily.value();
         }
-        else {
+
+        if (uniqueFamilyCount > 1) {
+            createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+            createInfo.queueFamilyIndexCount = uniqueFamilyCount;
+            createInfo.pQueueFamilyIndices = queueFamilyIndices;
+        } else {
             createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-            createInfo.queueFamilyIndexCount = 0; // Optional
-            createInfo.pQueueFamilyIndices = nullptr; // Optional
+            createInfo.queueFamilyIndexCount = 0;
+            createInfo.pQueueFamilyIndices = nullptr;
         }
         // We use default transform(do nothing with image)
         createInfo.preTransform = m_swapChainSupportDetails.capabilities.currentTransform;

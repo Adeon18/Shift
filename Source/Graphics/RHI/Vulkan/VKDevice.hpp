@@ -149,6 +149,7 @@ namespace Shift::VK {
         [[nodiscard]] VkQueue GetGraphicsQueue() const { return m_graphicsQueue; }
         [[nodiscard]] VkQueue GetPresentQueue() const { return m_presentQueue; }
         [[nodiscard]] VkQueue GetTransferQueue() const { return m_transferQueue; }
+        [[nodiscard]] VkQueue GetComputeQueue() const { return m_computeQueue; }
         [[nodiscard]] const Util::QueueFamilyIndices& GetQueueFamilyIndices() const { return m_queueFamilyIndices; }
 
         void Destroy();
@@ -179,6 +180,7 @@ namespace Shift::VK {
         VkQueue m_graphicsQueue = VK_NULL_HANDLE;
         VkQueue m_presentQueue = VK_NULL_HANDLE;
         VkQueue m_transferQueue = VK_NULL_HANDLE;
+        VkQueue m_computeQueue = VK_NULL_HANDLE;
 
         Util::QueueFamilyIndices m_queueFamilyIndices;
     };
