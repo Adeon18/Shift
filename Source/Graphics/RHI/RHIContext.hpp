@@ -8,6 +8,7 @@
 #include <concepts>
 #include <array>
 
+#include "Common/Capabilities.hpp"
 #include "Common/Types.hpp"
 #include "Common/Texture.hpp"
 #include "Common/Buffer.hpp"
@@ -25,11 +26,19 @@ namespace Shift {
     namespace RHI {
         struct Vulkan {
             static constexpr const char* Name = "Vulkan";
-            // static constexpr bool SupportsBindless = true;
+            static constexpr RHIRequiredFeatures requiredFeatures{
+                .VK_timelineSemaphore = true,
+                .VK_dynamicRendering = true,
+
+                .VK_enableValidationLayers = true,
+                .VK_requireSwapchain = true,
+                .VK_hostQueryReset = true
+            };
         };
 
         struct DX12 {
             static constexpr const char* Name = "DX12";
+            static constexpr RHIRequiredFeatures requiredFeatures{};
         };
     } // RHI
 
@@ -343,8 +352,8 @@ namespace Shift {
             );
         }
 
-        VkRenderingInfoKHR renderInfo{};
-        renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
+        VkRenderingInfo renderInfo{};
+        renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
         if (desc.enableSecondaryCommandBuffers) { renderInfo.flags |= VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT; };
         renderInfo.renderArea = {.offset = VK::Util::ShiftToVKOffset2D(desc.offset), .extent = VK::Util::ShiftToVKExtent2D(desc.extent)};
         renderInfo.layerCount = 1;

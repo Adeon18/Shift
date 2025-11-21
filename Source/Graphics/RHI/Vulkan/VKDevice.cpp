@@ -1,5 +1,7 @@
 #include "Config/EngineConfig.hpp"
 
+#include "../Common/Capabilities.hpp"
+
 #include "VKDevice.hpp"
 
 #include "VKMacros.hpp"
@@ -7,9 +9,12 @@
 #include "Utility/Assertions.hpp"
 
 namespace Shift::VK {
-    bool Device::Init(const Instance &inst, VkSurfaceKHR surface, const VkPhysicalDeviceFeatures& deviceFeatures) {
-        CheckCritical(PickPhysicalDevice(inst.Get(), surface), "Failed to pick the physical device!");
-        CheckCritical(CreateLogicalDevice(deviceFeatures, surface), "Failed to create logical device!");
+
+    bool Device::Init(const Instance &inst, VkSurfaceKHR surface, const RHIRequiredFeatures& deviceFeatures) {
+        m_required = deviceFeatures;
+        CheckCritical(PickPhysicalDevice(inst.Get(), surface, m_required), "Failed to pick the physical device!");
+        CheckCritical(FillCapabilitiesAndBuildFeatureChain(m_required, surface), "Failed to satisfly required device features!");
+        CheckCritical(CreateLogicalDevice(surface), "Failed to create logical device!");
         CheckCritical(CreateAllocator(inst.Get()), "Failed to create the allocator!");
         return true;
     }
@@ -19,86 +24,235 @@ namespace Shift::VK {
         vkDestroyDevice(m_device, nullptr);
     }
 
-    bool Device::CreateLogicalDevice(const VkPhysicalDeviceFeatures& deviceFeatures, VkSurfaceKHR surface) {
+    bool Device::FillCapabilitiesAndBuildFeatureChain(const RHIRequiredFeatures &required, VkSurfaceKHR surface) {
+        // copy requested flags
+        auto &req = required;
+        auto &f = m_caps.features;
+
+        f.robustBufferAccess.requested   = req.robustBufferAccess;
+        f.fullDrawIndexUint32.requested  = req.fullDrawIndexUint32;
+        f.imageCubeArray.requested       = req.imageCubeArray;
+        f.independentBlend.requested     = req.independentBlend;
+        f.geometryShader.requested       = req.geometryShader;
+        f.tessellationShader.requested   = req.tessellationShader;
+        f.multiDrawIndirect.requested    = req.multiDrawIndirect;
+        f.drawIndirectCount.requested    = req.drawIndirectCount;
+        f.samplerAnisotropy.requested    = req.samplerAnisotropy;
+        f.depthClamp.requested           = req.depthClamp;
+        f.fillModeNonSolid.requested     = req.fillModeNonSolid;
+        f.pipelineStatisticsQuery.requested = req.pipelineStatisticsQuery;
+        f.textureCompressionBC.requested = req.textureCompressionBC;
+        f.textureCompressionASTC.requested = req.textureCompressionASTC;
+        f.textureCompressionETC2.requested = req.textureCompressionETC2;
+        f.dualSrcBlend.requested         = req.dualSrcBlend;
+        f.VK_timelineSemaphores.requested   = req.VK_timelineSemaphore;
+        f.VK_descriptorIndexing.requested   = req.VK_descriptorIndexing;
+        f.VK_dynamicRendering.requested     = req.VK_dynamicRendering;
+        f.VK_hostQueryReset.requested       = req.VK_hostQueryReset;
+
+        std::memset(&m_enabledFeatures, 0, sizeof(m_enabledFeatures));
+
+        m_enabledFeatures.features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        m_enabledFeatures.vk11.sType      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+        m_enabledFeatures.vk12.sType      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+        m_enabledFeatures.vk13.sType      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+
+        m_enabledFeatures.features2.pNext = &m_enabledFeatures.vk11;
+        m_enabledFeatures.vk11.pNext = &m_enabledFeatures.vk12;
+        m_enabledFeatures.vk12.pNext = &m_enabledFeatures.vk13;
+        m_enabledFeatures.vk13.pNext = nullptr;
+
+        // query features into persistent memory
+        vkGetPhysicalDeviceFeatures2(m_physicalDevice, &m_enabledFeatures.features2);
+
+        // queue availability
+        auto qIndices = Util::FindQueueFamilies(m_physicalDevice, VK_NULL_HANDLE);
+        bool hasComputeQueue = qIndices.computeFamily.has_value();
+
+        // Fill supported fields
+        f.robustBufferAccess.supported   = m_enabledFeatures.features2.features.robustBufferAccess ? true : false;
+        f.fullDrawIndexUint32.supported  = m_enabledFeatures.features2.features.fullDrawIndexUint32 ? true : false;
+        f.imageCubeArray.supported       = m_enabledFeatures.features2.features.imageCubeArray ? true : false;
+        f.independentBlend.supported     = m_enabledFeatures.features2.features.independentBlend ? true : false;
+        f.geometryShader.supported       = m_enabledFeatures.features2.features.geometryShader ? true : false;
+        f.tessellationShader.supported   = m_enabledFeatures.features2.features.tessellationShader ? true : false;
+        f.multiDrawIndirect.supported    = m_enabledFeatures.features2.features.multiDrawIndirect ? true : false;
+        f.samplerAnisotropy.supported    = m_enabledFeatures.features2.features.samplerAnisotropy ? true : false;
+        f.depthClamp.supported           = m_enabledFeatures.features2.features.depthClamp ? true : false;
+        f.fillModeNonSolid.supported     = m_enabledFeatures.features2.features.fillModeNonSolid ? true : false;
+        f.pipelineStatisticsQuery.supported = m_enabledFeatures.features2.features.pipelineStatisticsQuery ? true : false;
+        f.textureCompressionBC.supported = m_enabledFeatures.features2.features.textureCompressionBC ? true : false;
+        f.textureCompressionASTC.supported = m_enabledFeatures.features2.features.textureCompressionASTC_LDR ? true : false;
+        f.textureCompressionETC2.supported = m_enabledFeatures.features2.features.textureCompressionETC2 ? true : false;
+        f.computeShader.supported        = hasComputeQueue;
+        f.dualSrcBlend.supported         = m_enabledFeatures.features2.features.dualSrcBlend ? true : false;
+
+        // 1.2 / 1.3 promoted features
+        f.VK_timelineSemaphores.supported   = m_enabledFeatures.vk12.timelineSemaphore ? true : false;
+        f.VK_descriptorIndexing.supported   = m_enabledFeatures.vk12.descriptorIndexing ? true : false;
+        f.VK_hostQueryReset.supported       = m_enabledFeatures.vk12.hostQueryReset ? true : false;
+        f.VK_dynamicRendering.supported     = m_enabledFeatures.vk13.dynamicRendering ? true : false;
+
+        // Fill vkExtensions convenience flags
+        m_caps.vkExtensions.timelineSemaphore = f.VK_timelineSemaphores.supported;
+        m_caps.vkExtensions.descriptorIndexing = f.VK_descriptorIndexing.supported;
+        m_caps.vkExtensions.dynamicRendering = f.VK_dynamicRendering.supported;
+        m_caps.vkExtensions.hostQueryReset = f.VK_hostQueryReset.supported;
+        m_caps.vkExtensions.samplerAnisotropy = f.samplerAnisotropy.supported;
+        m_caps.vkExtensions.multiDrawIndirect = f.multiDrawIndirect.supported;
+        m_caps.vkExtensions.drawIndirectCount = f.drawIndirectCount.supported;
+
+        // Fill limits & version
+        VkPhysicalDeviceProperties props{};
+        vkGetPhysicalDeviceProperties(m_physicalDevice, &props);
+        m_caps.limits.maxTextureDimension1D = props.limits.maxImageDimension1D;
+        m_caps.limits.maxTextureDimension2D = props.limits.maxImageDimension2D;
+        m_caps.limits.maxTextureDimension3D = props.limits.maxImageDimension3D;
+        m_caps.limits.maxTextureArrayLayers = props.limits.maxImageArrayLayers;
+        m_caps.limits.maxVertexAttributes = props.limits.maxVertexInputAttributes;
+        m_caps.limits.maxColorAttachments = props.limits.maxColorAttachments;
+        m_caps.limits.maxComputeWorkGroupCount[0] = props.limits.maxComputeWorkGroupCount[0];
+        m_caps.limits.maxComputeWorkGroupCount[1] = props.limits.maxComputeWorkGroupCount[1];
+        m_caps.limits.maxComputeWorkGroupCount[2] = props.limits.maxComputeWorkGroupCount[2];
+        m_caps.limits.maxComputeWorkGroupSize[0] = props.limits.maxComputeWorkGroupSize[0];
+        m_caps.limits.maxComputeWorkGroupSize[1] = props.limits.maxComputeWorkGroupSize[1];
+        m_caps.limits.maxComputeWorkGroupSize[2] = props.limits.maxComputeWorkGroupSize[2];
+        m_caps.limits.maxComputeSharedMemorySize = props.limits.maxComputeSharedMemorySize;
+
+        m_caps.version.apiVersionMajor = VK_VERSION_MAJOR(props.apiVersion);
+        m_caps.version.apiVersionMinor = VK_VERSION_MINOR(props.apiVersion);
+        m_caps.version.driverVersion = props.driverVersion;
+        m_caps.version.deviceName = !std::string{props.deviceName}.empty() ? props.deviceName : std::string("Unknown");
+
+        //! Hard-fail if requested & unsupported
+        auto require_or_fail = [&](const char* name, const RHICommonFeature& feat)->bool {
+            if (feat.requested && !feat.supported) {
+                LogVerbose(Critical, std::string("Requested feature not supported by physical device: ") + name);
+                return false;
+            }
+            return true;
+        };
+
+        if (!require_or_fail("geometryShader", f.geometryShader)) return false;
+        if (!require_or_fail("tessellationShader", f.tessellationShader)) return false;
+        if (!require_or_fail("samplerAnisotropy", f.samplerAnisotropy)) return false;
+        if (!require_or_fail("computeShader", f.computeShader)) return false;
+        if (!require_or_fail("timelineSemaphores", f.VK_timelineSemaphores)) return false;
+        if (!require_or_fail("descriptorIndexing", f.VK_descriptorIndexing)) return false;
+        if (!require_or_fail("dynamicRendering", f.VK_dynamicRendering)) return false;
+        if (!require_or_fail("hostQueryReset", f.VK_hostQueryReset)) return false;
+
+        // Build enabled feature structs for vkCreateDevice (enable only requested ones)
+        if (f.robustBufferAccess.requested) m_enabledFeatures.core.robustBufferAccess = VK_TRUE;
+        if (f.fullDrawIndexUint32.requested) m_enabledFeatures.core.fullDrawIndexUint32 = VK_TRUE;
+        if (f.imageCubeArray.requested) m_enabledFeatures.core.imageCubeArray = VK_TRUE;
+        if (f.independentBlend.requested) m_enabledFeatures.core.independentBlend = VK_TRUE;
+        if (f.geometryShader.requested) m_enabledFeatures.core.geometryShader = VK_TRUE;
+        if (f.tessellationShader.requested) m_enabledFeatures.core.tessellationShader = VK_TRUE;
+        if (f.multiDrawIndirect.requested) m_enabledFeatures.core.multiDrawIndirect = VK_TRUE;
+        if (f.samplerAnisotropy.requested) m_enabledFeatures.core.samplerAnisotropy = VK_TRUE;
+        if (f.depthClamp.requested) m_enabledFeatures.core.depthClamp = VK_TRUE;
+        if (f.fillModeNonSolid.requested) m_enabledFeatures.core.fillModeNonSolid = VK_TRUE;
+        if (f.pipelineStatisticsQuery.requested) m_enabledFeatures.core.pipelineStatisticsQuery = VK_TRUE;
+        if (f.textureCompressionBC.requested) m_enabledFeatures.core.textureCompressionBC = VK_TRUE;
+        if (f.textureCompressionASTC.requested) m_enabledFeatures.core.textureCompressionASTC_LDR = VK_TRUE;
+        if (f.textureCompressionETC2.requested) m_enabledFeatures.core.textureCompressionETC2 = VK_TRUE;
+        if (f.dualSrcBlend.requested) m_enabledFeatures.core.dualSrcBlend = VK_TRUE;
+
+        // set requested -> enable in vk12/vk13
+        m_enabledFeatures.vk12.timelineSemaphore  = f.VK_timelineSemaphores.requested ? VK_TRUE : VK_FALSE;
+        m_enabledFeatures.vk12.descriptorIndexing = f.VK_descriptorIndexing.requested ? VK_TRUE : VK_FALSE;
+        m_enabledFeatures.vk12.hostQueryReset     = f.VK_hostQueryReset.requested ? VK_TRUE : VK_FALSE;
+        m_enabledFeatures.vk13.dynamicRendering   = f.VK_dynamicRendering.requested ? VK_TRUE : VK_FALSE;
+
+        // features2 chain
+        m_enabledFeatures.features2.pNext = &m_enabledFeatures.vk11;
+        m_enabledFeatures.vk11.pNext = &m_enabledFeatures.vk12;
+        m_enabledFeatures.vk12.pNext = &m_enabledFeatures.vk13;
+        m_enabledFeatures.vk13.pNext = nullptr;
+        m_enabledFeatures.features2.features = m_enabledFeatures.core;
+
+        return true;
+    }
+
+
+    bool Device::CreateLogicalDevice(VkSurfaceKHR surface) {
         m_queueFamilyIndices = Util::FindQueueFamilies(m_physicalDevice, surface);
         CheckExit(m_queueFamilyIndices.isComplete());
 
-        // You don't really need more than 1 queue for each queue family
-        // That is because you can create all the command buffers on multiple threads and submit them at once to the main thread
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
         std::set<uint32_t> uniqueQueueFamilies;
-
-        // Always include graphics family
         uniqueQueueFamilies.insert(m_queueFamilyIndices.graphicsFamily.value());
-
-        // Only include present if different
         if (m_queueFamilyIndices.presentFamily.value() != m_queueFamilyIndices.graphicsFamily.value())
             uniqueQueueFamilies.insert(m_queueFamilyIndices.presentFamily.value());
-
-        // Only include compute if different
         if (m_queueFamilyIndices.computeFamily.value() != m_queueFamilyIndices.graphicsFamily.value())
             uniqueQueueFamilies.insert(m_queueFamilyIndices.computeFamily.value());
-
-        // Only include transfer if different
         if (m_queueFamilyIndices.transferFamily.value() != m_queueFamilyIndices.graphicsFamily.value())
             uniqueQueueFamilies.insert(m_queueFamilyIndices.transferFamily.value());
 
         for (uint32_t queueFamily : uniqueQueueFamilies) {
-            VkDeviceQueueCreateInfo queueCreateInfo{};
-            queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            queueCreateInfo.queueFamilyIndex = queueFamily;
-            queueCreateInfo.queueCount = 1;
-            // You must specify the priority to the queue in vulkan
-            queueCreateInfo.pQueuePriorities = &Util::DEFAULT_QUEUE_PRIORITY;
-            queueCreateInfos.push_back(queueCreateInfo);
+            VkDeviceQueueCreateInfo q{};
+            q.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            q.queueFamilyIndex = queueFamily;
+            q.queueCount = 1;
+            q.pQueuePriorities = &Util::DEFAULT_QUEUE_PRIORITY;
+            queueCreateInfos.push_back(q);
         }
 
-        // We will use the default features
-        // TODO [FEATURE]: make this congigurable through constructor
+        // Resolve device extensions (minimal for 1.3 baseline)
+        auto deviceExtensions = Util::ResolveDeviceExtensions(m_required);
 
-        VkPhysicalDeviceFeatures physDeviceFeatures{ deviceFeatures };
-
-        VkPhysicalDeviceTimelineSemaphoreFeatures timelineFeatures{};
-        timelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES;
-        timelineFeatures.pNext = nullptr;
-        timelineFeatures.timelineSemaphore = VK_TRUE;
-
-        const VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature {
-                .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
-                .pNext = &timelineFeatures,
-                .dynamicRendering = VK_TRUE
-        };
+        // Validate extensions are present on device
+        if (!Util::CheckDeviceExtensionSupport(m_physicalDevice, deviceExtensions)) {
+            LogVerbose(Critical, "Required device extension missing on chosen physical device.");
+            return false;
+        }
 
         VkDeviceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-        createInfo.pNext = &dynamicRenderingFeature;
+        createInfo.pNext = &m_enabledFeatures.features2;
         createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
         createInfo.pQueueCreateInfos = queueCreateInfos.data();
-        createInfo.pEnabledFeatures = &physDeviceFeatures;
-        createInfo.enabledExtensionCount = static_cast<uint32_t>(Util::DEVICE_EXTENSIONS.size());
-        createInfo.ppEnabledExtensionNames = Util::DEVICE_EXTENSIONS.data();
-#if SHIFT_VALIDATION
+        createInfo.pEnabledFeatures = nullptr; // using features2 chain
+        createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+        createInfo.ppEnabledExtensionNames = deviceExtensions.empty() ? nullptr : deviceExtensions.data();
+
+    #if SHIFT_VALIDATION
+        if (m_required.VK_enableValidationLayers) {
             createInfo.enabledLayerCount = static_cast<uint32_t>(Util::VALIDATION_LAYERS.size());
             createInfo.ppEnabledLayerNames = Util::VALIDATION_LAYERS.data();
-#else
+        } else {
             createInfo.enabledLayerCount = 0;
-#endif
+            createInfo.ppEnabledLayerNames = nullptr;
+        }
+    #else
+        createInfo.enabledLayerCount = 0;
+        createInfo.ppEnabledLayerNames = nullptr;
+    #endif
+
         if (VkCheck(vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device))) {
             LogVerbose(Critical, "Failed to create logical device!");
             return false;
         }
 
-        // Pull the queue handles
+        // Pull queues
         vkGetDeviceQueue(m_device, m_queueFamilyIndices.graphicsFamily.value(), 0, &m_graphicsQueue);
         vkGetDeviceQueue(m_device, m_queueFamilyIndices.presentFamily.value(), 0, &m_presentQueue);
         vkGetDeviceQueue(m_device, m_queueFamilyIndices.computeFamily.value(), 0, &m_computeQueue);
         vkGetDeviceQueue(m_device, m_queueFamilyIndices.transferFamily.value(), 0, &m_transferQueue);
 
+        Log(
+            Info,
+            " Device: {}. Vulkan {}. Driver version {}.",
+            m_caps.version.deviceName,
+            std::to_string(m_caps.version.apiVersionMajor) + std::string(".") + std::to_string(m_caps.version.apiVersionMinor),
+            std::to_string(VK_VERSION_MAJOR(m_caps.version.driverVersion)) + std::string(".") + std::to_string(VK_VERSION_MINOR(m_caps.version.driverVersion))
+        );
 
         return true;
     }
 
-    bool Device::PickPhysicalDevice(VkInstance instance, VkSurfaceKHR surface) {
+    bool Device::PickPhysicalDevice(VkInstance instance, VkSurfaceKHR surface, const RHIRequiredFeatures& required) {
         uint32_t deviceCount = 0;
         vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
         if (deviceCount == 0) {
@@ -106,37 +260,40 @@ namespace Shift::VK {
             return false;
         }
 
-        std::vector<VkPhysicalDevice> physicalDevices(deviceCount);
-        vkEnumeratePhysicalDevices(instance, &deviceCount, physicalDevices.data());
+        std::vector<VkPhysicalDevice> devices(deviceCount);
+        vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
-        Util::PrintAvailablePhysicalDevices(physicalDevices);
+        Util::PrintAvailablePhysicalDevices(devices);
 
-        // Use an ordered map to automatically sort candidates by increasing score
         std::multimap<int, VkPhysicalDevice> candidates;
-
-        for (const auto& device : physicalDevices) {
-            int score = Util::RateDeviceSuitability(device, surface);
-            candidates.insert(std::make_pair(score, device));
+        for (const auto& d : devices) {
+            int score = Util::RateDeviceSuitability(d, surface, required);
+            candidates.insert(std::make_pair(score, d));
         }
 
-        // Check if the best candidate is suitable at all
         if (candidates.rbegin()->first > 0) {
             m_physicalDevice = candidates.rbegin()->second;
             Util::PrintDeviceName(m_physicalDevice, "Chosen device: ");
-        }
-        else {
+
+            VkPhysicalDeviceProperties props{};
+            vkGetPhysicalDeviceProperties(m_physicalDevice, &props);
+            m_caps.version.apiVersionMajor = VK_VERSION_MAJOR(props.apiVersion);
+            m_caps.version.apiVersionMinor = VK_VERSION_MINOR(props.apiVersion);
+            m_caps.version.driverVersion = props.driverVersion;
+            m_caps.version.deviceName = std::string(props.deviceName).empty() ? props.deviceName : std::string("Unknown");
+        } else {
             LogVerbose(Critical, "Failed to find a suitable GPU!");
             return false;
         }
 
-        vkGetPhysicalDeviceProperties(m_physicalDevice, &m_deviceProperties);
-
-        if (m_deviceProperties.limits.timestampPeriod == 0) {
-            LogVerbose(Critical, "GPU does not support timestemp queries!");
+        // basic timestamp checks (kept from your code)
+        VkPhysicalDeviceProperties deviceProps{};
+        vkGetPhysicalDeviceProperties(m_physicalDevice, &deviceProps);
+        if (deviceProps.limits.timestampPeriod == 0) {
+            LogVerbose(Critical, "GPU does not support timestamp queries!");
             return false;
         }
-
-        if (!m_deviceProperties.limits.timestampComputeAndGraphics) {
+        if (!deviceProps.limits.timestampComputeAndGraphics) {
             LogVerbose(Critical, "GPU does not support timestamp queries for all queue families!");
             return false;
         }

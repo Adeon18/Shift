@@ -11,6 +11,8 @@
 
 #include "VKMacros.hpp"
 
+#include "../Common/Capabilities.hpp"
+
 namespace Shift::VK {
     class Instance {
     public:
@@ -24,32 +26,20 @@ namespace Shift::VK {
         //! \param engName The name of the Engine (Always Shift)
         //! \param engVersion The engine version
         //! \return True if initialization successful, false otherwise
-        bool Init(const std::string& appName, uint32_t appVersion, const std::string& engName, uint32_t engVersion);
+        bool Init(const std::string& appName, uint32_t appVersion, const std::string& engName, uint32_t engVersion, const RHIRequiredFeatures& required);
 
         //! Returns a Vk Instance handle
         //! \return VkInstance
         [[nodiscard]] VkInstance Get() const { return m_instance; }
-
-        //! Call the ext function BeginRendering
-        //! \param buff The command buffer
-        //! \param info BeginRendering info struct
-        void CallBeginRenderingExternal(VkCommandBuffer buff, VkRenderingInfoKHR info) const { vkCmdBeginRenderingKHR(buff, &info); }
-        //! Call the ext function EndRendering
-        //! \param buff the command buffer
-        void CallEndRenderingExternal(VkCommandBuffer buff) const { vkCmdEndRenderingKHR(buff); }
 
         //! Free the instance, should be done last
         void Destroy();
         ~Instance() = default;
     private:
         bool SetupDebugMessenger();
-        bool PollDynamicRenderingFunctions();
 
         VkInstance m_instance = VK_NULL_HANDLE;
         VkDebugUtilsMessengerEXT m_debugMessenger = VK_NULL_HANDLE;
-
-        PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR = VK_NULL_HANDLE;
-        PFN_vkCmdEndRenderingKHR   vkCmdEndRenderingKHR = VK_NULL_HANDLE;
     };
 } // Shift::VK
 

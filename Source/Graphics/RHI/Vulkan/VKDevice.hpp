@@ -23,7 +23,7 @@ namespace Shift::VK {
         //! \param surface Window surface
         //! \param deviceFeaturesThe physical device features that we want to have supported
         //! \return false if init failed, else true
-        bool Init(const Instance &inst, VkSurfaceKHR surface, const VkPhysicalDeviceFeatures& deviceFeatures = { .samplerAnisotropy = VK_TRUE });
+        bool Init(const Instance &inst, VkSurfaceKHR surface, const RHIRequiredFeatures& required);
 
         //! Get the supported depth format
         //! \return Supported format
@@ -159,13 +159,15 @@ namespace Shift::VK {
         //! \param deviceFeatures Features of a device
         //! \param surface Window surface
         //! \return false at failure
-        bool CreateLogicalDevice(const VkPhysicalDeviceFeatures& deviceFeatures, VkSurfaceKHR surface);
+        bool CreateLogicalDevice(VkSurfaceKHR surface);
 
         //! Pick the physical GPU we will run our app on
         //! \param instance VkInstance
         //! \param surface VkSurfaceKHR
         //! \return false if failed to pick a GPU with needed requirements
-        bool PickPhysicalDevice(VkInstance instance, VkSurfaceKHR surface);
+        bool PickPhysicalDevice(VkInstance instance, VkSurfaceKHR surface, const RHIRequiredFeatures& required);
+
+        bool FillCapabilitiesAndBuildFeatureChain(const RHIRequiredFeatures& required, VkSurfaceKHR surface);
 
         //! Create a VMA Allocator
         //! \param instance VkInstance
@@ -183,6 +185,17 @@ namespace Shift::VK {
         VkQueue m_computeQueue = VK_NULL_HANDLE;
 
         Util::QueueFamilyIndices m_queueFamilyIndices;
+        RHICapabilities m_caps{};
+        RHIRequiredFeatures m_required{};
+
+        //! feature chain container to be used as pNext in vkCreateDevice
+        struct VulkanEnabledFeatures {
+            VkPhysicalDeviceFeatures core{}; // enabled core features
+            VkPhysicalDeviceVulkan11Features vk11{};
+            VkPhysicalDeviceVulkan12Features vk12{};
+            VkPhysicalDeviceVulkan13Features vk13{};
+            VkPhysicalDeviceFeatures2 features2{};
+        } m_enabledFeatures{};
     };
 } // Shift::VK
 

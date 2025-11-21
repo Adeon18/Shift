@@ -8,7 +8,7 @@
 
 namespace Shift {
     bool ShiftEngine::Init(uint32_t width, uint32_t height) {
-        spdlog::set_level(spdlog::level::debug);
+        spdlog::set_level(spdlog::level::trace);
 
         m_window = std::make_unique<Shift::ShiftWindow>(width, height, "Shift");
 

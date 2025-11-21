@@ -412,12 +412,12 @@ namespace Shift::VK {
         vkCmdBindPipeline(m_buffer, VkPipelineBindPoint::VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.VK_Get());
     }
 
-    void CommandBuffer::VK_BeginRenderPass(VkRenderingInfoKHR info) const {
-        m_ins->CallBeginRenderingExternal(m_buffer, info);
+    void CommandBuffer::VK_BeginRenderPass(const VkRenderingInfo& info) const {
+        vkCmdBeginRendering(m_buffer, &info);
     }
 
     void CommandBuffer::VK_EndRenderPass() const {
-        m_ins->CallEndRenderingExternal(m_buffer);
+        vkCmdEndRendering(m_buffer);
     }
 
     void CommandBuffer::SetViewport(Viewport viewport) const {

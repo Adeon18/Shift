@@ -131,10 +131,10 @@ namespace Shift {
 #endif
 
 #ifdef SHIFT_VULKAN_BACKEND
-        CheckCritical(m_local.instance.Init(appName, uAppVersion, engineName, uEngVersion), "Failed to create VK instance!");
+        CheckCritical(m_local.instance.Init(appName, uAppVersion, engineName, uEngVersion, API::requiredFeatures), "Failed to create VK instance!");
         CheckCritical(m_local.surface.Init(m_local.instance.Get(), window), "Failed to create VK surface!");
         //! TODO: Features (features could be pulled from API template arg, for now they are just default
-        CheckCritical(m_local.device.Init(m_local.instance, m_local.surface.Get()), "Failed to create VK device!");
+        CheckCritical(m_local.device.Init(m_local.instance, m_local.surface.Get(), API::requiredFeatures), "Failed to create VK device!");
         m_local.descLayoutCache.Init(&m_local.device);
         CheckCritical(m_local.descAllocator.Init(&m_local.device), "Failed to create VK descriptor allocator!");
         CheckCritical(m_local.swapchain.Init(&m_local.device, &m_local.surface, width, height), "Failed to create VK swapchain!");

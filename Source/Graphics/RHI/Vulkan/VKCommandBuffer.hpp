@@ -60,7 +60,7 @@ namespace Shift::VK {
 
         //! Dynamic rendering extennsion integration, begin the RenderPass (not VkRenderPass but the adequate one)
         //! \param info VK Dynamic rendering info structure (should be ressolved at runtime from the RenderPass struct)
-        void VK_BeginRenderPass(VkRenderingInfoKHR info) const;
+        void VK_BeginRenderPass(const VkRenderingInfo& info) const;
 
         //! Dynamic rendering extension integration, end the RenderPass (not VkRenderPass but the adequate one)
         void VK_EndRenderPass() const;
