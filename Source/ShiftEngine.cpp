@@ -6,10 +6,13 @@
 
 #include "spdlog/spdlog.h"
 
+#include "Utility/FileWatcher/FileWatcher.hpp"
+
 namespace Shift {
     bool ShiftEngine::Init(uint32_t width, uint32_t height) {
         spdlog::set_level(spdlog::level::trace);
 
+        Util::FileWatcher::Get().Init();
         m_window = std::make_unique<Shift::ShiftWindow>(width, height, "Shift");
 
         const glm::vec3 pos = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -30,6 +33,8 @@ namespace Shift {
         while (m_window->IsActive()) {
             if (m_timer.HasFrameElapsed()) {
                 m_window->Process();
+
+                Util::FileWatcher::Get().Poll();
 
                 HandleInput();
                 m_controller->CaptureInputAndApply(m_timer.GetDt());
@@ -80,6 +85,10 @@ namespace Shift {
             m_window->SetCaptureCursor(true);
         } else {
             m_window->SetCaptureCursor(false);
+        }
+
+        if (inp::Keyboard::GetInstance().IsJustPressed(GLFW_KEY_R)) {
+            m_renderer->HotReloadShaders();
         }
     }
 } // shift

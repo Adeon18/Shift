@@ -8,6 +8,15 @@
 #include "Utility/Logging/LogMacros.hpp"
 
 //! Check and return false if the statement is false
+
+#define Check(Level, Expr, Msg) \
+    do { \
+        if (!(Expr)) { \
+            Log(Level, "Check Failed: '{}' | {}:{} | {}", #Expr, __FILE__, __LINE__, Msg); \
+            return false; \
+        } \
+    } while (0)
+
 #define CheckCritical(expr, msg) \
     do { \
         if (!(expr)) { \

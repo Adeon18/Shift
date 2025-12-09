@@ -9,6 +9,7 @@
 
 #include "RHIContext.hpp"
 #include "RHIDeferredExecutor.hpp"
+#include "../Managers/ShaderManager.hpp"
 
 namespace Shift {
     template<ValidAPI API>
@@ -22,10 +23,10 @@ namespace Shift {
 
         [[nodiscard]] Buffer CreateBuffer(const BufferDescriptor& desc);
         [[nodiscard]] Texture CreateTexture(const TextureDescriptor& desc);
-        [[nodiscard]] Pipeline CreatePipeline(const PipelineDescriptor& desc, const std::vector<ShaderStageDesc>& shaders);
+        [[nodiscard]] Pipeline* CreatePipeline(const PipelineDescriptor& desc, const std::vector<ShaderStageDesc>& shaders);
         [[nodiscard]] ResourceSet CreateResourceSet(const PipelineLayoutDescriptor& desc);
         [[nodiscard]] Sampler CreateSampler(const SamplerDescriptor& desc);
-        [[nodiscard]] Shader CreateShader(const ShaderDescriptor& desc);
+        [[nodiscard]] Shader* CreateShader(const ShaderDescriptor& desc);
 
         [[nodiscard]] Swapchain& GetSwapchain() { return m_local.swapchain; }
         [[nodiscard]] uint32_t SwapchainAquireImage(bool* wasChanged);
@@ -59,6 +60,8 @@ namespace Shift {
 
         void ProcessDeferredCallbacks();
 
+        void ShaderHotReload();
+
 
     private:
         RHILocal<API> m_local;
@@ -79,6 +82,9 @@ namespace Shift {
         RHIContext<API> m_computeContext;
 
         RHIDeferredExecutor m_deferredExecutor;
+        Graphics::ShaderManager m_shaderManager;
+        //! TODO: [Architecture] This will be replaced with pipeline manager someday
+        std::unordered_set<Pipeline*> m_pipelines;
 
         uint32_t m_currentFrame = 0;
 
@@ -169,6 +175,8 @@ namespace Shift {
         m_timelineGraphics.Init(&m_local.device, 0);
         m_timelineTransfer.Init(&m_local.device, 0);
 
+        m_shaderManager.Init(&m_local.device, Util::GetShiftShaderRootDir());
+
         return true;
     }
 
@@ -176,6 +184,8 @@ namespace Shift {
     void RenderHardwareInterface<API>::Destroy() {
 
         m_deferredExecutor.FlushAllDeferredCallbacks();
+
+        m_shaderManager.Destroy();
 
         m_local.swapchain.Destroy();
 
@@ -235,11 +245,8 @@ namespace Shift {
     }
 
     template<ValidAPI API>
-    Shader RenderHardwareInterface<API>::CreateShader(const ShaderDescriptor &desc) {
-        Shader s;
-        s.Init(&m_local.device, desc);
-
-        return s;
+    Shader* RenderHardwareInterface<API>::CreateShader(const ShaderDescriptor &desc) {
+        return m_shaderManager.GetShader(desc);
     }
 
     template<ValidAPI API>
@@ -344,6 +351,25 @@ namespace Shift {
         m_deferredExecutor.ProcessDeferredCallbacks();
     }
 
+    template<ValidAPI API>
+    void RenderHardwareInterface<API>::ShaderHotReload() {
+        std::unordered_set<Pipeline*> toRebuild = m_shaderManager.HotReload();
+
+        auto payload = GetGraphicsWaitPayload();
+
+        for (Pipeline* pipeline: toRebuild) {
+#ifdef SHIFT_VULKAN_BACKEND
+            auto pipelineHandle = pipeline->VK_Get();
+#endif
+            DeferExecute(payload.semaphore, payload.value, [this, pipelineHandle]() {
+                    m_local.device.DestroyPipeline(pipelineHandle);
+                }
+            );
+
+            pipeline->Rebuild(false);
+        }
+    }
+
 
     //! ------------------------------- Vulkan Specific -------------------------------
 
@@ -353,10 +379,9 @@ namespace Shift {
     }
 
     template<>
-    inline Pipeline RenderHardwareInterface<RHI::Vulkan>::CreatePipeline(const PipelineDescriptor &desc,
+    inline Pipeline* RenderHardwareInterface<RHI::Vulkan>::CreatePipeline(const PipelineDescriptor &desc,
         const std::vector<ShaderStageDesc> &shaders)
     {
-        Pipeline p;
 
         std::vector<VkDescriptorSetLayout> setLayouts;
         setLayouts.reserve(desc.descriptorLayouts.size());
@@ -384,7 +409,14 @@ namespace Shift {
             setLayouts.push_back(m_local.descLayoutCache.CreateDescriptorLayout(layoutInfo));
         }
 
-        p.Init(&m_local.device, desc, shaders, setLayouts);
+        Pipeline* p = new Pipeline{};
+        p->Init(&m_local.device, desc, shaders, setLayouts);
+
+        for (auto& stage: shaders) {
+            m_shaderManager.RegisterPipeline(stage.handle, p);
+        }
+
+        m_pipelines.insert(p);
 
         return p;
     }

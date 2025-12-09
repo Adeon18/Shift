@@ -1,6 +1,8 @@
 #ifndef SHIFT_VKSHADER_HPP
 #define SHIFT_VKSHADER_HPP
 
+#include <span>
+
 #include "VKDevice.hpp"
 #include "Graphics/RHI/Common/Shader.hpp"
 
@@ -19,10 +21,15 @@ namespace Shift::VK {
         //! \param entry Function entrypoint name
         //! \return false if failed to create module
         void Init(const Device* device, const ShaderDescriptor& desc);
+        void Init(const Device* device, std::span<uint8_t> bytecode, const ShaderDescriptor& desc);
+
+        //! Rebuild shader with new bytecode, used for hot-reloading
+        void Rebuild(std::span<uint8_t> bytecode);
 
         [[nodiscard]] bool IsValid() const { return valid; }
 
-        [[nodiscard]] EShaderType GetType() const { return m_type; }
+        [[nodiscard]] EShaderType GetType() const { return m_descriptor.type; }
+        [[nodiscard]] const ShaderDescriptor& GetDesc() const { return m_descriptor; }
 
         void Destroy();
         ~Shader() = default;
@@ -32,11 +39,11 @@ namespace Shift::VK {
         //! \return
         [[nodiscard]] VkPipelineShaderStageCreateInfo VK_GetStageInfo() const { return m_stageInfo; }
 
+        void InitInternal(std::span<uint8_t> bytecode);
+
         const Device* m_device = nullptr;
 
-        const char* m_path = nullptr;
-        const char* m_entry = nullptr;
-        EShaderType m_type = EShaderType::Vertex;
+        ShaderDescriptor m_descriptor;
 
         bool valid = false;
         VkShaderModule m_module = VK_NULL_HANDLE;

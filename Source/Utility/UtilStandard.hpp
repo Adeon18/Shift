@@ -19,6 +19,19 @@ namespace Shift::Util {
         return std::string{SHIFT_ROOT} + "/Shaders/Build/";
     }
 
+    constexpr std::string GetShiftShaderRootDir() {
+        return std::string{SHIFT_ROOT} + "/Shaders/";
+    }
+
+    constexpr std::string GetShiftShaderSrcDir() {
+        return std::string{SHIFT_ROOT} + "/Shaders/Source/";
+    }
+
+    constexpr std::string NormalizePath(std::string path) {
+        std::replace(path.begin(), path.end(), '\\', '/');
+        return path;
+    }
+
     constexpr std::string StrToLower(const std::string& str) {
         std::string transformed;
         transformed.resize(str.size());

@@ -128,6 +128,16 @@ namespace Shift::VK::Util {
         return createInfo;
     }
 
+    VkShaderModuleCreateInfo CreateShaderModuleInfo(const std::span<uint8_t>& code) {
+        VkShaderModuleCreateInfo createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        createInfo.codeSize = code.size();
+        // The pointer to bytecode is a pointer to const uint32_t
+        createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+
+        return createInfo;
+    }
+
     VkPipelineVertexInputStateCreateInfo CreateInputStateInfo(const std::span<VkVertexInputAttributeDescription>& attDesc, const std::span<VkVertexInputBindingDescription>& bindDesc) {
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;

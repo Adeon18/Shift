@@ -41,6 +41,7 @@ FetchContent_MakeAvailable(glfw)
 FetchContent_MakeAvailable(glm)
 FetchContent_MakeAvailable(assimp)
 FetchContent_MakeAvailable(spdlog)
+FetchContent_MakeAvailable(efsw)
 #FetchContent_MakeAvailable(imgui)
 #add_library(imgui
 #        ${imgui_SOURCE_DIR}/imgui.cpp
@@ -92,6 +93,7 @@ if (WIN32)
     ${Vulkan_INCLUDE_DIRS}
     ${GLFW_INCLUDE_DIRS}
     ${assimp_INCLUDE_DIRS}
+    ${efsw_SOURCE_DIR}/include
     )
  
   target_link_directories(${PROJECT_NAME} PUBLIC
@@ -99,13 +101,31 @@ if (WIN32)
   )
  
   target_link_libraries(${PROJECT_NAME}
-          glfw
-          vulkan-1
+      glfw
+      vulkan-1
 #          imgui
-          spdlog::spdlog
-          Threads::Threads
-          assimp
+      spdlog::spdlog
+      Threads::Threads
+      assimp
+      Slang::Slang
+      efsw
   )
+
+  # --- CRITICAL: Copy slang.dll to output folder ---
+  add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      $<TARGET_FILE:Slang::Slang>
+      $<TARGET_FILE_DIR:${PROJECT_NAME}>
+      COMMENT "Copying slang.dll to output directory"
+  )
+
+  add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${slang_binaries_SOURCE_DIR}/bin/slang-compiler.dll"
+          $<TARGET_FILE_DIR:${PROJECT_NAME}>
+          COMMENT "Copying slang-compiler.dll to output directory"
+  )
+
 elseif (UNIX)
     message(STATUS "CREATING BUILD FOR UNIX")
     target_include_directories(${PROJECT_NAME} PUBLIC
@@ -113,49 +133,51 @@ elseif (UNIX)
       ${PROJECT_SOURCE_DIR}/Vendor/local
     )
     target_link_libraries(${PROJECT_NAME}
-            glfw
-            vulkan-1
-            imgui
-            spdlog::spdlog
-            ${Vulkan_LIBRARIES}
+        glfw
+        vulkan-1
+        imgui
+        spdlog::spdlog
+        ${Vulkan_LIBRARIES}
+        Slang::Slang
+        efsw
     )
 endif()
  
  
 ############## Build SHADERS #######################
- 
-# Find all vertex and fragment sources within shaders directory
-# taken from VBlancos vulkan tutorial
-# https://github.com/vblanco20-1/vulkan-guide/blob/all-chapters/CMakeLists.txt
-find_program(GLSL_VALIDATOR glslangValidator HINTS 
-  ${Vulkan_GLSLANG_VALIDATOR_EXECUTABLE} 
-  /usr/bin 
-  /usr/local/bin 
-  ${VULKAN_SDK_PATH}/Bin
-  ${VULKAN_SDK_PATH}/Bin32
-  $ENV{VULKAN_SDK}/Bin/ 
-  $ENV{VULKAN_SDK}/Bin32/
-)
- 
-# get all .vert and .frag files in shaders directory
-file(GLOB_RECURSE GLSL_SOURCE_FILES
-  "${PROJECT_SOURCE_DIR}/Shaders/*.frag"
-  "${PROJECT_SOURCE_DIR}/Shaders/*.vert"
-)
- 
-foreach(GLSL ${GLSL_SOURCE_FILES})
-  get_filename_component(FILE_NAME ${GLSL} NAME)
-  set(SPIRV "${PROJECT_SOURCE_DIR}/Shaders/Build/${FILE_NAME}.spv")
-  add_custom_command(
-    OUTPUT ${SPIRV}
-    COMMAND ${GLSL_VALIDATOR} -V ${GLSL} -o ${SPIRV}
-    DEPENDS ${GLSL})
-  list(APPEND SPIRV_BINARY_FILES ${SPIRV})
-endforeach(GLSL)
- 
-add_custom_target(
-    Shaders
-    DEPENDS ${SPIRV_BINARY_FILES}
-)
-
-add_dependencies(${PROJECT_NAME} Shaders)
+#
+## Find all vertex and fragment sources within shaders directory
+## taken from VBlancos vulkan tutorial
+## https://github.com/vblanco20-1/vulkan-guide/blob/all-chapters/CMakeLists.txt
+#find_program(GLSL_VALIDATOR glslangValidator HINTS
+#  ${Vulkan_GLSLANG_VALIDATOR_EXECUTABLE}
+#  /usr/bin
+#  /usr/local/bin
+#  ${VULKAN_SDK_PATH}/Bin
+#  ${VULKAN_SDK_PATH}/Bin32
+#  $ENV{VULKAN_SDK}/Bin/
+#  $ENV{VULKAN_SDK}/Bin32/
+#)
+#
+## get all .vert and .frag files in shaders directory
+#file(GLOB_RECURSE GLSL_SOURCE_FILES
+#  "${PROJECT_SOURCE_DIR}/Shaders/*.frag"
+#  "${PROJECT_SOURCE_DIR}/Shaders/*.vert"
+#)
+#
+#foreach(GLSL ${GLSL_SOURCE_FILES})
+#  get_filename_component(FILE_NAME ${GLSL} NAME)
+#  set(SPIRV "${PROJECT_SOURCE_DIR}/Shaders/Build/${FILE_NAME}.spv")
+#  add_custom_command(
+#    OUTPUT ${SPIRV}
+#    COMMAND ${GLSL_VALIDATOR} -V ${GLSL} -o ${SPIRV}
+#    DEPENDS ${GLSL})
+#  list(APPEND SPIRV_BINARY_FILES ${SPIRV})
+#endforeach(GLSL)
+#
+#add_custom_target(
+#    Shaders
+#    DEPENDS ${SPIRV_BINARY_FILES}
+#)
+#
+#add_dependencies(${PROJECT_NAME} Shaders)

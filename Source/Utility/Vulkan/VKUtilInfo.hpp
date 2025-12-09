@@ -59,6 +59,7 @@ namespace Shift::VK::Util {
     );
 
     VkShaderModuleCreateInfo CreateShaderModuleInfo(const std::span<char>& code);
+    VkShaderModuleCreateInfo CreateShaderModuleInfo(const std::span<uint8_t>& code);
 
     VkPipelineVertexInputStateCreateInfo CreateInputStateInfo(const std::span<VkVertexInputAttributeDescription>& attDesc, const std::span<VkVertexInputBindingDescription>& bindDesc);
 

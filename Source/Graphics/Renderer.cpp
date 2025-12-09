@@ -17,17 +17,19 @@ namespace Shift::gfx {
         PipelineDescriptor pipelineDescriptor;
         ShaderDescriptor vsDescriptor;
         vsDescriptor.type = EShaderType::Vertex;
-        vsDescriptor.path = Util::GetShiftShaderBuildDir() + "ConstantColor.vert.spv";
+        vsDescriptor.path = Util::GetShiftShaderSrcDir() + "Debug/TriangleVS.slang";
+        vsDescriptor.entry = "mainVS";
         ShaderDescriptor fsDescriptor;
         fsDescriptor.type = EShaderType::Fragment;
-        fsDescriptor.path = Util::GetShiftShaderBuildDir() + "ConstantColor.frag.spv";
+        fsDescriptor.path = Util::GetShiftShaderSrcDir() + "Debug/TrianglePS.slang";
+        fsDescriptor.entry = "mainPS";
 
         vs = m_SRHI.CreateShader(vsDescriptor);
         ps = m_SRHI.CreateShader(fsDescriptor);
 
         std::vector<ShaderStageDesc> stages{
-                {EShaderType::Vertex, &vs},
-                {EShaderType::Fragment, &ps},
+                {EShaderType::Vertex, vs},
+                {EShaderType::Fragment, ps},
             };
 
         pipelineDescriptor.vertexConfig.vertexBindings.emplace_back(
@@ -121,14 +123,14 @@ namespace Shift::gfx {
         SRHIContext* sec1 = m_SRHI.AcquireSecondaryGraphicsContext();
 
         std::vector<ETextureFormat> colorTexturesFormats{};
-        for (auto& c: p.GetDescriptor().colorBlendConfig.attachments) {
+        for (auto& c: p->GetDescriptor().colorBlendConfig.attachments) {
             colorTexturesFormats.push_back(c.format);
         }
 
         SecondaryBufferBeginPayload payload{
             .colorFormats = colorTexturesFormats,
-            .depthFormat = p.GetDescriptor().depthStencilConfig.depthFormat,
-            .stencilFormat = p.GetDescriptor().depthStencilConfig.stencilFormat
+            .depthFormat = p->GetDescriptor().depthStencilConfig.depthFormat,
+            .stencilFormat = p->GetDescriptor().depthStencilConfig.stencilFormat
         };
 
         if (sec0 && sec1) {
@@ -142,7 +144,7 @@ namespace Shift::gfx {
                 sec->SetViewport(m_SRHI.GetSwapchain().GetViewport());
 
                 // Bind pipeline / vertex buffer and issue a draw (triangle)
-                sec->BindGraphicsPipeline(p);
+                sec->BindGraphicsPipeline(*p);
                 sec->BindVertexBuffer({&vertex, 0}, 0);
                 sec->Draw({3, 1, (sec == sec0) ? 0u: 3u, 0});
 
@@ -185,11 +187,15 @@ namespace Shift::gfx {
         return true;
     }
 
+    void Renderer::HotReloadShaders() {
+        m_SRHI.ShaderHotReload();
+    }
+
     void Renderer::Cleanup() {
         m_SRHI.WaitForGPU();
-        p.Destroy();
-        vs.Destroy();
-        ps.Destroy();
+        p->Destroy();
+        vs->Destroy();
+        ps->Destroy();
         vertex.Destroy();
         m_SRHI.Destroy();
     }

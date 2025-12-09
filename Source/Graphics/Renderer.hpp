@@ -62,6 +62,8 @@ namespace Shift::gfx {
         //! Render entire frame
         bool RenderFrame(const EngineData& engineData);
 
+        void HotReloadShaders();
+
         //! Cleanup unused resources
         void Cleanup();
     private:
@@ -71,9 +73,9 @@ namespace Shift::gfx {
         ShiftWindow& m_window;
         std::shared_ptr<ctrl::FlyingCameraController> m_controller;
 
-        Pipeline p;
-        Shader vs;
-        Shader ps;
+        Pipeline* p;
+        Shader* vs;
+        Shader* ps;
         Buffer vertex;
 
         SRHI m_SRHI;

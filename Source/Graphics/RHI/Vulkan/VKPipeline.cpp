@@ -7,24 +7,41 @@ namespace Shift::VK {
     void Pipeline::Init(const Device *device, const PipelineDescriptor &descriptor, const std::vector<ShaderStageDesc>& shaders, std::span<VkDescriptorSetLayout> descLayouts) {
         m_device = device;
         m_desc = descriptor;
+        m_shaders = shaders;
+        m_descLayouts = std::vector<VkDescriptorSetLayout>{descLayouts.begin(), descLayouts.end()};
 
+        InitInternal(true);
+    }
+
+    void Pipeline::Rebuild(bool createLayout) {
+        //! Destruction is deferred and handled by the RHI struct
+        InitInternal(createLayout);
+    }
+
+    //! Destroys pipeline and layout
+    void Pipeline::Destroy() {
+        m_device->DestroyPipeline(m_pipeline);
+        m_device->DestroyPipelineLayout(m_layout);
+    }
+
+    void Pipeline::InitInternal(bool createLayout) {
         //! Shaders
         std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
-        shaderStages.reserve(shaders.size());
-        for (auto& shader: shaders) {
+        shaderStages.reserve(m_shaders.size());
+        for (auto& shader: m_shaders) {
             shaderStages.push_back(shader.handle->VK_GetStageInfo());
         }
 
         //! Input assembly
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo{};
         inputAssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-        inputAssemblyInfo.topology = Util::ShiftToVKPrimitiveTopology(descriptor.topology);
+        inputAssemblyInfo.topology = Util::ShiftToVKPrimitiveTopology(m_desc.topology);
         inputAssemblyInfo.primitiveRestartEnable = VK_FALSE;
 
         //! Vertex Input
         std::vector<VkVertexInputBindingDescription> bindDesc;
         std::vector<VkVertexInputAttributeDescription> attDesc;
-        VkPipelineVertexInputStateCreateInfo vertexInputInfo = Util::ShiftToVKVertexConfig(descriptor.vertexConfig, &bindDesc, &attDesc);
+        VkPipelineVertexInputStateCreateInfo vertexInputInfo = Util::ShiftToVKVertexConfig(m_desc.vertexConfig, &bindDesc, &attDesc);
 
         //! Dynamic state (hardcoded for now as well)
         const std::vector<VkDynamicState> dynamicStates = {
@@ -43,45 +60,47 @@ namespace Shift::VK {
         viewPortStateInfo.scissorCount = 1;
 
         //! Raster
-        VkPipelineRasterizationStateCreateInfo rasterizerInfo = Util::ShiftToVKRasterizerState(descriptor.rasterizerStateDesc);
+        VkPipelineRasterizationStateCreateInfo rasterizerInfo = Util::ShiftToVKRasterizerState(m_desc.rasterizerStateDesc);
 
         //! Multisample
-        VkPipelineMultisampleStateCreateInfo multisampleInfo = Util::ShiftToVKMultisampleDesc(descriptor.multisampleDesc);
+        VkPipelineMultisampleStateCreateInfo multisampleInfo = Util::ShiftToVKMultisampleDesc(m_desc.multisampleDesc);
 
         //! Color blend attachments
         std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttInfos;
-        Util::ShiftToVKColorAttachmentConfig(descriptor.colorBlendConfig, &colorBlendAttInfos);
+        Util::ShiftToVKColorAttachmentConfig(m_desc.colorBlendConfig, &colorBlendAttInfos);
 
         //! Color BlendState
-        VkPipelineColorBlendStateCreateInfo coloBlendStateInfo = Util::ShiftToVKColorBlendConfig(descriptor.colorBlendConfig, colorBlendAttInfos);
+        VkPipelineColorBlendStateCreateInfo coloBlendStateInfo = Util::ShiftToVKColorBlendConfig(m_desc.colorBlendConfig, colorBlendAttInfos);
 
         //! Depth
-        VkPipelineDepthStencilStateCreateInfo depthStencilStateInfo = Util::ShiftToVKDepthStencilConfig(descriptor.depthStencilConfig);
+        VkPipelineDepthStencilStateCreateInfo depthStencilStateInfo = Util::ShiftToVKDepthStencilConfig(m_desc.depthStencilConfig);
 
         //! Dynamic Rendering info
         std::vector<VkFormat> colorAttachments;
-        colorAttachments.reserve(descriptor.colorBlendConfig.attachments.size());
-        for (const auto& att: descriptor.colorBlendConfig.attachments) {
+        colorAttachments.reserve(m_desc.colorBlendConfig.attachments.size());
+        for (const auto& att: m_desc.colorBlendConfig.attachments) {
             colorAttachments.push_back(Util::ShiftToVKTextureFormat(att.format));
         }
         VkPipelineRenderingCreateInfoKHR dynamicRenderingInfo =
                 Util::CreatePipelineRenderingInfo(colorAttachments,
-                                                      Util::ShiftToVKTextureFormat(descriptor.depthStencilConfig.depthFormat),
-                                                      Util::ShiftToVKTextureFormat(descriptor.depthStencilConfig.stencilFormat)
+                                                      Util::ShiftToVKTextureFormat(m_desc.depthStencilConfig.depthFormat),
+                                                      Util::ShiftToVKTextureFormat(m_desc.depthStencilConfig.stencilFormat)
                                                   );
 
         //! Pipeline Layout
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descLayouts.size());
-        pipelineLayoutInfo.pSetLayouts = descLayouts.data();
+        pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(m_descLayouts.size());
+        pipelineLayoutInfo.pSetLayouts = m_descLayouts.data();
         pipelineLayoutInfo.pushConstantRangeCount = 0;
         pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
-        m_layout = m_device->CreatePipelineLayout(pipelineLayoutInfo);
-        if ( !(VkNullCheck(m_layout)) ) {
-            valid = false;
-            return;
+        if (createLayout) {
+            m_layout = m_device->CreatePipelineLayout(pipelineLayoutInfo);
+            if ( !(VkNullCheck(m_layout)) ) {
+                valid = false;
+                return;
+            }
         }
 
         //! Pipeline itself
@@ -110,11 +129,5 @@ namespace Shift::VK {
         m_pipeline = m_device->CreateGraphicsPipeline(pipelineInfo);
 
         valid = VkNullCheck(m_pipeline);
-    }
-
-    //! Destroys pipeline and layout
-    void Pipeline::Destroy() {
-        m_device->DestroyPipeline(m_pipeline);
-        m_device->DestroyPipelineLayout(m_layout);
     }
 } // shift
