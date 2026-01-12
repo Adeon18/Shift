@@ -20,7 +20,7 @@ namespace Shift {
         VK::WindowSurface surface;
         VK::Swapchain swapchain{};
 
-        VK::DescriptorAllocator descAllocator;
+        mutable VK::DescriptorAllocator descAllocator;
         VK::DescriptorLayoutCache descLayoutCache;
     };
 } // Shift

@@ -8,6 +8,9 @@
 
 #include "Utility/FileWatcher/FileWatcher.hpp"
 
+#include "Graphics/UI/ViewportPanel.hpp"
+#include "Graphics/UI/GenericPanel.hpp"
+
 namespace Shift {
     bool ShiftEngine::Init(uint32_t width, uint32_t height) {
         spdlog::set_level(spdlog::level::trace);
@@ -21,6 +24,22 @@ namespace Shift {
 
         m_renderer = std::make_unique<gfx::Renderer>(*m_window, m_controller);
         if (!m_renderer->Init()) { return false;}
+
+        m_editorLayer.Init(*m_window, m_renderer->GetRHILocal<ShiftSelectedAPI>());
+
+        auto& ctx = m_editorLayer.GetContext();
+
+        ctx.OnViewportResize = [this](uint32_t w, uint32_t h) {
+            m_renderer->ResizeViewport(w, h);
+        };
+
+        m_editorLayer.AddPanel<Editor::ViewportPanel>(m_editorLayer.GetContext());
+        m_editorLayer.AddPanel<Editor::GenericPanel>("Properties");
+        m_editorLayer.AddPanel<Editor::GenericPanel>("Scene Hierarchy");
+        m_editorLayer.AddPanel<Editor::GenericPanel>("Content Browser");
+        m_editorLayer.AddPanel<Editor::GenericPanel>("Console");
+
+        m_renderer->RegisterViewportTexture();
 
         return true;
     }
@@ -40,7 +59,7 @@ namespace Shift {
                 m_controller->CaptureInputAndApply(m_timer.GetDt());
 
                 FillEngineData();
-                if (!m_renderer->RenderFrame(m_engineData)) {
+                if (!m_renderer->RenderFrame(m_engineData, &m_editorLayer)) {
                     return false;
                 }
                 inp::Keyboard::GetInstance().UpdateKeys();
@@ -52,6 +71,8 @@ namespace Shift {
     }
 
     void ShiftEngine::Cleanup() {
+        m_renderer->WaitForCleanup();
+        m_editorLayer.Destroy();
         m_renderer->Cleanup();
         m_window.reset();
     }

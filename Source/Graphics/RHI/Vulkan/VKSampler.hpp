@@ -17,11 +17,10 @@ namespace Shift::VK {
         //! \return true if successful, false otherwise
         void Init(const Device* device, const SamplerDescriptor& desc);
 
-        [[nodiscard]] bool IsValid() const { return valid; }
+        [[nodiscard]] bool IsValid() const { return m_valid; }
 
         void Destroy();
         ~Sampler() = default;
-    private:
         //! API SPECIFIC, DO NOT USE UNLESS NESSESARY IN RHI SPECIFIC CODE
         //! \return VkPipeline
         [[nodiscard]] VkSampler VK_Get() const { return m_sampler; }
@@ -29,7 +28,7 @@ namespace Shift::VK {
         const Device* m_device = nullptr;
 
         VkSampler m_sampler;
-        bool valid = false;
+        bool m_valid = false;
     };
 
     ASSERT_INTERFACE(ISampler, Sampler);

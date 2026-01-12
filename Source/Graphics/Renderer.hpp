@@ -11,6 +11,8 @@
 #include "Input/Controllers/Camera/FlyingCameraController.hpp"
 
 #include "Graphics/RHI/RHI.hpp"
+//! TODO [Design]Editor leak to renderer
+#include "Graphics/UI/EditorLayer.hpp"
 
 namespace Shift::gfx {
     //! A struct with data that can change per-frame
@@ -35,19 +37,7 @@ namespace Shift::gfx {
     };
 
     class Renderer {
-        // class UI: public ui::UIWindowComponent {
-        // public:
-        //     explicit UI(std::string name, std::string sName, Renderer& system): ui::UIWindowComponent{std::move(name), std::move(sName)}, m_system{system} {}
-        //
-        //     virtual void Item() override { ui::UIWindowComponent::Item(); }
-        //     virtual void Show(uint32_t currentFrame) override;
-        //
-        //     SGUID dummy;
-        //     glm::vec4 rotation{0.0f, 1.0f, 0.0f, 0.0f};
-        //     float rotSpeedIncrementTimes1k = 3.f;
-        // private:
-        //     Renderer& m_system;
-        // };
+
     public:
         Renderer(ShiftWindow& window, std::shared_ptr<ctrl::FlyingCameraController> controller): m_window{window}, m_controller(controller) {
 
@@ -56,16 +46,28 @@ namespace Shift::gfx {
         //! Init the renderer and all child elements
         bool Init();
 
+        void RegisterViewportTexture();
+
         // TODO: hardcoded
         bool LoadScene();
 
         //! Render entire frame
-        bool RenderFrame(const EngineData& engineData);
+        bool RenderFrame(const EngineData& engineData, Editor::EditorLayer* editor);
 
         void HotReloadShaders();
 
+        //! TODO [Design] is this bad?
+        void WaitForCleanup();
+
+        void ResizeViewport(uint32_t width, uint32_t height);
+
         //! Cleanup unused resources
         void Cleanup();
+
+        [[nodiscard]] void* GetViewportTextureID() const { return m_viewportTextureID; }
+        template<typename API>
+        [[nodiscard]] const RHILocal<API>& GetRHILocal() const { return m_SRHI.GetLocal();}
+
     private:
         [[nodiscard]] uint32_t AquireImage(bool *success);
         [[nodiscard]] bool PresentFinalImage(uint32_t imageIndex);
@@ -79,6 +81,10 @@ namespace Shift::gfx {
         Buffer vertex;
 
         SRHI m_SRHI;
+
+        Texture viewportTexture;
+        Sampler viewportSampler;
+        void* m_viewportTextureID = nullptr;
 
         //! Shift API
         // ShiftBackBuffer m_backBuffer;

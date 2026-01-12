@@ -24,7 +24,7 @@ FetchContent_Declare(glm
 # GUI
 FetchContent_Declare(imgui
         GIT_REPOSITORY https://github.com/ocornut/imgui.git
-        GIT_TAG v1.90.4
+        GIT_TAG docking
         GIT_SHALLOW ON
         GIT_PROGRESS ON
         FIND_PACKAGE_ARGS 1.90.4)

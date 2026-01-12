@@ -43,7 +43,7 @@ namespace Shift::VK {
         //! \param imageIdx The image index in the swapchain to present
         //! \param isOld Is filled when the semaphore is old and should be recreated
         //! \return false at total failure (no recreation possible), else true
-        [[nodiscard]] bool Present(const BinarySemaphore& semaphore, uint32_t imageIdx, bool* isOld);
+        [[nodiscard]] bool Present(const BinarySemaphore& semaphore, uint32_t imageIdx, bool* isOld, const Fence& presentWaitFence);
 
         [[nodiscard]] VkSwapchainKHR Get() const { return m_swapChain; }
         [[nodiscard]] Texture& GetSwapchainTexture(uint32_t imageIdx) const { return m_swapChainTextures[imageIdx]; }

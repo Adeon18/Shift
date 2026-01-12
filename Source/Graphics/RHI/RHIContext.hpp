@@ -32,7 +32,9 @@ namespace Shift {
 
                 .VK_enableValidationLayers = true,
                 .VK_requireSwapchain = true,
-                .VK_hostQueryReset = true
+                .VK_hostQueryReset = true,
+                .VK_presentWait = false,
+                .VK_maintenance1 = true,
             };
         };
 

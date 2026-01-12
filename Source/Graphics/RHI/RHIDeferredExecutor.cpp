@@ -20,12 +20,22 @@ namespace Shift {
         m_callbacks[timeline].emplace_back(value, fn);
     }
 
+    void RHIDeferredExecutor::DeferExecuteToFrame(uint64_t frameIdx, Callback fn) {
+        if (!fn) {
+            Log(Warning, "No function passed to RHIDeferredExecutor!");
+            return;
+        }
+
+        std::lock_guard<std::mutex> guard(m_mutex);
+        m_frameCallbacks[frameIdx].emplace_back(fn);
+    }
+
     void RHIDeferredExecutor::DeferExecuteEndOfSession(Callback fn) {
         std::lock_guard<std::mutex> guard(m_mutex);
         m_endOfSessionCallbacks.emplace_back(fn);
     }
 
-    void RHIDeferredExecutor::ProcessDeferredCallbacks() {
+    void RHIDeferredExecutor::ProcessDeferredCallbacks(uint64_t currentFrameGlobalIdx) {
         std::lock_guard<std::mutex> guard(m_mutex);
 
         for (auto &[sem, callbacks] : m_callbacks) {
@@ -38,6 +48,17 @@ namespace Shift {
                 } else {
                     ++it;
                 }
+            }
+        }
+
+        for (auto& [frameIdx, callbacks]: m_frameCallbacks) {
+            if (frameIdx == currentFrameGlobalIdx) {
+                for (auto it = callbacks.begin(); it != callbacks.end(); ++it) {
+                    (*it)();
+                }
+                //! Each frame only 1 frame is processed
+                m_frameCallbacks.erase(frameIdx);
+                break;
             }
         }
     }
@@ -53,6 +74,12 @@ namespace Shift {
 
         for (auto& callback: m_endOfSessionCallbacks) {
             callback();
+        }
+
+        for (auto& [frameIdx, callbacks]: m_frameCallbacks) {
+            for (auto it = callbacks.begin(); it != callbacks.end(); ++it) {
+                (*it)();
+            }
         }
     }
 } // Shift

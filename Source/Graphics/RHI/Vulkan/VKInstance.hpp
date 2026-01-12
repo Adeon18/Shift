@@ -32,11 +32,16 @@ namespace Shift::VK {
         //! \return VkInstance
         [[nodiscard]] VkInstance Get() const { return m_instance; }
 
+        VkResult WaitForPresent(VkDevice dev, VkSwapchainKHR swapchain, uint64_t waitId, uint64_t timeout) const;
+
         //! Free the instance, should be done last
         void Destroy();
         ~Instance() = default;
     private:
         bool SetupDebugMessenger();
+
+        //! TODO: volk
+        PFN_vkWaitForPresentKHR m_fpWaitForPresentKHR = nullptr;
 
         VkInstance m_instance = VK_NULL_HANDLE;
         VkDebugUtilsMessengerEXT m_debugMessenger = VK_NULL_HANDLE;

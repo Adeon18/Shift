@@ -30,11 +30,13 @@ namespace Shift {
 
         [[nodiscard]] Swapchain& GetSwapchain() { return m_local.swapchain; }
         [[nodiscard]] uint32_t SwapchainAquireImage(bool* wasChanged);
-        [[nodiscard]] uint32_t SwapchainPresent(uint32_t imageIdx, bool* isOld);
+        [[nodiscard]] bool SwapchainPresent(uint32_t imageIdx, bool* isOld);
+        [[nodiscard]] bool ResizeSwapchain(uint32_t width, uint32_t height);
 
         void EndFrame();
 
         uint32_t GetCurrentFrame() { return m_currentFrame; }
+        uint32_t GetCurrentGlobalIndex() { return m_currentFrameGlobalIndex; }
 
         RHIContext<API>& GetGraphicsContext() { return m_graphicsContexts[m_currentFrame]; }
         RHIContext<API>& GetComputeContext() { return m_computeContext; }
@@ -49,6 +51,8 @@ namespace Shift {
         //! Waits until the swapchain binary semaprhores are released
         void WaitForGraphicsContext();
 
+        void WaitForImagePresent(uint32_t imageIndex);
+
         RHIContext<API>::SubmitTimelinePayload GetTransferWaitPayload();
         RHIContext<API>::SubmitTimelinePayload ReserveTransferSignalPayload();
 
@@ -58,10 +62,13 @@ namespace Shift {
         void DeferExecuteEndOfSession(RHIDeferredExecutor::Callback fn);
         void DeferExecute(TimelineSemaphore* sem, uint64_t waitVal, RHIDeferredExecutor::Callback fn);
 
+        void DeferExecuteToFrame(uint64_t frameIndexGlobal, RHIDeferredExecutor::Callback fn);
+
         void ProcessDeferredCallbacks();
 
         void ShaderHotReload();
 
+        [[nodiscard]] const RHILocal<API>& GetLocal() const { return m_local; }
 
     private:
         RHILocal<API> m_local;
@@ -87,8 +94,9 @@ namespace Shift {
         std::unordered_set<Pipeline*> m_pipelines;
 
         uint32_t m_currentFrame = 0;
+        uint64_t m_currentFrameGlobalIndex = 0;
 
-        // Timeline semaphores per queue type
+        //! Timeline semaphores per queue type
         TimelineSemaphore m_timelineGraphics;
         TimelineSemaphore m_timelineTransfer;
         TimelineSemaphore m_timelineCompute;
@@ -97,8 +105,15 @@ namespace Shift {
         std::atomic<uint64_t> m_timelineTransferValue{0};
         std::atomic<uint64_t> m_timelineComputeValue{0};
 
+        //! To be able to wait on presentation
+        std::vector<Fence> m_presentFences;
+
+        //! This is wrong implementation, with this we can wait until pixels appear in screen but NOT for presentation
+        // std::vector<uint64_t> m_imagePresentIds;
+        // uint64_t m_globalPresentId = 0;
+
         //! Swapchain-related semaphores
-        std::vector<BinarySemaphore> m_imageAvailable;
+        std::array<BinarySemaphore, Conf::SHIFT_MAX_FRAMES_IN_FLIGHT> m_imageAvailable;
         std::vector<BinarySemaphore> m_renderFinished;
     };
 
@@ -164,12 +179,22 @@ namespace Shift {
 
         CheckCritical(m_transferContext.Init(&m_local, EContextType::Transfer, false), "Failed to create Transfer Context!");
 
-        for (uint32_t i = 0; i < m_local.swapchain.GetImages().size(); ++i) {
-            BinarySemaphore& sem = m_renderFinished.emplace_back();
-            CheckCritical(sem.Init(&m_local.device), "Failed to create submit semaphore!");
-            BinarySemaphore& sem2 = m_imageAvailable.emplace_back();
-            CheckCritical(sem2.Init(&m_local.device), "Failed to create acqure image semaphore!");
+        uint32_t imageCount = m_local.swapchain.GetImages().size();
+        m_renderFinished.clear();
+        for(uint32_t i = 0; i < imageCount; i++) {
+            auto& sem = m_renderFinished.emplace_back();
+            CheckCritical(sem.Init(&m_local.device), "Failed to create render semaphore");
+            auto& fence = m_presentFences.emplace_back();
+            CheckCritical(fence.Init(&m_local.device, true), "Failed to create present wait fence");
         }
+
+        for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
+            CheckCritical(m_imageAvailable[i].Init(&m_local.device), "Failed Init Acquire Sem");
+        }
+
+        // m_imagePresentIds.clear();
+        // m_imagePresentIds.resize(m_local.swapchain.GetImages().size(), 0);
+        // m_globalPresentId = 0;
 
         m_timelineCompute.Init(&m_local.device, 0);
         m_timelineGraphics.Init(&m_local.device, 0);
@@ -194,6 +219,10 @@ namespace Shift {
         }
         for (auto& sem: m_renderFinished) {
             sem.Destroy();
+        }
+
+        for (auto& fence: m_presentFences) {
+            fence.Destroy();
         }
 
         m_timelineTransfer.Destroy();
@@ -255,8 +284,34 @@ namespace Shift {
     }
 
     template<ValidAPI API>
-    uint32_t RenderHardwareInterface<API>::SwapchainPresent(uint32_t imageIdx, bool *isOld) {
-        return m_local.swapchain.Present(m_renderFinished[imageIdx], imageIdx, isOld);
+    bool RenderHardwareInterface<API>::ResizeSwapchain(uint32_t width, uint32_t height) {
+        if (!m_local.swapchain.Recreate(width, height)) {
+            return false;
+        }
+
+        uint32_t newImageCount = m_local.swapchain.GetImages().size();
+
+
+        if (m_renderFinished.size() != newImageCount) {
+            for (auto& sem : m_renderFinished) {
+                sem.Destroy();
+            }
+            m_renderFinished.clear();
+
+            for(uint32_t i = 0; i < newImageCount; i++) {
+                auto& sem = m_renderFinished.emplace_back();
+                CheckCritical(sem.Init(&m_local.device), "Failed to recreate render semaphore");
+            }
+        }
+        return true;
+    }
+
+
+    template<ValidAPI API>
+    bool RenderHardwareInterface<API>::SwapchainPresent(uint32_t imageIdx, bool *isOld) {
+        // uint64_t nextId = ++m_globalPresentId;
+        // m_imagePresentIds[imageIdx] = nextId;
+        return m_local.swapchain.Present(m_renderFinished[imageIdx], imageIdx, isOld, m_presentFences[imageIdx]);
     }
 
     template<ValidAPI API>
@@ -264,6 +319,7 @@ namespace Shift {
         ProcessDeferredCallbacks();
 
         m_currentFrame = (++m_currentFrame) % Conf::SHIFT_MAX_FRAMES_IN_FLIGHT;
+        ++m_currentFrameGlobalIndex;
     }
 
     template<ValidAPI API>
@@ -347,8 +403,15 @@ namespace Shift {
     }
 
     template<ValidAPI API>
+    void RenderHardwareInterface<API>::DeferExecuteToFrame(uint64_t frameIndexGlobal,
+        RHIDeferredExecutor::Callback fn)
+    {
+        m_deferredExecutor.DeferExecuteToFrame(frameIndexGlobal, fn);
+    }
+
+    template<ValidAPI API>
     void RenderHardwareInterface<API>::ProcessDeferredCallbacks() {
-        m_deferredExecutor.ProcessDeferredCallbacks();
+        m_deferredExecutor.ProcessDeferredCallbacks(m_currentFrameGlobalIndex);
     }
 
     template<ValidAPI API>
@@ -449,9 +512,16 @@ namespace Shift {
         return rs;
     }
 
+    template<>
+    inline void RenderHardwareInterface<RHI::Vulkan>::WaitForImagePresent(uint32_t imageIndex) {
+        m_presentFences[imageIndex].Wait();
+        m_presentFences[imageIndex].Reset();
+    }
+
 #ifdef SHIFT_VULKAN_BACKEND
     using SRHI = RenderHardwareInterface<RHI::Vulkan>;
     using SRHIContext = RHIContext<RHI::Vulkan>;
+    using ShiftSelectedAPI = RHI::Vulkan;
 #endif
 } // Shift
 

@@ -14,11 +14,14 @@ namespace Shift::VK {
         }
 
         void Fence::Wait(uint64_t limit) const {
-            vkWaitForFences(m_device->Get(), 1, &m_fence, VK_TRUE, limit);
+            VkResult res =vkWaitForFences(m_device->Get(), 1, &m_fence, VK_TRUE, limit);
+            if (res != VK_SUCCESS) {
+                Log(Error, "Fence wait timeout!");
+            }
         }
 
         void Fence::Reset() const {
-            vkResetFences(m_device->Get(), 1, &m_fence);
+             vkResetFences(m_device->Get(), 1, &m_fence);
         }
 
         VkResult Fence::Status() const {

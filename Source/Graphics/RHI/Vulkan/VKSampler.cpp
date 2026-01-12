@@ -23,7 +23,7 @@ namespace Shift::VK {
                 )
         );
 
-        valid = VkNullCheck(m_sampler);
+        m_valid = VkNullCheck(m_sampler);
     }
 
     void Sampler::Destroy() {

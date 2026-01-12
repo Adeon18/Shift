@@ -190,11 +190,14 @@ namespace Shift::VK {
 
         //! feature chain container to be used as pNext in vkCreateDevice
         struct VulkanEnabledFeatures {
-            VkPhysicalDeviceFeatures core{}; // enabled core features
+            VkPhysicalDeviceFeatures core{};
             VkPhysicalDeviceVulkan11Features vk11{};
             VkPhysicalDeviceVulkan12Features vk12{};
             VkPhysicalDeviceVulkan13Features vk13{};
             VkPhysicalDeviceFeatures2 features2{};
+            VkPhysicalDevicePresentWaitFeaturesKHR presentWait{};
+            VkPhysicalDevicePresentIdFeaturesKHR   presentId{};
+            VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT maintenance1{};
         } m_enabledFeatures{};
     };
 } // Shift::VK

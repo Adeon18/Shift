@@ -18,6 +18,7 @@ namespace Shift::VK {
         const std::vector<PoolSizeRatio> DEFAULT_SIZE_CONFIG =
         {
                 { VK_DESCRIPTOR_TYPE_SAMPLER, 0.5f },
+                { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0.5f },
                 { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 4.f },
                 { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1.f },
                 { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1.f },
@@ -27,6 +28,10 @@ namespace Shift::VK {
                 { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1.f },
                 { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1.f },
                 { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 0.5f }
+        };
+
+        const std::vector<PoolSizeRatio> IMGUI_POOL_RATIOS = {
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.0f }
         };
 
         static constexpr uint32_t SET_LIMIT_PER_POOL = 4096u;
@@ -49,6 +54,8 @@ namespace Shift::VK {
         // \return The descriptor pool
         VkDescriptorPool GetPool();
 
+        [[nodiscard]] VkDescriptorPool GetImGuiPool() const { return m_imguiPool; }
+
         /// Allocate a descriptor set
         /// \param layout descriptor layout
         /// \return allocated set, VK_NULL_HANDLE if there was an error
@@ -59,13 +66,16 @@ namespace Shift::VK {
         //! \param setCount The set count from which the number of pool type objects will be determined
         //! \param poolRatios pool types themselves
         //! \return
-        VkDescriptorPool CreatePool(uint32_t setCount, std::span<PoolSizeRatio> poolRatios);
+        VkDescriptorPool CreatePool(uint32_t setCount, std::span<PoolSizeRatio> poolRatios, VkDescriptorPoolCreateFlags flags = 0);
     private:
         const Device* m_device;
 
         std::vector<PoolSizeRatio> m_sizeRatios;
         std::vector<VkDescriptorPool> m_fullPools;
         std::vector<VkDescriptorPool> m_readyPools;
+
+        //! Created with VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT
+        VkDescriptorPool m_imguiPool;
 
         uint32_t m_setsPerPool = 1u;
     };

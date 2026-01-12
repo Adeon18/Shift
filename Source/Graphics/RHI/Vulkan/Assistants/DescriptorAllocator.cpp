@@ -15,6 +15,13 @@ namespace Shift::VK {
 
         m_readyPools.push_back(newPool);
 
+        std::vector<PoolSizeRatio> imguiRatios;
+        for (auto r: IMGUI_POOL_RATIOS) {
+            imguiRatios.push_back(r);
+        }
+        //! Extra beefy pool for imgui
+        m_imguiPool = CreatePool(500, imguiRatios, VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT);
+
         return true;
     }
 
@@ -28,6 +35,8 @@ namespace Shift::VK {
             m_device->DestroyDescriptorPool(p);
         }
         m_fullPools.clear();
+
+        m_device->DestroyDescriptorPool(m_imguiPool);
     }
 
     void DescriptorAllocator::Clear() {
@@ -60,7 +69,7 @@ namespace Shift::VK {
         return newPool;
     }
 
-    VkDescriptorPool DescriptorAllocator::CreatePool(uint32_t setCount, std::span<PoolSizeRatio> poolRatios) {
+    VkDescriptorPool DescriptorAllocator::CreatePool(uint32_t setCount, std::span<PoolSizeRatio> poolRatios, VkDescriptorPoolCreateFlags flags) {
         std::vector<VkDescriptorPoolSize> poolSizes;
         for (PoolSizeRatio ratio : poolRatios) {
             poolSizes.push_back(VkDescriptorPoolSize{
@@ -71,7 +80,7 @@ namespace Shift::VK {
 
         VkDescriptorPoolCreateInfo pool_info = {};
         pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        pool_info.flags = 0;
+        pool_info.flags = flags;
         pool_info.maxSets = setCount;
         pool_info.poolSizeCount = (uint32_t)poolSizes.size();
         pool_info.pPoolSizes = poolSizes.data();

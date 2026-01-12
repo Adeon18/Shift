@@ -73,6 +73,11 @@ namespace Shift::VK::Util {
 
         // swapchain is still an extension
         if (required.VK_requireSwapchain) result.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+        if (required.VK_presentWait) result.push_back(VK_KHR_PRESENT_WAIT_EXTENSION_NAME);
+        if (required.VK_presentWait) result.push_back(VK_KHR_PRESENT_ID_EXTENSION_NAME);
+        if (required.VK_maintenance1) {
+            result.push_back(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
+        }
 
         //! TODO: [FEATURE] ADD OTHER EXTENSIONS HERE
 
@@ -91,6 +96,10 @@ namespace Shift::VK::Util {
 
         if (required.VK_enableValidationLayers) {
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        }
+        if (required.VK_maintenance1) {
+            extensions.push_back(VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME);
+            extensions.push_back(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
         }
 
         // Validate presence

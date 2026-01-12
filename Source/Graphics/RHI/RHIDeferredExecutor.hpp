@@ -27,17 +27,21 @@ namespace Shift {
         //! @param fn
         void DeferExecute(TimelineSemaphore* timeline, uint64_t value, Callback fn);
 
+        //! Defere execution of a function to a certain frame
+        void DeferExecuteToFrame(uint64_t frameIdx, Callback fn);
+
         //! Defer execute function for end of the program, order is NOT guaranteed, but is thread-safe
         //! @param fn function to execute
         void DeferExecuteEndOfSession(Callback fn);
 
         //! Process all deferred callbacks and execute the ones that are ready
-        void ProcessDeferredCallbacks();
+        void ProcessDeferredCallbacks(uint64_t currentFrameGlobalIndex);
 
         //! Flush all semaphore and end
         void FlushAllDeferredCallbacks();
     private:
         std::map<TimelineSemaphore*, std::vector<Pending>> m_callbacks;
+        std::map<uint64_t, std::vector<Callback>> m_frameCallbacks;
         std::vector<Callback> m_endOfSessionCallbacks;
         std::mutex m_mutex;
     };

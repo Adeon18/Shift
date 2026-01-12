@@ -5,6 +5,7 @@
 #include "VKSwapchain.hpp"
 #include <array>
 
+#include "VKFence.hpp"
 #include "Utility/Assertions.hpp"
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 #include "Utility/Vulkan/VKUtilRHI.hpp"
@@ -130,7 +131,7 @@ namespace Shift::VK {
         // Screen resize handling
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
             *wasChanged = true;
-            return imageIdx;
+            return UINT32_MAX;
         }
         else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
             Log(Error, "Failed to recreate swapchain! Code: {}", static_cast<int>(result));
@@ -162,9 +163,24 @@ namespace Shift::VK {
         vkDestroySwapchainKHR(m_device->Get(), m_swapChain, nullptr);
     }
 
-    bool Swapchain::Present(const BinarySemaphore &semaphore, uint32_t imageIdx, bool* isOld) {
+    bool Swapchain::Present(const BinarySemaphore &semaphore, uint32_t imageIdx, bool* isOld, const Fence& presentWaitFence) {
+
+        // presentWaitFence.Reset();
         VkPresentInfoKHR presentInfo{};
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        //! This is for wait and present id extensions
+        // VkPresentIdKHR pNextChain{};
+        // pNextChain.sType = VK_STRUCTURE_TYPE_PRESENT_ID_KHR;
+        // pNextChain.swapchainCount = 1;
+
+        VkSwapchainPresentFenceInfoEXT presentFenceInfo{};
+        // pNextChain.pPresentIds = &waitId;
+        presentFenceInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT;
+        presentFenceInfo.swapchainCount = 1;
+        std::array fence = {presentWaitFence.Get()};
+        presentFenceInfo.pFences = fence.data();
+
+        presentInfo.pNext = &presentFenceInfo;
 
         presentInfo.waitSemaphoreCount = 1;
         VkSemaphore semaphores[] = {semaphore.Get()};
@@ -184,7 +200,7 @@ namespace Shift::VK {
             *isOld = true;
             return true;
         }
-        else if (result != VK_SUCCESS) {
+        if (result != VK_SUCCESS) {
             spdlog::error("Failed to recreate swapchain! Code: {}", static_cast<int>(result));
             return false;
         }

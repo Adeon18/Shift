@@ -38,6 +38,8 @@ namespace Shift {
         bool VK_enableValidationLayers      = false;
         bool VK_requireSwapchain        = false;
         bool VK_hostQueryReset = false;
+        bool VK_presentWait = false;
+        bool VK_maintenance1 = false;
     };
 
     struct RHILimits {
@@ -83,6 +85,8 @@ namespace Shift {
         RHICommonFeature VK_descriptorIndexing;
         RHICommonFeature VK_dynamicRendering;
         RHICommonFeature VK_hostQueryReset;
+        RHICommonFeature VK_presentWait;
+        RHICommonFeature VK_maintenance1;
     };
 
     struct RHIVersion {
@@ -105,6 +109,8 @@ namespace Shift {
             bool samplerAnisotropy        = false;
             bool multiDrawIndirect        = false;
             bool drawIndirectCount        = false;
+            bool presentWait              = false;
+            bool maintenance1             = false;
         } vkExtensions;
     };
 }

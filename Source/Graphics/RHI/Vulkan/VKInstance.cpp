@@ -77,6 +77,12 @@ namespace Shift::VK {
         }
     #endif
 
+        m_fpWaitForPresentKHR = (PFN_vkWaitForPresentKHR)vkGetInstanceProcAddr(m_instance, "vkWaitForPresentKHR");
+        if (!m_fpWaitForPresentKHR) {
+            Log(Critical, "Failed to load vkWaitForPresentKHR! Is VK_KHR_present_wait enabled?");
+            return false;
+        }
+
     return true;
     }
 
@@ -92,6 +98,10 @@ namespace Shift::VK {
         return true;
     }
 
+
+    VkResult Instance::WaitForPresent(VkDevice dev, VkSwapchainKHR swapchain, uint64_t waitId, uint64_t timeout) const {
+        return m_fpWaitForPresentKHR(dev, swapchain, waitId, timeout);
+    }
 
     void Instance::Destroy() {
 #if SHIFT_VALIDATION

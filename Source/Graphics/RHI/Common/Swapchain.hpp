@@ -19,11 +19,11 @@ namespace Shift {
     template<typename Swapchain>
     concept ISwapchain =
         std::is_default_constructible_v<Swapchain> &&
-    requires(Swapchain InputSwapchain, const BinarySemaphore& InputSemaphore, uint64_t timeout, uint32_t width, uint32_t height, uint32_t imageIdx, bool* isOld, bool* wasChanged) {
+    requires(Swapchain InputSwapchain, const BinarySemaphore& InputSemaphore, uint64_t timeout, const Fence& InputFence, uint32_t width, uint32_t height, uint32_t imageIdx, bool* isOld, bool* wasChanged) {
         { InputSwapchain.Destroy() } -> std::same_as<void>;
         { InputSwapchain.AquireNextImage(InputSemaphore, wasChanged, timeout) } -> std::same_as<uint32_t>;
         { InputSwapchain.Recreate(width, height) } -> std::same_as<bool>;
-        { InputSwapchain.Present(InputSemaphore, imageIdx, isOld) } -> std::same_as<bool>;
+        { InputSwapchain.Present(InputSemaphore, imageIdx, isOld, InputFence) } -> std::same_as<bool>;
         { InputSwapchain.GetExtent() } -> std::same_as<Extent2D>;
         { InputSwapchain.GetViewport() } -> std::same_as<Viewport>;
         { InputSwapchain.GetFormat() } -> std::same_as<ETextureFormat>;

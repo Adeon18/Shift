@@ -13,11 +13,12 @@
 
 #include "Window/ShiftWindow.hpp"
 #include "Tools/Timer/FPSTimer.hpp"
+#include "Graphics/UI/EditorLayer.hpp"
 
 namespace Shift {
     class ShiftEngine {
     public:
-        ShiftEngine(): m_timer{3000.0f} {}
+        ShiftEngine(): m_timer{200.0f} {}
 
         //! Initialize the Engine, initializes all internal components, which helps con control failure at startup
         bool Init(uint32_t width, uint32_t height);
@@ -40,6 +41,8 @@ namespace Shift {
 
         std::shared_ptr<ctrl::FlyingCameraController> m_controller;
         tool::FPSTimer m_timer;
+
+        Editor::EditorLayer m_editorLayer;
     };
 } // shift
 

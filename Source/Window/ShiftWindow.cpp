@@ -33,10 +33,10 @@ namespace Shift {
         int width = 0;
         int height = 0;
         glfwGetFramebufferSize(m_window, &width, &height);
-        while (width == 0 || height == 0) {
-            glfwGetFramebufferSize(m_window, &width, &height);
-            glfwWaitEvents();
-        }
+        // while (width == 0 || height == 0) {
+        //     glfwGetFramebufferSize(m_window, &width, &height);
+        //     glfwWaitEvents();
+        // }
 
         m_width = width;
         m_height = height;

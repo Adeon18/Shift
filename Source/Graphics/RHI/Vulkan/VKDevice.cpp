@@ -49,6 +49,8 @@ namespace Shift::VK {
         f.VK_descriptorIndexing.requested   = req.VK_descriptorIndexing;
         f.VK_dynamicRendering.requested     = req.VK_dynamicRendering;
         f.VK_hostQueryReset.requested       = req.VK_hostQueryReset;
+        f.VK_presentWait.requested          = req.VK_presentWait;
+        f.VK_maintenance1.requested          = req.VK_maintenance1;
 
         std::memset(&m_enabledFeatures, 0, sizeof(m_enabledFeatures));
 
@@ -56,11 +58,17 @@ namespace Shift::VK {
         m_enabledFeatures.vk11.sType      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
         m_enabledFeatures.vk12.sType      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
         m_enabledFeatures.vk13.sType      = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+        m_enabledFeatures.presentWait.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_FEATURES_KHR;
+        m_enabledFeatures.presentId.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR;
+        m_enabledFeatures.maintenance1.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT;
 
         m_enabledFeatures.features2.pNext = &m_enabledFeatures.vk11;
         m_enabledFeatures.vk11.pNext = &m_enabledFeatures.vk12;
         m_enabledFeatures.vk12.pNext = &m_enabledFeatures.vk13;
-        m_enabledFeatures.vk13.pNext = nullptr;
+        m_enabledFeatures.vk13.pNext = &m_enabledFeatures.presentWait;
+        m_enabledFeatures.vk13.pNext = &m_enabledFeatures.presentWait;
+        m_enabledFeatures.presentWait.pNext = &m_enabledFeatures.presentId;
+        m_enabledFeatures.presentId.pNext = &m_enabledFeatures.maintenance1;
 
         // query features into persistent memory
         vkGetPhysicalDeviceFeatures2(m_physicalDevice, &m_enabledFeatures.features2);
@@ -93,6 +101,10 @@ namespace Shift::VK {
         f.VK_hostQueryReset.supported       = m_enabledFeatures.vk12.hostQueryReset ? true : false;
         f.VK_dynamicRendering.supported     = m_enabledFeatures.vk13.dynamicRendering ? true : false;
 
+        // Extensions
+        f.VK_presentWait.supported          = m_enabledFeatures.presentWait.presentWait ? true : false;
+        f.VK_maintenance1.supported          = m_enabledFeatures.maintenance1.swapchainMaintenance1 ? true : false;
+
         // Fill vkExtensions convenience flags
         m_caps.vkExtensions.timelineSemaphore = f.VK_timelineSemaphores.supported;
         m_caps.vkExtensions.descriptorIndexing = f.VK_descriptorIndexing.supported;
@@ -101,6 +113,8 @@ namespace Shift::VK {
         m_caps.vkExtensions.samplerAnisotropy = f.samplerAnisotropy.supported;
         m_caps.vkExtensions.multiDrawIndirect = f.multiDrawIndirect.supported;
         m_caps.vkExtensions.drawIndirectCount = f.drawIndirectCount.supported;
+        m_caps.vkExtensions.presentWait = f.VK_presentWait.supported;
+        m_caps.vkExtensions.maintenance1 = f.VK_maintenance1.supported;
 
         // Fill limits & version
         VkPhysicalDeviceProperties props{};
@@ -141,6 +155,8 @@ namespace Shift::VK {
         if (!require_or_fail("descriptorIndexing", f.VK_descriptorIndexing)) return false;
         if (!require_or_fail("dynamicRendering", f.VK_dynamicRendering)) return false;
         if (!require_or_fail("hostQueryReset", f.VK_hostQueryReset)) return false;
+        if (!require_or_fail("presentWait", f.VK_presentWait)) return false;
+        if (!require_or_fail("maintenance1", f.VK_maintenance1)) return false;
 
         // Build enabled feature structs for vkCreateDevice (enable only requested ones)
         if (f.robustBufferAccess.requested) m_enabledFeatures.core.robustBufferAccess = VK_TRUE;
@@ -164,12 +180,19 @@ namespace Shift::VK {
         m_enabledFeatures.vk12.descriptorIndexing = f.VK_descriptorIndexing.requested ? VK_TRUE : VK_FALSE;
         m_enabledFeatures.vk12.hostQueryReset     = f.VK_hostQueryReset.requested ? VK_TRUE : VK_FALSE;
         m_enabledFeatures.vk13.dynamicRendering   = f.VK_dynamicRendering.requested ? VK_TRUE : VK_FALSE;
+        m_enabledFeatures.presentWait.presentWait = f.VK_presentWait.requested ? VK_TRUE : VK_FALSE;
+        //! PResent Id comes with the present wait
+        m_enabledFeatures.presentId.presentId = f.VK_presentWait.requested ? VK_TRUE : VK_FALSE;
+        m_enabledFeatures.maintenance1.swapchainMaintenance1 = f.VK_maintenance1.requested ? VK_TRUE : VK_FALSE;
 
         // features2 chain
         m_enabledFeatures.features2.pNext = &m_enabledFeatures.vk11;
         m_enabledFeatures.vk11.pNext = &m_enabledFeatures.vk12;
         m_enabledFeatures.vk12.pNext = &m_enabledFeatures.vk13;
-        m_enabledFeatures.vk13.pNext = nullptr;
+        m_enabledFeatures.vk13.pNext = &m_enabledFeatures.presentWait;
+        m_enabledFeatures.presentWait.pNext = &m_enabledFeatures.presentId;
+        m_enabledFeatures.presentId.pNext = &m_enabledFeatures.maintenance1;
+        m_enabledFeatures.maintenance1.pNext = nullptr;
         m_enabledFeatures.features2.features = m_enabledFeatures.core;
 
         return true;
