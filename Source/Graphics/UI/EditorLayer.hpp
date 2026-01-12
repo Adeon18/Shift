@@ -172,7 +172,7 @@ namespace Shift::Editor {
 
         // Validation/Error Checking
         info.CheckVkResultFn = [](VkResult err) {
-            if (err != VK_SUCCESS) Log(Error, "ImGui Vulkan Error: {}\n", err);
+            if (err != VK_SUCCESS) Log(Error, "ImGui Vulkan Error: {}\n", static_cast<uint32_t>(err));
         };
 
         info.UseDynamicRendering = true;

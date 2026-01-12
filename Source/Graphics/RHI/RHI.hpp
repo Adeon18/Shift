@@ -36,7 +36,7 @@ namespace Shift {
         void EndFrame();
 
         uint32_t GetCurrentFrame() { return m_currentFrame; }
-        uint32_t GetCurrentGlobalIndex() { return m_currentFrameGlobalIndex; }
+        uint64_t GetCurrentGlobalIndex() { return m_currentFrameGlobalIndex; }
 
         RHIContext<API>& GetGraphicsContext() { return m_graphicsContexts[m_currentFrame]; }
         RHIContext<API>& GetComputeContext() { return m_computeContext; }

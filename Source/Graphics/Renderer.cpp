@@ -70,11 +70,6 @@ namespace Shift::gfx {
         tctx.BeginCmds();
         staging.Fill(vertexData.data(), bufSize, 0);
         tctx.CopyBufferToBuffer({&staging, 0}, {&vertex, 0}, bufSize);
-        tctx.EndCmds();
-
-        std::array sigPayloads{m_SRHI.ReserveTransferSignalPayload()};
-        CheckCritical(tctx.SubmitCmds({}, sigPayloads), "Failed to submit transition context!");
-        m_SRHI.DeferExecute(sigPayloads[0].semaphore, sigPayloads[0].value, [staging]() mutable { staging.Destroy(); });
 
         {
             viewportSampler = m_SRHI.CreateSampler(
@@ -96,6 +91,13 @@ namespace Shift::gfx {
             );
 
         }
+        //! First frame the viewport may be hidden so we immediately transfer this
+
+        tctx.EndCmds();
+
+        std::array sigPayloads{m_SRHI.ReserveTransferSignalPayload()};
+        CheckCritical(tctx.SubmitCmds({}, sigPayloads), "Failed to submit transition context!");
+        m_SRHI.DeferExecute(sigPayloads[0].semaphore, sigPayloads[0].value, [staging]() mutable { staging.Destroy(); });
 
         return true;
     }
@@ -110,13 +112,15 @@ namespace Shift::gfx {
 
     bool Renderer::RenderFrame(const Shift::gfx::EngineData &engineData, Editor::EditorLayer* editor) {
 
+        //! The viewport may not be visible in the first frame and we need to transition the viewport texture for the imgui to render anyways
+        bool firstFrame = m_SRHI.GetCurrentGlobalIndex() == 0;
         bool shouldRenderMainViewport = true;
         bool shouldRenderMainWindow = m_window.GetWidth() > 0 && m_window.GetHeight() > 0;
         if (editor) {
             editor->BeginFrame();
             editor->Render(m_viewportTextureID);
             editor->EndFrame();
-            shouldRenderMainViewport = editor->ShouldRenderViewportPanel();
+            shouldRenderMainViewport = editor->ShouldRenderViewportPanel() || firstFrame;
         }
 
         //! Perform fence wait on presentation

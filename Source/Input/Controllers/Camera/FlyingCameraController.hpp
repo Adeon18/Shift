@@ -13,8 +13,6 @@
 #include "Input/Mouse.hpp"
 #include "Graphics/Camera/EulerCamera.hpp"
 
-#include "Graphics/UI/UIWindowComponent.hpp"
-
 namespace Shift::ctrl {
     class FlyingCameraController {
         // class UI: public gfx::ui::UIWindowComponent {
