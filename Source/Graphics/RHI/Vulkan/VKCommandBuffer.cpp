@@ -140,6 +140,7 @@ namespace Shift::VK {
         region.bufferRowLength = 0;
         region.bufferImageHeight = 0;
 
+        //! TODO: [BUG] Subresource range don't wotrk
         region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         region.imageSubresource.mipLevel = 0;
         region.imageSubresource.baseArrayLayer = 0;

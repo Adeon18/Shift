@@ -97,7 +97,12 @@ namespace Shift::VK {
 
         // 1.2 / 1.3 promoted features
         f.VK_timelineSemaphores.supported   = m_enabledFeatures.vk12.timelineSemaphore ? true : false;
-        f.VK_descriptorIndexing.supported   = m_enabledFeatures.vk12.descriptorIndexing ? true : false;
+        bool supportsBindless =
+            m_enabledFeatures.vk12.descriptorIndexing &&
+            m_enabledFeatures.vk12.runtimeDescriptorArray &&
+            m_enabledFeatures.vk12.descriptorBindingPartiallyBound &&
+            m_enabledFeatures.vk12.descriptorBindingVariableDescriptorCount;
+        f.VK_descriptorIndexing.supported = supportsBindless;
         f.VK_hostQueryReset.supported       = m_enabledFeatures.vk12.hostQueryReset ? true : false;
         f.VK_dynamicRendering.supported     = m_enabledFeatures.vk13.dynamicRendering ? true : false;
 
@@ -177,7 +182,12 @@ namespace Shift::VK {
 
         // set requested -> enable in vk12/vk13
         m_enabledFeatures.vk12.timelineSemaphore  = f.VK_timelineSemaphores.requested ? VK_TRUE : VK_FALSE;
-        m_enabledFeatures.vk12.descriptorIndexing = f.VK_descriptorIndexing.requested ? VK_TRUE : VK_FALSE;
+        if (f.VK_descriptorIndexing.requested) {
+            m_enabledFeatures.vk12.descriptorIndexing = VK_TRUE;
+            m_enabledFeatures.vk12.runtimeDescriptorArray = VK_TRUE;
+            m_enabledFeatures.vk12.descriptorBindingPartiallyBound = VK_TRUE;
+            m_enabledFeatures.vk12.descriptorBindingVariableDescriptorCount = VK_TRUE;
+        }
         m_enabledFeatures.vk12.hostQueryReset     = f.VK_hostQueryReset.requested ? VK_TRUE : VK_FALSE;
         m_enabledFeatures.vk13.dynamicRendering   = f.VK_dynamicRendering.requested ? VK_TRUE : VK_FALSE;
         m_enabledFeatures.presentWait.presentWait = f.VK_presentWait.requested ? VK_TRUE : VK_FALSE;

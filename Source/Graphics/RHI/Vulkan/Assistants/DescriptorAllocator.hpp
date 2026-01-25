@@ -4,6 +4,7 @@
 #include <span>
 #include <vector>
 
+#include "Graphics/RHI/Common/Pipeline.hpp"
 #include "Graphics/RHI/Vulkan/VKDevice.hpp"
 
 namespace Shift::VK {
@@ -55,11 +56,13 @@ namespace Shift::VK {
         VkDescriptorPool GetPool();
 
         [[nodiscard]] VkDescriptorPool GetImGuiPool() const { return m_imguiPool; }
+        [[nodiscard]] VkDescriptorPool GetBindlessPool() const { return m_bindlessTexturePool; }
 
         /// Allocate a descriptor set
         /// \param layout descriptor layout
+        /// \param bindlessCount Used only for bindless sets = max count of the bindless array resource
         /// \return allocated set, VK_NULL_HANDLE if there was an error
-        VkDescriptorSet Allocate(VkDescriptorSetLayout layout);
+        VkDescriptorSet Allocate(VkDescriptorSetLayout layout, uint32_t bindlessCount = 0u, EBindingType bindlessType = EBindingType::SampledImage);
     private:
         //! Create a pool
         //! \param device
@@ -75,7 +78,8 @@ namespace Shift::VK {
         std::vector<VkDescriptorPool> m_readyPools;
 
         //! Created with VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT
-        VkDescriptorPool m_imguiPool;
+        VkDescriptorPool m_imguiPool = VK_NULL_HANDLE;
+        VkDescriptorPool m_bindlessTexturePool = VK_NULL_HANDLE;
 
         uint32_t m_setsPerPool = 1u;
     };

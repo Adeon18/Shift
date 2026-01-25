@@ -12,21 +12,34 @@
 #include "../Managers/ShaderManager.hpp"
 
 namespace Shift {
+
     template<ValidAPI API>
     class RenderHardwareInterface {
     public:
+        //! The API for Backend useage by different engine systems (stores handle creation functions, rest are hidden)
+        class HandleCreator {
+        public:
+            HandleCreator() = default;
+            explicit HandleCreator(RenderHardwareInterface* backend): m_backend{backend} {}
+            HandleCreator(const HandleCreator&) = default;
+            HandleCreator& operator=(const HandleCreator&) = default;
+            [[nodiscard]] Buffer* CreateBuffer(const BufferDescriptor& desc);
+            [[nodiscard]] Texture* CreateTexture(const TextureDescriptor& desc);
+            [[nodiscard]] Pipeline* CreatePipeline(const PipelineDescriptor& desc, const std::vector<ShaderStageDesc>& shaders);
+            [[nodiscard]] ResourceSet* CreateResourceSet(const PipelineLayoutDescriptor& desc);
+            [[nodiscard]] Sampler CreateSampler(const SamplerDescriptor& desc);
+            [[nodiscard]] Shader* CreateShader(const ShaderDescriptor& desc);
+        private:
+            RenderHardwareInterface* m_backend = nullptr;
+        };
         bool Init(GLFWwindow* window, uint32_t width, uint32_t height, const std::string& appName, const std::string& appVersion, const std::string& engineName, const std::string& engineVersion);
 
         //! Wait for GPU to complete work before deleting stuff
         void WaitForGPU();
         void Destroy();
 
-        [[nodiscard]] Buffer CreateBuffer(const BufferDescriptor& desc);
-        [[nodiscard]] Texture CreateTexture(const TextureDescriptor& desc);
-        [[nodiscard]] Pipeline* CreatePipeline(const PipelineDescriptor& desc, const std::vector<ShaderStageDesc>& shaders);
-        [[nodiscard]] ResourceSet CreateResourceSet(const PipelineLayoutDescriptor& desc);
-        [[nodiscard]] Sampler CreateSampler(const SamplerDescriptor& desc);
-        [[nodiscard]] Shader* CreateShader(const ShaderDescriptor& desc);
+        //! Handle creator is an API for the RHI for mosty managers
+        HandleCreator* CreateInterface() { return &m_handleCreator; }
 
         [[nodiscard]] Swapchain& GetSwapchain() { return m_local.swapchain; }
         [[nodiscard]] uint32_t SwapchainAquireImage(bool* wasChanged);
@@ -72,6 +85,7 @@ namespace Shift {
 
     private:
         RHILocal<API> m_local;
+        HandleCreator m_handleCreator;
 
         std::array<RHIContext<API>, Conf::SHIFT_MAX_FRAMES_IN_FLIGHT> m_graphicsContexts;
         struct SecondaryContextData {
@@ -122,6 +136,9 @@ namespace Shift {
         const std::string &appName, const std::string &appVersion, const std::string &engineName,
         const std::string &engineVersion)
     {
+
+        m_handleCreator = HandleCreator{this};
+
         auto getVersionUintFromString = [](const std::string& str) {
             std::vector<std::string_view> tokens;
             Util::StrSplitView(str, '.', &tokens);
@@ -252,30 +269,30 @@ namespace Shift {
     }
 
     template<ValidAPI API>
-    Buffer RenderHardwareInterface<API>::CreateBuffer(const BufferDescriptor &desc) {
-        Buffer b;
-        b.Init(&m_local.device, desc);
+    Buffer* RenderHardwareInterface<API>::HandleCreator::CreateBuffer(const BufferDescriptor &desc) {
+        Buffer* b = new Buffer();
+        b->Init(&m_backend->m_local.device, desc);
         return b;
     }
 
     template<ValidAPI API>
-    Texture RenderHardwareInterface<API>::CreateTexture(const TextureDescriptor &desc) {
-        Texture t;
-        t.Init(&m_local.device, desc);
+    Texture* RenderHardwareInterface<API>::HandleCreator::CreateTexture(const TextureDescriptor &desc) {
+        Texture* t = new Texture();
+        t->Init(&m_backend->m_local.device, desc);
         return t;
     }
 
     template<ValidAPI API>
-    Sampler RenderHardwareInterface<API>::CreateSampler(const SamplerDescriptor &desc) {
+    Sampler RenderHardwareInterface<API>::HandleCreator::CreateSampler(const SamplerDescriptor &desc) {
         Sampler s;
-        s.Init(&m_local.device, desc);
+        s.Init(&m_backend->m_local.device, desc);
 
         return s;
     }
 
     template<ValidAPI API>
-    Shader* RenderHardwareInterface<API>::CreateShader(const ShaderDescriptor &desc) {
-        return m_shaderManager.GetShader(desc);
+    Shader* RenderHardwareInterface<API>::HandleCreator::CreateShader(const ShaderDescriptor &desc) {
+        return m_backend->m_shaderManager.GetShader(desc);
     }
 
     template<ValidAPI API>
@@ -442,7 +459,7 @@ namespace Shift {
     }
 
     template<>
-    inline Pipeline* RenderHardwareInterface<RHI::Vulkan>::CreatePipeline(const PipelineDescriptor &desc,
+    inline Pipeline* RenderHardwareInterface<RHI::Vulkan>::HandleCreator::CreatePipeline(const PipelineDescriptor &desc,
         const std::vector<ShaderStageDesc> &shaders)
     {
 
@@ -469,29 +486,33 @@ namespace Shift {
             layoutInfo.bindingCount = static_cast<uint32_t>(vkBindings.size());
             layoutInfo.pBindings = vkBindings.data();
 
-            setLayouts.push_back(m_local.descLayoutCache.CreateDescriptorLayout(layoutInfo));
+            setLayouts.push_back(m_backend->m_local.descLayoutCache.CreateDescriptorLayout(layoutInfo));
         }
 
         Pipeline* p = new Pipeline{};
-        p->Init(&m_local.device, desc, shaders, setLayouts);
+        p->Init(&m_backend->m_local.device, desc, shaders, setLayouts);
 
         for (auto& stage: shaders) {
-            m_shaderManager.RegisterPipeline(stage.handle, p);
+            m_backend->m_shaderManager.RegisterPipeline(stage.handle, p);
         }
 
-        m_pipelines.insert(p);
+        m_backend->m_pipelines.insert(p);
 
         return p;
     }
 
-    template<>
-    inline ResourceSet RenderHardwareInterface<RHI::Vulkan>::CreateResourceSet(const PipelineLayoutDescriptor &desc) {
-        ResourceSet rs;
+    template<ValidAPI API>
+    ResourceSet *RenderHardwareInterface<API>::HandleCreator::CreateResourceSet(const PipelineLayoutDescriptor &desc) {
+        ResourceSet* rs = new ResourceSet{};
 
         //! TODO [CLEANUP] create a shared function for set pulling of set layout between this and pipeline creation
         std::vector<VkDescriptorSetLayoutBinding> vkBindings;
         vkBindings.reserve(desc.bindings.size());
 
+        bool containsBindless = false;
+        //! We only can have one bindless structure in a single DS
+        uint32_t bindlessCount = 0;
+        EBindingType bindlessType = EBindingType::SampledImage;
         for (const auto& b : desc.bindings) {
             VkDescriptorSetLayoutBinding binding{};
             binding.binding = b.binding;
@@ -500,6 +521,12 @@ namespace Shift {
             binding.descriptorType = VK::Util::ShiftToVKBindingType(b.type);
             binding.pImmutableSamplers = nullptr; // handle immutable samplers if needed
             vkBindings.push_back(binding);
+
+            if (!containsBindless && b.isBindless) {
+                containsBindless = true;
+                bindlessCount = b.count;
+                bindlessType = b.type;
+            }
         }
 
         VkDescriptorSetLayoutCreateInfo layoutInfo{};
@@ -507,7 +534,25 @@ namespace Shift {
         layoutInfo.bindingCount = static_cast<uint32_t>(vkBindings.size());
         layoutInfo.pBindings = vkBindings.data();
 
-        rs.Init(&m_local.device, m_local.descAllocator.Allocate(m_local.descLayoutCache.CreateDescriptorLayout(layoutInfo)));
+        //! This is for bindless only
+        VkDescriptorBindingFlags bindingFlags =
+            VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |
+            VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT |
+            VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT |
+            VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT;
+
+        VkDescriptorSetLayoutBindingFlagsCreateInfo flagsInfo{};
+        flagsInfo.sType =
+            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+        flagsInfo.bindingCount = 1;
+        flagsInfo.pBindingFlags = &bindingFlags;
+
+        if (containsBindless) {
+            layoutInfo.pNext = &flagsInfo;
+            layoutInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
+        }
+
+        rs->Init(&m_backend->m_local.device, m_backend->m_local.descAllocator.Allocate(m_backend->m_local.descLayoutCache.CreateDescriptorLayout(layoutInfo), bindlessCount, bindlessType));
 
         return rs;
     }
@@ -519,8 +564,10 @@ namespace Shift {
     }
 
 #ifdef SHIFT_VULKAN_BACKEND
-    using SRHI = RenderHardwareInterface<RHI::Vulkan>;
-    using SRHIContext = RHIContext<RHI::Vulkan>;
+    using RenderBackend = RenderHardwareInterface<RHI::Vulkan>;
+    using RenderContext = RHIContext<RHI::Vulkan>;
+    using RenderContextEncoder = RHIEncoder<RHI::Vulkan>;
+    using RenderBackendInterface = RenderHardwareInterface<RHI::Vulkan>::HandleCreator;
     using ShiftSelectedAPI = RHI::Vulkan;
 #endif
 } // Shift

@@ -32,7 +32,8 @@ namespace Shift::VK {
         //! Update Image
         //! \param bind
         //! \param InputTexture
-        void UpdateTexture(uint32_t bind, const Texture& InputTexture);
+        //! \param arrElement
+        void UpdateTexture(uint32_t bind, uint32_t arrElement, const Texture& InputTexture);
 
         //! Update Sampler
         //! \param bind

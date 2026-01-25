@@ -28,6 +28,7 @@ namespace Shift {
             static constexpr const char* Name = "Vulkan";
             static constexpr RHIRequiredFeatures requiredFeatures{
                 .VK_timelineSemaphore = true,
+                .VK_descriptorIndexing = true,
                 .VK_dynamicRendering = true,
 
                 .VK_enableValidationLayers = true,
@@ -66,37 +67,12 @@ namespace Shift {
     enum class EContextType { Graphics, Compute, Transfer };
 
     template<ValidAPI API>
-    class RHIContext {
+    class RHIEncoder {
     public:
-        RHIContext() = default;
-
-        // Init for primary or secondary context
-        bool Init(RHILocal<API>* local, EContextType type, bool secondary = false);
-        void Destroy();
-
-        [[nodiscard]] CommandBuffer& GetCommandBuffer() {return m_cmdBuffer;}
-
-
-        //! TODO: [FEATURE] Here we would have additional parameters for multicommand-buffer concurrency handling (probably)
-        [[nodiscard]] bool BeginCmds() const;
-
-        [[nodiscard]] bool BeginSecondaryCmds(const SecondaryBufferBeginPayload& payload) const;
-
-        [[nodiscard]] bool EndCmds() const;
-
-        void ResetCmds() const;
-
-        //! The value is other wait or submit depending on the context
-        struct SubmitTimelinePayload {
-            TimelineSemaphore* semaphore = nullptr;
-            uint64_t value = 0;
-        };
-
-        [[nodiscard]] bool SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads, std::span<SubmitTimelinePayload> sigSemPayloads) const;
-
-        [[nodiscard]] bool SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads, std::span<SubmitTimelinePayload> sigSemPayloads, std::span<BinarySemaphore*> waitBinSems, std::span<BinarySemaphore*> sigBinSems) const;
-
-        void ExecuteSecondaryGraphicsContexts(std::span<CommandBuffer*> secondaryBuffs) const;
+        RHIEncoder() = default;
+        explicit RHIEncoder(CommandBuffer* cmd): m_boundCB{cmd} {}
+        RHIEncoder(const RHIEncoder&) = default;
+        RHIEncoder& operator=(const RHIEncoder&) = default;
 
         void BeginRenderPass(const RenderPassDescriptor& desc, std::span<Texture*> colorTextures, std::optional<Texture*> depthTexture);
 
@@ -160,18 +136,81 @@ namespace Shift {
 
         void TransitionTexture(const Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags);
 
+
+        //! Kind of an interface leak, use for debug only lol
+        [[nodiscard]] CommandBuffer* GetBoundCB() const {return m_boundCB;}
+    private:
+        CommandBuffer* m_boundCB = nullptr;
+    };
+
+    template<ValidAPI API>
+    class RHIContext {
+    public:
+        RHIContext() = default;
+
+        // Init for primary or secondary context
+        bool Init(RHILocal<API>* local, EContextType type, bool secondary = false);
+        void Destroy();
+
+        [[nodiscard]] CommandBuffer& GetCommandBuffer() {return m_cmdBuffer;}
+
+        [[nodiscard]] bool BeginCmds() const;
+
+        [[nodiscard]] bool BeginSecondaryCmds(const SecondaryBufferBeginPayload& payload) const;
+
+        [[nodiscard]] bool EndCmds() const;
+
+        void ResetCmds() const;
+
+        [[nodiscard]] RHIEncoder<API>* CreateCommandEncoder() { return &m_encoder; }
+
+        //! The value is other wait or submit depending on the context
+        struct SubmitTimelinePayload {
+            TimelineSemaphore* semaphore = nullptr;
+            uint64_t value = 0;
+        };
+
+        [[nodiscard]] bool SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads, std::span<SubmitTimelinePayload> sigSemPayloads) const;
+
+        [[nodiscard]] bool SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads, std::span<SubmitTimelinePayload> sigSemPayloads, std::span<BinarySemaphore*> waitBinSems, std::span<BinarySemaphore*> sigBinSems) const;
+
+        void ExecuteSecondaryGraphicsContexts(std::span<CommandBuffer*> secondaryBuffs) const;
+
     private:
 
         EPoolQueueType GetQueueType(EContextType type);
 
 
         RHILocal<API>* m_local = nullptr;
+        RHIEncoder<API> m_encoder;
         CommandBuffer m_cmdBuffer;
         CommandPool m_cmdPool;
         EContextType m_type = EContextType::Graphics;
         bool m_isSecondary = false;
     };
 
+
+
+    template<>
+    inline bool RHIContext<RHI::Vulkan>::Init(RHILocal<RHI::Vulkan> *local, EContextType type, bool secondary) {
+        m_local = local;
+        m_type = type;
+        m_isSecondary = secondary;
+
+        CheckCritical(m_cmdPool.Init(&m_local->device, GetQueueType(m_type)), "Failed to initialize command pool");
+
+        CheckCritical(m_cmdBuffer.Init(&m_local->device, &m_local->instance, m_cmdPool, m_isSecondary),
+                      "Failed to init command buffer!");
+
+        m_encoder = RHIEncoder<RHI::Vulkan>{&m_cmdBuffer};
+
+        return true;
+    }
+
+    template<ValidAPI API>
+    void RHIContext<API>::Destroy() {
+        m_cmdPool.Destroy();
+    }
 
     template<ValidAPI API>
     bool RHIContext<API>::BeginCmds() const {
@@ -197,72 +236,72 @@ namespace Shift {
 
 
     template<ValidAPI API>
-    void RHIContext<API>::EndRenderPass() {
+    void RHIEncoder<API>::EndRenderPass() {
 #ifdef SHIFT_VULKAN_BACKEND
-        m_cmdBuffer.VK_EndRenderPass();
+        m_boundCB->VK_EndRenderPass();
 #endif
     }
 
     template<ValidAPI API>
-    void RHIContext<API>::CopyBufferToBuffer(const BufferOpDescriptor &srcBuf,
+    void RHIEncoder<API>::CopyBufferToBuffer(const BufferOpDescriptor &srcBuf,
         const BufferOpDescriptor &dstBuf, uint32_t size) const
     {
-        m_cmdBuffer.CopyBufferToBuffer(srcBuf, dstBuf, size);
+        m_boundCB->CopyBufferToBuffer(srcBuf, dstBuf, size);
     }
 
     template<ValidAPI API>
-    void RHIContext<API>::CopyBufferToTexture(const BufferOpDescriptor &srcBuf,
+    void RHIEncoder<API>::CopyBufferToTexture(const BufferOpDescriptor &srcBuf,
         const TextureCopyDescriptor &dstTex) const
     {
-        m_cmdBuffer.CopyBufferToTexture(srcBuf, dstTex);
+        m_boundCB->CopyBufferToTexture(srcBuf, dstTex);
     }
 
     template<ValidAPI API>
-    void RHIContext<API>::BindVertexBuffer(const BufferOpDescriptor &buffer, uint32_t bindIdx) const {
-        m_cmdBuffer.BindVertexBuffer(buffer, bindIdx);
+    void RHIEncoder<API>::BindVertexBuffer(const BufferOpDescriptor &buffer, uint32_t bindIdx) const {
+        m_boundCB->BindVertexBuffer(buffer, bindIdx);
     }
 
     template<ValidAPI API>
-    void RHIContext<API>::BindVertexBuffers(std::span<BufferOpDescriptor> buffers,
+    void RHIEncoder<API>::BindVertexBuffers(std::span<BufferOpDescriptor> buffers,
         uint32_t firstBind) const {
-        m_cmdBuffer.BindVertexBuffers(buffers, firstBind);
+        m_boundCB->BindVertexBuffers(buffers, firstBind);
     }
 
     template<ValidAPI API>
-    void RHIContext<API>::BindIndexBuffer(const BufferOpDescriptor &buffer, EIndexSize indexSize) const {
-        m_cmdBuffer.BindIndexBuffer(buffer, indexSize);
+    void RHIEncoder<API>::BindIndexBuffer(const BufferOpDescriptor &buffer, EIndexSize indexSize) const {
+        m_boundCB->BindIndexBuffer(buffer, indexSize);
     }
 
     template<ValidAPI API>
-    void RHIContext<API>::BindGraphicsPipeline(const Pipeline &pipeline) const {
-        m_cmdBuffer.BindGraphicsPipeline(pipeline);
+    void RHIEncoder<API>::BindGraphicsPipeline(const Pipeline &pipeline) const {
+        m_boundCB->BindGraphicsPipeline(pipeline);
     }
 
     template<ValidAPI API>
-    void RHIContext<API>::DrawIndexed(const DrawIndexedConfig &drawConf) const {
-        m_cmdBuffer.DrawIndexed(drawConf);
+    void RHIEncoder<API>::DrawIndexed(const DrawIndexedConfig &drawConf) const {
+        m_boundCB->DrawIndexed(drawConf);
     }
 
     template<ValidAPI API>
-    void RHIContext<API>::Draw(const DrawConfig &drawConf) const {
-        m_cmdBuffer.Draw(drawConf);
+    void RHIEncoder<API>::Draw(const DrawConfig &drawConf) const {
+        m_boundCB->Draw(drawConf);
     }
 
     template<ValidAPI API>
-    void RHIContext<API>::BlitTexture(const TextureBlitData &srcTexture, const TextureBlitData &dstTexture,
+    void RHIEncoder<API>::BlitTexture(const TextureBlitData &srcTexture, const TextureBlitData &dstTexture,
         const TextureBlitRegion &blitRegion, EFilterMode filter) const
     {
-        m_cmdBuffer.BlitTexture(srcTexture, dstTexture, blitRegion, filter);
+        m_boundCB->BlitTexture(srcTexture, dstTexture, blitRegion, filter);
     }
 
     template<ValidAPI API>
-    void RHIContext<API>::SetViewport(const Viewport& viewport) const {
-        m_cmdBuffer.SetViewport(viewport);
+    void RHIEncoder<API>::SetViewport(const Viewport& viewport) const {
+        m_boundCB->SetViewport(viewport);
     }
 
     template<ValidAPI API>
-    void RHIContext<API>::SetScissor(const Rect2D& scissor) const {
-        m_cmdBuffer.SetScissor(scissor);
+    void RHIEncoder<API>::SetScissor(const Rect2D& scissor) const {
+        m_boundCB->SetScissor(scissor);
     }
 
     template<ValidAPI API>
@@ -303,27 +342,9 @@ namespace Shift {
     }
 
 
-    template<>
-    inline bool RHIContext<RHI::Vulkan>::Init(RHILocal<RHI::Vulkan> *local, EContextType type, bool secondary) {
-        m_local = local;
-        m_type = type;
-        m_isSecondary = secondary;
-
-        CheckCritical(m_cmdPool.Init(&m_local->device, GetQueueType(m_type)), "Failed to initialize command pool");
-
-        CheckCritical(m_cmdBuffer.Init(&m_local->device, &m_local->instance, m_cmdPool, m_isSecondary),
-                      "Failed to init command buffer!");
-
-        return true;
-    }
-
-    template<ValidAPI API>
-    void RHIContext<API>::Destroy() {
-        m_cmdPool.Destroy();
-    }
 
     template<>
-    inline void RHIContext<RHI::Vulkan>::BeginRenderPass(const RenderPassDescriptor& desc, std::span<Texture*> colorTextures, std::optional<Texture*> depthTexture) {
+    inline void RHIEncoder<RHI::Vulkan>::BeginRenderPass(const RenderPassDescriptor& desc, std::span<Texture*> colorTextures, std::optional<Texture*> depthTexture) {
 
         assert(desc.colorAttachments.size() == colorTextures.size());
         assert(desc.depthAttachment.has_value() == depthTexture.has_value());
@@ -365,11 +386,11 @@ namespace Shift {
             renderInfo.pDepthAttachment = &depthInfo.value();
         }
 
-        m_cmdBuffer.VK_BeginRenderPass(renderInfo);
+        m_boundCB->VK_BeginRenderPass(renderInfo);
     }
 
     template<>
-    inline void RHIContext<RHI::Vulkan>::TransitionTexture(const Texture &texture, EResourceLayout newLayout,
+    inline void RHIEncoder<RHI::Vulkan>::TransitionTexture(const Texture &texture, EResourceLayout newLayout,
         EPipelineStageFlags newStageFlags)
     {
 
@@ -380,7 +401,7 @@ namespace Shift {
         subresourceRange.baseArrayLayer = 0;
         subresourceRange.layerCount = 1;
 
-        m_cmdBuffer.VK_TransferImageLayout(
+        m_boundCB->VK_TransferImageLayout(
             texture.GetImage(),
             VK::Util::ShiftToVKResourceLayout(texture.GetResourceLayout()),
             VK::Util::ShiftToVKResourceLayout(newLayout),
@@ -401,6 +422,7 @@ namespace Shift {
         }
         return EPoolQueueType::Graphics;
     }
+
 } // Shift
 
 #endif //SHIFT_RHICONTEXT_HPP

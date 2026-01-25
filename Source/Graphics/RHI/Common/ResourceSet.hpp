@@ -29,12 +29,13 @@ namespace Shift {
             const Sampler& InputSampler,
             uint32_t bind,
             uint32_t offset,
-            uint32_t size
+            uint32_t size,
+            uint32_t arrElement
     ) {
         { InputSet.IsValid() } -> std::same_as<bool>;
         { InputSet.UpdateUBO(bind, InputBuffer) } -> std::same_as<void>;
         { InputSet.UpdateUBO(bind, InputBuffer, size, offset) } -> std::same_as<void>;
-        { InputSet.UpdateTexture(bind, InputTexture) } -> std::same_as<void>;
+        { InputSet.UpdateTexture(bind, arrElement, InputTexture) } -> std::same_as<void>;
         { InputSet.UpdateSampler(bind, InputSampler) } -> std::same_as<void>;
     };
 }

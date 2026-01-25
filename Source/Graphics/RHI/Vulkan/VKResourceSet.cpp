@@ -33,6 +33,7 @@ namespace Shift::VK {
         writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writeSet.dstBinding = bind;
         writeSet.dstSet = m_set;
+        //! TODO: [FEATURE] Add bindless buffer support?
         writeSet.dstArrayElement = 0;
         writeSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         writeSet.descriptorCount = 1;
@@ -41,7 +42,7 @@ namespace Shift::VK {
         m_writeSets.push_back(writeSet);
     }
 
-    void ResourceSet::UpdateTexture(uint32_t bind, const VK::Texture &InputTexture) {
+    void ResourceSet::UpdateTexture(uint32_t bind, uint32_t arrElement, const VK::Texture &InputTexture) {
         m_imageInfos.emplace_back(VK_NULL_HANDLE, InputTexture.GetView(), Util::ShiftToVKResourceLayout(InputTexture.GetResourceLayout()));
 
         VkWriteDescriptorSet writeSet{};
@@ -49,7 +50,7 @@ namespace Shift::VK {
         writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writeSet.dstSet = m_set;
         writeSet.dstBinding = bind;
-        writeSet.dstArrayElement = 0;
+        writeSet.dstArrayElement = arrElement;
         writeSet.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
         writeSet.descriptorCount = 1;
         writeSet.pImageInfo = &m_imageInfos.back();
@@ -58,7 +59,7 @@ namespace Shift::VK {
     }
 
     void ResourceSet::UpdateSampler(uint32_t bind, const VK::Sampler &InputSampler) {
-        // TODO [SANITY_CHECK] @gronk is this correct?
+        // TODO [SANITY_CHECK] @gronk is this true?
         m_samplerInfos.emplace_back(InputSampler.VK_Get());
 
         VkWriteDescriptorSet writeSet{};
@@ -66,6 +67,7 @@ namespace Shift::VK {
         writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writeSet.dstSet = m_set;
         writeSet.dstBinding = bind;
+        //! TODO: [FEATURE] Add bindless sampler support?
         writeSet.dstArrayElement = 0;
         writeSet.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
         writeSet.descriptorCount = 1;

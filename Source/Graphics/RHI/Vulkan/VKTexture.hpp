@@ -30,7 +30,7 @@ namespace Shift::VK {
 
         [[nodiscard]] uint32_t GetWidth() const { return m_textureDesc.width; }
         [[nodiscard]] uint32_t GetHeight() const { return m_textureDesc.height; }
-        [[nodiscard]] uint32_t GetDepth() const { return m_textureDesc.height; }
+        [[nodiscard]] uint32_t GetDepth() const { return m_textureDesc.depth; }
         [[nodiscard]] uint32_t GetMipCount() const { return m_textureDesc.mips; }
         [[nodiscard]] uint32_t GetLevels() const { return m_textureDesc.levels; }
         [[nodiscard]] ETextureFormat GetFormat() const { return m_textureDesc.format; }

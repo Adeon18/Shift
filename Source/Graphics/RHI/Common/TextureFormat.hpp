@@ -5,6 +5,8 @@
 #ifndef SHIFT_TEXTUREFORMAT_HPP
 #define SHIFT_TEXTUREFORMAT_HPP
 
+#include "Base.hpp"
+
 namespace Shift {
     //! 1:1 with Vulkan (not everything is included)
     enum class EResourceLayout {
@@ -49,9 +51,9 @@ namespace Shift {
         ClearBit                       = 1ull << 20,
         IndexInputBit                  = 1ull << 21,
         VertexAttributeInputBit        = 1ull << 22,
-        PreRasterizationShadersBit     = 1ull << 23,
+        PreRasterizationShadersBit     = 1ull << 23
     };
-    DEFINE_ENUM_CLASS_BITWISE_OPERATORS(EPipelineStageFlags)
+    DEFINE_ENUM_CLASS_BITWISE_OPERATORS(EPipelineStageFlags);
 
     //! Shift Texture Formats
     //! Note: 1:1 with Vulkan, and yes, I just copied them:D So licence is the Vulkan licence:D
@@ -240,7 +242,7 @@ namespace Shift {
         ASTC_12x10_UNORM_BLOCK = 181,
         ASTC_12x10_SRGB_BLOCK = 182,
         ASTC_12x12_UNORM_BLOCK = 183,
-        ASTC_12x12_SRGB_BLOCK = 184,
+        ASTC_12x12_SRGB_BLOCK = 184
     };
 } // Shift
 

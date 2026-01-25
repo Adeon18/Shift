@@ -1,5 +1,7 @@
 #include "DescriptorAllocator.hpp"
 
+#include "Config/EngineConfig.hpp"
+
 
 namespace Shift::VK {
     bool DescriptorAllocator::Init(const Device* device, uint32_t initialSets) {
@@ -22,6 +24,9 @@ namespace Shift::VK {
         //! Extra beefy pool for imgui
         m_imguiPool = CreatePool(500, imguiRatios, VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT);
 
+        std::vector<PoolSizeRatio> bindlessPoolRatios {PoolSizeRatio{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, Conf::MAX_BINDLESS_IMAGES}};
+        m_bindlessTexturePool = CreatePool(1, bindlessPoolRatios, VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT);
+
         return true;
     }
 
@@ -37,6 +42,7 @@ namespace Shift::VK {
         m_fullPools.clear();
 
         m_device->DestroyDescriptorPool(m_imguiPool);
+        m_device->DestroyDescriptorPool(m_bindlessTexturePool);
     }
 
     void DescriptorAllocator::Clear() {
@@ -89,8 +95,16 @@ namespace Shift::VK {
         return newPool;
     }
 
-    VkDescriptorSet DescriptorAllocator::Allocate(VkDescriptorSetLayout layout) {
-        VkDescriptorPool poolToUse = GetPool();
+    VkDescriptorSet DescriptorAllocator::Allocate(VkDescriptorSetLayout layout, uint32_t bindlessCount, EBindingType bindlessType) {
+
+        bool isBindless = bindlessCount > 0;
+
+        VkDescriptorPool poolToUse = VK_NULL_HANDLE;
+        switch (bindlessType) {
+            case EBindingType::SampledImage:
+            default:
+                poolToUse = m_bindlessTexturePool;
+        }
 
         VkDescriptorSetAllocateInfo allocInfo = {};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -98,8 +112,23 @@ namespace Shift::VK {
         allocInfo.descriptorSetCount = 1;
         allocInfo.pSetLayouts = &layout;
 
+        //! Bindless handling
+        VkDescriptorSetVariableDescriptorCountAllocateInfo countInfo{};
+        if (isBindless) {
+            countInfo.sType =
+                VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
+            countInfo.descriptorSetCount = 1;
+            countInfo.pDescriptorCounts = &bindlessCount;
+            allocInfo.pNext = &countInfo;
+        }
+
         VkResult result;
         VkDescriptorSet ds = m_device->AllocateDescriptorSet(allocInfo, &result);
+
+        //! Early exit at bindless as we do not want to manage the pool structs
+        if (isBindless) {
+            return ds;
+        }
 
         //! Allocation failed. Try again but if not then we fucked up
         if (result == VK_ERROR_OUT_OF_POOL_MEMORY || result == VK_ERROR_FRAGMENTED_POOL) {

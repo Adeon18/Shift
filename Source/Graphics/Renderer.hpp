@@ -14,6 +14,9 @@
 //! TODO [Design]Editor leak to renderer
 #include "Graphics/UI/EditorLayer.hpp"
 
+#include "Graphics/Managers/TextureManager.hpp"
+#include "Loaders/TextureLoader/StbLoader.hpp"
+
 namespace Shift::gfx {
     //! A struct with data that can change per-frame
     struct EngineData {
@@ -66,7 +69,7 @@ namespace Shift::gfx {
 
         [[nodiscard]] void* GetViewportTextureID() const { return m_viewportTextureID; }
         template<typename API>
-        [[nodiscard]] const RHILocal<API>& GetRHILocal() const { return m_SRHI.GetLocal();}
+        [[nodiscard]] const RHILocal<API>& GetRHILocal() const { return m_renderBackend.GetLocal();}
 
     private:
         [[nodiscard]] uint32_t AquireImage(bool *success);
@@ -78,13 +81,16 @@ namespace Shift::gfx {
         Pipeline* p;
         Shader* vs;
         Shader* ps;
-        Buffer vertex;
+        Buffer* vertex;
 
-        SRHI m_SRHI;
+        RenderBackend m_renderBackend;
 
-        Texture viewportTexture;
+        Texture* viewportTexture;
         Sampler viewportSampler;
         void* m_viewportTextureID = nullptr;
+
+        std::unique_ptr<ITextureLoader> m_textureLoader;
+        std::unique_ptr<Graphics::TextureManager> m_textureManager;
 
         //! Shift API
         // ShiftBackBuffer m_backBuffer;
