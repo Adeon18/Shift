@@ -1,7 +1,8 @@
 #ifndef SHIFT_VKWINDOWSURFACE_H
 #define SHIFT_VKWINDOWSURFACE_H
 
-#include "GLFW/glfw3.h"
+#include "Utility/Vulkan/VKInclude.hpp"
+#include <GLFW/glfw3.h>
 
 namespace Shift::VK {
     class WindowSurface {

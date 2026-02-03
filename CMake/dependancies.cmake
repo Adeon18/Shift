@@ -96,3 +96,13 @@ if (NOT TARGET Slang::Slang)
         )
     endif()
 endif()
+
+# ------------ volk ------------
+FetchContent_Declare(
+        volk
+        GIT_REPOSITORY https://github.com/zeux/volk.git
+        GIT_TAG        ec6aa946cd4b8998e582f8ea2fc999a1cffdc100
+)
+
+set(VOLK_STATIC_DEFINES ON CACHE BOOL "" FORCE)
+set(VOLK_INSTALL OFF CACHE BOOL "" FORCE)

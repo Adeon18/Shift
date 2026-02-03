@@ -5,8 +5,9 @@
 #ifndef SHIFT_VKMACROS_HPP
 #define SHIFT_VKMACROS_HPP
 
-#include <vulkan/vulkan.h>
 #include <unordered_map>
+
+#include "Utility/Vulkan/VKInclude.hpp"
 
 #include "Utility/Logging/LogMacros.hpp"
 

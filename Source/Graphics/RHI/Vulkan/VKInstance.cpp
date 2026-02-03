@@ -6,6 +6,11 @@
 namespace Shift::VK {
     bool Instance::Init(const std::string& appName, uint32_t appVersion, const std::string& engName, uint32_t engVersion, const RHIRequiredFeatures& required)
     {
+
+        if (VkCheck(volkInitialize())) {
+            Log(Critical, "Failed to initialize Volk!");
+        }
+
         //! TODO: THIS IS STUPID
         if (required.VK_enableValidationLayers && !Util::CheckValidationLayerSupport()) {
             LogVerbose(Error, "Validation layers requested but not available!");
@@ -61,6 +66,8 @@ namespace Shift::VK {
             return false;
         }
 
+        volkLoadInstance(m_instance);
+
         Log(
             Info,
             "Running Vulkan {}",
@@ -77,20 +84,14 @@ namespace Shift::VK {
         }
     #endif
 
-        m_fpWaitForPresentKHR = (PFN_vkWaitForPresentKHR)vkGetInstanceProcAddr(m_instance, "vkWaitForPresentKHR");
-        if (!m_fpWaitForPresentKHR) {
-            Log(Critical, "Failed to load vkWaitForPresentKHR! Is VK_KHR_present_wait enabled?");
-            return false;
-        }
-
-    return true;
+        return true;
     }
 
     bool Instance::SetupDebugMessenger()  {
         VkDebugUtilsMessengerCreateInfoEXT createInfo{};
         Util::FillDebugMessengerCreateInfo(createInfo);
 
-        if (Util::CreateDebugUtilsMessengerEXT(m_instance, &createInfo, nullptr, &m_debugMessenger) != VK_SUCCESS) {
+        if (VkCheck(vkCreateDebugUtilsMessengerEXT(m_instance, &createInfo, nullptr, &m_debugMessenger))) {
             LogVerbose(Critical, "Failed to set up a debug messenger!");
             return false;
         }
@@ -105,7 +106,7 @@ namespace Shift::VK {
 
     void Instance::Destroy() {
 #if SHIFT_VALIDATION
-            Util::DestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
+        vkDestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
 #endif
         vkDestroyInstance(m_instance, nullptr);
     }

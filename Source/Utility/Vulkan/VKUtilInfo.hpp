@@ -5,7 +5,7 @@
 #ifndef SHIFT_UTILVULKANINFOS_HPP
 #define SHIFT_UTILVULKANINFOS_HPP
 
-#include "GLFW/glfw3.h"
+#include "Utility/Vulkan/VKInclude.hpp"
 
 #include <span>
 #include <vector>

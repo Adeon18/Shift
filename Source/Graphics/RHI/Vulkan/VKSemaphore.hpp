@@ -1,8 +1,6 @@
 #ifndef SHIFT_VKSEMAPHORE_HPP
 #define SHIFT_VKSEMAPHORE_HPP
 
-#include <vulkan/vulkan.h>
-
 #include "VKDevice.hpp"
 #include "Graphics/RHI/Common/Semaphore.hpp"
 

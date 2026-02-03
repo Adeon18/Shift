@@ -1,8 +1,6 @@
 #ifndef SHIFT_VKUTILCORE_HPP
 #define SHIFT_VKUTILCORE_HPP
 
-#include "GLFW/glfw3.h"
-
 #include <vector>
 #include <string>
 #include <vector>
@@ -12,6 +10,7 @@
 #include <algorithm>
 
 #include "Utility/Logging/LogMacros.hpp"
+#include "Utility/Vulkan/VKInclude.hpp"
 #include "Graphics/RHI/Common/Capabilities.hpp"
 
 namespace Shift::VK::Util {
@@ -42,15 +41,6 @@ namespace Shift::VK::Util {
 
     // Debug utils
     bool CheckValidationLayerSupport();
-    VkResult CreateDebugUtilsMessengerEXT(
-        VkInstance instance,
-        const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
-        const VkAllocationCallbacks* pAllocator,
-        VkDebugUtilsMessengerEXT* pDebugMessenger);
-    void DestroyDebugUtilsMessengerEXT(
-        VkInstance instance,
-        VkDebugUtilsMessengerEXT debugMessenger,
-        const VkAllocationCallbacks* pAllocator);
     void FillDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 
     //! VKAPI_ATTR and VKAPI_ATTR ensure that Vulkan has the right signature to call the function

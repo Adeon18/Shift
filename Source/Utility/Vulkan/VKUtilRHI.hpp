@@ -5,7 +5,7 @@
 #ifndef SHIFT_UTILRHI_HPP
 #define SHIFT_UTILRHI_HPP
 
-#include <vulkan/vulkan.h>
+#include "Utility/Vulkan/VKInclude.hpp"
 
 #include "Graphics/RHI/Common/Texture.hpp"
 #include "Graphics/RHI/Common/TextureFormat.hpp"
