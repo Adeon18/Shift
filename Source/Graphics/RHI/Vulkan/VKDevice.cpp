@@ -10,16 +10,16 @@
 
 namespace Shift::VK {
 
-    bool Device::Init(const Instance &inst, VkSurfaceKHR surface, const RHIRequiredFeatures& deviceFeatures) {
-        m_required = deviceFeatures;
-        CheckCritical(PickPhysicalDevice(inst.Get(), surface, m_required), "Failed to pick the physical device!");
-        CheckCritical(FillCapabilitiesAndBuildFeatureChain(m_required, surface), "Failed to satisfly required device features!");
-        CheckCritical(CreateLogicalDevice(surface), "Failed to create logical device!");
-        CheckCritical(CreateAllocator(inst.Get()), "Failed to create the allocator!");
-        return true;
+    Device::Device(const Instance &inst, VkSurfaceKHR surface, const RHIRequiredFeatures& deviceFeatures): m_required{deviceFeatures} {
+        CheckCriticalEmptyReturn(PickPhysicalDevice(inst.Get(), surface, m_required), "Failed to pick the physical device!");
+        CheckCriticalEmptyReturn(FillCapabilitiesAndBuildFeatureChain(m_required, surface), "Failed to satisfly required device features!");
+        CheckCriticalEmptyReturn(CreateLogicalDevice(surface), "Failed to create logical device!");
+        CheckCriticalEmptyReturn(CreateAllocator(inst.Get()), "Failed to create the allocator!");
+
+        m_valid = true;
     }
 
-    void Device::Destroy() {
+    Device::~Device() {
         vmaDestroyAllocator(m_allocator);
         vkDestroyDevice(m_device, nullptr);
     }

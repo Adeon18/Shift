@@ -271,11 +271,9 @@ namespace Shift {
 
     template<typename Pipeline>
     concept IPipeline =
-        std::is_default_constructible_v<Pipeline> &&
         std::is_destructible_v<Pipeline> &&
-    requires(Pipeline InputPipeline, const PipelineDescriptor& Descriptor) {
+    requires(Pipeline InputPipeline) {
         { InputPipeline.IsValid() } -> std::same_as<bool>;
-        { InputPipeline.Destroy() } -> std::same_as<void>;
         { CONCEPT_CONST_VAR(Pipeline, InputPipeline).GetDescriptor() } -> std::same_as<const PipelineDescriptor&>;
     };
 } // Shift

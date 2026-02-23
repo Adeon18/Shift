@@ -50,16 +50,14 @@ namespace Shift {
 
     template<typename Shader>
     concept IShader =
-        std::is_default_constructible_v<Shader> &&
-        std::is_destructible_v<Shader> &&
-    requires (Shader InputShader, const Device* DevicePtr, EShaderType type, const ShaderDescriptor& desc, std::span<uint8_t> data) {
+        std::constructible_from<Shader, const Device*, const ShaderDescriptor&> &&
+        std::constructible_from<Shader, const Device* , std::span<uint8_t> /*data*/, const ShaderDescriptor&> &&
+        !std::is_trivially_destructible_v<Shader> &&
+    requires (Shader InputShader, EShaderType type) {
         //! Path and entry name string
-        { InputShader.Init(DevicePtr, desc) } -> std::same_as<void>;
-        { InputShader.Init(DevicePtr, data, desc) } -> std::same_as<void>;
         { InputShader.IsValid() } -> std::same_as<bool>;
         { CONCEPT_CONST_VAR(Shader, InputShader).GetType() } -> std::same_as<EShaderType>;
         { CONCEPT_CONST_VAR(Shader, InputShader).GetDesc() } -> std::same_as<const ShaderDescriptor&>;
-        { InputShader.Destroy() } -> std::same_as<void>;
     };
 } // Shift
 

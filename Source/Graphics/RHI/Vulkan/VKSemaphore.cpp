@@ -3,22 +3,19 @@
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 
 namespace Shift::VK {
-    bool BinarySemaphore::Init(const Device *device) {
-        m_device = device;
+    BinarySemaphore::BinarySemaphore(const Device *device): m_device(device) {
         m_semaphore = m_device->CreateSemaphore(Util::CreateSemaphoreInfo());
-        return VkNullCheck(m_semaphore);
+        m_valid = VkNullCheck(m_semaphore);
     }
 
-    void BinarySemaphore::Destroy() {
+    BinarySemaphore::~BinarySemaphore() {
         m_device->DestroySemaphore(m_semaphore);
     }
 
-    bool TimelineSemaphore::Init(const Device *device, uint64_t initialValue) {
-        m_device = device;
-
+    TimelineSemaphore::TimelineSemaphore(const Device *device, uint64_t initialValue): m_device(device) {
         VkSemaphoreTypeCreateInfo info = Util::CreateTimelineSemaphoreInfo(initialValue);
         m_semaphore = m_device->CreateSemaphore(Util::CreateSemaphoreInfo(info));
-        return VkNullCheck(m_semaphore);
+        m_valid = VkNullCheck(m_semaphore);
     }
 
     uint64_t TimelineSemaphore::GetCurrentValue() const {
@@ -38,7 +35,7 @@ namespace Shift::VK {
         vkWaitSemaphores(m_device->Get(), &waitInfo, UINT64_MAX);
     }
 
-    void TimelineSemaphore::Destroy() {
+    TimelineSemaphore::~TimelineSemaphore() {
         m_device->DestroySemaphore(m_semaphore);
     }
 } // Shift::VK

@@ -17,8 +17,10 @@ namespace Shift {
         class BinarySemaphore;
         class TimelineSemaphore;
         class Swapchain;
+        class WindowSurface;
         class Sampler;
         class RenderPass;
+        class Instance;
         class CommandBuffer;
         class CommandPool;
         class Device;
@@ -34,6 +36,8 @@ namespace Shift {
     using BinarySemaphore = VK::BinarySemaphore;
     using TimelineSemaphore = VK::TimelineSemaphore;
     using Swapchain = VK::Swapchain;
+    using WindowSurface = VK::WindowSurface;
+    using Instance = VK::Instance;
     using Sampler = VK::Sampler;
     using RenderPass = VK::RenderPass;
     using CommandBuffer = VK::CommandBuffer;

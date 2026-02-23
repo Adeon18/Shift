@@ -26,6 +26,14 @@
     } while (0)
 
 
+#define CheckCriticalEmptyReturn(expr, msg) \
+    do { \
+        if (!(expr)) { \
+            LogCritical("Critical Check Failed: '{}' | {}:{} | {}", #expr, __FILE__, __LINE__, msg); \
+            return; \
+        } \
+    } while (0)
+
 #define CheckExit(expr) \
     do { \
         if (!(expr)) { \

@@ -41,14 +41,15 @@ namespace Shift::VK {
         //! \param device
         //! \param initialSets The base amount of pool descriptor size
         //! \param poolRatios The descriptor type ration setup from PoolSizeRatio
-        //! \return
-        bool Init(const Device* device, uint32_t initialSets = 4);
+        DescriptorAllocator(const Device* device, uint32_t initialSets = 4);
+        DescriptorAllocator(const DescriptorAllocator&) = delete;
+        DescriptorAllocator& operator=(const DescriptorAllocator&) = delete;
 
         //! Clears all pools
         void Clear();
 
         //! Destroys all pools
-        void Destroy();
+        ~DescriptorAllocator();
 
         //! Get a free pool
         //! TODO: [FEATURE] Be able to get pools by their flag?

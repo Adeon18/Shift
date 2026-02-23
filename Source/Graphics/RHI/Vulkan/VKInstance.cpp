@@ -4,11 +4,11 @@
 #include "Config/EngineConfig.hpp"
 
 namespace Shift::VK {
-    bool Instance::Init(const std::string& appName, uint32_t appVersion, const std::string& engName, uint32_t engVersion, const RHIRequiredFeatures& required)
+    Instance::Instance(const std::string& appName, uint32_t appVersion, const std::string& engName, uint32_t engVersion, const RHIRequiredFeatures& required)
     {
-
         if (VkCheck(volkInitialize())) {
             Log(Critical, "Failed to initialize Volk!");
+            return;
         }
 
         //! TODO: THIS IS STUPID
@@ -16,7 +16,7 @@ namespace Shift::VK {
             LogVerbose(Error, "Validation layers requested but not available!");
             if (required.VK_enableValidationLayers) {
                 LogVerbose(Critical, "Validation layers are REQUIRED but missing. Aborting.");
-                return false;
+                return;
             }
         }
 
@@ -63,7 +63,7 @@ namespace Shift::VK {
         VkResult result = vkCreateInstance(&createInfo, nullptr, &m_instance);
         if (result != VK_SUCCESS) {
             LogVerbose(Critical, "Failed to create Vulkan instance!");
-            return false;
+            return;
         }
 
         volkLoadInstance(m_instance);
@@ -79,12 +79,12 @@ namespace Shift::VK {
         // Setup debug messenger for runtime validation messages
         if (required.VK_enableValidationLayers) {
             if (!SetupDebugMessenger()) {
-                return false;
+                return;
             }
         }
     #endif
 
-        return true;
+        m_valid = VkNullCheck(m_instance);
     }
 
     bool Instance::SetupDebugMessenger()  {
@@ -104,7 +104,7 @@ namespace Shift::VK {
         return m_fpWaitForPresentKHR(dev, swapchain, waitId, timeout);
     }
 
-    void Instance::Destroy() {
+    Instance::~Instance() {
 #if SHIFT_VALIDATION
         vkDestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);
 #endif

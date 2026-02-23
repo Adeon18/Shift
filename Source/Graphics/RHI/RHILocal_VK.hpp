@@ -12,15 +12,17 @@
 #include "Graphics/RHI/Vulkan/Assistants/DescriptorLayoutCache.hpp"
 #include "Graphics/RHI/Vulkan/Assistants/DescriptorAllocator.hpp"
 
+#include "Core/Memory.hpp"
+
 namespace Shift {
     //! Note, this should be included only after both RHI Data and RHI::VUlkan have been defined
     template<> struct RHILocal<RHI::Vulkan> {
-        VK::Instance instance;
-        VK::Device device;
-        VK::WindowSurface surface;
-        VK::Swapchain swapchain{};
+        Core::UniquePtr<VK::Instance> instance;
+        Core::UniquePtr<VK::Device> device;
+        Core::UniquePtr<VK::WindowSurface> surface;
+        Core::UniquePtr<VK::Swapchain> swapchain;
 
-        mutable VK::DescriptorAllocator descAllocator;
+        mutable Core::UniquePtr<VK::DescriptorAllocator> descAllocator;
         VK::DescriptorLayoutCache descLayoutCache;
     };
 } // Shift

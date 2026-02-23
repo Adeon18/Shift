@@ -12,9 +12,7 @@
 #include "VKTexture.hpp"
 
 namespace Shift::VK {
-    bool CommandPool::Init(const Device *device, EPoolQueueType type) {
-        m_device = device;
-        m_type = type;
+    CommandPool::CommandPool(const Device *device, EPoolQueueType type): m_device {device}, m_type {type} {
         auto queueFamiliIndices = m_device->GetQueueFamilyIndices();
 
         uint32_t queueFamilyIndex = 0;
@@ -31,23 +29,18 @@ namespace Shift::VK {
         }
 
         m_commandPool = m_device->CreateCommandPool(Util::CreateCommandPoolInfo(queueFamilyIndex));
-
-        return VkNullCheck(m_commandPool);
     }
 
     void CommandPool::Reset() const {
         vkResetCommandPool(m_device->Get(), m_commandPool, 0);
     }
 
-    void CommandPool::Destroy() {
+    CommandPool::~CommandPool() {
         m_device->DestroyCommandPool(m_commandPool);
     }
 
-    bool CommandBuffer::Init(const Device* device, const Instance* ins, const CommandPool& commandPool, bool isSecondary) {
-        m_device = device;
-        m_ins = ins;
-        m_poolType = commandPool.GetType();
-        m_isSecondary = isSecondary;
+    CommandBuffer::CommandBuffer(const Device* device, const Instance* ins, const CommandPool& commandPool, bool isSecondary):
+        m_device(device), m_ins(ins), m_poolType(commandPool.GetType()), m_isSecondary(isSecondary) {
 
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -59,10 +52,8 @@ namespace Shift::VK {
         if ( VkCheck(vkAllocateCommandBuffers(m_device->Get(), &allocInfo, &m_buffer)) ) {
             Log(Error, "Failed to create VkCommandBuffer!");
             m_buffer = VK_NULL_HANDLE;
-            return false;
+            return;
         }
-
-        return true;
     }
 
     void CommandBuffer::Reset() const {
@@ -245,9 +236,6 @@ namespace Shift::VK {
         subresourceRange.layerCount = 1;
 
         VK_TransferImageLayout(image, oldLayout, newLayout, srcStage, dstStage, subresourceRange);
-    }
-
-    void CommandBuffer::Destroy() {
     }
 
     void CommandBuffer::VK_SetPipelineBarrier(

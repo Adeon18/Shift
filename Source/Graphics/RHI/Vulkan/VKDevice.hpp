@@ -14,16 +14,16 @@
 namespace Shift::VK {
     class Device {
     public:
-        Device()=default;
-        Device(const Device&)=delete;
-        Device& operator=(const Device&)=delete;
-
         //! Initialize the device
         //! \param inst Instance Vulkan Wrapper
         //! \param surface Window surface
         //! \param deviceFeaturesThe physical device features that we want to have supported
         //! \return false if init failed, else true
-        bool Init(const Instance &inst, VkSurfaceKHR surface, const RHIRequiredFeatures& required);
+        Device(const Instance &inst, VkSurfaceKHR surface, const RHIRequiredFeatures& required);
+        Device(const Device&)=delete;
+        Device& operator=(const Device&)=delete;
+
+        [[nodiscard]] bool IsValid() const { return m_valid; }
 
         //! Get the supported depth format
         //! \return Supported format
@@ -152,8 +152,7 @@ namespace Shift::VK {
         [[nodiscard]] VkQueue GetComputeQueue() const { return m_computeQueue; }
         [[nodiscard]] const Util::QueueFamilyIndices& GetQueueFamilyIndices() const { return m_queueFamilyIndices; }
 
-        void Destroy();
-        ~Device() = default;
+        ~Device();
     private:
         //! Create a logical device
         //! \param deviceFeatures Features of a device
@@ -187,6 +186,8 @@ namespace Shift::VK {
         Util::QueueFamilyIndices m_queueFamilyIndices;
         RHICapabilities m_caps{};
         RHIRequiredFeatures m_required{};
+
+        bool m_valid = false;
 
         //! feature chain container to be used as pNext in vkCreateDevice
         struct VulkanEnabledFeatures {

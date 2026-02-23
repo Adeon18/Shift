@@ -8,13 +8,13 @@
 namespace Shift::VK {
     class Fence {
     public:
-        Fence() = default;
-
         //! Initialize a fence
         //! \param device Pointer to a device wrapper
         //! \param isSignaled whether the fence is signalled by default
         //! \return false if failed to initialized
-        bool Init(const Device* device, bool isSignaled);
+        Fence(const Device* device, bool isSignaled);
+        Fence(const Fence& ) = delete;
+        Fence& operator=(const Fence& ) = delete;
 
         //! Get the VkFence, not RHI compatible, hence the name
         //! \return VkFence
@@ -27,17 +27,19 @@ namespace Shift::VK {
         //! Reset the fence to be unsignaled
         void Reset() const;
 
+        [[nodiscard]] bool IsValid() const {return m_valid;}
+
         //! Get Fence status as VkResult
         //! \return VkResult as status of the fence
         [[nodiscard]] VkResult Status() const;
 
         //! Free the VkFence
-        void Destroy();
-        ~Fence() = default;
+        ~Fence();
     private:
         const Device* m_device = nullptr;
 
         VkFence m_fence = VK_NULL_HANDLE;
+        bool m_valid = false;
     };
 
     ASSERT_INTERFACE(IFence, Fence);

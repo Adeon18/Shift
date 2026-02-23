@@ -15,11 +15,11 @@
 namespace Shift {
     //! Resource Set (Descriptor set interface).
     //! Currently supports only very basic binds
+    //! Does not have an API agnostic init function
     //! \tparam Set
     template<typename Set>
     concept IResourceSet =
         std::is_destructible_v<Set> &&
-        std::is_default_constructible_v<Set> &&
     requires(
             Set InputSet,
             // The device is formally here but in VK at least it is used in a private vk function

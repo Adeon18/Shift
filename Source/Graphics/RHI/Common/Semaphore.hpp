@@ -15,8 +15,8 @@ namespace Shift {
     //! Due to implementation caveats, semaphore just has to be created
     template<typename Semaphore>
     concept ISemaphore =
-        std::is_default_constructible_v<Semaphore> &&
-        std::is_trivially_destructible_v<Semaphore>;
+        (std::constructible_from<Semaphore, const Device*> || std::constructible_from<Semaphore, const Device*, uint64_t>) &&
+        !std::is_trivially_destructible_v<Semaphore>;
 } // Shift
 
 #endif //SHIFT_SEMAPHORE_HPP

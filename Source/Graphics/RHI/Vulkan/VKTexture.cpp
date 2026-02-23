@@ -4,7 +4,7 @@
 #include "Utility/Vulkan/VKUtilRHI.hpp"
 
 namespace Shift::VK {
-    void Texture::Init(const Device *device, const TextureDescriptor &textureDesc) {
+    Texture::Texture(const Device *device, const TextureDescriptor &textureDesc): m_device(device), m_textureDesc(textureDesc) {
         m_device = device;
         m_textureDesc = textureDesc;
 
@@ -52,7 +52,7 @@ namespace Shift::VK {
         valid = m_imageView != VK_NULL_HANDLE;
     }
 
-    void Texture::Destroy() {
+    Texture::~Texture() {
         m_device->DestroyImageView(m_imageView);
         vmaDestroyImage(m_device->GetAllocator(), m_image, m_allocation);
     }

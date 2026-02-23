@@ -4,7 +4,7 @@
 
 
 namespace Shift::VK {
-    bool DescriptorAllocator::Init(const Device* device, uint32_t initialSets) {
+    DescriptorAllocator::DescriptorAllocator(const Device* device, uint32_t initialSets) {
         m_device = device;
 
         for (auto r: DEFAULT_SIZE_CONFIG) {
@@ -26,11 +26,9 @@ namespace Shift::VK {
 
         std::vector<PoolSizeRatio> bindlessPoolRatios {PoolSizeRatio{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, Conf::MAX_BINDLESS_IMAGES}};
         m_bindlessTexturePool = CreatePool(1, bindlessPoolRatios, VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT);
-
-        return true;
     }
 
-    void DescriptorAllocator::Destroy() {
+    DescriptorAllocator::~DescriptorAllocator() {
         for (auto p: m_readyPools) {
             m_device->DestroyDescriptorPool(p);
         }

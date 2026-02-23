@@ -7,16 +7,12 @@
 #include "Utility/Vulkan/VKUtilRHI.hpp"
 
 namespace Shift::VK {
-    void ResourceSet::Init(const Device *device, VkDescriptorSet set) {
-        m_device = device;
-
+    ResourceSet::ResourceSet(const Device *device, VkDescriptorSet set): m_device(device), m_set(set) {
         static constexpr uint32_t DEFAULT_INFO_SIZE = 16;
 
         m_imageInfos.reserve(DEFAULT_INFO_SIZE);
         m_bufferInfos.reserve(DEFAULT_INFO_SIZE);
         m_samplerInfos.reserve(DEFAULT_INFO_SIZE);
-
-        m_set = set;
 
         valid = VkNullCheck(m_set);
     }

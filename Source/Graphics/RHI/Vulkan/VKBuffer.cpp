@@ -50,10 +50,7 @@ namespace Shift::VK {
         return flags;
     }
 
-    void Buffer::Init(const Device *device, const BufferDescriptor& desc) {
-        m_device = device;
-        m_desc = desc;
-
+    Buffer::Buffer(const Device *device, const BufferDescriptor& desc): m_device{device}, m_desc{desc} {
         VkBufferCreateInfo bufCreateInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
         bufCreateInfo.size = m_desc.size;
         bufCreateInfo.usage = BufferTypeToUsageFlags(m_desc.type);
@@ -84,7 +81,7 @@ namespace Shift::VK {
         vmaUnmapMemory(m_device->GetAllocator(), m_allocation);
     }
 
-    void Buffer::Destroy() {
+    Buffer::~Buffer() {
         vmaDestroyBuffer(m_device->GetAllocator(), m_buffer, m_allocation);
     }
 } // shift::VK

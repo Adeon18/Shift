@@ -21,11 +21,9 @@ namespace Shift::VK {
 
     class Swapchain {
     public:
-        Swapchain() = default;
+        Swapchain(const Device* device, const WindowSurface* windowSurface, uint32_t width, uint32_t height);
         Swapchain(const Swapchain&) = delete;
         Swapchain& operator=(const Swapchain&) = delete;
-
-        [[nodiscard]] bool Init(const Device* device, const WindowSurface* windowSurface, uint32_t width, uint32_t height);
 
         //! Aquire next image index(with check for swapchain changed boolean)
         //! \param semaphore Semaphore that is signalled when we get the image
@@ -45,6 +43,8 @@ namespace Shift::VK {
         //! \return false at total failure (no recreation possible), else true
         [[nodiscard]] bool Present(const BinarySemaphore& semaphore, uint32_t imageIdx, bool* isOld, const Fence& presentWaitFence);
 
+        [[nodiscard]] bool IsValid() const { return m_valid; }
+
         [[nodiscard]] VkSwapchainKHR Get() const { return m_swapChain; }
         [[nodiscard]] Texture& GetSwapchainTexture(uint32_t imageIdx) const { return m_swapChainTextures[imageIdx]; }
         [[nodiscard]] const std::vector<VkImage>& GetImages() const { return m_swapChainImages; }
@@ -54,8 +54,7 @@ namespace Shift::VK {
         [[nodiscard]] Viewport GetViewport() const { return m_viewPort; }
         [[nodiscard]] Rect2D GetScissor() const { return m_scissor; }
 
-        void Destroy();
-        ~Swapchain()=default;
+        ~Swapchain();
 
     private:
         void FillSwapchainDescription(uint32_t width, uint32_t height);
@@ -80,6 +79,8 @@ namespace Shift::VK {
         //! Texture stores duplicated VkImage data as well as Image Views and the state of the resource
         mutable std::vector<Texture> m_swapChainTextures;
         std::vector<VkImage> m_swapChainImages;
+
+        bool m_valid = false;
     };
 
     ASSERT_INTERFACE(ISwapchain, Swapchain);

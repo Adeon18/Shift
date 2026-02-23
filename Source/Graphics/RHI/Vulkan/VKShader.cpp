@@ -6,10 +6,7 @@
 namespace Shift::VK {
     using namespace Shift::Util;
 
-    void Shader::Init(const Device* device, const ShaderDescriptor& desc) {
-        m_device = device;
-        m_descriptor = desc;
-
+    Shader::Shader(const Device* device, const ShaderDescriptor& desc): m_device(device), m_descriptor(desc) {
         auto code = ReadFile(m_descriptor.path);
 
         m_module = m_device->CreateShaderModule(Util::CreateShaderModuleInfo(code));
@@ -26,19 +23,16 @@ namespace Shift::VK {
         valid = VkNullCheck(m_module);
     }
 
-    void Shader::Init(const Device *device, std::span<uint8_t> bytecode, const ShaderDescriptor& desc) {
-        m_device = device;
-        m_descriptor = desc;
-
+    Shader::Shader(const Device *device, std::span<uint8_t> bytecode, const ShaderDescriptor& desc): m_device(device), m_descriptor(desc) {
         InitInternal(bytecode);
     }
 
     void Shader::Rebuild(std::span<uint8_t> bytecode) {
-        Destroy();
+        m_device->DestroyShaderModule(m_module);
         InitInternal(bytecode);
     }
 
-    void Shader::Destroy() {
+    Shader::~Shader() {
         m_device->DestroyShaderModule(m_module);
     }
 

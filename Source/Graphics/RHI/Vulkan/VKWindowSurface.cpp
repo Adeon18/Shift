@@ -4,16 +4,15 @@
 #include "Utility/Logging/LogMacros.hpp"
 
 namespace Shift::VK {
-    bool WindowSurface::Init(VkInstance ins, GLFWwindow *win) {
-        m_instance = ins;
+    WindowSurface::WindowSurface(VkInstance ins, GLFWwindow *win): m_instance(ins) {
         if ( VkCheck(glfwCreateWindowSurface(ins, win, nullptr, &m_surface)) ) {
             Log(Critical, "Failed to create WindowSurface");
-            return false;
+            return;
         }
-        return true;
+        m_valid = true;
     }
 
-    void WindowSurface::Destroy() {
+     WindowSurface::~WindowSurface() {
         vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
     };
 } // Shift::VK

@@ -11,14 +11,12 @@
 #include "Utility/Vulkan/VKUtilRHI.hpp"
 
 namespace Shift::VK {
-    bool Swapchain::Init(const Device *device, const WindowSurface* windowSurface, uint32_t width, uint32_t height) {
-        m_device = device;
-        m_windowSurface = windowSurface;
+    Swapchain::Swapchain(const Device *device, const WindowSurface* windowSurface, uint32_t width, uint32_t height): m_device(device), m_windowSurface(windowSurface) {
         FillSwapchainDescription(width, height);
-        CheckCritical(CreateSwapChain(), "Failed to create swapchain!");
-        CheckCritical(CreateImageViews(), "Failed to create image views!");
+        CheckCriticalEmptyReturn(CreateSwapChain(), "Failed to create swapchain!");
+        CheckCriticalEmptyReturn(CreateImageViews(), "Failed to create image views!");
 
-        return true;
+        m_valid = VkNullCheck(m_swapChain);
     }
 
     void Swapchain::FillSwapchainDescription(uint32_t width, uint32_t height) {
@@ -157,7 +155,7 @@ namespace Shift::VK {
         }
     }
 
-    void Swapchain::Destroy() {
+    Swapchain::~Swapchain() {
         DestroyImageViews();
 
         vkDestroySwapchainKHR(m_device->Get(), m_swapChain, nullptr);

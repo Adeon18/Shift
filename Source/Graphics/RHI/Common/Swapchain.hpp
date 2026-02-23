@@ -18,9 +18,9 @@ namespace Shift {
     //! \tparam Swapchain
     template<typename Swapchain>
     concept ISwapchain =
-        std::is_default_constructible_v<Swapchain> &&
+        std::constructible_from<Swapchain, const Device *, const WindowSurface*, uint32_t /*width*/, uint32_t /*height*/> &&
+        !std::is_trivially_destructible_v<Swapchain> &&
     requires(Swapchain InputSwapchain, const BinarySemaphore& InputSemaphore, uint64_t timeout, const Fence& InputFence, uint32_t width, uint32_t height, uint32_t imageIdx, bool* isOld, bool* wasChanged) {
-        { InputSwapchain.Destroy() } -> std::same_as<void>;
         { InputSwapchain.AquireNextImage(InputSemaphore, wasChanged, timeout) } -> std::same_as<uint32_t>;
         { InputSwapchain.Recreate(width, height) } -> std::same_as<bool>;
         { InputSwapchain.Present(InputSemaphore, imageIdx, isOld, InputFence) } -> std::same_as<bool>;

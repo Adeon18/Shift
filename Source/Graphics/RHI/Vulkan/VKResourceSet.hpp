@@ -8,12 +8,12 @@
 namespace Shift::VK {
     class ResourceSet {
     public:
-        ResourceSet() = default;
-
         //! Init the resource set (just fills infos, the api related logic is in the RHI wrapper)
         //! \param device - device lol
         //! \param set - descriptor set
-        void Init(const Device* device, VkDescriptorSet set);
+        ResourceSet(const Device* device, VkDescriptorSet set);
+        ResourceSet(const ResourceSet&) = delete;
+        ResourceSet& operator=(const ResourceSet&) = delete;
 
         [[nodiscard]] bool IsValid() const { return valid; }
 

@@ -67,10 +67,9 @@ namespace Shift {
     //! Sampler interface is very basic
     template<typename Sampler>
     concept ISampler =
-        std::is_default_constructible_v<Sampler> &&
-        std::is_trivially_destructible_v<Sampler> &&
-    requires (Sampler InputSampler, const Device* DevicePtr, const SamplerDescriptor SamplerDesc) {
-        { InputSampler.Init(DevicePtr, SamplerDesc) } -> std::same_as<void>;
+        std::constructible_from<Sampler, const Device*, const SamplerDescriptor&> &&
+        std::is_destructible_v<Sampler> &&
+    requires (Sampler InputSampler) {
         { InputSampler.IsValid() } -> std::same_as<bool>;
     };
 } // Shift

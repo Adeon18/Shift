@@ -12,13 +12,9 @@ namespace Shift::VK {
         friend Shift::VK::ResourceSet;
         friend Shift::VK::CommandBuffer;
     public:
-        Buffer() = default;
-
-        //! Create a Vulkan Buffer
-        //! \param device
-        //! \param desc RHI Buffer description
-        //! \return false if failure
-        void Init(const Device* device, const BufferDescriptor& desc);
+        Buffer(const Device* device, const BufferDescriptor& desc);
+        Buffer(const Buffer&) = delete;
+        Buffer& operator=(const Buffer&) = delete;
 
         [[nodiscard]] bool IsValid() const { return valid; }
 
@@ -43,8 +39,7 @@ namespace Shift::VK {
         template<typename T>
         void Fill(T* data, uint64_t size, uint64_t offset);
 
-        void Destroy();
-        ~Buffer() = default;
+        ~Buffer();
     private:
         //! This is NOT and RHI function and should be called ONLY in other Vulkan handles
         //! \return The VkBuffer handle

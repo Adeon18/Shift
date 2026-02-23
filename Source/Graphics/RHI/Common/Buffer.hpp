@@ -34,12 +34,10 @@ namespace Shift {
     //! \tparam Buffer A Buffer class of an API backend
     template<typename Buffer>
     concept IBuffer =
-        std::is_default_constructible_v<Buffer> &&
-        std::is_trivially_destructible_v<Buffer> &&
-    requires(Buffer InputBuffer, const Device* DevicePtr, const BufferDescriptor& Desc, void* Data, uint64_t DataSize, uint64_t Offset) {
-        { InputBuffer.Init(DevicePtr, Desc) } -> std::same_as<void>;
+        std::constructible_from<Buffer, const Device*, const BufferDescriptor&> &&
+        std::is_destructible_v<Buffer> &&
+    requires(Buffer InputBuffer, void* Data, uint64_t DataSize, uint64_t Offset) {
         { InputBuffer.IsValid() } -> std::same_as<bool>;
-        { InputBuffer.Destroy() } -> std::same_as<void>;
         { InputBuffer.Map() } -> std::same_as<void*>;
         { InputBuffer.GetMapped() } -> std::same_as<void*>;
         { InputBuffer.UnMap() } -> std::same_as<void>;

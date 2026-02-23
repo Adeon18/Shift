@@ -12,16 +12,10 @@ namespace Shift::VK {
     class Shader {
         friend VK::Pipeline;
     public:
-        Shader() = default;
-
-        //! Initialize the Shader module along with the respective pipeline info
-        //! \param device
-        //! \param type Shader type
-        //! \param path Path to the shader file
-        //! \param entry Function entrypoint name
-        //! \return false if failed to create module
-        void Init(const Device* device, const ShaderDescriptor& desc);
-        void Init(const Device* device, std::span<uint8_t> bytecode, const ShaderDescriptor& desc);
+        Shader(const Device* device, const ShaderDescriptor& des);
+        Shader(const Device* device, std::span<uint8_t> bytecode, const ShaderDescriptor& des);
+        Shader(const Shader&)=delete;
+        Shader& operator=(const Shader&)=delete;
 
         //! Rebuild shader with new bytecode, used for hot-reloading
         void Rebuild(std::span<uint8_t> bytecode);
@@ -31,8 +25,7 @@ namespace Shift::VK {
         [[nodiscard]] EShaderType GetType() const { return m_descriptor.type; }
         [[nodiscard]] const ShaderDescriptor& GetDesc() const { return m_descriptor; }
 
-        void Destroy();
-        ~Shader() = default;
+        ~Shader();
     private:
         //! This is to be called by the VK pipeline only! Which is a friend class of the shader
         //! This is a Vulkan only function and is ONLY mean to be called by the Vulkan backend

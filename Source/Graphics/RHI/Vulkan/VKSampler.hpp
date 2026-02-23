@@ -9,18 +9,17 @@ namespace Shift::VK {
     class Sampler {
         friend VK::ResourceSet;
     public:
-        Sampler()=default;
-
         //! Initialize a sampler with the RHI desc
         //! \param device The VkDevice
         //! \param desc RHI desc
         //! \return true if successful, false otherwise
-        void Init(const Device* device, const SamplerDescriptor& desc);
+        Sampler(const Device* device, const SamplerDescriptor& desc);
+        Sampler(const Sampler&)=delete;
+        Sampler& operator=(const Sampler&)=delete;
 
         [[nodiscard]] bool IsValid() const { return m_valid; }
 
-        void Destroy();
-        ~Sampler() = default;
+        ~Sampler();
         //! API SPECIFIC, DO NOT USE UNLESS NESSESARY IN RHI SPECIFIC CODE
         //! \return VkPipeline
         [[nodiscard]] VkSampler VK_Get() const { return m_sampler; }

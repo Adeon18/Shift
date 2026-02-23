@@ -7,7 +7,6 @@
 
 #include <concepts>
 #include <type_traits>
-#include <string>
 
 #include "Base.hpp"
 #include "Types.hpp"
@@ -167,12 +166,10 @@ namespace Shift {
     //! \tparam Texture
     template<typename Texture>
     concept ITexture =
-        std::is_default_constructible_v<Texture> &&
-        std::is_trivially_destructible_v<Texture> &&
-    requires(Texture InputTexture, const TextureDescriptor& TextureDesc, const Device* DevicePtr) {
-        { InputTexture.Init(DevicePtr, TextureDesc) } -> std::same_as<void>;
+        std::constructible_from<Texture, const Device *, const TextureDescriptor&> &&
+        !std::is_trivially_destructible_v<Texture> &&
+    requires(Texture InputTexture) {
         { InputTexture.IsValid() } -> std::same_as<bool>;
-        { InputTexture.Destroy() } -> std::same_as<void>;
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetWidth() } -> std::same_as<uint32_t>;
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetHeight() } -> std::same_as<uint32_t>;
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetDepth() } -> std::same_as<uint32_t>;

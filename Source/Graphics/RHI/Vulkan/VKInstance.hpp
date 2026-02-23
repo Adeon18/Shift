@@ -16,27 +16,25 @@
 namespace Shift::VK {
     class Instance {
     public:
-        Instance() = default;
-        Instance(const Instance&)=delete;
-        Instance& operator=(const Instance&)=delete;
-
         //! Initialize a VkInstance from the App Data
         //! \param appName The name of the application
         //! \param appVersion The application version
         //! \param engName The name of the Engine (Always Shift)
         //! \param engVersion The engine version
-        //! \return True if initialization successful, false otherwise
-        bool Init(const std::string& appName, uint32_t appVersion, const std::string& engName, uint32_t engVersion, const RHIRequiredFeatures& required);
+        Instance(const std::string& appName, uint32_t appVersion, const std::string& engName, uint32_t engVersion, const RHIRequiredFeatures& required);
+        Instance(const Instance&)=delete;
+        Instance& operator=(const Instance&)=delete;
 
         //! Returns a Vk Instance handle
         //! \return VkInstance
         [[nodiscard]] VkInstance Get() const { return m_instance; }
 
+        [[nodiscard]] bool IsValid() const { return m_valid; }
+
         VkResult WaitForPresent(VkDevice dev, VkSwapchainKHR swapchain, uint64_t waitId, uint64_t timeout) const;
 
         //! Free the instance, should be done last
-        void Destroy();
-        ~Instance() = default;
+        ~Instance();
     private:
         bool SetupDebugMessenger();
 
@@ -45,6 +43,8 @@ namespace Shift::VK {
 
         VkInstance m_instance = VK_NULL_HANDLE;
         VkDebugUtilsMessengerEXT m_debugMessenger = VK_NULL_HANDLE;
+
+        bool m_valid = false;
     };
 } // Shift::VK
 

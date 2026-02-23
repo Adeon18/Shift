@@ -13,9 +13,9 @@ namespace Shift::VK {
         //! Swapchain manually creates textures by filling the member variables to keep the RHI API Clean
         friend VK::Swapchain;
     public:
-        Texture() = default;
-
-        void Init(const Device* device, const TextureDescriptor& textureDesc);
+        Texture(const Device* device, const TextureDescriptor& textureDesc);
+        Texture(const Texture&)=delete;
+        Texture& operator=(const Texture&)=delete;
 
         [[nodiscard]] bool IsValid() const { return valid; }
 
@@ -41,8 +41,7 @@ namespace Shift::VK {
         void SetResourceLayout(EResourceLayout layout) const { m_textureDesc.resourceLayout = layout; }
         [[nodiscard]] EResourceLayout GetResourceLayout() const { return m_textureDesc.resourceLayout; }
 
-        void Destroy();
-        ~Texture() = default;
+        ~Texture();
     private:
         //! TODO
         void GenerateMips();

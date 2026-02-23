@@ -4,8 +4,7 @@
 #include "Utility/Vulkan/VKUtilRHI.hpp"
 
 namespace Shift::VK {
-    void Sampler::Init(const Device* device, const Shift::SamplerDescriptor &desc) {
-        m_device = device;
+    Sampler::Sampler(const Device* device, const Shift::SamplerDescriptor &desc): m_device(device) {
         m_sampler = m_device->CreateImageSampler(
                 Util::CreateSamplerInfo(
                         Util::ShiftToVKFilterMode(desc.minFilter),
@@ -26,7 +25,7 @@ namespace Shift::VK {
         m_valid = VkNullCheck(m_sampler);
     }
 
-    void Sampler::Destroy() {
+    Sampler::~Sampler() {
         m_device->DestroyImageSampler(m_sampler);
     }
 } // Shift::VK

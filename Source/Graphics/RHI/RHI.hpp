@@ -27,7 +27,7 @@ namespace Shift {
             [[nodiscard]] Texture* CreateTexture(const TextureDescriptor& desc);
             [[nodiscard]] Pipeline* CreatePipeline(const PipelineDescriptor& desc, const std::vector<ShaderStageDesc>& shaders);
             [[nodiscard]] ResourceSet* CreateResourceSet(const PipelineLayoutDescriptor& desc);
-            [[nodiscard]] Sampler CreateSampler(const SamplerDescriptor& desc);
+            [[nodiscard]] Sampler* CreateSampler(const SamplerDescriptor& desc);
             [[nodiscard]] Shader* CreateShader(const ShaderDescriptor& desc);
         private:
             RenderHardwareInterface* m_backend = nullptr;
@@ -55,8 +55,8 @@ namespace Shift {
         RHIContext<API>& GetComputeContext() { return m_computeContext; }
         RHIContext<API>& GetTransferContext() { return m_transferContext; }
 
-        BinarySemaphore* GetSwapchainAcquireSemaphore(uint32_t imageIdx) { return &m_imageAvailable[imageIdx]; }
-        BinarySemaphore* GetSwapchainRenderFinishedSemaphore(uint32_t imageIdx) { return &m_renderFinished[imageIdx]; }
+        BinarySemaphore* GetSwapchainAcquireSemaphore(uint32_t imageIdx) { return m_imageAvailable[imageIdx].get(); }
+        BinarySemaphore* GetSwapchainRenderFinishedSemaphore(uint32_t imageIdx) { return m_renderFinished[imageIdx].get(); }
 
         RHIContext<API>* AcquireSecondaryGraphicsContext();
         void ExecuteSecondaryGraphicsContexts(std::span<RHIContext<API>*> secondaries, RHIContext<API>::SubmitTimelinePayload releasePayload);
@@ -111,24 +111,24 @@ namespace Shift {
         uint64_t m_currentFrameGlobalIndex = 0;
 
         //! Timeline semaphores per queue type
-        TimelineSemaphore m_timelineGraphics;
-        TimelineSemaphore m_timelineTransfer;
-        TimelineSemaphore m_timelineCompute;
+        Core::UniquePtr<TimelineSemaphore> m_timelineGraphics;
+        Core::UniquePtr<TimelineSemaphore> m_timelineTransfer;
+        Core::UniquePtr<TimelineSemaphore> m_timelineCompute;
 
         std::atomic<uint64_t> m_timelineGraphicsValue{0};
         std::atomic<uint64_t> m_timelineTransferValue{0};
         std::atomic<uint64_t> m_timelineComputeValue{0};
 
         //! To be able to wait on presentation
-        std::vector<Fence> m_presentFences;
+        std::vector<Core::UniquePtr<Fence>> m_presentFences;
 
         //! This is wrong implementation, with this we can wait until pixels appear in screen but NOT for presentation
         // std::vector<uint64_t> m_imagePresentIds;
         // uint64_t m_globalPresentId = 0;
 
         //! Swapchain-related semaphores
-        std::array<BinarySemaphore, Conf::SHIFT_MAX_FRAMES_IN_FLIGHT> m_imageAvailable;
-        std::vector<BinarySemaphore> m_renderFinished;
+        std::array<Core::UniquePtr<BinarySemaphore>, Conf::SHIFT_MAX_FRAMES_IN_FLIGHT> m_imageAvailable;
+        std::vector<Core::UniquePtr<BinarySemaphore>> m_renderFinished;
     };
 
     template<ValidAPI API>
@@ -169,13 +169,16 @@ namespace Shift {
 #endif
 
 #ifdef SHIFT_VULKAN_BACKEND
-        CheckCritical(m_local.instance.Init(appName, uAppVersion, engineName, uEngVersion, API::requiredFeatures), "Failed to create VK instance!");
-        CheckCritical(m_local.surface.Init(m_local.instance.Get(), window), "Failed to create VK surface!");
-        //! TODO: Features (features could be pulled from API template arg, for now they are just default
-        CheckCritical(m_local.device.Init(m_local.instance, m_local.surface.Get(), API::requiredFeatures), "Failed to create VK device!");
+        m_local.instance = Core::CreateUnique<VK::Instance>(appName, uAppVersion, engineName, uEngVersion, API::requiredFeatures);
+        CheckCritical(m_local.instance->IsValid(), "Failed to create VK instance!");
+        m_local.surface = Core::CreateUnique<VK::WindowSurface>(m_local.instance.Get(), window);
+        CheckCritical(m_local.surface->IsValid(), "Failed to create VK surface!");
+        m_local.device = Core::CreateUnique<VK::Device>(m_local.instance, m_local.surface.Get(), API::requiredFeatures);
+        CheckCritical(m_local.device->IsValid(), "Failed to create VK device!");
         m_local.descLayoutCache.Init(&m_local.device);
-        CheckCritical(m_local.descAllocator.Init(&m_local.device), "Failed to create VK descriptor allocator!");
-        CheckCritical(m_local.swapchain.Init(&m_local.device, &m_local.surface, width, height), "Failed to create VK swapchain!");
+        m_local.descAllocator = Core::CreateUnique<VK::DescriptorAllocator>(&m_local.device);
+        m_local.swapchain = Core::CreateUnique<VK::Swapchain>(&m_local.device, &m_local.surface, width, height);
+        CheckCritical(m_local.swapchain->IsValid(), "Failed to create VK swapchain!");
 #endif
 
         for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
@@ -199,23 +202,24 @@ namespace Shift {
         uint32_t imageCount = m_local.swapchain.GetImages().size();
         m_renderFinished.clear();
         for(uint32_t i = 0; i < imageCount; i++) {
-            auto& sem = m_renderFinished.emplace_back();
-            CheckCritical(sem.Init(&m_local.device), "Failed to create render semaphore");
-            auto& fence = m_presentFences.emplace_back();
-            CheckCritical(fence.Init(&m_local.device, true), "Failed to create present wait fence");
+            auto& sem = m_renderFinished.emplace_back(&m_local.device);
+            CheckCritical(sem->IsValid(), "Failed to create render semaphore");
+            auto& fence = m_presentFences.emplace_back(&m_local.device, true);
+            CheckCritical(fence->IsValid(), "Failed to create present wait fence");
         }
 
         for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
-            CheckCritical(m_imageAvailable[i].Init(&m_local.device), "Failed Init Acquire Sem");
+            m_imageAvailable[i] = Core::CreateUnique<BinarySemaphore>(&m_local.device);
+            CheckCritical(m_imageAvailable[i]->IsValid(), "Failed Init Acquire Sem");
         }
 
         // m_imagePresentIds.clear();
         // m_imagePresentIds.resize(m_local.swapchain.GetImages().size(), 0);
         // m_globalPresentId = 0;
 
-        m_timelineCompute.Init(&m_local.device, 0);
-        m_timelineGraphics.Init(&m_local.device, 0);
-        m_timelineTransfer.Init(&m_local.device, 0);
+        m_timelineCompute = Core::CreateUnique<TimelineSemaphore>(&m_local.device, 0);
+        m_timelineGraphics = Core::CreateUnique<TimelineSemaphore>(&m_local.device, 0);
+        m_timelineTransfer = Core::CreateUnique<TimelineSemaphore>(&m_local.device, 0);
 
         m_shaderManager.Init(&m_local.device, Util::GetShiftShaderRootDir());
 
@@ -232,19 +236,19 @@ namespace Shift {
         m_local.swapchain.Destroy();
 
         for (auto& sem: m_imageAvailable) {
-            sem.Destroy();
+            sem.reset();
         }
         for (auto& sem: m_renderFinished) {
-            sem.Destroy();
+            sem.reset();
         }
 
         for (auto& fence: m_presentFences) {
-            fence.Destroy();
+            fence.reset();
         }
 
-        m_timelineTransfer.Destroy();
-        m_timelineGraphics.Destroy();
-        m_timelineCompute.Destroy();
+        m_timelineTransfer.reset();
+        m_timelineGraphics.reset();
+        m_timelineCompute.reset();
 
         for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
             m_graphicsContexts[i].Destroy();
@@ -260,34 +264,27 @@ namespace Shift {
         m_computeContext.Destroy();
 
         m_local.descLayoutCache.Destroy();
-        m_local.descAllocator.Destroy();
+        m_local.descAllocator.reset();
 
-        m_local.surface.Destroy();
+        m_local.surface.reset();
 
-        m_local.device.Destroy();
-        m_local.instance.Destroy();
+        m_local.device.reset();
+        m_local.instance.reset();
     }
 
     template<ValidAPI API>
     Buffer* RenderHardwareInterface<API>::HandleCreator::CreateBuffer(const BufferDescriptor &desc) {
-        Buffer* b = new Buffer();
-        b->Init(&m_backend->m_local.device, desc);
-        return b;
+        return new Buffer(&m_backend->m_local.device, desc);
     }
 
     template<ValidAPI API>
     Texture* RenderHardwareInterface<API>::HandleCreator::CreateTexture(const TextureDescriptor &desc) {
-        Texture* t = new Texture();
-        t->Init(&m_backend->m_local.device, desc);
-        return t;
+        return new Texture(&m_backend->m_local.device, desc);
     }
 
     template<ValidAPI API>
-    Sampler RenderHardwareInterface<API>::HandleCreator::CreateSampler(const SamplerDescriptor &desc) {
-        Sampler s;
-        s.Init(&m_backend->m_local.device, desc);
-
-        return s;
+    Sampler* RenderHardwareInterface<API>::HandleCreator::CreateSampler(const SamplerDescriptor &desc) {
+        return new Sampler(&m_backend->m_local.device, desc);
     }
 
     template<ValidAPI API>
@@ -308,16 +305,15 @@ namespace Shift {
 
         uint32_t newImageCount = m_local.swapchain.GetImages().size();
 
-
         if (m_renderFinished.size() != newImageCount) {
             for (auto& sem : m_renderFinished) {
-                sem.Destroy();
+                sem.reset();
             }
             m_renderFinished.clear();
 
             for(uint32_t i = 0; i < newImageCount; i++) {
-                auto& sem = m_renderFinished.emplace_back();
-                CheckCritical(sem.Init(&m_local.device), "Failed to recreate render semaphore");
+                auto& sem = m_renderFinished.emplace_back(&m_local.device);
+                CheckCritical(sem->IsValid(), "Failed to recreate render semaphore");
             }
         }
         return true;
@@ -382,7 +378,7 @@ namespace Shift {
 
     template<ValidAPI API>
     void RenderHardwareInterface<API>::WaitForGraphicsContext() {
-        m_timelineGraphics.Wait(m_timelineGraphicsValue);
+        m_timelineGraphics->Wait(m_timelineGraphicsValue);
     }
 
     template<ValidAPI API>
@@ -455,7 +451,7 @@ namespace Shift {
 
     template<>
     inline void RenderHardwareInterface<RHI::Vulkan>::WaitForGPU() {
-        vkDeviceWaitIdle(m_local.device.Get());
+        vkDeviceWaitIdle(m_local.device->Get());
     }
 
     template<>
@@ -489,8 +485,7 @@ namespace Shift {
             setLayouts.push_back(m_backend->m_local.descLayoutCache.CreateDescriptorLayout(layoutInfo));
         }
 
-        Pipeline* p = new Pipeline{};
-        p->Init(&m_backend->m_local.device, desc, shaders, setLayouts);
+        Pipeline* p = new Pipeline{m_backend->m_local.device.get(), desc, shaders, setLayouts};
 
         for (auto& stage: shaders) {
             m_backend->m_shaderManager.RegisterPipeline(stage.handle, p);
@@ -503,7 +498,6 @@ namespace Shift {
 
     template<ValidAPI API>
     ResourceSet *RenderHardwareInterface<API>::HandleCreator::CreateResourceSet(const PipelineLayoutDescriptor &desc) {
-        ResourceSet* rs = new ResourceSet{};
 
         //! TODO [CLEANUP] create a shared function for set pulling of set layout between this and pipeline creation
         std::vector<VkDescriptorSetLayoutBinding> vkBindings;
@@ -552,15 +546,13 @@ namespace Shift {
             layoutInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
         }
 
-        rs->Init(&m_backend->m_local.device, m_backend->m_local.descAllocator.Allocate(m_backend->m_local.descLayoutCache.CreateDescriptorLayout(layoutInfo), bindlessCount, bindlessType));
-
-        return rs;
+        return new ResourceSet{&m_backend->m_local.device.get(), m_backend->m_local.descAllocator->Allocate(m_backend->m_local.descLayoutCache.CreateDescriptorLayout(layoutInfo), bindlessCount, bindlessType)};
     }
 
     template<>
     inline void RenderHardwareInterface<RHI::Vulkan>::WaitForImagePresent(uint32_t imageIndex) {
-        m_presentFences[imageIndex].Wait();
-        m_presentFences[imageIndex].Reset();
+        m_presentFences[imageIndex]->Wait();
+        m_presentFences[imageIndex]->Reset();
     }
 
 #ifdef SHIFT_VULKAN_BACKEND

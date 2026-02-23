@@ -4,12 +4,8 @@
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 
 namespace Shift::VK {
-    void Pipeline::Init(const Device *device, const PipelineDescriptor &descriptor, const std::vector<ShaderStageDesc>& shaders, std::span<VkDescriptorSetLayout> descLayouts) {
-        m_device = device;
-        m_desc = descriptor;
-        m_shaders = shaders;
-        m_descLayouts = std::vector<VkDescriptorSetLayout>{descLayouts.begin(), descLayouts.end()};
-
+    Pipeline::Pipeline(const Device *device, const PipelineDescriptor &descriptor, const std::vector<ShaderStageDesc>& shaders, std::span<VkDescriptorSetLayout> descLayouts):
+    m_device(device), m_desc(descriptor), m_shaders(shaders), m_descLayouts(descLayouts.begin(), descLayouts.end()){
         InitInternal(true);
     }
 
@@ -19,7 +15,7 @@ namespace Shift::VK {
     }
 
     //! Destroys pipeline and layout
-    void Pipeline::Destroy() {
+    Pipeline::~Pipeline() {
         m_device->DestroyPipeline(m_pipeline);
         m_device->DestroyPipelineLayout(m_layout);
     }
@@ -98,7 +94,7 @@ namespace Shift::VK {
         if (createLayout) {
             m_layout = m_device->CreatePipelineLayout(pipelineLayoutInfo);
             if ( !(VkNullCheck(m_layout)) ) {
-                valid = false;
+                m_valid = false;
                 return;
             }
         }
@@ -128,6 +124,6 @@ namespace Shift::VK {
 
         m_pipeline = m_device->CreateGraphicsPipeline(pipelineInfo);
 
-        valid = VkNullCheck(m_pipeline);
+        m_valid = VkNullCheck(m_pipeline);
     }
 } // shift

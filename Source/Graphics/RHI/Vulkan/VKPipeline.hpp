@@ -12,17 +12,14 @@
 namespace Shift::VK {
     class Pipeline {
     public:
-        Pipeline() = default;
-
         //! Initialize a pipeline
         //! \param device
         //! \param descriptor The pipeline desc struct
         //! \param shaders The runtime built shader strcutures with type and Data
         //! \param descLayouts The desc layouts have to already be created, for now we expect the API to create them beforehand
-        //! \return true if successful, false otherwise
-        void Init(const Device* device, const PipelineDescriptor& descriptor, const std::vector<ShaderStageDesc>& shaders, std::span<VkDescriptorSetLayout> descLayouts);
+        Pipeline(const Device* device, const PipelineDescriptor& descriptor, const std::vector<ShaderStageDesc>& shaders, std::span<VkDescriptorSetLayout> descLayouts);
 
-        [[nodiscard]] bool IsValid() const { return valid; }
+        [[nodiscard]] bool IsValid() const { return m_valid; }
 
         //! For hot-reloading
         void Rebuild(bool createLayout);
@@ -35,8 +32,7 @@ namespace Shift::VK {
         [[nodiscard]] VkPipelineLayout VK_GetLayout() const { return m_layout; }
         [[nodiscard]] const PipelineDescriptor& GetDescriptor() const { return m_desc; }
 
-        void Destroy();
-        ~Pipeline() = default;
+        ~Pipeline();
     private:
 
         void InitInternal(bool createLayout);
@@ -46,7 +42,7 @@ namespace Shift::VK {
         VkPipelineLayout m_layout = VK_NULL_HANDLE;
 
         PipelineDescriptor m_desc;
-        bool valid = false;
+        bool m_valid = false;
 
         std::vector<ShaderStageDesc> m_shaders;
         std::vector<VkDescriptorSetLayout> m_descLayouts;

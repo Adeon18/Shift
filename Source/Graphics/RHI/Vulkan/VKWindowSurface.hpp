@@ -7,19 +7,19 @@
 namespace Shift::VK {
     class WindowSurface {
     public:
-        bool Init(VkInstance ins, GLFWwindow* win);
-
-        WindowSurface()=default;
+        WindowSurface(VkInstance ins, GLFWwindow* win);
         WindowSurface(const WindowSurface&) = delete;
         WindowSurface& operator=(const WindowSurface&) = delete;
 
         [[nodiscard]] VkSurfaceKHR Get() const { return m_surface; }
 
-        void Destroy();
-        ~WindowSurface() = default;
+        [[nodiscard]] bool IsValid() const { return m_valid; }
+
+        ~WindowSurface();
     private:
-        VkInstance m_instance;
-        VkSurfaceKHR m_surface;
+        bool m_valid = false;
+        VkInstance m_instance = VK_NULL_HANDLE;
+        VkSurfaceKHR m_surface = VK_NULL_HANDLE;
     };
 } // Shift::VK
 

@@ -3,13 +3,12 @@
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 
 namespace Shift::VK {
-        bool Fence::Init(const Device* device, bool isSignaled) {
-            m_device = device;
+        Fence::Fence(const Device* device, bool isSignaled): m_device(device) {
             m_fence = m_device->CreateFence(Util::CreateFenceInfo(isSignaled));
-            return VkNullCheck(m_fence);
+            m_valid = VkNullCheck(m_fence);
         }
 
-        void Fence::Destroy() {
+        Fence::~Fence() {
             m_device->DestroyFence(m_fence);
         }
 

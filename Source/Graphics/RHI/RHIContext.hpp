@@ -152,7 +152,7 @@ namespace Shift {
         bool Init(RHILocal<API>* local, EContextType type, bool secondary = false);
         void Destroy();
 
-        [[nodiscard]] CommandBuffer& GetCommandBuffer() {return m_cmdBuffer;}
+        [[nodiscard]] CommandBuffer& GetCommandBuffer() {return *m_cmdBuffer;}
 
         [[nodiscard]] bool BeginCmds() const;
 
@@ -183,8 +183,8 @@ namespace Shift {
 
         RHILocal<API>* m_local = nullptr;
         RHIEncoder<API> m_encoder;
-        CommandBuffer m_cmdBuffer;
-        CommandPool m_cmdPool;
+        Core::UniquePtr<CommandBuffer> m_cmdBuffer;
+        Core::UniquePtr<CommandPool> m_cmdPool;
         EContextType m_type = EContextType::Graphics;
         bool m_isSecondary = false;
     };
@@ -196,9 +196,11 @@ namespace Shift {
         m_local = local;
         m_type = type;
         m_isSecondary = secondary;
+        m_cmdPool = Core::CreateUnique<CommandPool>(&m_local->device, GetQueueType(m_type));
+        CheckCritical(m_cmdPool->IsValid(), "Failed to initialize command pool");
 
-        CheckCritical(m_cmdPool.Init(&m_local->device, GetQueueType(m_type)), "Failed to initialize command pool");
-
+        CheckCritical(m_cmdBuffer.Init(&m_local->device, &m_local->instance, m_cmdPool, m_isSecondary),
+                      "Failed to init command buffer!");
         CheckCritical(m_cmdBuffer.Init(&m_local->device, &m_local->instance, m_cmdPool, m_isSecondary),
                       "Failed to init command buffer!");
 

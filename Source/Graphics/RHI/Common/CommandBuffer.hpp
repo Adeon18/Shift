@@ -6,6 +6,7 @@
 #define SHIFT_COMMANDBUFFER_HPP
 
 #include <concepts>
+#include <optional>
 #include <type_traits>
 #include <span>
 
@@ -87,8 +88,8 @@ namespace Shift {
 
     template<typename CommandBuffer>
     concept ICommandBuffer =
-        std::is_default_constructible_v<CommandBuffer> &&
-        std::is_trivially_destructible_v<CommandBuffer> &&
+        std::constructible_from<CommandBuffer, const Device* /*device*/, const Instance* /*ins*/, const CommandPool& /*commandPool*/, bool /*isSecondary*/> &&
+        std::destructible<CommandBuffer> &&
     requires(
             CommandBuffer InputBuffer,
             const RenderPass& InputPass,
@@ -147,18 +148,14 @@ namespace Shift {
 
     template<typename CommandPool>
     concept ICommandPool =
-        std::is_default_constructible_v<CommandPool> &&
-        std::is_trivially_destructible_v<CommandPool> &&
+        std::constructible_from<CommandPool, const Device*, EPoolQueueType> &&
+        std::destructible<CommandPool> &&
     requires(
-            CommandPool InputPool,
-            EPoolQueueType type,
-            const Device* device
+            CommandPool InputPool
     )
     {
-        { InputPool.Init(device, type) } -> std::same_as<bool>;
         { InputPool.GetType() } -> std::same_as<EPoolQueueType>;
         { InputPool.Reset() } -> std::same_as<void>;
-        { InputPool.Destroy() } -> std::same_as<void>;
     };
 } // Shift
 
