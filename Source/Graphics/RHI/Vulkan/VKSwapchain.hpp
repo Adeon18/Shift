@@ -1,6 +1,8 @@
 #ifndef SHIFT_VKSWAPCHAIN_HPP
 #define SHIFT_VKSWAPCHAIN_HPP
 
+#include "Core/Memory.hpp"
+
 #include "Utility/Vulkan/VKUtilCore.hpp"
 
 #include "Graphics/RHI/Common/Swapchain.hpp"
@@ -46,7 +48,7 @@ namespace Shift::VK {
         [[nodiscard]] bool IsValid() const { return m_valid; }
 
         [[nodiscard]] VkSwapchainKHR Get() const { return m_swapChain; }
-        [[nodiscard]] Texture& GetSwapchainTexture(uint32_t imageIdx) const { return m_swapChainTextures[imageIdx]; }
+        [[nodiscard]] Texture& GetSwapchainTexture(uint32_t imageIdx) const { return *m_swapChainTextures[imageIdx]; }
         [[nodiscard]] const std::vector<VkImage>& GetImages() const { return m_swapChainImages; }
 
         [[nodiscard]] Extent2D GetExtent() const { return m_swapchainDesc.swapChainExtent; }
@@ -77,7 +79,7 @@ namespace Shift::VK {
         Util::SwapChainSupportDetails m_swapChainSupportDetails;
 
         //! Texture stores duplicated VkImage data as well as Image Views and the state of the resource
-        mutable std::vector<Texture> m_swapChainTextures;
+        mutable std::vector<Core::UniquePtr<Texture>> m_swapChainTextures;
         std::vector<VkImage> m_swapChainImages;
 
         bool m_valid = false;

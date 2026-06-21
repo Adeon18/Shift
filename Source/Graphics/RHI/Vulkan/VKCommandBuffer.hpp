@@ -14,20 +14,19 @@ namespace Shift::VK {
     class CommandPool {
     public:
         CommandPool(const Device *device, EPoolQueueType type);
-        CommandPool(const Buffer&) = delete;
+        CommandPool(const CommandPool&) = delete;
         CommandPool& operator=(const CommandPool&) = delete;
 
         void Reset() const;
 
         [[nodiscard]] VkCommandPool GetPool() const { return m_commandPool; }
         [[nodiscard]] EPoolQueueType GetType() const { return m_type; }
+        [[nodiscard]] bool IsValid() const { return m_commandPool != VK_NULL_HANDLE; }
 
         ~CommandPool();
 
     private:
         const Device *m_device = nullptr;
-
-        bool
 
         VkCommandPool m_commandPool = VK_NULL_HANDLE;
         EPoolQueueType m_type;
@@ -39,6 +38,9 @@ namespace Shift::VK {
         CommandBuffer(const Device* device, const Instance* ins, const CommandPool& commandPool, bool isSecondary);
         CommandBuffer(const CommandBuffer&) = delete;
         CommandBuffer& operator=(const CommandBuffer&) = delete;
+
+
+        [[nodiscard]] bool IsValid() const { return m_buffer != VK_NULL_HANDLE; }
 
         ///! ------------------- Basic Buffer Commands ------------------- !///
 

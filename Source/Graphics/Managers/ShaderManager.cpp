@@ -117,9 +117,9 @@ namespace Shift::Graphics {
     }
 
     void ShaderManager::Destroy() {
-        for (auto& [_, shader]: m_fallbackShaders) {
-            m_hashToShaderAsset[shader]->shader->Destroy();
-        }
+        // for (auto& [_, shader]: m_fallbackShaders) {
+        //     m_hashToShaderAsset[shader]->shader->~Shader();
+        // }
         for (auto& [_, shaderAsset]: m_hashToShaderAsset) {
             delete shaderAsset->shader;
             delete shaderAsset;
@@ -166,8 +166,7 @@ namespace Shift::Graphics {
         file.read(reinterpret_cast<char *>(asset->bytecode.data()), size);
 
         //! Create shader handle
-        Shader* shader = new Shader{};
-        shader->Init(m_device, asset->bytecode, asset->descriptor);
+        Shader* shader = new Shader{m_device, asset->bytecode, asset->descriptor};
         CheckCritical(shader->IsValid(), "Invalid shader!");
         asset->shader = shader;
 
@@ -229,8 +228,7 @@ namespace Shift::Graphics {
                 Log(Trace, "Hot-reload compiled shader {}", key);
             } else {
                 //! Shader has not been registered - register it!
-                Shader* shader = new Shader{};
-                shader->Init(m_device, asset->bytecode, asset->descriptor);
+                Shader* shader = new Shader{m_device, asset->bytecode, asset->descriptor};
                 CheckCritical(shader->IsValid(), "Invalid shader!");
                 asset->shader = shader;
                 m_hashToShaderAsset[key] = asset;

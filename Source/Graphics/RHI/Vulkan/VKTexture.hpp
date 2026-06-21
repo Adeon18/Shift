@@ -13,6 +13,7 @@ namespace Shift::VK {
         //! Swapchain manually creates textures by filling the member variables to keep the RHI API Clean
         friend VK::Swapchain;
     public:
+        Texture() = default;
         Texture(const Device* device, const TextureDescriptor& textureDesc);
         Texture(const Texture&)=delete;
         Texture& operator=(const Texture&)=delete;

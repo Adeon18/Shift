@@ -41,7 +41,7 @@ namespace Shift {
         //! Handle creator is an API for the RHI for mosty managers
         HandleCreator* CreateInterface() { return &m_handleCreator; }
 
-        [[nodiscard]] Swapchain& GetSwapchain() { return m_local.swapchain; }
+        [[nodiscard]] Swapchain& GetSwapchain() { return *m_local.swapchain; }
         [[nodiscard]] uint32_t SwapchainAquireImage(bool* wasChanged);
         [[nodiscard]] bool SwapchainPresent(uint32_t imageIdx, bool* isOld);
         [[nodiscard]] bool ResizeSwapchain(uint32_t width, uint32_t height);
@@ -171,13 +171,13 @@ namespace Shift {
 #ifdef SHIFT_VULKAN_BACKEND
         m_local.instance = Core::CreateUnique<VK::Instance>(appName, uAppVersion, engineName, uEngVersion, API::requiredFeatures);
         CheckCritical(m_local.instance->IsValid(), "Failed to create VK instance!");
-        m_local.surface = Core::CreateUnique<VK::WindowSurface>(m_local.instance.Get(), window);
+        m_local.surface = Core::CreateUnique<VK::WindowSurface>(m_local.instance->Get(), window);
         CheckCritical(m_local.surface->IsValid(), "Failed to create VK surface!");
-        m_local.device = Core::CreateUnique<VK::Device>(m_local.instance, m_local.surface.Get(), API::requiredFeatures);
+        m_local.device = Core::CreateUnique<VK::Device>(*m_local.instance, m_local.surface->Get(), API::requiredFeatures);
         CheckCritical(m_local.device->IsValid(), "Failed to create VK device!");
-        m_local.descLayoutCache.Init(&m_local.device);
-        m_local.descAllocator = Core::CreateUnique<VK::DescriptorAllocator>(&m_local.device);
-        m_local.swapchain = Core::CreateUnique<VK::Swapchain>(&m_local.device, &m_local.surface, width, height);
+        m_local.descLayoutCache.Init(m_local.device.get());
+        m_local.descAllocator = Core::CreateUnique<VK::DescriptorAllocator>(m_local.device.get());
+        m_local.swapchain = Core::CreateUnique<VK::Swapchain>(m_local.device.get(), m_local.surface.get(), width, height);
         CheckCritical(m_local.swapchain->IsValid(), "Failed to create VK swapchain!");
 #endif
 
@@ -199,17 +199,17 @@ namespace Shift {
 
         CheckCritical(m_transferContext.Init(&m_local, EContextType::Transfer, false), "Failed to create Transfer Context!");
 
-        uint32_t imageCount = m_local.swapchain.GetImages().size();
+        uint32_t imageCount = m_local.swapchain->GetImages().size();
         m_renderFinished.clear();
         for(uint32_t i = 0; i < imageCount; i++) {
-            auto& sem = m_renderFinished.emplace_back(&m_local.device);
+            auto& sem = m_renderFinished.emplace_back(Core::CreateUnique<BinarySemaphore>(m_local.device.get()));
             CheckCritical(sem->IsValid(), "Failed to create render semaphore");
-            auto& fence = m_presentFences.emplace_back(&m_local.device, true);
+            auto& fence = m_presentFences.emplace_back(Core::CreateUnique<Fence>(m_local.device.get(), true));
             CheckCritical(fence->IsValid(), "Failed to create present wait fence");
         }
 
         for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
-            m_imageAvailable[i] = Core::CreateUnique<BinarySemaphore>(&m_local.device);
+            m_imageAvailable[i] = Core::CreateUnique<BinarySemaphore>(m_local.device.get());
             CheckCritical(m_imageAvailable[i]->IsValid(), "Failed Init Acquire Sem");
         }
 
@@ -217,11 +217,11 @@ namespace Shift {
         // m_imagePresentIds.resize(m_local.swapchain.GetImages().size(), 0);
         // m_globalPresentId = 0;
 
-        m_timelineCompute = Core::CreateUnique<TimelineSemaphore>(&m_local.device, 0);
-        m_timelineGraphics = Core::CreateUnique<TimelineSemaphore>(&m_local.device, 0);
-        m_timelineTransfer = Core::CreateUnique<TimelineSemaphore>(&m_local.device, 0);
+        m_timelineCompute = Core::CreateUnique<TimelineSemaphore>(m_local.device.get(), 0);
+        m_timelineGraphics = Core::CreateUnique<TimelineSemaphore>(m_local.device.get(), 0);
+        m_timelineTransfer = Core::CreateUnique<TimelineSemaphore>(m_local.device.get(), 0);
 
-        m_shaderManager.Init(&m_local.device, Util::GetShiftShaderRootDir());
+        m_shaderManager.Init(m_local.device.get(), Util::GetShiftShaderRootDir());
 
         return true;
     }
@@ -233,7 +233,7 @@ namespace Shift {
 
         m_shaderManager.Destroy();
 
-        m_local.swapchain.Destroy();
+        m_local.swapchain.reset();
 
         for (auto& sem: m_imageAvailable) {
             sem.reset();
@@ -274,17 +274,17 @@ namespace Shift {
 
     template<ValidAPI API>
     Buffer* RenderHardwareInterface<API>::HandleCreator::CreateBuffer(const BufferDescriptor &desc) {
-        return new Buffer(&m_backend->m_local.device, desc);
+        return new Buffer(m_backend->m_local.device.get(), desc);
     }
 
     template<ValidAPI API>
     Texture* RenderHardwareInterface<API>::HandleCreator::CreateTexture(const TextureDescriptor &desc) {
-        return new Texture(&m_backend->m_local.device, desc);
+        return new Texture(m_backend->m_local.device.get(), desc);
     }
 
     template<ValidAPI API>
     Sampler* RenderHardwareInterface<API>::HandleCreator::CreateSampler(const SamplerDescriptor &desc) {
-        return new Sampler(&m_backend->m_local.device, desc);
+        return new Sampler(m_backend->m_local.device.get(), desc);
     }
 
     template<ValidAPI API>
@@ -294,16 +294,16 @@ namespace Shift {
 
     template<ValidAPI API>
     uint32_t RenderHardwareInterface<API>::SwapchainAquireImage(bool *wasChanged) {
-        return m_local.swapchain.AquireNextImage(m_imageAvailable[m_currentFrame], wasChanged);
+        return m_local.swapchain->AquireNextImage(*m_imageAvailable[m_currentFrame], wasChanged);
     }
 
     template<ValidAPI API>
     bool RenderHardwareInterface<API>::ResizeSwapchain(uint32_t width, uint32_t height) {
-        if (!m_local.swapchain.Recreate(width, height)) {
+        if (!m_local.swapchain->Recreate(width, height)) {
             return false;
         }
 
-        uint32_t newImageCount = m_local.swapchain.GetImages().size();
+        uint32_t newImageCount = m_local.swapchain->GetImages().size();
 
         if (m_renderFinished.size() != newImageCount) {
             for (auto& sem : m_renderFinished) {
@@ -312,7 +312,7 @@ namespace Shift {
             m_renderFinished.clear();
 
             for(uint32_t i = 0; i < newImageCount; i++) {
-                auto& sem = m_renderFinished.emplace_back(&m_local.device);
+                auto& sem = m_renderFinished.emplace_back(Core::CreateUnique<BinarySemaphore>(m_local.device.get()));
                 CheckCritical(sem->IsValid(), "Failed to recreate render semaphore");
             }
         }
@@ -324,7 +324,7 @@ namespace Shift {
     bool RenderHardwareInterface<API>::SwapchainPresent(uint32_t imageIdx, bool *isOld) {
         // uint64_t nextId = ++m_globalPresentId;
         // m_imagePresentIds[imageIdx] = nextId;
-        return m_local.swapchain.Present(m_renderFinished[imageIdx], imageIdx, isOld, m_presentFences[imageIdx]);
+        return m_local.swapchain->Present(*m_renderFinished[imageIdx], imageIdx, isOld, *m_presentFences[imageIdx]);
     }
 
     template<ValidAPI API>
@@ -383,24 +383,24 @@ namespace Shift {
 
     template<ValidAPI API>
     RHIContext<API>::SubmitTimelinePayload RenderHardwareInterface<API>::GetTransferWaitPayload() {
-        return { &m_timelineTransfer, m_timelineTransferValue.load(std::memory_order_acquire) };
+        return { m_timelineTransfer.get(), m_timelineTransferValue.load(std::memory_order_acquire) };
     }
 
     template<ValidAPI API>
     RHIContext<API>::SubmitTimelinePayload RenderHardwareInterface<API>::ReserveTransferSignalPayload() {
         uint64_t newVal = m_timelineTransferValue.fetch_add(1, std::memory_order_acq_rel) + 1;
-        return { &m_timelineTransfer, newVal };
+        return { m_timelineTransfer.get(), newVal };
     }
 
     template<ValidAPI API>
     RHIContext<API>::SubmitTimelinePayload RenderHardwareInterface<API>::GetGraphicsWaitPayload() {
-        return { &m_timelineGraphics, m_timelineGraphicsValue.load(std::memory_order_acquire) };
+        return { m_timelineGraphics.get(), m_timelineGraphicsValue.load(std::memory_order_acquire) };
     }
 
     template<ValidAPI API>
     RHIContext<API>::SubmitTimelinePayload RenderHardwareInterface<API>::ReserveGraphicsSignalPayload() {
         uint64_t newVal = m_timelineGraphicsValue.fetch_add(1, std::memory_order_acq_rel) + 1;
-        return { &m_timelineGraphics, newVal };
+        return { m_timelineGraphics.get(), newVal };
     }
 
     template<ValidAPI API>
@@ -438,7 +438,7 @@ namespace Shift {
             auto pipelineHandle = pipeline->VK_Get();
 #endif
             DeferExecute(payload.semaphore, payload.value, [this, pipelineHandle]() {
-                    m_local.device.DestroyPipeline(pipelineHandle);
+                    m_local.device->DestroyPipeline(pipelineHandle);
                 }
             );
 
@@ -546,7 +546,7 @@ namespace Shift {
             layoutInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
         }
 
-        return new ResourceSet{&m_backend->m_local.device.get(), m_backend->m_local.descAllocator->Allocate(m_backend->m_local.descLayoutCache.CreateDescriptorLayout(layoutInfo), bindlessCount, bindlessType)};
+        return new ResourceSet{m_backend->m_local.device.get(), m_backend->m_local.descAllocator->Allocate(m_backend->m_local.descLayoutCache.CreateDescriptorLayout(layoutInfo), bindlessCount, bindlessType)};
     }
 
     template<>

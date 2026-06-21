@@ -157,16 +157,16 @@ namespace Shift::Editor {
         ImGui_ImplGlfw_InitForVulkan(window.GetHandle(), true);
 
         ImGui_ImplVulkan_InitInfo info = {};
-        info.Instance       = context.instance.Get();
-        info.PhysicalDevice = context.device.GetPhysicalDevice();
-        info.Device         = context.device.Get();
-        info.QueueFamily    = *context.device.GetQueueFamilyIndices().graphicsFamily;
-        info.Queue          = context.device.GetGraphicsQueue();
+        info.Instance       = context.instance->Get();
+        info.PhysicalDevice = context.device->GetPhysicalDevice();
+        info.Device         = context.device->Get();
+        info.QueueFamily    = *context.device->GetQueueFamilyIndices().graphicsFamily;
+        info.Queue          = context.device->GetGraphicsQueue();
         info.PipelineCache  = VK_NULL_HANDLE;
-        info.DescriptorPool = context.descAllocator.GetImGuiPool();
+        info.DescriptorPool = context.descAllocator->GetImGuiPool();
 
         //! TODO [BUG] This shit
-        const uint32_t swapchainImageCount = static_cast<uint32_t>(context.swapchain.GetImages().size());
+        const uint32_t swapchainImageCount = static_cast<uint32_t>(context.swapchain->GetImages().size());
         info.MinImageCount = swapchainImageCount;
         info.ImageCount    = swapchainImageCount;
 
@@ -177,7 +177,7 @@ namespace Shift::Editor {
 
         info.UseDynamicRendering = true;
 
-        static VkFormat mainColorFormat = VK::Util::ShiftToVKTextureFormat(context.swapchain.GetFormat());
+        static VkFormat mainColorFormat = VK::Util::ShiftToVKTextureFormat(context.swapchain->GetFormat());
 
         info.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
         info.PipelineInfoMain.PipelineRenderingCreateInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };

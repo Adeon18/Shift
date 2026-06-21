@@ -27,7 +27,7 @@ namespace Shift::Graphics {
 
         m_slots.resize(1);
         m_slots[0].isResident = true;
-        m_slots[0].backendHandle = LoadAndCreateTexture("PLACEHOLDER", encoder);
+        m_slots[0].backendHandle = Core::UniquePtr<Texture>(LoadAndCreateTexture("PLACEHOLDER", encoder));
     }
 
     TextureHandle TextureManager::GetOrLoadTexture(const std::string &path, RenderContextEncoder* encoder) {
@@ -45,7 +45,7 @@ namespace Shift::Graphics {
 
         TextureSlot& slot = m_slots[slotIndex];
         slot.isResident = true;
-        slot.backendHandle = LoadAndCreateTexture(path, encoder);
+        slot.backendHandle = Core::UniquePtr<Texture>(LoadAndCreateTexture(path, encoder));
 
         //! GPU Uploads come via separate function
 
@@ -77,10 +77,6 @@ namespace Shift::Graphics {
     }
 
     void TextureManager::FreeStagingBuffers() {
-        for (Buffer* buf: m_usedStagingBuffers) {
-            buf->Destroy();
-            delete buf;
-        }
         m_usedStagingBuffers.clear();
     }
 
@@ -94,16 +90,13 @@ namespace Shift::Graphics {
         //! Then upload all on GPU
         for (uint32_t i = 0; i < m_slots.size(); i++) {
             if (m_slots[i].isResident) {
-                UploadToGPU(i, m_slots[i].backendHandle);
+                UploadToGPU(i, m_slots[i].backendHandle.get());
             }
         }
     }
 
     TextureManager::~TextureManager() {
-        for (auto& slot : m_slots) {
-            slot.backendHandle->Destroy();
-            delete slot.backendHandle;
-        }
+        m_slots.clear();
 
         delete m_bindlessTextureSet;
     }
@@ -159,11 +152,11 @@ namespace Shift::Graphics {
         ));
 
         uint32_t imageSize = rawData->width * rawData->height * rawData->channels;
-        Buffer* stagingBuf = m_backend->CreateBuffer(BufferDescriptor{
+        Core::UniquePtr<Buffer> stagingBuf = Core::UniquePtr<Buffer>(m_backend->CreateBuffer(BufferDescriptor{
             .size = imageSize,
             .name = "Staging",
             .type = EBufferType::Staging
-        });
+        }));
         memcpy(stagingBuf->GetMapped(), rawData->data.data(), static_cast<size_t>(imageSize));
 
         TextureSubresourceRange subresourceRange{};
@@ -175,12 +168,12 @@ namespace Shift::Graphics {
 
         encoder->TransitionTexture(*texture, EResourceLayout::TransferDstOptimal, EPipelineStageFlags::AllTransferBit);
         encoder->CopyBufferToTexture(
-            BufferOpDescriptor{stagingBuf, 0},
+            BufferOpDescriptor{stagingBuf.get(), 0},
             TextureCopyDescriptor{texture, Extent3D{texture->GetWidth(), texture->GetHeight(), texture->GetDepth()}, Offset3D{}, subresourceRange});
 
         // encoder->TransitionTexture(*texture, EResourceLayout::ShaderReadOnlyOptimal, EPipelineStageFlags::FragmentShaderBit);
 
-        m_usedStagingBuffers.push_back(stagingBuf);
+        m_usedStagingBuffers.push_back(std::move(stagingBuf));
 
 
         //! TODO: [Feature]: Generate mips

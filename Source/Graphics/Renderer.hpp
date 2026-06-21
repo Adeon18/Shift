@@ -86,7 +86,7 @@ namespace Shift::gfx {
         RenderBackend m_renderBackend;
 
         Texture* viewportTexture;
-        Sampler viewportSampler;
+        Sampler* viewportSampler;
         void* m_viewportTextureID = nullptr;
 
         std::unique_ptr<ITextureLoader> m_textureLoader;

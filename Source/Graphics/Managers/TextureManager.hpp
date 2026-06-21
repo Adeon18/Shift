@@ -26,7 +26,7 @@ namespace Shift::Graphics {
 
     class TextureManager {
     struct TextureSlot {
-        Texture* backendHandle = nullptr;
+        Core::UniquePtr<Texture> backendHandle = nullptr;
         bool isResident = false;
         uint32_t generation = 0;
     };
@@ -58,7 +58,7 @@ namespace Shift::Graphics {
         RenderBackendInterface* m_backend;
         ResourceSet* m_bindlessTextureSet;
 
-        std::vector<Buffer*> m_usedStagingBuffers;
+        std::vector<Core::UniquePtr<Buffer>> m_usedStagingBuffers;
     };
 }
 

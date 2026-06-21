@@ -16,7 +16,7 @@ namespace Shift::gfx {
 
         RenderBackendInterface* rbi = m_renderBackend.CreateInterface();
 
-        RenderContext tctx = m_renderBackend.GetTransferContext();
+        RenderContext& tctx = m_renderBackend.GetTransferContext();
         RenderContextEncoder* tEncoder = tctx.CreateCommandEncoder();
         tctx.BeginCmds();
 
@@ -107,11 +107,10 @@ namespace Shift::gfx {
         std::array sigPayloads{m_renderBackend.ReserveTransferSignalPayload()};
         CheckCritical(tctx.SubmitCmds({}, sigPayloads), "Failed to submit transition context!");
         m_renderBackend.DeferExecute(sigPayloads[0].semaphore, sigPayloads[0].value, [staging]() mutable {
-            staging->Destroy();
             delete staging;
         });
 
-        RenderContext gContext = m_renderBackend.GetGraphicsContext();
+        RenderContext& gContext = m_renderBackend.GetGraphicsContext();
         gContext.BeginCmds();
 
         m_textureManager->UploadTexturesToGPU(gContext.CreateCommandEncoder());
@@ -128,7 +127,7 @@ namespace Shift::gfx {
     }
 
     void Renderer::RegisterViewportTexture() {
-        m_viewportTextureID = RegisterTextureForImGui(&viewportSampler, viewportTexture);
+        m_viewportTextureID = RegisterTextureForImGui(viewportSampler, viewportTexture);
     }
 
     bool Renderer::LoadScene() {
@@ -161,7 +160,7 @@ namespace Shift::gfx {
             m_renderBackend.WaitForImagePresent(imageIndex);
         }
 
-        RenderContext gContext = m_renderBackend.GetGraphicsContext();
+        RenderContext& gContext = m_renderBackend.GetGraphicsContext();
         RenderContextEncoder* gEncoder = gContext.CreateCommandEncoder();
 
         gContext.ResetCmds();
@@ -300,18 +299,13 @@ namespace Shift::gfx {
     }
 
     void Renderer::Cleanup() {
-        p->Destroy();
-        vs->Destroy();
-        ps->Destroy();
-        vertex->Destroy();
-        viewportTexture->Destroy();
-        viewportSampler.Destroy();
+        delete vertex;
+        delete viewportTexture;
+        delete viewportSampler;
+        delete p;
         m_textureManager.reset();
         m_textureLoader.reset();
         m_renderBackend.Destroy();
-
-        delete vertex;
-        delete viewportTexture;
     }
 
     void Renderer::ResizeViewport(uint32_t width, uint32_t height) {
@@ -329,7 +323,7 @@ namespace Shift::gfx {
         });
 
         m_viewportTextureID = RegisterTextureForImGui(
-            &viewportSampler,
+            viewportSampler,
             viewportTexture
         );
 
@@ -338,7 +332,6 @@ namespace Shift::gfx {
             if (oldID) {
                 UnregisterTextureForImGui(oldID);
             }
-            oldTexture->Destroy();
             delete oldTexture;
         });
     }

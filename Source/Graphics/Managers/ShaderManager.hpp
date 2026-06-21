@@ -13,15 +13,6 @@
 #include "Utility/SlangCompiler/SlangCompiler.hpp"
 
 namespace Shift::Graphics {
-
-    struct ShaderAsset {
-        std::vector<uint8_t> bytecode;
-        ShaderDescriptor descriptor;
-        std::unordered_set<std::string> dependencies;
-        std::unordered_set<Pipeline*> subscribedPipelines;
-        Shader* shader = nullptr;
-    };
-
     class ShaderManager {
     public:
         void Init(const Device* device, const std::string& shaderRootFolder);
@@ -37,6 +28,13 @@ namespace Shift::Graphics {
         void Destroy();
 
     private:
+        struct ShaderAsset {
+            std::vector<uint8_t> bytecode;
+            ShaderDescriptor descriptor;
+            std::unordered_set<std::string> dependencies;
+            std::unordered_set<Pipeline*> subscribedPipelines;
+            Shader* shader = nullptr;
+        };
         static std::string GetCacheKey(const ShaderDescriptor& desc);
         bool LoadFromCacheAndRegister(const std::string& key, ShaderAsset* asset);
         void SaveToCache(const std::string& key, const std::vector<uint8_t>& code, const std::unordered_set<std::string>& deps);

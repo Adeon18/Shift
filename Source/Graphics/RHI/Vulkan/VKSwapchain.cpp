@@ -111,13 +111,14 @@ namespace Shift::VK {
         m_swapChainTextures.resize(m_swapChainImages.size());
         bool success = true;
         for (size_t i = 0; i < m_swapChainImages.size(); i++) {
-            m_swapChainTextures[i].m_image = m_swapChainImages[i];
-            m_swapChainTextures[i].m_imageView = m_device->CreateImageView(
+            m_swapChainTextures[i] = Core::CreateUnique<Texture>();
+            m_swapChainTextures[i]->m_image = m_swapChainImages[i];
+            m_swapChainTextures[i]->m_imageView = m_device->CreateImageView(
                 Util::CreateImageViewInfo(m_swapChainImages[i], VK_IMAGE_VIEW_TYPE_2D, Util::ShiftToVKTextureFormat(m_swapchainDesc.swapChainImageFormat))
             );
-            CheckExit(m_swapChainTextures[i].m_imageView != VK_NULL_HANDLE);
-            m_swapChainTextures[i].m_textureDesc.resourceLayout = Util::VKToShiftResourceLayout(VK_IMAGE_LAYOUT_UNDEFINED);
-            m_swapChainTextures[i].m_stageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            CheckExit(m_swapChainTextures[i]->m_imageView != VK_NULL_HANDLE);
+            m_swapChainTextures[i]->m_textureDesc.resourceLayout = Util::VKToShiftResourceLayout(VK_IMAGE_LAYOUT_UNDEFINED);
+            m_swapChainTextures[i]->m_stageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         }
         return success;
     }
@@ -151,7 +152,9 @@ namespace Shift::VK {
 
     void Swapchain::DestroyImageViews() {
         for (size_t i = 0; i < m_swapChainTextures.size(); i++) {
-            vkDestroyImageView(m_device->Get(), m_swapChainTextures[i].m_imageView, nullptr);
+            //! You cannot free the swapchain image so we release it
+            Texture* tex = m_swapChainTextures[i].release();
+            vkDestroyImageView(m_device->Get(), tex->m_imageView, nullptr);
         }
     }
 

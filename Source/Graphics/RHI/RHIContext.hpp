@@ -196,44 +196,42 @@ namespace Shift {
         m_local = local;
         m_type = type;
         m_isSecondary = secondary;
-        m_cmdPool = Core::CreateUnique<CommandPool>(&m_local->device, GetQueueType(m_type));
+        m_cmdPool = Core::CreateUnique<CommandPool>(m_local->device.get(), GetQueueType(m_type));
         CheckCritical(m_cmdPool->IsValid(), "Failed to initialize command pool");
 
-        CheckCritical(m_cmdBuffer.Init(&m_local->device, &m_local->instance, m_cmdPool, m_isSecondary),
-                      "Failed to init command buffer!");
-        CheckCritical(m_cmdBuffer.Init(&m_local->device, &m_local->instance, m_cmdPool, m_isSecondary),
-                      "Failed to init command buffer!");
+        m_cmdBuffer = Core::CreateUnique<CommandBuffer>(m_local->device.get(), m_local->instance.get(), *m_cmdPool, m_isSecondary);
+        CheckCritical(m_cmdBuffer->IsValid(), "Failed to init command buffer!");
 
-        m_encoder = RHIEncoder<RHI::Vulkan>{&m_cmdBuffer};
+        m_encoder = RHIEncoder<RHI::Vulkan>{m_cmdBuffer.get()};
 
         return true;
     }
 
     template<ValidAPI API>
     void RHIContext<API>::Destroy() {
-        m_cmdPool.Destroy();
+        m_cmdPool.reset();
     }
 
     template<ValidAPI API>
     bool RHIContext<API>::BeginCmds() const {
         assert(!m_isSecondary);
-        return m_cmdBuffer.Begin();
+        return m_cmdBuffer->Begin();
     }
 
     template<ValidAPI API>
     bool RHIContext<API>::BeginSecondaryCmds(const SecondaryBufferBeginPayload &payload) const {
         assert(m_isSecondary);
-        return m_cmdBuffer.BeginSecondary(payload);
+        return m_cmdBuffer->BeginSecondary(payload);
     }
 
     template<ValidAPI API>
     bool RHIContext<API>::EndCmds() const {
-        return m_cmdBuffer.End();
+        return m_cmdBuffer->End();
     }
 
     template<ValidAPI API>
     void RHIContext<API>::ResetCmds() const {
-        m_cmdPool.Reset();
+        m_cmdPool->Reset();
     }
 
 
@@ -335,12 +333,12 @@ namespace Shift {
             sigVals.push_back(p.value);
         }
 
-        return m_cmdBuffer.Submit(waitSems, waitVals, sigSems, sigVals, waitBinSems, sigBinSems);
+        return m_cmdBuffer->Submit(waitSems, waitVals, sigSems, sigVals, waitBinSems, sigBinSems);
     }
 
     template<ValidAPI API>
     void RHIContext<API>::ExecuteSecondaryGraphicsContexts(std::span<CommandBuffer *> secondaryBuffs) const {
-        m_cmdBuffer.ExecuteSecondaryBuffers(secondaryBuffs);
+        m_cmdBuffer->ExecuteSecondaryBuffers(secondaryBuffs);
     }
 
 
