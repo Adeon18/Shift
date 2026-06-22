@@ -67,7 +67,7 @@ namespace Shift::VK {
         writeSet.dstArrayElement = 0;
         writeSet.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
         writeSet.descriptorCount = 1;
-        writeSet.pImageInfo = &m_imageInfos.back();
+        writeSet.pImageInfo = &m_samplerInfos.back();
 
         m_writeSets.push_back(writeSet);
     }

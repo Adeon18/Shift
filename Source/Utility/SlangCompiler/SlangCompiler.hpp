@@ -42,7 +42,7 @@ namespace Shift::Graphics::Util {
         Slang::ComPtr<slang::IGlobalSession> m_globalSession;
         EShaderTarget m_targetPlatform = EShaderTarget::Undefined;
 
-        std::vector<const char*> m_includePaths;
+        std::vector<std::string> m_includePaths;
     };
 
 } // Shift::Graphics::Utils

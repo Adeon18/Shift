@@ -3,6 +3,13 @@ cmake-build*/
 .idea/
 .vs/
 
+# Claude Code audit/intelligence infrastructure
+.claude/rules/
+.claude/agents/
+.claude/audit/
+.claude/progress.md
+.claude/CLAUDE.md
+
 # Windows Installer files from build outputs
 *.cab
 *.msi

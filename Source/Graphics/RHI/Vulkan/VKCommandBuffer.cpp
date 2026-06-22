@@ -363,7 +363,7 @@ namespace Shift::VK {
 
 
     void CommandBuffer::BindVertexBuffer(const BufferOpDescriptor& buffer, uint32_t bindIdx) const {
-        std::vector<VkDeviceSize> offsets{static_cast<VkDeviceSize>(bindIdx)};
+        std::vector<VkDeviceSize> offsets{static_cast<VkDeviceSize>(buffer.offset)};
         std::vector<VkBuffer> buffers{buffer.buffer->VK_Get()};
         vkCmdBindVertexBuffers(
                 m_buffer,

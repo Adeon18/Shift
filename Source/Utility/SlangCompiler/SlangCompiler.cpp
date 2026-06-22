@@ -9,10 +9,7 @@ namespace Shift::Graphics::Util {
         m_targetPlatform = targetPlatform;
         slang::createGlobalSession(m_globalSession.writeRef());
 
-        m_includePaths.reserve(includePaths.size());
-        for (const auto& includePath : includePaths) {
-            m_includePaths.push_back(includePath.c_str());
-        }
+        m_includePaths = includePaths;
     }
 
     ShaderCompileResult SlangCompiler::Compile(const std::filesystem::path &filePath, const std::string &entryPoint,
@@ -36,9 +33,14 @@ namespace Shift::Graphics::Util {
         sessionDesc.targets = &targetDesc;
         sessionDesc.targetCount = 1;
 
-        //! Include paths for modules
-        sessionDesc.searchPaths = m_includePaths.data();
-        sessionDesc.searchPathCount = static_cast<SlangInt>(m_includePaths.size());
+        //! Include paths for modules — extract c_str() into local array for Slang API
+        std::vector<const char*> searchPathPtrs;
+        searchPathPtrs.reserve(m_includePaths.size());
+        for (const auto& p : m_includePaths) {
+            searchPathPtrs.push_back(p.c_str());
+        }
+        sessionDesc.searchPaths = searchPathPtrs.data();
+        sessionDesc.searchPathCount = static_cast<SlangInt>(searchPathPtrs.size());
 
         //! Create Local Session
         Slang::ComPtr<slang::ISession> session;

@@ -10,11 +10,12 @@ namespace Shift::VK {
     //! Meant to be used as a base class
     class Texture {
         friend VK::ResourceSet;
-        //! Swapchain manually creates textures by filling the member variables to keep the RHI API Clean
-        friend VK::Swapchain;
     public:
-        Texture() = default;
+        //! Allocating constructor: creates VkImage via VMA + VkImageView. Owns both.
         Texture(const Device* device, const TextureDescriptor& textureDesc);
+        //! Non-owning constructor: wraps an externally-owned VkImage (e.g. swapchain back buffer).
+        //! Creates and owns a VkImageView, but does NOT destroy the VkImage.
+        Texture(const Device* device, VkImage externalImage, VkImageViewType viewType, const TextureDescriptor& textureDesc);
         Texture(const Texture&)=delete;
         Texture& operator=(const Texture&)=delete;
 
@@ -53,6 +54,7 @@ namespace Shift::VK {
         VkImageView m_imageView = VK_NULL_HANDLE;
         VmaAllocation m_allocation = VK_NULL_HANDLE;
         VmaAllocationInfo m_allocationInfo{};
+        bool m_ownsImage = true;
 
         //! These are just cached layouts, really, they are only used to keep track of the resource state to make transtion
         //! functions cleaner

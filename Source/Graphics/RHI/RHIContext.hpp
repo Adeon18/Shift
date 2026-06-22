@@ -366,7 +366,7 @@ namespace Shift {
 
         if (desc.depthAttachment.has_value()) {
             const RenderPassDescriptor::RenderPassAttachmentInfo& att = desc.depthAttachment.value();
-            *depthInfo = VK::Util::CreateRenderingAttachmentInfo(
+            depthInfo = VK::Util::CreateRenderingAttachmentInfo(
                     (*depthTexture)->GetView(),
                     VK::Util::ShiftToVKResourceLayout((*depthTexture)->GetResourceLayout()),
                     VK::Util::ShiftToVKClearDepthStencil(att.clearValue),

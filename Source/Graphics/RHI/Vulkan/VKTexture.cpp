@@ -52,8 +52,28 @@ namespace Shift::VK {
         valid = m_imageView != VK_NULL_HANDLE;
     }
 
+    Texture::Texture(const Device *device, VkImage externalImage, VkImageViewType viewType, const TextureDescriptor &textureDesc)
+        : m_device(device), m_image(externalImage), m_textureDesc(textureDesc), m_ownsImage(false)
+    {
+        VkImageAspectFlags aspect = Util::ShiftToVKTextureAspect(m_textureDesc.textureAspect);
+        VkImageSubresourceRange sRange{
+            .aspectMask = aspect,
+            .baseMipLevel = 0,
+            .levelCount = m_textureDesc.mips,
+            .baseArrayLayer = 0,
+            .layerCount = m_textureDesc.levels
+        };
+
+        m_imageView = m_device->CreateImageView(
+            Util::CreateImageViewInfo(m_image, viewType, Util::ShiftToVKTextureFormat(m_textureDesc.format), sRange));
+
+        valid = m_imageView != VK_NULL_HANDLE;
+    }
+
     Texture::~Texture() {
         m_device->DestroyImageView(m_imageView);
-        vmaDestroyImage(m_device->GetAllocator(), m_image, m_allocation);
+        if (m_ownsImage) {
+            vmaDestroyImage(m_device->GetAllocator(), m_image, m_allocation);
+        }
     }
 } // Shift::VK

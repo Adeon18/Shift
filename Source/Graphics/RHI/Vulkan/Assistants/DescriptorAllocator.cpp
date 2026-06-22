@@ -98,10 +98,14 @@ namespace Shift::VK {
         bool isBindless = bindlessCount > 0;
 
         VkDescriptorPool poolToUse = VK_NULL_HANDLE;
-        switch (bindlessType) {
-            case EBindingType::SampledImage:
-            default:
-                poolToUse = m_bindlessTexturePool;
+        if (isBindless) {
+            switch (bindlessType) {
+                case EBindingType::SampledImage:
+                default:
+                    poolToUse = m_bindlessTexturePool;
+            }
+        } else {
+            poolToUse = GetPool();
         }
 
         VkDescriptorSetAllocateInfo allocInfo = {};
