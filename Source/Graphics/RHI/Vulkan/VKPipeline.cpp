@@ -10,12 +10,27 @@ namespace Shift::VK {
     }
 
     void Pipeline::Rebuild(bool createLayout) {
-        //! Destruction is deferred and handled by the RHI struct
+        //! Retire the current GPU handle; the RHI releases it via ReleaseRetired()
+        //! once the GPU is finished, then InitInternal() installs the freshly built one.
+        if (m_pipeline != VK_NULL_HANDLE) {
+            m_retiredHandles.push_back(m_pipeline);
+        }
         InitInternal(createLayout);
+    }
+
+    void Pipeline::ReleaseRetired() {
+        if (m_retiredHandles.empty()) { return; }
+        m_device->DestroyPipeline(m_retiredHandles.front());
+        m_retiredHandles.erase(m_retiredHandles.begin());
     }
 
     //! Destroys pipeline and layout
     Pipeline::~Pipeline() {
+        //! Release anything still pending deferred destruction (GPU is idle at teardown)
+        for (VkPipeline retired : m_retiredHandles) {
+            m_device->DestroyPipeline(retired);
+        }
+        m_retiredHandles.clear();
         m_device->DestroyPipeline(m_pipeline);
         m_device->DestroyPipelineLayout(m_layout);
     }

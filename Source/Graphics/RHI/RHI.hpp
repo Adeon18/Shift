@@ -434,15 +434,14 @@ namespace Shift {
         auto payload = GetGraphicsWaitPayload();
 
         for (Pipeline* pipeline: toRebuild) {
-#ifdef SHIFT_VULKAN_BACKEND
-            auto pipelineHandle = pipeline->VK_Get();
-#endif
-            DeferExecute(payload.semaphore, payload.value, [this, pipelineHandle]() {
-                    m_local.device->DestroyPipeline(pipelineHandle);
+            //! Rebuild retires the old GPU handle and builds the new one; release the
+            //! retired handle once the GPU is done. No native handle is touched here, so
+            //! this stays backend-agnostic
+            pipeline->Rebuild(false);
+            DeferExecute(payload.semaphore, payload.value, [pipeline]() {
+                    pipeline->ReleaseRetired();
                 }
             );
-
-            pipeline->Rebuild(false);
         }
     }
 

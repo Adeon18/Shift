@@ -11,6 +11,7 @@
 
 namespace Shift::VK {
     class Pipeline {
+        friend VK::CommandBuffer;
     public:
         //! Initialize a pipeline
         //! \param device
@@ -21,25 +22,35 @@ namespace Shift::VK {
 
         [[nodiscard]] bool IsValid() const { return m_valid; }
 
-        //! For hot-reloading
+        //! For hot-reloading: builds a fresh GPU pipeline and retires the previous
+        //! one for deferred destruction (see ReleaseRetired()).
         void Rebuild(bool createLayout);
 
-        //! API SPECIFIC, DO NOT USE UNLESS NESSESARY IN RHI SPECIFIC CODE
-        //! \return VkPipeline
-        [[nodiscard]] VkPipeline VK_Get() const { return m_pipeline; }
-        //! API SPECIFIC, DO NOT USE UNLESS NESSESARY IN RHI SPECIFIC CODE
-        //! \return VkPipelineLayout
-        [[nodiscard]] VkPipelineLayout VK_GetLayout() const { return m_layout; }
+        //! Releases the oldest pipeline state retired by Rebuild() (one per Rebuild).
+        //! Driven by the RHI deferred executor once the GPU is done with it. RHI-level
+        //! so the backend-agnostic RHI template can call it without touching VkPipeline.
+        void ReleaseRetired();
+
         [[nodiscard]] const PipelineDescriptor& GetDescriptor() const { return m_desc; }
 
         ~Pipeline();
     private:
 
         void InitInternal(bool createLayout);
+
+        //! API SPECIFIC, DO NOT USE UNLESS NESSESARY IN RHI SPECIFIC CODE (backend-only, friended)
+        //! \return VkPipeline
+        [[nodiscard]] VkPipeline VK_Get() const { return m_pipeline; }
+        //! API SPECIFIC, DO NOT USE UNLESS NESSESARY IN RHI SPECIFIC CODE (backend-only, friended)
+        //! \return VkPipelineLayout
+        [[nodiscard]] VkPipelineLayout VK_GetLayout() const { return m_layout; }
+
         const Device* m_device = nullptr;
 
         VkPipeline m_pipeline = VK_NULL_HANDLE;
         VkPipelineLayout m_layout = VK_NULL_HANDLE;
+        //! Previous m_pipeline handles retired by Rebuild(), awaiting deferred destruction (FIFO)
+        std::vector<VkPipeline> m_retiredHandles;
 
         PipelineDescriptor m_desc;
         bool m_valid = false;
