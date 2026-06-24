@@ -24,6 +24,7 @@ namespace Shift {
         class CommandBuffer;
         class CommandPool;
         class Device;
+        class ImGuiBackend;
     } // VK
 
     //! This is what is exported as an interface
@@ -43,6 +44,7 @@ namespace Shift {
     using CommandBuffer = VK::CommandBuffer;
     using CommandPool = VK::CommandPool;
     using Device = VK::Device;
+    using ImGuiBackend = VK::ImGuiBackend;
 #endif
 
 } // Shift

@@ -8,6 +8,7 @@
 namespace Shift::VK {
     class Sampler {
         friend VK::ResourceSet;
+        friend VK::ImGuiBackend;
     public:
         //! Initialize a sampler with the RHI desc
         //! \param device The VkDevice
@@ -20,10 +21,11 @@ namespace Shift::VK {
         [[nodiscard]] bool IsValid() const { return m_valid; }
 
         ~Sampler();
-        //! API SPECIFIC, DO NOT USE UNLESS NESSESARY IN RHI SPECIFIC CODE
-        //! \return VkPipeline
-        [[nodiscard]] VkSampler VK_Get() const { return m_sampler; }
     private:
+        //! API SPECIFIC, hence friended.
+        //! \return VkSampler
+        [[nodiscard]] VkSampler VK_Get() const { return m_sampler; }
+
         const Device* m_device = nullptr;
 
         VkSampler m_sampler;

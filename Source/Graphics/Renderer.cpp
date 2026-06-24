@@ -5,7 +5,7 @@
 #include "Renderer.hpp"
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 
-#include "UI/ImGuiTools.hpp"
+#include "Graphics/RHI/Vulkan/VKImGuiBackend.hpp"
 
 #include <glm/gtx/string_cast.hpp>
 
@@ -127,7 +127,7 @@ namespace Shift::gfx {
     }
 
     void Renderer::RegisterViewportTexture() {
-        m_viewportTextureID = RegisterTextureForImGui(viewportSampler, viewportTexture);
+        m_viewportTextureID = ImGuiBackend::RegisterTexture(*viewportTexture, *viewportSampler);
     }
 
     bool Renderer::LoadScene() {
@@ -255,7 +255,7 @@ namespace Shift::gfx {
             gEncoder->BeginRenderPass(uiPass, swapchainImages, std::nullopt);
 
             if (editor) {
-                ImGuiRenderDrawData(editor->GetDrawData(), &gContext.GetCommandBuffer());
+                ImGuiBackend::RenderDrawData(editor->GetDrawData(), gContext.GetCommandBuffer());
             }
 
             gEncoder->EndRenderPass();
@@ -322,15 +322,12 @@ namespace Shift::gfx {
             .usageFlags = ETextureUsageFlags::ColorAttachment | ETextureUsageFlags::Sampled
         });
 
-        m_viewportTextureID = RegisterTextureForImGui(
-            viewportSampler,
-            viewportTexture
-        );
+        RegisterViewportTexture();
 
         //! Defer the end of next frame
         m_renderBackend.DeferExecuteToFrame(m_renderBackend.GetCurrentGlobalIndex()+1, [oldTexture, oldID]() mutable {
             if (oldID) {
-                UnregisterTextureForImGui(oldID);
+                ImGuiBackend::UnregisterTexture(oldID);
             }
             delete oldTexture;
         });

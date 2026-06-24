@@ -135,10 +135,6 @@ namespace Shift {
         void SetScissor(const Rect2D& scissor) const;
 
         void TransitionTexture(const Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags);
-
-
-        //! Kind of an interface leak, use for debug only lol
-        [[nodiscard]] CommandBuffer* GetBoundCB() const {return m_boundCB;}
     private:
         CommandBuffer* m_boundCB = nullptr;
     };

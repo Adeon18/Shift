@@ -10,6 +10,7 @@ namespace Shift::VK {
     //! Meant to be used as a base class
     class Texture {
         friend VK::ResourceSet;
+        friend VK::ImGuiBackend;
     public:
         //! Allocating constructor: creates VkImage via VMA + VkImageView. Owns both.
         Texture(const Device* device, const TextureDescriptor& textureDesc);

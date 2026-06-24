@@ -10,12 +10,12 @@
 #include "EditorPanel.hpp"
 #include "EditorContext.hpp"
 #include "imgui/imgui.h"
-#include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_internal.h"
-#include "ImGuiTools.hpp"
+#include "ImGuiPlatformGLFW.hpp"
 #include "Utility/Logging/LogMacros.hpp"
 
 #include "Graphics/RHI/RHIContext.hpp"
+#include "Graphics/RHI/Vulkan/VKImGuiBackend.hpp"
 #include "Window/ShiftWindow.hpp"
 
 namespace Shift::Editor {
@@ -40,8 +40,8 @@ namespace Shift::Editor {
         }
 
         void BeginFrame() {
-            ImGui_ImplVulkan_NewFrame();
-            ImGui_ImplGlfw_NewFrame();
+            ImGuiBackend::BeginFrame();
+            ImGuiPlatform::NewFrame();
             ImGui::NewFrame();
 
             // Create the invisible DockSpace covering the whole window
@@ -116,9 +116,9 @@ namespace Shift::Editor {
         bool ShouldRenderViewportPanel() { return m_Panels["Viewport"]->IsVisible() && m_Panels["Viewport"]->IsOpen(); }
 
         void Destroy() {
-            ImGui_ImplVulkan_Shutdown();
+            ImGuiBackend::Shutdown();
 
-            ImGui_ImplGlfw_Shutdown();
+            ImGuiPlatform::Shutdown();
 
             ImGui::DestroyContext();
         }
@@ -141,57 +141,19 @@ namespace Shift::Editor {
         }
     };
 
-    template<>
-    inline void EditorLayer::Init<RHI::Vulkan>(const ShiftWindow& window, const RHILocal<RHI::Vulkan>& context) {
+    template<typename API>
+    void EditorLayer::Init(const ShiftWindow& window, const RHILocal<API>& context) {
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
-        // // Add this for debugging:
-        // io.ConfigDebugBeginReturnValueOnce = true;
-        // io.ConfigDebugBeginReturnValueLoop = true;
-
         ImGui::GetStyle().WindowRounding = 0.0f;
 
-        ImGui_ImplGlfw_InitForVulkan(window.GetHandle(), true);
-
-        ImGui_ImplVulkan_InitInfo info = {};
-        info.Instance       = context.instance->Get();
-        info.PhysicalDevice = context.device->GetPhysicalDevice();
-        info.Device         = context.device->Get();
-        info.QueueFamily    = *context.device->GetQueueFamilyIndices().graphicsFamily;
-        info.Queue          = context.device->GetGraphicsQueue();
-        info.PipelineCache  = VK_NULL_HANDLE;
-        info.DescriptorPool = context.descAllocator->GetImGuiPool();
-
-        //! TODO [BUG] This shit
-        const uint32_t swapchainImageCount = static_cast<uint32_t>(context.swapchain->GetImages().size());
-        info.MinImageCount = swapchainImageCount;
-        info.ImageCount    = swapchainImageCount;
-
-        // Validation/Error Checking
-        info.CheckVkResultFn = [](VkResult err) {
-            if (err != VK_SUCCESS) Log(Error, "ImGui Vulkan Error: {}\n", static_cast<uint32_t>(err));
-        };
-
-        info.UseDynamicRendering = true;
-
-        static VkFormat mainColorFormat = VK::Util::ShiftToVKTextureFormat(context.swapchain->GetFormat());
-
-        info.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-        info.PipelineInfoMain.PipelineRenderingCreateInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
-        info.PipelineInfoMain.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
-        info.PipelineInfoMain.PipelineRenderingCreateInfo.pColorAttachmentFormats = &mainColorFormat;
-
-        static VkFormat viewportColorFormat = VK_FORMAT_B8G8R8A8_UNORM;
-
-        info.PipelineInfoForViewports.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-        info.PipelineInfoForViewports.PipelineRenderingCreateInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
-        info.PipelineInfoForViewports.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
-        info.PipelineInfoForViewports.PipelineRenderingCreateInfo.pColorAttachmentFormats = &viewportColorFormat;
-
-        ImGui_ImplVulkan_Init(&info);
+        //! ImGui platform + renderer backends, both behind backend-agnostic
+        //! names. EditorLayer itself stays free of of any API specific code
+        ImGuiPlatform::Init(window.GetHandle());
+        ImGuiBackend::Init(context);
 
         ImGui::StyleColorsDark();
     }

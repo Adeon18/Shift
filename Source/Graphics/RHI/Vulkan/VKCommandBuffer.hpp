@@ -34,6 +34,7 @@ namespace Shift::VK {
     ASSERT_INTERFACE(ICommandPool, CommandPool);
 
     class CommandBuffer {
+        friend VK::ImGuiBackend;
     public:
         CommandBuffer(const Device* device, const Instance* ins, const CommandPool& commandPool, bool isSecondary);
         CommandBuffer(const CommandBuffer&) = delete;
@@ -225,12 +226,10 @@ namespace Shift::VK {
                 VkPipelineStageFlags dstStage,
                 bool isDepth = false) const;
 
-        // TODO: Temporary
-        [[nodiscard]] VkCommandBuffer VK_Get() const { return m_buffer; }
-        [[nodiscard]] const VkCommandBuffer* VK_Ptr() const { return &m_buffer; }
-
         ~CommandBuffer()=default;
     private:
+        //! API SPECIFIC, backend-only (friended). DO NOT USE OUTSIDE THE VK BACKEND.
+        [[nodiscard]] VkCommandBuffer VK_Get() const { return m_buffer; }
         const Device* m_device = nullptr;
         const Instance* m_ins = nullptr;
 
