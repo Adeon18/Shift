@@ -233,9 +233,7 @@ namespace Shift {
 
     template<ValidAPI API>
     void RHIEncoder<API>::EndRenderPass() {
-#ifdef SHIFT_VULKAN_BACKEND
-        m_boundCB->VK_EndRenderPass();
-#endif
+        m_boundCB->EndRenderPass();
     }
 
     template<ValidAPI API>
@@ -339,74 +337,16 @@ namespace Shift {
 
 
 
-    template<>
-    inline void RHIEncoder<RHI::Vulkan>::BeginRenderPass(const RenderPassDescriptor& desc, std::span<Texture*> colorTextures, std::optional<Texture*> depthTexture) {
-
-        assert(desc.colorAttachments.size() == colorTextures.size());
-        assert(desc.depthAttachment.has_value() == depthTexture.has_value());
-
-        std::vector<VkRenderingAttachmentInfo> colorInfo;
-        std::optional<VkRenderingAttachmentInfo> depthInfo;
-        for (uint32_t i = 0; i < desc.colorAttachments.size(); i++) {
-            const Texture* colTex = colorTextures[i];
-            const RenderPassDescriptor::RenderPassAttachmentInfo& att = desc.colorAttachments[i];
-            colorInfo.push_back(VK::Util::CreateRenderingAttachmentInfo(
-                    colTex->GetView(),
-                    VK::Util::ShiftToVKResourceLayout(colTex->GetResourceLayout()),
-                    VK::Util::ShiftToVKClearColor(att.clearValue),
-                    VK::Util::ShiftToVKAttachmentLoadOperation(att.loadOperation),
-                    VK::Util::ShiftToVKAttachmentStoreOperation(att.storeOperation)
-                )
-            );
-        }
-
-        if (desc.depthAttachment.has_value()) {
-            const RenderPassDescriptor::RenderPassAttachmentInfo& att = desc.depthAttachment.value();
-            depthInfo = VK::Util::CreateRenderingAttachmentInfo(
-                    (*depthTexture)->GetView(),
-                    VK::Util::ShiftToVKResourceLayout((*depthTexture)->GetResourceLayout()),
-                    VK::Util::ShiftToVKClearDepthStencil(att.clearValue),
-                    VK::Util::ShiftToVKAttachmentLoadOperation(att.loadOperation),
-                    VK::Util::ShiftToVKAttachmentStoreOperation(att.storeOperation)
-            );
-        }
-
-        VkRenderingInfo renderInfo{};
-        renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-        if (desc.enableSecondaryCommandBuffers) { renderInfo.flags |= VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT; };
-        renderInfo.renderArea = {.offset = VK::Util::ShiftToVKOffset2D(desc.offset), .extent = VK::Util::ShiftToVKExtent2D(desc.extent)};
-        renderInfo.layerCount = 1;
-        renderInfo.colorAttachmentCount = 1;
-        renderInfo.pColorAttachments = colorInfo.data();
-        if (depthInfo.has_value()) {
-            renderInfo.pDepthAttachment = &depthInfo.value();
-        }
-
-        m_boundCB->VK_BeginRenderPass(renderInfo);
+    template<ValidAPI API>
+    void RHIEncoder<API>::BeginRenderPass(const RenderPassDescriptor& desc, std::span<Texture*> colorTextures, std::optional<Texture*> depthTexture) {
+        m_boundCB->BeginRenderPass(desc, colorTextures, depthTexture);
     }
 
-    template<>
-    inline void RHIEncoder<RHI::Vulkan>::TransitionTexture(const Texture &texture, EResourceLayout newLayout,
+    template<ValidAPI API>
+    void RHIEncoder<API>::TransitionTexture(const Texture& texture, EResourceLayout newLayout,
         EPipelineStageFlags newStageFlags)
     {
-
-        VkImageSubresourceRange subresourceRange{};
-        subresourceRange.aspectMask = VK::Util::ShiftToVKTextureAspect(texture.GetAspect());
-        subresourceRange.baseMipLevel = 0;
-        subresourceRange.levelCount = 1;
-        subresourceRange.baseArrayLayer = 0;
-        subresourceRange.layerCount = 1;
-
-        m_boundCB->VK_TransferImageLayout(
-            texture.GetImage(),
-            VK::Util::ShiftToVKResourceLayout(texture.GetResourceLayout()),
-            VK::Util::ShiftToVKResourceLayout(newLayout),
-            texture.VK_GetStageFlags(),
-            VK::Util::ShiftToVKPipelineStageFlags(newStageFlags)
-        );
-
-        texture.SetResourceLayout(newLayout);
-        texture.VK_SetStageFlags(VK::Util::ShiftToVKPipelineStageFlags(newStageFlags));
+        m_boundCB->TransitionTexture(texture, newLayout, newStageFlags);
     }
 
     template<ValidAPI API>

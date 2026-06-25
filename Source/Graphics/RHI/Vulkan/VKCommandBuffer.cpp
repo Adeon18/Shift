@@ -145,7 +145,7 @@ namespace Shift::VK {
         vkCmdCopyBufferToImage(
             m_buffer,
             srcBuf.buffer->VK_Get(),
-            dstTex.texture->GetImage(),
+            dstTex.texture->VK_GetImage(),
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             1,
             &region
@@ -401,12 +401,68 @@ namespace Shift::VK {
         vkCmdBindPipeline(m_buffer, VkPipelineBindPoint::VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.VK_Get());
     }
 
-    void CommandBuffer::VK_BeginRenderPass(const VkRenderingInfo& info) const {
-        vkCmdBeginRendering(m_buffer, &info);
+    void CommandBuffer::BeginRenderPass(const RenderPassDescriptor& desc, std::span<Texture*> colorTextures, std::optional<Texture*> depthTexture) const {
+        assert(desc.colorAttachments.size() == colorTextures.size());
+        assert(desc.depthAttachment.has_value() == depthTexture.has_value());
+
+        std::vector<VkRenderingAttachmentInfo> colorInfo;
+        std::optional<VkRenderingAttachmentInfo> depthInfo;
+        for (uint32_t i = 0; i < desc.colorAttachments.size(); i++) {
+            const Texture* colTex = colorTextures[i];
+            const RenderPassDescriptor::RenderPassAttachmentInfo& att = desc.colorAttachments[i];
+            colorInfo.push_back(Util::CreateRenderingAttachmentInfo(
+                    colTex->VK_GetView(),
+                    Util::ShiftToVKResourceLayout(colTex->GetResourceLayout()),
+                    Util::ShiftToVKClearColor(att.clearValue),
+                    Util::ShiftToVKAttachmentLoadOperation(att.loadOperation),
+                    Util::ShiftToVKAttachmentStoreOperation(att.storeOperation)
+                )
+            );
+        }
+
+        if (desc.depthAttachment.has_value()) {
+            const RenderPassDescriptor::RenderPassAttachmentInfo& att = desc.depthAttachment.value();
+            depthInfo = Util::CreateRenderingAttachmentInfo(
+                    (*depthTexture)->VK_GetView(),
+                    Util::ShiftToVKResourceLayout((*depthTexture)->GetResourceLayout()),
+                    Util::ShiftToVKClearDepthStencil(att.clearValue),
+                    Util::ShiftToVKAttachmentLoadOperation(att.loadOperation),
+                    Util::ShiftToVKAttachmentStoreOperation(att.storeOperation)
+            );
+        }
+
+        VkRenderingInfo renderInfo{};
+        renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+        if (desc.enableSecondaryCommandBuffers) { renderInfo.flags |= VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT; };
+        renderInfo.renderArea = {.offset = Util::ShiftToVKOffset2D(desc.offset), .extent = Util::ShiftToVKExtent2D(desc.extent)};
+        renderInfo.layerCount = 1;
+        //! FIXME [F-MRT]: hardcoded to 1; should be colorInfo.size(). Preserved as-is in this relocation.
+        renderInfo.colorAttachmentCount = 1;
+        renderInfo.pColorAttachments = colorInfo.data();
+        if (depthInfo.has_value()) {
+            renderInfo.pDepthAttachment = &depthInfo.value();
+        }
+
+        vkCmdBeginRendering(m_buffer, &renderInfo);
     }
 
-    void CommandBuffer::VK_EndRenderPass() const {
+    void CommandBuffer::EndRenderPass() const {
         vkCmdEndRendering(m_buffer);
+    }
+
+    void CommandBuffer::TransitionTexture(const Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags) const {
+        //! NOTE [latent bug, preserved]: the 5-arg overload defaults to color aspect, so a depth
+        //! texture gets a COLOR-aspect barrier regardless of GetAspect(). Pre-existing; fix with F-STATE/sync.
+        VK_TransferImageLayout(
+            texture.VK_GetImage(),
+            Util::ShiftToVKResourceLayout(texture.GetResourceLayout()),
+            Util::ShiftToVKResourceLayout(newLayout),
+            texture.VK_GetStageFlags(),
+            Util::ShiftToVKPipelineStageFlags(newStageFlags)
+        );
+
+        texture.SetResourceLayout(newLayout);
+        texture.VK_SetStageFlags(Util::ShiftToVKPipelineStageFlags(newStageFlags));
     }
 
     void CommandBuffer::SetViewport(Viewport viewport) const {
@@ -487,8 +543,8 @@ namespace Shift::VK {
         VkImageBlit blit = ShiftToVKBlitRegion(blitRegion);
 
         vkCmdBlitImage(m_buffer,
-                       srcTexture.texture->GetImage(), Util::ShiftToVKResourceLayout(srcTexture.texture->GetResourceLayout()),
-                       dstTexture.texture->GetImage(), Util::ShiftToVKResourceLayout(dstTexture.texture->GetResourceLayout()),
+                       srcTexture.texture->VK_GetImage(), Util::ShiftToVKResourceLayout(srcTexture.texture->GetResourceLayout()),
+                       dstTexture.texture->VK_GetImage(), Util::ShiftToVKResourceLayout(dstTexture.texture->GetResourceLayout()),
                        1, &blit,
                        Util::ShiftToVKFilterMode(filter));
     }

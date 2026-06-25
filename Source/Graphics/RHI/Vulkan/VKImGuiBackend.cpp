@@ -64,7 +64,7 @@ namespace Shift::VK {
 
     void* ImGuiBackend::RegisterTexture(const Texture& texture, const Sampler& sampler) {
         return ImGui_ImplVulkan_AddTexture(
-            sampler.VK_Get(), texture.GetView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+            sampler.VK_Get(), texture.VK_GetView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
 
     void ImGuiBackend::UnregisterTexture(void* textureId) {

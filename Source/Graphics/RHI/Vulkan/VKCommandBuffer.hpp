@@ -8,6 +8,7 @@
 #include "VKFence.hpp"
 
 #include "../Common/CommandBuffer.hpp"
+#include "../Common/RenderPass.hpp"
 
 namespace Shift::VK {
 
@@ -64,12 +65,15 @@ namespace Shift::VK {
         //! Reset the entire buffer (same as ResetFence for now)
         void Reset() const;
 
-        //! Dynamic rendering extennsion integration, begin the RenderPass (not VkRenderPass but the adequate one)
-        //! \param info VK Dynamic rendering info structure (should be ressolved at runtime from the RenderPass struct)
-        void VK_BeginRenderPass(const VkRenderingInfo& info) const;
+        //! Begin dynamic rendering. Builds the VkRenderingInfo from the agnostic descriptor +
+        //! attachment textures
+        void BeginRenderPass(const RenderPassDescriptor& desc, std::span<Texture*> colorTextures, std::optional<Texture*> depthTexture) const;
 
-        //! Dynamic rendering extension integration, end the RenderPass (not VkRenderPass but the adequate one)
-        void VK_EndRenderPass() const;
+        //! End dynamic rendering.
+        void EndRenderPass() const;
+
+        //! Record an image-layout transition for the texture and update its tracked layout/stage
+        void TransitionTexture(const Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags) const;
 
         void ExecuteSecondaryBuffers(std::span<CommandBuffer*> secondaryBuffs) const;
 

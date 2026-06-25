@@ -11,6 +11,7 @@ namespace Shift::VK {
     class Texture {
         friend VK::ResourceSet;
         friend VK::ImGuiBackend;
+        friend VK::CommandBuffer;
     public:
         //! Allocating constructor: creates VkImage via VMA + VkImageView. Owns both.
         Texture(const Device* device, const TextureDescriptor& textureDesc);
@@ -21,15 +22,6 @@ namespace Shift::VK {
         Texture& operator=(const Texture&)=delete;
 
         [[nodiscard]] bool IsValid() const { return valid; }
-
-        //! TODO [FIX] make these VK_ and private!
-        [[nodiscard]] VkImage GetImage() const { return m_image; }
-        [[nodiscard]] VkImageView GetView() const { return m_imageView; }
-        [[nodiscard]] VmaAllocation GetAlloc() const { return m_allocation; }
-        [[nodiscard]] VmaAllocationInfo GetAllocInfo() const { return m_allocationInfo; }
-
-        [[nodiscard]] VkPipelineStageFlags VK_GetStageFlags() const { return m_stageFlags; }
-        void VK_SetStageFlags(VkPipelineStageFlags stageFlags) const { m_stageFlags = stageFlags; }
 
         [[nodiscard]] uint32_t GetWidth() const { return m_textureDesc.width; }
         [[nodiscard]] uint32_t GetHeight() const { return m_textureDesc.height; }
@@ -46,6 +38,12 @@ namespace Shift::VK {
 
         ~Texture();
     private:
+        //! API SPECIFIC, backend-only (friended). DO NOT USE OUTSIDE THE VK BACKEND.
+        [[nodiscard]] VkImage VK_GetImage() const { return m_image; }
+        [[nodiscard]] VkImageView VK_GetView() const { return m_imageView; }
+        [[nodiscard]] VkPipelineStageFlags VK_GetStageFlags() const { return m_stageFlags; }
+        void VK_SetStageFlags(VkPipelineStageFlags stageFlags) const { m_stageFlags = stageFlags; }
+
         //! TODO
         void GenerateMips();
 

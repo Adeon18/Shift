@@ -39,7 +39,7 @@ namespace Shift::VK {
     }
 
     void ResourceSet::UpdateTexture(uint32_t bind, uint32_t arrElement, const VK::Texture &InputTexture) {
-        m_imageInfos.emplace_back(VK_NULL_HANDLE, InputTexture.GetView(), Util::ShiftToVKResourceLayout(InputTexture.GetResourceLayout()));
+        m_imageInfos.emplace_back(VK_NULL_HANDLE, InputTexture.VK_GetView(), Util::ShiftToVKResourceLayout(InputTexture.GetResourceLayout()));
 
         VkWriteDescriptorSet writeSet{};
 
