@@ -502,6 +502,10 @@ namespace Shift {
         std::vector<VkDescriptorSetLayoutBinding> vkBindings;
         vkBindings.reserve(desc.bindings.size());
 
+        //! One binding-flags entry per binding: both bindless and regular and I have no damn clue whether this works
+        std::vector<VkDescriptorBindingFlags> bindingFlags;
+        bindingFlags.reserve(desc.bindings.size());
+
         bool containsBindless = false;
         //! We only can have one bindless structure in a single DS
         uint32_t bindlessCount = 0;
@@ -515,10 +519,21 @@ namespace Shift {
             binding.pImmutableSamplers = nullptr; // handle immutable samplers if needed
             vkBindings.push_back(binding);
 
-            if (!containsBindless && b.isBindless) {
-                containsBindless = true;
-                bindlessCount = b.count;
-                bindlessType = b.type;
+            if (b.isBindless) {
+                bindingFlags.push_back(
+                    VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |
+                    VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT |
+                    VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT |
+                    VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT);
+
+                //! Only the first bindless binding drives the variable descriptor count
+                if (!containsBindless) {
+                    containsBindless = true;
+                    bindlessCount = b.count;
+                    bindlessType = b.type;
+                }
+            } else {
+                bindingFlags.push_back(0);
             }
         }
 
@@ -527,18 +542,11 @@ namespace Shift {
         layoutInfo.bindingCount = static_cast<uint32_t>(vkBindings.size());
         layoutInfo.pBindings = vkBindings.data();
 
-        //! This is for bindless only
-        VkDescriptorBindingFlags bindingFlags =
-            VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |
-            VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT |
-            VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT |
-            VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT;
-
         VkDescriptorSetLayoutBindingFlagsCreateInfo flagsInfo{};
         flagsInfo.sType =
             VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
-        flagsInfo.bindingCount = 1;
-        flagsInfo.pBindingFlags = &bindingFlags;
+        flagsInfo.bindingCount = static_cast<uint32_t>(bindingFlags.size());
+        flagsInfo.pBindingFlags = bindingFlags.data();
 
         if (containsBindless) {
             layoutInfo.pNext = &flagsInfo;

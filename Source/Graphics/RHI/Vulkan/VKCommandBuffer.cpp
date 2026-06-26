@@ -436,8 +436,7 @@ namespace Shift::VK {
         if (desc.enableSecondaryCommandBuffers) { renderInfo.flags |= VK_RENDERING_CONTENTS_SECONDARY_COMMAND_BUFFERS_BIT; };
         renderInfo.renderArea = {.offset = Util::ShiftToVKOffset2D(desc.offset), .extent = Util::ShiftToVKExtent2D(desc.extent)};
         renderInfo.layerCount = 1;
-        //! FIXME [F-MRT]: hardcoded to 1; should be colorInfo.size(). Preserved as-is in this relocation.
-        renderInfo.colorAttachmentCount = 1;
+        renderInfo.colorAttachmentCount = static_cast<uint32_t>(colorInfo.size());
         renderInfo.pColorAttachments = colorInfo.data();
         if (depthInfo.has_value()) {
             renderInfo.pDepthAttachment = &depthInfo.value();
@@ -451,14 +450,22 @@ namespace Shift::VK {
     }
 
     void CommandBuffer::TransitionTexture(const Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags) const {
-        //! NOTE [latent bug, preserved]: the 5-arg overload defaults to color aspect, so a depth
-        //! texture gets a COLOR-aspect barrier regardless of GetAspect(). Pre-existing; fix with F-STATE/sync.
+        //! Derive the barrier aspect from the texture's real aspect
+        //! VK_REMAINING_* covers every mip and array layer
+        VkImageSubresourceRange subresourceRange{};
+        subresourceRange.aspectMask = Util::ShiftToVKTextureAspect(texture.GetAspect());
+        subresourceRange.baseMipLevel = 0;
+        subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+        subresourceRange.baseArrayLayer = 0;
+        subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
         VK_TransferImageLayout(
             texture.VK_GetImage(),
             Util::ShiftToVKResourceLayout(texture.GetResourceLayout()),
             Util::ShiftToVKResourceLayout(newLayout),
             texture.VK_GetStageFlags(),
-            Util::ShiftToVKPipelineStageFlags(newStageFlags)
+            Util::ShiftToVKPipelineStageFlags(newStageFlags),
+            subresourceRange
         );
 
         texture.SetResourceLayout(newLayout);
