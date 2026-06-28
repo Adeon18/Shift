@@ -155,31 +155,17 @@ namespace Shift {
         };
 
         auto [uAppMajor, uAppMinor, uAppPatch] = getVersionUintFromString(appVersion);
-
-        uint32_t uAppVersion = 0;
-#ifdef SHIFT_VULKAN_BACKEND
-        uAppVersion = VK_MAKE_VERSION(uAppMajor, uAppMinor, uAppPatch);
-#endif
-
         auto [uEngMajor, uEngMinor, uEngPatch] = getVersionUintFromString(engineVersion);
 
-        uint32_t uEngVersion = 0;
-#ifdef SHIFT_VULKAN_BACKEND
-        uEngVersion = VK_MAKE_VERSION(uEngMajor, uEngMinor, uEngPatch);
-#endif
+        const RHIAppInfo appInfo{
+            .appName = appName,
+            .appVersionMajor = uAppMajor, .appVersionMinor = uAppMinor, .appVersionPatch = uAppPatch,
+            .engineName = engineName,
+            .engineVersionMajor = uEngMajor, .engineVersionMinor = uEngMinor, .engineVersionPatch = uEngPatch,
+        };
 
-#ifdef SHIFT_VULKAN_BACKEND
-        m_local.instance = Core::CreateUnique<VK::Instance>(appName, uAppVersion, engineName, uEngVersion, API::requiredFeatures);
-        CheckCritical(m_local.instance->IsValid(), "Failed to create VK instance!");
-        m_local.surface = Core::CreateUnique<VK::WindowSurface>(m_local.instance->Get(), window);
-        CheckCritical(m_local.surface->IsValid(), "Failed to create VK surface!");
-        m_local.device = Core::CreateUnique<VK::Device>(*m_local.instance, m_local.surface->Get(), API::requiredFeatures);
-        CheckCritical(m_local.device->IsValid(), "Failed to create VK device!");
-        m_local.descLayoutCache.Init(m_local.device.get());
-        m_local.descAllocator = Core::CreateUnique<VK::DescriptorAllocator>(m_local.device.get());
-        m_local.swapchain = Core::CreateUnique<VK::Swapchain>(m_local.device.get(), m_local.surface.get(), width, height);
-        CheckCritical(m_local.swapchain->IsValid(), "Failed to create VK swapchain!");
-#endif
+        //! Native backend bring-up lives behind a per-API hook
+        CheckCritical(m_local.InitBackend(window, width, height, appInfo, API::requiredFeatures), "Failed to initialize the main backend handles!");
 
         for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
             CheckCritical(m_graphicsContexts[i].Init(&m_local, EContextType::Graphics, false), "Failed to create Graphics Context in flight!");
@@ -446,122 +432,6 @@ namespace Shift {
     }
 
 
-    //! ------------------------------- Vulkan Specific -------------------------------
-
-    template<>
-    inline void RenderHardwareInterface<RHI::Vulkan>::WaitForGPU() {
-        vkDeviceWaitIdle(m_local.device->Get());
-    }
-
-    template<>
-    inline Pipeline* RenderHardwareInterface<RHI::Vulkan>::HandleCreator::CreatePipeline(const PipelineDescriptor &desc,
-        const std::vector<ShaderStageDesc> &shaders)
-    {
-
-        std::vector<VkDescriptorSetLayout> setLayouts;
-        setLayouts.reserve(desc.descriptorLayouts.size());
-
-        // For each layout, create the descriptor set layout
-        for (const auto& layoutDesc : desc.descriptorLayouts) {
-            std::vector<VkDescriptorSetLayoutBinding> vkBindings;
-            vkBindings.reserve(layoutDesc.bindings.size());
-
-            for (const auto& b : layoutDesc.bindings) {
-                VkDescriptorSetLayoutBinding binding{};
-                binding.binding = b.binding;
-                binding.descriptorCount = b.count;
-                binding.stageFlags = VK::Util::ShiftToVKBindingVisibility(b.stageFlags);
-                binding.descriptorType = VK::Util::ShiftToVKBindingType(b.type);
-                binding.pImmutableSamplers = nullptr; // handle immutable samplers if needed
-                vkBindings.push_back(binding);
-            }
-
-            VkDescriptorSetLayoutCreateInfo layoutInfo{};
-            layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            layoutInfo.bindingCount = static_cast<uint32_t>(vkBindings.size());
-            layoutInfo.pBindings = vkBindings.data();
-
-            setLayouts.push_back(m_backend->m_local.descLayoutCache.CreateDescriptorLayout(layoutInfo));
-        }
-
-        Pipeline* p = new Pipeline{m_backend->m_local.device.get(), desc, shaders, setLayouts};
-
-        for (auto& stage: shaders) {
-            m_backend->m_shaderManager.RegisterPipeline(stage.handle, p);
-        }
-
-        m_backend->m_pipelines.insert(p);
-
-        return p;
-    }
-
-    template<ValidAPI API>
-    ResourceSet *RenderHardwareInterface<API>::HandleCreator::CreateResourceSet(const PipelineLayoutDescriptor &desc) {
-
-        //! TODO [CLEANUP] create a shared function for set pulling of set layout between this and pipeline creation
-        std::vector<VkDescriptorSetLayoutBinding> vkBindings;
-        vkBindings.reserve(desc.bindings.size());
-
-        //! One binding-flags entry per binding: both bindless and regular and I have no damn clue whether this works
-        std::vector<VkDescriptorBindingFlags> bindingFlags;
-        bindingFlags.reserve(desc.bindings.size());
-
-        bool containsBindless = false;
-        //! We only can have one bindless structure in a single DS
-        uint32_t bindlessCount = 0;
-        EBindingType bindlessType = EBindingType::SampledImage;
-        for (const auto& b : desc.bindings) {
-            VkDescriptorSetLayoutBinding binding{};
-            binding.binding = b.binding;
-            binding.descriptorCount = b.count;
-            binding.stageFlags = VK::Util::ShiftToVKBindingVisibility(b.stageFlags);
-            binding.descriptorType = VK::Util::ShiftToVKBindingType(b.type);
-            binding.pImmutableSamplers = nullptr; // handle immutable samplers if needed
-            vkBindings.push_back(binding);
-
-            if (b.isBindless) {
-                bindingFlags.push_back(
-                    VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |
-                    VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT |
-                    VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT |
-                    VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT);
-
-                //! Only the first bindless binding drives the variable descriptor count
-                if (!containsBindless) {
-                    containsBindless = true;
-                    bindlessCount = b.count;
-                    bindlessType = b.type;
-                }
-            } else {
-                bindingFlags.push_back(0);
-            }
-        }
-
-        VkDescriptorSetLayoutCreateInfo layoutInfo{};
-        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        layoutInfo.bindingCount = static_cast<uint32_t>(vkBindings.size());
-        layoutInfo.pBindings = vkBindings.data();
-
-        VkDescriptorSetLayoutBindingFlagsCreateInfo flagsInfo{};
-        flagsInfo.sType =
-            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
-        flagsInfo.bindingCount = static_cast<uint32_t>(bindingFlags.size());
-        flagsInfo.pBindingFlags = bindingFlags.data();
-
-        if (containsBindless) {
-            layoutInfo.pNext = &flagsInfo;
-            layoutInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
-        }
-
-        return new ResourceSet{m_backend->m_local.device.get(), m_backend->m_local.descAllocator->Allocate(m_backend->m_local.descLayoutCache.CreateDescriptorLayout(layoutInfo), bindlessCount, bindlessType)};
-    }
-
-    template<>
-    inline void RenderHardwareInterface<RHI::Vulkan>::WaitForImagePresent(uint32_t imageIndex) {
-        m_presentFences[imageIndex]->Wait();
-        m_presentFences[imageIndex]->Reset();
-    }
-
 #ifdef SHIFT_VULKAN_BACKEND
     using RenderBackend = RenderHardwareInterface<RHI::Vulkan>;
     using RenderContext = RHIContext<RHI::Vulkan>;
@@ -570,5 +440,12 @@ namespace Shift {
     using ShiftSelectedAPI = RHI::Vulkan;
 #endif
 } // Shift
+
+//! Backend-specific member specializations live in their own header).
+//! Included last: the full RenderHardwareInterface template is defined by
+//! now, and we just add specific template functions for specific API
+#ifdef SHIFT_VULKAN_BACKEND
+#include "RHI_VK.hpp"
+#endif
 
 #endif //SHIFT_SRHI_HPP

@@ -12,6 +12,8 @@
 #include "Graphics/RHI/Vulkan/Assistants/DescriptorLayoutCache.hpp"
 #include "Graphics/RHI/Vulkan/Assistants/DescriptorAllocator.hpp"
 
+#include "Graphics/RHI/Common/Capabilities.hpp"
+#include "Utility/Assertions.hpp"
 #include "Core/Memory.hpp"
 
 namespace Shift {
@@ -24,6 +26,27 @@ namespace Shift {
 
         mutable Core::UniquePtr<VK::DescriptorAllocator> descAllocator;
         VK::DescriptorLayoutCache descLayoutCache;
+
+        //! Backend bring-up hook: constructs the Vulkan instance/surface/device/
+        //! descriptor allocator/swapchain. Every backend's RHILocal specialization is expected to expose this same signature.
+        bool InitBackend(GLFWwindow* window, uint32_t width, uint32_t height,
+                         const RHIAppInfo& appInfo, const RHIRequiredFeatures& features) {
+            const uint32_t appVersion = VK_MAKE_VERSION(appInfo.appVersionMajor, appInfo.appVersionMinor, appInfo.appVersionPatch);
+            const uint32_t engineVersion = VK_MAKE_VERSION(appInfo.engineVersionMajor, appInfo.engineVersionMinor, appInfo.engineVersionPatch);
+
+            instance = Core::CreateUnique<VK::Instance>(appInfo.appName, appVersion, appInfo.engineName, engineVersion, features);
+            CheckCritical(instance->IsValid(), "Failed to create VK instance!");
+            surface = Core::CreateUnique<VK::WindowSurface>(instance->Get(), window);
+            CheckCritical(surface->IsValid(), "Failed to create VK surface!");
+            device = Core::CreateUnique<VK::Device>(*instance, surface->Get(), features);
+            CheckCritical(device->IsValid(), "Failed to create VK device!");
+            descLayoutCache.Init(device.get());
+            descAllocator = Core::CreateUnique<VK::DescriptorAllocator>(device.get());
+            swapchain = Core::CreateUnique<VK::Swapchain>(device.get(), surface.get(), width, height);
+            CheckCritical(swapchain->IsValid(), "Failed to create VK swapchain!");
+
+            return true;
+        }
     };
 } // Shift
 

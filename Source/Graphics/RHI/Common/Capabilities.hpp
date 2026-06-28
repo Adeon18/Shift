@@ -42,6 +42,20 @@ namespace Shift {
         bool VK_maintenance1 = false;
     };
 
+    //! Backend-agnostic application identity passed to the RHI at bring-up. The RHI parses
+    //! the user-facing version strings into components here
+    struct RHIAppInfo {
+        std::string appName;
+        uint32_t    appVersionMajor = 1;
+        uint32_t    appVersionMinor = 0;
+        uint32_t    appVersionPatch = 0;
+
+        std::string engineName;
+        uint32_t    engineVersionMajor = 1;
+        uint32_t    engineVersionMinor = 0;
+        uint32_t    engineVersionPatch = 0;
+    };
+
     struct RHILimits {
         uint32_t maxTextureDimension1D = 0;
         uint32_t maxTextureDimension2D = 0;
