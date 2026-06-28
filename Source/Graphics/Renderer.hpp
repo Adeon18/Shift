@@ -15,9 +15,11 @@
 #include "Graphics/UI/EditorLayer.hpp"
 
 #include "Graphics/Managers/TextureManager.hpp"
+#include "Graphics/Managers/ShaderManager.hpp"
+#include "Graphics/Managers/PipelineManager.hpp"
 #include "Loaders/TextureLoader/StbLoader.hpp"
 
-namespace Shift::gfx {
+namespace Shift::Graphics {
     //! A struct with data that can change per-frame
     struct EngineData {
         /// Camera controller
@@ -78,12 +80,16 @@ namespace Shift::gfx {
         ShiftWindow& m_window;
         std::shared_ptr<ctrl::FlyingCameraController> m_controller;
 
-        Pipeline* p;
-        Shader* vs;
-        Shader* ps;
+        //! Opaque handle into m_pipelineManager (which owns the pipeline); resolved to a Pipeline&
+        //! via m_pipelineManager.Get() at the bind site.
+        Graphics::PipelineHandle m_pipeline;
         Buffer* vertex;
 
         RenderBackend m_renderBackend;
+
+        //! Asset/pipeline managers live above the RHI and are owned here
+        Graphics::ShaderManager m_shaderManager;
+        Graphics::PipelineManager m_pipelineManager;
 
         Texture* viewportTexture;
         Sampler* viewportSampler;

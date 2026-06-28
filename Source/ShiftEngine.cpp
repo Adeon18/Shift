@@ -22,7 +22,7 @@ namespace Shift {
         std::pair<uint32_t, uint32_t> sizes{m_window->GetWidth(), m_window->GetHeight()};
         m_controller = std::make_shared<ctrl::FlyingCameraController>(80.0f, sizes, pos);
 
-        m_renderer = std::make_unique<gfx::Renderer>(*m_window, m_controller);
+        m_renderer = std::make_unique<Graphics::Renderer>(*m_window, m_controller);
         if (!m_renderer->Init()) { return false;}
 
         m_editorLayer.Init(*m_window, m_renderer->GetRHILocal<ShiftSelectedAPI>());

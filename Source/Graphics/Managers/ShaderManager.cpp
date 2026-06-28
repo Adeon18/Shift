@@ -10,8 +10,8 @@
 #include "Utility/UtilStandard.hpp"
 
 namespace Shift::Graphics {
-    void ShaderManager::Init(const Device* device, const std::string &shaderRootFolder) {
-        m_device = device;
+    void ShaderManager::Init(RenderBackendInterface* backend, const std::string &shaderRootFolder) {
+        m_backend = backend;
         m_shaderRootFolder = shaderRootFolder;
         m_shaderCacheFolder = std::filesystem::path(shaderRootFolder).parent_path() / "Build";
         if (!std::filesystem::exists(m_shaderCacheFolder)) {
@@ -165,8 +165,8 @@ namespace Shift::Graphics {
         asset->bytecode.resize(size);
         file.read(reinterpret_cast<char *>(asset->bytecode.data()), size);
 
-        //! Create shader handle
-        Shader* shader = new Shader{m_device, asset->bytecode, asset->descriptor};
+        //! Create shader handle via the RHI primitive
+        Shader* shader = m_backend->CreateShader(asset->bytecode, asset->descriptor);
         CheckCritical(shader->IsValid(), "Invalid shader!");
         asset->shader = shader;
 
@@ -228,7 +228,7 @@ namespace Shift::Graphics {
                 Log(Trace, "Hot-reload compiled shader {}", key);
             } else {
                 //! Shader has not been registered - register it!
-                Shader* shader = new Shader{m_device, asset->bytecode, asset->descriptor};
+                Shader* shader = m_backend->CreateShader(asset->bytecode, asset->descriptor);
                 CheckCritical(shader->IsValid(), "Invalid shader!");
                 asset->shader = shader;
                 m_hashToShaderAsset[key] = asset;

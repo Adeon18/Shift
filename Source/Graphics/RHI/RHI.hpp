@@ -9,7 +9,6 @@
 
 #include "RHIContext.hpp"
 #include "RHIDeferredExecutor.hpp"
-#include "../Managers/ShaderManager.hpp"
 
 namespace Shift {
 
@@ -28,7 +27,9 @@ namespace Shift {
             [[nodiscard]] Pipeline* CreatePipeline(const PipelineDescriptor& desc, const std::vector<ShaderStageDesc>& shaders);
             [[nodiscard]] ResourceSet* CreateResourceSet(const PipelineLayoutDescriptor& desc);
             [[nodiscard]] Sampler* CreateSampler(const SamplerDescriptor& desc);
-            [[nodiscard]] Shader* CreateShader(const ShaderDescriptor& desc);
+            //! Creates a backend shader module from already-compiled bytecode. Makes it harder to miscall and cause abstraction leak this way
+            //! Ideally a ShaderManager of sorts should call this function, handle shader hot reload/etc.
+            [[nodiscard]] Shader* CreateShader(std::span<uint8_t> bytecode, const ShaderDescriptor& desc);
         private:
             RenderHardwareInterface* m_backend = nullptr;
         };
@@ -79,7 +80,10 @@ namespace Shift {
 
         void ProcessDeferredCallbacks();
 
-        void ShaderHotReload();
+        //! Force-run every pending deferred callback regardless of its gate. Intended for
+        //! shutdown: call once the GPU is idle and BEFORE tearing down owned resources, so a
+        //! queued callback never fires past its target.
+        void FlushAllDeferredCallbacks();
 
         [[nodiscard]] const RHILocal<API>& GetLocal() const { return m_local; }
 
@@ -103,9 +107,6 @@ namespace Shift {
         RHIContext<API> m_computeContext;
 
         RHIDeferredExecutor m_deferredExecutor;
-        Graphics::ShaderManager m_shaderManager;
-        //! TODO: [Architecture] This will be replaced with pipeline manager someday
-        std::unordered_set<Pipeline*> m_pipelines;
 
         uint32_t m_currentFrame = 0;
         uint64_t m_currentFrameGlobalIndex = 0;
@@ -207,8 +208,6 @@ namespace Shift {
         m_timelineGraphics = Core::CreateUnique<TimelineSemaphore>(m_local.device.get(), 0);
         m_timelineTransfer = Core::CreateUnique<TimelineSemaphore>(m_local.device.get(), 0);
 
-        m_shaderManager.Init(m_local.device.get(), Util::GetShiftShaderRootDir());
-
         return true;
     }
 
@@ -216,8 +215,6 @@ namespace Shift {
     void RenderHardwareInterface<API>::Destroy() {
 
         m_deferredExecutor.FlushAllDeferredCallbacks();
-
-        m_shaderManager.Destroy();
 
         m_local.swapchain.reset();
 
@@ -274,8 +271,8 @@ namespace Shift {
     }
 
     template<ValidAPI API>
-    Shader* RenderHardwareInterface<API>::HandleCreator::CreateShader(const ShaderDescriptor &desc) {
-        return m_backend->m_shaderManager.GetShader(desc);
+    Shader* RenderHardwareInterface<API>::HandleCreator::CreateShader(std::span<uint8_t> bytecode, const ShaderDescriptor &desc) {
+        return new Shader{m_backend->m_local.device.get(), bytecode, desc};
     }
 
     template<ValidAPI API>
@@ -414,21 +411,8 @@ namespace Shift {
     }
 
     template<ValidAPI API>
-    void RenderHardwareInterface<API>::ShaderHotReload() {
-        std::unordered_set<Pipeline*> toRebuild = m_shaderManager.HotReload();
-
-        auto payload = GetGraphicsWaitPayload();
-
-        for (Pipeline* pipeline: toRebuild) {
-            //! Rebuild retires the old GPU handle and builds the new one; release the
-            //! retired handle once the GPU is done. No native handle is touched here, so
-            //! this stays backend-agnostic
-            pipeline->Rebuild(false);
-            DeferExecute(payload.semaphore, payload.value, [pipeline]() {
-                    pipeline->ReleaseRetired();
-                }
-            );
-        }
+    void RenderHardwareInterface<API>::FlushAllDeferredCallbacks() {
+        m_deferredExecutor.FlushAllDeferredCallbacks();
     }
 
 

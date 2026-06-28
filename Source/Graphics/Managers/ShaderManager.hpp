@@ -9,13 +9,14 @@
 #include <unordered_set>
 #include <mutex>
 
-#include "Graphics/RHI/Common/Types.hpp"
+#include "Graphics/RHI/RHI.hpp"
 #include "Utility/SlangCompiler/SlangCompiler.hpp"
 
 namespace Shift::Graphics {
+    //! Owns shader compilation, caching and hot-reload bookkeeping
     class ShaderManager {
     public:
-        void Init(const Device* device, const std::string& shaderRootFolder);
+        void Init(RenderBackendInterface* backend, const std::string& shaderRootFolder);
 
         Shader* GetShader(const ShaderDescriptor& desc);
 
@@ -41,7 +42,7 @@ namespace Shift::Graphics {
         bool CompileInternalAndRegister(const std::string& key, ShaderAsset* asset);
         void UpdateDependencies(ShaderAsset* asset, const std::unordered_set<std::string>& deps);
     private:
-        const Device* m_device = nullptr;
+        RenderBackendInterface* m_backend = nullptr;
         Util::SlangCompiler m_compiler;
 
         //! Hash -> ShaderAsset

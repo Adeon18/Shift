@@ -71,15 +71,18 @@ namespace Shift {
                 it->fn();
             }
         }
+        m_callbacks.clear();
 
         for (auto& callback: m_endOfSessionCallbacks) {
             callback();
         }
+        m_endOfSessionCallbacks.clear();
 
         for (auto& [frameIdx, callbacks]: m_frameCallbacks) {
             for (auto it = callbacks.begin(); it != callbacks.end(); ++it) {
                 (*it)();
             }
         }
+        m_frameCallbacks.clear();
     }
 } // Shift

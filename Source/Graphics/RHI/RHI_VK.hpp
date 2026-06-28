@@ -54,15 +54,7 @@ namespace Shift {
             setLayouts.push_back(m_backend->m_local.descLayoutCache.CreateDescriptorLayout(layoutInfo));
         }
 
-        Pipeline* p = new Pipeline{m_backend->m_local.device.get(), desc, shaders, setLayouts};
-
-        for (auto& stage: shaders) {
-            m_backend->m_shaderManager.RegisterPipeline(stage.handle, p);
-        }
-
-        m_backend->m_pipelines.insert(p);
-
-        return p;
+        return new Pipeline{m_backend->m_local.device.get(), desc, shaders, setLayouts};
     }
 
     template<>

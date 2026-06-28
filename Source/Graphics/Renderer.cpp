@@ -9,12 +9,15 @@
 
 #include <glm/gtx/string_cast.hpp>
 
-namespace Shift::gfx {
+namespace Shift::Graphics {
     bool Renderer::Init() {
 
         CheckCritical(m_renderBackend.Init(m_window.GetHandle(), m_window.GetWidth(), m_window.GetHeight(), "TestApp", "1.0.0", "Shift", "2.0.0"), "Failed to initialize RHI!");
 
         RenderBackendInterface* rbi = m_renderBackend.CreateInterface();
+
+        m_shaderManager.Init(rbi, Shift::Util::GetShiftShaderRootDir());
+        m_pipelineManager.Init(&m_renderBackend, &m_shaderManager);
 
         RenderContext& tctx = m_renderBackend.GetTransferContext();
         RenderContextEncoder* tEncoder = tctx.CreateCommandEncoder();
@@ -23,27 +26,19 @@ namespace Shift::gfx {
         m_textureLoader = std::make_unique<StbLoader>();
         m_textureManager = std::make_unique<Graphics::TextureManager>(m_textureLoader.get(), rbi, tctx.CreateCommandEncoder());
 
-        m_textureManager->GetOrLoadTexture(Util::GetShiftRoot() + "Assets/Textures/NB.jpg", tEncoder);
+        m_textureManager->GetOrLoadTexture(Shift::Util::GetShiftRoot() + "Assets/Textures/NB.jpg", tEncoder);
         LoadScene();
 
 
         PipelineDescriptor pipelineDescriptor;
         ShaderDescriptor vsDescriptor;
         vsDescriptor.type = EShaderType::Vertex;
-        vsDescriptor.path = Util::GetShiftShaderSrcDir() + "Debug/TriangleVS.slang";
+        vsDescriptor.path = Shift::Util::GetShiftShaderSrcDir() + "Debug/TriangleVS.slang";
         vsDescriptor.entry = "mainVS";
         ShaderDescriptor fsDescriptor;
         fsDescriptor.type = EShaderType::Fragment;
-        fsDescriptor.path = Util::GetShiftShaderSrcDir() + "Debug/TrianglePS.slang";
+        fsDescriptor.path = Shift::Util::GetShiftShaderSrcDir() + "Debug/TrianglePS.slang";
         fsDescriptor.entry = "mainPS";
-
-        vs = rbi->CreateShader(vsDescriptor);
-        ps = rbi->CreateShader(fsDescriptor);
-
-        std::vector<ShaderStageDesc> stages{
-                {EShaderType::Vertex, vs},
-                {EShaderType::Fragment, ps},
-            };
 
         pipelineDescriptor.vertexConfig.vertexBindings.emplace_back(
             0, 12, EVertexInputRate::PerVertex
@@ -53,7 +48,8 @@ namespace Shift::gfx {
         );
         pipelineDescriptor.colorBlendConfig.attachments.push_back({.format = ETextureFormat::B8G8R8A8_SRGB});
 
-        p = rbi->CreatePipeline(pipelineDescriptor, stages);
+        std::array<ShaderDescriptor, 2> shaderSources{vsDescriptor, fsDescriptor};
+        m_pipeline = m_pipelineManager.CreatePipeline(pipelineDescriptor, shaderSources);
 
         uint32_t bufSize = 3 * sizeof(float) * 6;
         BufferDescriptor bufferDescriptor;
@@ -134,7 +130,7 @@ namespace Shift::gfx {
         return true;
     }
 
-    bool Renderer::RenderFrame(const Shift::gfx::EngineData &engineData, Editor::EditorLayer* editor) {
+    bool Renderer::RenderFrame(const Shift::Graphics::EngineData &engineData, Editor::EditorLayer* editor) {
 
         //! The viewport may not be visible in the first frame and we need to transition the viewport texture for the imgui to render anyways
         bool firstFrame = m_renderBackend.GetCurrentGlobalIndex() == 0;
@@ -190,15 +186,17 @@ namespace Shift::gfx {
             RenderContext* sec0 = m_renderBackend.AcquireSecondaryGraphicsContext();
             RenderContext* sec1 = m_renderBackend.AcquireSecondaryGraphicsContext();
 
+            Pipeline* pipeline = m_pipelineManager.Get(m_pipeline);
+
             std::vector<ETextureFormat> colorTexturesFormats{};
-            for (auto& c: p->GetDescriptor().colorBlendConfig.attachments) {
+            for (auto& c: pipeline->GetDescriptor().colorBlendConfig.attachments) {
                 colorTexturesFormats.push_back(c.format);
             }
 
             SecondaryBufferBeginPayload payload{
                 .colorFormats = colorTexturesFormats
-                // .depthFormat = p->GetDescriptor().depthStencilConfig.depthFormat,
-                // .stencilFormat = p->GetDescriptor().depthStencilConfig.stencilFormat
+                // .depthFormat = pipeline->GetDescriptor().depthStencilConfig.depthFormat,
+                // .stencilFormat = pipeline->GetDescriptor().depthStencilConfig.stencilFormat
             };
 
             if (sec0 && sec1) {
@@ -213,7 +211,7 @@ namespace Shift::gfx {
                     sec->CreateCommandEncoder()->SetScissor(scissor);
                     sec->CreateCommandEncoder()->SetViewport(viewport);
 
-                    sec->CreateCommandEncoder()->BindGraphicsPipeline(*p);
+                    sec->CreateCommandEncoder()->BindGraphicsPipeline(*pipeline);
                     sec->CreateCommandEncoder()->BindVertexBuffer({vertex, 0}, 0);
                     sec->CreateCommandEncoder()->Draw({3, 1, (sec == sec0) ? 0u: 3u, 0});
 
@@ -291,7 +289,7 @@ namespace Shift::gfx {
     }
 
     void Renderer::HotReloadShaders() {
-        m_renderBackend.ShaderHotReload();
+        m_pipelineManager.HotReload();
     }
 
     void Renderer::WaitForCleanup() {
@@ -299,10 +297,16 @@ namespace Shift::gfx {
     }
 
     void Renderer::Cleanup() {
+        //! Drain the deferred queue while every resource is still alive so no queued callback
+        m_renderBackend.FlushAllDeferredCallbacks();
+
         delete vertex;
         delete viewportTexture;
         delete viewportSampler;
-        delete p;
+
+        m_pipelineManager.Destroy();
+        m_shaderManager.Destroy();
+
         m_textureManager.reset();
         m_textureLoader.reset();
         m_renderBackend.Destroy();

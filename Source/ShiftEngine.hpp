@@ -33,9 +33,9 @@ namespace Shift {
         void FillEngineData();
         void HandleInput();
 
-        gfx::EngineData m_engineData;
+        Graphics::EngineData m_engineData;
 
-        std::unique_ptr<gfx::Renderer> m_renderer;
+        std::unique_ptr<Graphics::Renderer> m_renderer;
 
         std::unique_ptr<ShiftWindow> m_window;
 
