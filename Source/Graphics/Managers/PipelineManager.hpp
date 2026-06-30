@@ -10,23 +10,15 @@
 #include <unordered_set>
 
 #include "Graphics/RHI/RHI.hpp"
+#include "GenerationalPool.hpp"
 #include "ShaderManager.hpp"
 
 namespace Shift::Graphics {
 
-    //! Opaque, generation-checked reference to a pipeline owned by PipelineManager. Same shape as
-    //! TextureHandle
-    struct PipelineHandle {
-        uint32_t slotIdx = 0;
-        uint32_t generation = 0;
-        bool operator==(const PipelineHandle& o) const noexcept = default;
-    };
+    using PipelineHandle = GenerationalPool<Pipeline, std::vector<ShaderStageDesc>>::Handle;
 
     //! The single authority for graphics pipelines, and the ONLY thing engine systems call to get
-    //! one, subscribes it for hot-reload, and takes ownership
-    //!
-    //! Ownership: the manager single-owns every pipeline in a
-    //! generational slot pool
+    //! one, subscribes it for hot-reload, and takes ownership of every pipeline
     //!
     //! Future home of the engine-level PSO cache: dedup identical pipelines by a hash of
     //! (PipelineDescriptor + shader identities), turning CreatePipeline into get-or-create. The
@@ -36,12 +28,12 @@ namespace Shift::Graphics {
         void Init(RenderBackend* rhi, ShaderManager* shaderManager);
 
         //! Compile/fetch the shaders, create the pipeline, subscribe it for hot-reload and take
-        //! ownership. Returns an opaque handle; resolve to a Pipeline& for binding via Get().
+        //! ownership. Returns an opaque handle; resolve to a Pipeline* for binding via Get().
         [[nodiscard]] PipelineHandle CreatePipeline(const PipelineDescriptor& desc, std::span<const ShaderDescriptor> shaderSources);
 
         //! Resolve a handle to the owned pipeline. Returns nullptr if the handle is stale.
-        //! A const read: safe to call concurrently from worker threads
-        //! during command recording, provided no pipeline is created/destroyed in that window.
+        //! A const read: safe to call concurrently from worker threads during command recording,
+        //! provided no pipeline is created/destroyed in that window.
         [[nodiscard]] Pipeline* Get(PipelineHandle handle) const;
 
         //! Destroy a pipeline mid-session: unsubscribe it from hot-reload, invalidate outstanding
@@ -56,23 +48,11 @@ namespace Shift::Graphics {
         void Destroy();
 
     private:
-        //! One owned pipeline. Held by RAW pointer
-        struct PipelineSlot {
-            Pipeline* pipeline = nullptr;
-            std::vector<ShaderStageDesc> stages;   //!< kept so we can unsubscribe from hot-reload on destroy
-            uint32_t generation = 0;
-            bool alive = false;
-        };
-
-        [[nodiscard]] PipelineSlot* ResolveSlot(PipelineHandle handle);
-
         RenderBackend* m_rhi = nullptr;
         RenderBackendInterface* m_backend = nullptr;
         ShaderManager* m_shaderManager = nullptr;
 
-        //! Generational slot pool
-        std::vector<PipelineSlot> m_slots;
-        std::vector<uint32_t> m_freeSlots;
+        GenerationalPool<Pipeline, std::vector<ShaderStageDesc>> m_pool;
     };
 }
 

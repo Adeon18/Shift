@@ -26,58 +26,28 @@ namespace Shift::Graphics {
             m_shaderManager->RegisterPipeline(stage.handle, pipeline);
         }
 
-        //! Take ownership in a slot
-        uint32_t idx;
-        if (!m_freeSlots.empty()) {
-            idx = m_freeSlots.back();
-            m_freeSlots.pop_back();
-        } else {
-            idx = static_cast<uint32_t>(m_slots.size());
-            m_slots.emplace_back();
-        }
-
-        PipelineSlot& slot = m_slots[idx];
-        slot.pipeline = pipeline;
-        slot.stages = std::move(stages);
-        slot.alive = true;
-        return { idx, slot.generation };
+        return m_pool.Insert(pipeline, std::move(stages));
     }
 
     Pipeline* PipelineManager::Get(PipelineHandle handle) const {
-        if (handle.slotIdx >= m_slots.size()) { return nullptr; }
-        const PipelineSlot& slot = m_slots[handle.slotIdx];
-        if (!slot.alive || slot.generation != handle.generation) { return nullptr; }
-        //! No code resure from ResolveSlot as it is const
-        return slot.pipeline;
-    }
-
-    PipelineManager::PipelineSlot* PipelineManager::ResolveSlot(PipelineHandle handle) {
-        if (handle.slotIdx >= m_slots.size()) { return nullptr; }
-        PipelineSlot& slot = m_slots[handle.slotIdx];
-        if (!slot.alive || slot.generation != handle.generation) { return nullptr; }
-        return &slot;
+        return m_pool.Get(handle);
     }
 
     void PipelineManager::DestroyPipeline(PipelineHandle handle) {
-        PipelineSlot* slot = ResolveSlot(handle);
-        if (!slot) { return; }
+        std::vector<ShaderStageDesc>* stages = m_pool.GetMeta(handle);
+        if (!stages) { return; }
 
         //! Stop hot-reload from rebuilding a pipeline we are about to free
-        for (const ShaderStageDesc& stage : slot->stages) {
-            m_shaderManager->UnregisterPipeline(stage.handle, slot->pipeline);
+        Pipeline* pipeline = m_pool.Get(handle);
+        for (const ShaderStageDesc& stage : *stages) {
+            m_shaderManager->UnregisterPipeline(stage.handle, pipeline);
         }
 
+
         //! Defer the GPU-side delete until the GPU is done with in-flight work using it
-        Pipeline* retired = slot->pipeline;
+        Pipeline* retired = m_pool.Release(handle);
         auto payload = m_rhi->GetGraphicsWaitPayload();
         m_rhi->DeferExecute(payload.semaphore, payload.value, [retired]() { delete retired; });
-
-        //! Invalidate every outstanding handle to this slot and recycle it.
-        slot->pipeline = nullptr;
-        slot->stages.clear();
-        slot->alive = false;
-        ++slot->generation;
-        m_freeSlots.push_back(handle.slotIdx);
     }
 
     void PipelineManager::HotReload() {
@@ -89,7 +59,6 @@ namespace Shift::Graphics {
         //! one wait payload gates them all
         auto payload = m_rhi->GetGraphicsWaitPayload();
         for (Pipeline* pipeline : toRebuild) {
-            //! TODO ? Maybe move the retired storage from the pipeline to this manager?
             pipeline->Rebuild(false);
             m_rhi->DeferExecute(payload.semaphore, payload.value, [pipeline]() { pipeline->ReleaseRetired(); });
         }
@@ -97,14 +66,7 @@ namespace Shift::Graphics {
 
     void PipelineManager::Destroy() {
         //! GPU is idle at shutdown, so owned pipelines are deleted directly.
-        for (PipelineSlot& slot : m_slots) {
-            if (slot.alive) {
-                delete slot.pipeline;
-                slot.pipeline = nullptr;
-                slot.alive = false;
-            }
-        }
-        m_slots.clear();
-        m_freeSlots.clear();
+        m_pool.ForEachLive([](uint32_t, Pipeline* pipeline) { delete pipeline; });
+        m_pool.Clear();
     }
 }

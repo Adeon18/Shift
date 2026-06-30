@@ -18,13 +18,14 @@ namespace Shift::Graphics {
 
         m_shaderManager.Init(rbi, Shift::Util::GetShiftShaderRootDir());
         m_pipelineManager.Init(&m_renderBackend, &m_shaderManager);
+        m_bufferManager.Init(&m_renderBackend);
 
         RenderContext& tctx = m_renderBackend.GetTransferContext();
         RenderContextEncoder* tEncoder = tctx.CreateCommandEncoder();
         tctx.BeginCmds();
 
         m_textureLoader = std::make_unique<StbLoader>();
-        m_textureManager = std::make_unique<Graphics::TextureManager>(m_textureLoader.get(), rbi, tctx.CreateCommandEncoder());
+        m_textureManager = std::make_unique<Graphics::TextureManager>(m_textureLoader.get(), &m_renderBackend, tctx.CreateCommandEncoder());
 
         m_textureManager->GetOrLoadTexture(Shift::Util::GetShiftRoot() + "Assets/Textures/NB.jpg", tEncoder);
         LoadScene();
@@ -62,7 +63,7 @@ namespace Shift::Graphics {
         bufferDescriptor2.type = EBufferType::Vertex;
         bufferDescriptor2.name = "Vertex";
         bufferDescriptor2.size = bufSize;
-        vertex = rbi->CreateBuffer(bufferDescriptor2);
+        m_vertexBuffer = m_bufferManager.CreateBuffer(bufferDescriptor2);
 
         std::vector<float> vertexData = {
             0.5f,  0.5f, 0.5f,
@@ -74,7 +75,7 @@ namespace Shift::Graphics {
         };
 
         staging->Fill(vertexData.data(), bufSize, 0);
-        tctx.CreateCommandEncoder()->CopyBufferToBuffer({staging, 0}, {vertex, 0}, bufSize);
+        tctx.CreateCommandEncoder()->CopyBufferToBuffer({staging, 0}, {m_bufferManager.Get(m_vertexBuffer), 0}, bufSize);
 
         {
             viewportSampler = rbi->CreateSampler(
@@ -187,6 +188,7 @@ namespace Shift::Graphics {
             RenderContext* sec1 = m_renderBackend.AcquireSecondaryGraphicsContext();
 
             Pipeline* pipeline = m_pipelineManager.Get(m_pipeline);
+            Buffer* vertexBuf = m_bufferManager.Get(m_vertexBuffer);
 
             std::vector<ETextureFormat> colorTexturesFormats{};
             for (auto& c: pipeline->GetDescriptor().colorBlendConfig.attachments) {
@@ -212,7 +214,7 @@ namespace Shift::Graphics {
                     sec->CreateCommandEncoder()->SetViewport(viewport);
 
                     sec->CreateCommandEncoder()->BindGraphicsPipeline(*pipeline);
-                    sec->CreateCommandEncoder()->BindVertexBuffer({vertex, 0}, 0);
+                    sec->CreateCommandEncoder()->BindVertexBuffer({vertexBuf, 0}, 0);
                     sec->CreateCommandEncoder()->Draw({3, 1, (sec == sec0) ? 0u: 3u, 0});
 
                     CheckCritical(sec->EndCmds(), "Failed to end secondary command buffer!");
@@ -300,10 +302,10 @@ namespace Shift::Graphics {
         //! Drain the deferred queue while every resource is still alive so no queued callback
         m_renderBackend.FlushAllDeferredCallbacks();
 
-        delete vertex;
         delete viewportTexture;
         delete viewportSampler;
 
+        m_bufferManager.Destroy();
         m_pipelineManager.Destroy();
         m_shaderManager.Destroy();
 

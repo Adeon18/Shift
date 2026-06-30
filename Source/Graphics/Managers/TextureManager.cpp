@@ -5,7 +5,8 @@
 #include "Config/EngineConfig.hpp"
 
 namespace Shift::Graphics {
-    TextureManager::TextureManager(ITextureLoader* loader, RenderBackendInterface* backend, RenderContextEncoder* encoder): m_loader(loader), m_backend(backend) {
+    TextureManager::TextureManager(ITextureLoader* loader, RenderBackend* rhi, RenderContextEncoder* encoder)
+        : m_loader(loader), m_rhi(rhi), m_backend(rhi->CreateInterface()) {
 
         PipelineLayoutDescriptor pipelineLayoutDescriptor;
         pipelineLayoutDescriptor.bindings.push_back(
@@ -25,55 +26,33 @@ namespace Shift::Graphics {
 
         m_bindlessTextureSet = m_backend->CreateResourceSet(pipelineLayoutDescriptor);
 
-        m_slots.resize(1);
-        m_slots[0].isResident = true;
-        m_slots[0].backendHandle = Core::UniquePtr<Texture>(LoadAndCreateTexture("PLACEHOLDER", encoder));
+        //! Slot 0 is the permanently-resident placeholder, it is never released
+        m_placeholder = m_pool.Insert(LoadAndCreateTexture("PLACEHOLDER", encoder));
     }
 
     TextureHandle TextureManager::GetOrLoadTexture(const std::string &path, RenderContextEncoder* encoder) {
-        uint32_t slotIndex;
-
-        if (!m_freeSlots.empty()) {
-            slotIndex = m_freeSlots.back();
-            m_freeSlots.pop_back();
-        }
-        else
-        {
-            slotIndex = static_cast<uint32_t>(m_slots.size());
-            m_slots.emplace_back();
-        }
-
-        TextureSlot& slot = m_slots[slotIndex];
-        slot.isResident = true;
-        slot.backendHandle = Core::UniquePtr<Texture>(LoadAndCreateTexture(path, encoder));
-
-        //! GPU Uploads come via separate function
-
-        return TextureHandle{slotIndex, slot.generation};
+        //! GPU upload happens later via UploadTexturesToGPU
+        return m_pool.Insert(LoadAndCreateTexture(path, encoder));
     }
 
     void TextureManager::UnloadTexture(const TextureHandle &handle) {
-        if (!IsValid(handle))
+        if (!m_pool.IsValid(handle))
             return;
 
-        TextureSlot& slot = m_slots[handle.slotIdx];
-
+        //! Point this slot's bindless descriptor back at the placeholder before the texture goes away
         ClearTexture(handle.slotIdx);
 
-        slot.isResident = false;
-        slot.backendHandle = nullptr;
-        //! This woild invalidate all existing handles
-        slot.generation++;
-
-        m_freeSlots.push_back(handle.slotIdx);
+        //! Recycle the slot and defer the delete, the texture may still be sampled by in-flight frames, so it must NOT be
+        //! freed immediatly (tho ur welcome to try if you want to have fun:D)
+        Texture* retired = m_pool.Release(handle);
+        if (retired) {
+            auto payload = m_rhi->GetGraphicsWaitPayload();
+            m_rhi->DeferExecute(payload.semaphore, payload.value, [retired]() { delete retired; });
+        }
     }
 
     bool TextureManager::IsValid(const TextureHandle& handle) const {
-        if (handle.slotIdx >= m_slots.size())
-            return false;
-
-        const TextureSlot& slot = m_slots[handle.slotIdx];
-        return slot.isResident && slot.generation == handle.generation;
+        return m_pool.IsValid(handle);
     }
 
     void TextureManager::FreeStagingBuffers() {
@@ -81,22 +60,20 @@ namespace Shift::Graphics {
     }
 
     void TextureManager::UploadTexturesToGPU(RenderContextEncoder *encoder) {
-        //! First transition all for reading
-        for (uint32_t i = 0; i < m_slots.size(); i++) {
-            if (m_slots[i].isResident) {
-                encoder->TransitionTexture(*m_slots[i].backendHandle, EResourceLayout::ShaderReadOnlyOptimal, EPipelineStageFlags::FragmentShaderBit);
-            }
-        }
-        //! Then upload all on GPU
-        for (uint32_t i = 0; i < m_slots.size(); i++) {
-            if (m_slots[i].isResident) {
-                UploadToGPU(i, m_slots[i].backendHandle.get());
-            }
-        }
+        //! Transition to read
+        m_pool.ForEachLive([&](uint32_t, Texture* texture) {
+            encoder->TransitionTexture(*texture, EResourceLayout::ShaderReadOnlyOptimal, EPipelineStageFlags::FragmentShaderBit);
+        });
+        //! Register to bindless array
+        m_pool.ForEachLive([&](uint32_t slotIdx, Texture* texture) {
+            UploadToGPU(slotIdx, texture);
+        });
     }
 
     TextureManager::~TextureManager() {
-        m_slots.clear();
+        //! Caller has to guarantee GPU is idle
+        m_pool.ForEachLive([](uint32_t, Texture* texture) { delete texture; });
+        m_pool.Clear();
 
         delete m_bindlessTextureSet;
     }
@@ -189,7 +166,7 @@ namespace Shift::Graphics {
     }
 
     void TextureManager::ClearTexture(uint32_t slotIdx) {
-        m_bindlessTextureSet->UpdateTexture(0, slotIdx, *m_slots[0].backendHandle);
+        m_bindlessTextureSet->UpdateTexture(0, slotIdx, *m_pool.Get(m_placeholder));
         m_bindlessTextureSet->Apply();
     }
 }

@@ -17,6 +17,7 @@
 #include "Graphics/Managers/TextureManager.hpp"
 #include "Graphics/Managers/ShaderManager.hpp"
 #include "Graphics/Managers/PipelineManager.hpp"
+#include "Graphics/Managers/BufferManager.hpp"
 #include "Loaders/TextureLoader/StbLoader.hpp"
 
 namespace Shift::Graphics {
@@ -80,16 +81,15 @@ namespace Shift::Graphics {
         ShiftWindow& m_window;
         std::shared_ptr<ctrl::FlyingCameraController> m_controller;
 
-        //! Opaque handle into m_pipelineManager (which owns the pipeline); resolved to a Pipeline&
-        //! via m_pipelineManager.Get() at the bind site.
         Graphics::PipelineHandle m_pipeline;
-        Buffer* vertex;
+        Graphics::BufferHandle m_vertexBuffer;
 
         RenderBackend m_renderBackend;
 
         //! Asset/pipeline managers live above the RHI and are owned here
         Graphics::ShaderManager m_shaderManager;
         Graphics::PipelineManager m_pipelineManager;
+        Graphics::BufferManager m_bufferManager;
 
         Texture* viewportTexture;
         Sampler* viewportSampler;

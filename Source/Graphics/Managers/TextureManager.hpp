@@ -10,28 +10,17 @@
 #include "Loaders/TextureLoader/ITextureLoader.hpp"
 
 #include "Graphics/RHI/RHI.hpp"
+#include "GenerationalPool.hpp"
 
 namespace Shift::Graphics {
 
-    struct TextureHandle {
-        //! This is the value that the shader has access to
-        uint32_t slotIdx = 0;
-        uint32_t generation = 0;
-
-        bool operator==(const TextureHandle& other) const noexcept {
-            return slotIdx == other.slotIdx && generation == other.generation;
-        }
-    };
-
+    //! Opaque, generation-checked reference to a bindless texture. slotIdx IS the index the shader
+    //! samples in the bindless array
+    using TextureHandle = GenerationalPool<Texture>::Handle;
 
     class TextureManager {
-    struct TextureSlot {
-        Core::UniquePtr<Texture> backendHandle = nullptr;
-        bool isResident = false;
-        uint32_t generation = 0;
-    };
     public:
-        TextureManager(ITextureLoader* loader, RenderBackendInterface* backend, RenderContextEncoder* encode);
+        TextureManager(ITextureLoader* loader, RenderBackend* rhi, RenderContextEncoder* encode);
 
         [[nodiscard]] TextureHandle GetOrLoadTexture(const std::string& path, RenderContextEncoder* encode);
 
@@ -48,13 +37,16 @@ namespace Shift::Graphics {
     private:
         Texture* LoadAndCreateTexture(const std::string & path, RenderContextEncoder* encode);
 
-        void UploadToGPU(uint32_t uint32, Texture * texture);
+        void UploadToGPU(uint32_t slotIdx, Texture * texture);
 
-        void ClearTexture(uint32_t uint32);
+        void ClearTexture(uint32_t slotIdx);
 
-        std::vector<TextureSlot> m_slots;
-        std::vector<uint32_t> m_freeSlots;
+        GenerationalPool<Texture> m_pool;
+        //! Free slot placeholder
+        TextureHandle m_placeholder;
+
         ITextureLoader* m_loader;
+        RenderBackend* m_rhi;
         RenderBackendInterface* m_backend;
         ResourceSet* m_bindlessTextureSet;
 
