@@ -35,6 +35,9 @@ namespace Shift {
         bool VK_timelineSemaphore       = false;
         bool VK_descriptorIndexing      = false;
         bool VK_dynamicRendering      = false;
+        bool VK_synchronization2        = false;
+        bool VK_bufferDeviceAddress     = false;
+        bool VK_scalarBlockLayout       = false;
         bool VK_enableValidationLayers      = false;
         bool VK_requireSwapchain        = false;
         bool VK_hostQueryReset = false;
@@ -98,6 +101,9 @@ namespace Shift {
         RHICommonFeature VK_timelineSemaphores;
         RHICommonFeature VK_descriptorIndexing;
         RHICommonFeature VK_dynamicRendering;
+        RHICommonFeature VK_synchronization2;
+        RHICommonFeature VK_bufferDeviceAddress;
+        RHICommonFeature VK_scalarBlockLayout;
         RHICommonFeature VK_hostQueryReset;
         RHICommonFeature VK_presentWait;
         RHICommonFeature VK_maintenance1;
@@ -119,6 +125,9 @@ namespace Shift {
             bool timelineSemaphore        = false;
             bool descriptorIndexing       = false;
             bool dynamicRendering         = false;
+            bool synchronization2         = false;
+            bool bufferDeviceAddress      = false;
+            bool scalarBlockLayout        = false;
             bool hostQueryReset           = false;
             bool samplerAnisotropy        = false;
             bool multiDrawIndirect        = false;

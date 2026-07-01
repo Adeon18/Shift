@@ -30,6 +30,9 @@ namespace Shift {
                 .VK_timelineSemaphore = true,
                 .VK_descriptorIndexing = true,
                 .VK_dynamicRendering = true,
+                .VK_synchronization2 = true,
+                .VK_bufferDeviceAddress = true,
+                .VK_scalarBlockLayout = true,
 
                 .VK_enableValidationLayers = true,
                 .VK_requireSwapchain = true,

@@ -45,9 +45,13 @@ namespace Shift::VK {
         f.textureCompressionASTC.requested = req.textureCompressionASTC;
         f.textureCompressionETC2.requested = req.textureCompressionETC2;
         f.dualSrcBlend.requested         = req.dualSrcBlend;
+        f.computeShader.requested        = req.computeShader;
         f.VK_timelineSemaphores.requested   = req.VK_timelineSemaphore;
         f.VK_descriptorIndexing.requested   = req.VK_descriptorIndexing;
         f.VK_dynamicRendering.requested     = req.VK_dynamicRendering;
+        f.VK_synchronization2.requested     = req.VK_synchronization2;
+        f.VK_bufferDeviceAddress.requested  = req.VK_bufferDeviceAddress;
+        f.VK_scalarBlockLayout.requested    = req.VK_scalarBlockLayout;
         f.VK_hostQueryReset.requested       = req.VK_hostQueryReset;
         f.VK_presentWait.requested          = req.VK_presentWait;
         f.VK_maintenance1.requested          = req.VK_maintenance1;
@@ -65,7 +69,6 @@ namespace Shift::VK {
         m_enabledFeatures.features2.pNext = &m_enabledFeatures.vk11;
         m_enabledFeatures.vk11.pNext = &m_enabledFeatures.vk12;
         m_enabledFeatures.vk12.pNext = &m_enabledFeatures.vk13;
-        m_enabledFeatures.vk13.pNext = &m_enabledFeatures.presentWait;
         m_enabledFeatures.vk13.pNext = &m_enabledFeatures.presentWait;
         m_enabledFeatures.presentWait.pNext = &m_enabledFeatures.presentId;
         m_enabledFeatures.presentId.pNext = &m_enabledFeatures.maintenance1;
@@ -97,14 +100,22 @@ namespace Shift::VK {
 
         // 1.2 / 1.3 promoted features
         f.VK_timelineSemaphores.supported   = m_enabledFeatures.vk12.timelineSemaphore ? true : false;
+        //! Bindless requires runtime arrays + partially-bound + variable-count + sampled-image update-after-bind +
+        //! update-unused-while-pending + non-uniform sampled-image indexing
         bool supportsBindless =
             m_enabledFeatures.vk12.descriptorIndexing &&
             m_enabledFeatures.vk12.runtimeDescriptorArray &&
             m_enabledFeatures.vk12.descriptorBindingPartiallyBound &&
-            m_enabledFeatures.vk12.descriptorBindingVariableDescriptorCount;
+            m_enabledFeatures.vk12.descriptorBindingVariableDescriptorCount &&
+            m_enabledFeatures.vk12.descriptorBindingSampledImageUpdateAfterBind &&
+            m_enabledFeatures.vk12.descriptorBindingUpdateUnusedWhilePending &&
+            m_enabledFeatures.vk12.shaderSampledImageArrayNonUniformIndexing;
         f.VK_descriptorIndexing.supported = supportsBindless;
         f.VK_hostQueryReset.supported       = m_enabledFeatures.vk12.hostQueryReset ? true : false;
         f.VK_dynamicRendering.supported     = m_enabledFeatures.vk13.dynamicRendering ? true : false;
+        f.VK_synchronization2.supported     = m_enabledFeatures.vk13.synchronization2 ? true : false;
+        f.VK_bufferDeviceAddress.supported  = m_enabledFeatures.vk12.bufferDeviceAddress ? true : false;
+        f.VK_scalarBlockLayout.supported    = m_enabledFeatures.vk12.scalarBlockLayout ? true : false;
 
         // Extensions
         f.VK_presentWait.supported          = m_enabledFeatures.presentWait.presentWait ? true : false;
@@ -114,6 +125,9 @@ namespace Shift::VK {
         m_caps.vkExtensions.timelineSemaphore = f.VK_timelineSemaphores.supported;
         m_caps.vkExtensions.descriptorIndexing = f.VK_descriptorIndexing.supported;
         m_caps.vkExtensions.dynamicRendering = f.VK_dynamicRendering.supported;
+        m_caps.vkExtensions.synchronization2 = f.VK_synchronization2.supported;
+        m_caps.vkExtensions.bufferDeviceAddress = f.VK_bufferDeviceAddress.supported;
+        m_caps.vkExtensions.scalarBlockLayout = f.VK_scalarBlockLayout.supported;
         m_caps.vkExtensions.hostQueryReset = f.VK_hostQueryReset.supported;
         m_caps.vkExtensions.samplerAnisotropy = f.samplerAnisotropy.supported;
         m_caps.vkExtensions.multiDrawIndirect = f.multiDrawIndirect.supported;
@@ -159,6 +173,9 @@ namespace Shift::VK {
         if (!require_or_fail("timelineSemaphores", f.VK_timelineSemaphores)) return false;
         if (!require_or_fail("descriptorIndexing", f.VK_descriptorIndexing)) return false;
         if (!require_or_fail("dynamicRendering", f.VK_dynamicRendering)) return false;
+        if (!require_or_fail("synchronization2", f.VK_synchronization2)) return false;
+        if (!require_or_fail("bufferDeviceAddress", f.VK_bufferDeviceAddress)) return false;
+        if (!require_or_fail("scalarBlockLayout", f.VK_scalarBlockLayout)) return false;
         if (!require_or_fail("hostQueryReset", f.VK_hostQueryReset)) return false;
         if (!require_or_fail("presentWait", f.VK_presentWait)) return false;
         if (!require_or_fail("maintenance1", f.VK_maintenance1)) return false;
@@ -180,6 +197,11 @@ namespace Shift::VK {
         if (f.textureCompressionETC2.requested) m_enabledFeatures.core.textureCompressionETC2 = VK_TRUE;
         if (f.dualSrcBlend.requested) m_enabledFeatures.core.dualSrcBlend = VK_TRUE;
 
+        //! Make sure we only enabled what we requested
+        m_enabledFeatures.vk11 = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
+        m_enabledFeatures.vk12 = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
+        m_enabledFeatures.vk13 = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
+
         // set requested -> enable in vk12/vk13
         m_enabledFeatures.vk12.timelineSemaphore  = f.VK_timelineSemaphores.requested ? VK_TRUE : VK_FALSE;
         if (f.VK_descriptorIndexing.requested) {
@@ -187,9 +209,16 @@ namespace Shift::VK {
             m_enabledFeatures.vk12.runtimeDescriptorArray = VK_TRUE;
             m_enabledFeatures.vk12.descriptorBindingPartiallyBound = VK_TRUE;
             m_enabledFeatures.vk12.descriptorBindingVariableDescriptorCount = VK_TRUE;
+            //! Required by the bindless texture layout
+            m_enabledFeatures.vk12.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
+            m_enabledFeatures.vk12.descriptorBindingUpdateUnusedWhilePending = VK_TRUE;
+            m_enabledFeatures.vk12.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
         }
         m_enabledFeatures.vk12.hostQueryReset     = f.VK_hostQueryReset.requested ? VK_TRUE : VK_FALSE;
+        m_enabledFeatures.vk12.bufferDeviceAddress = f.VK_bufferDeviceAddress.requested ? VK_TRUE : VK_FALSE;
+        m_enabledFeatures.vk12.scalarBlockLayout  = f.VK_scalarBlockLayout.requested ? VK_TRUE : VK_FALSE;
         m_enabledFeatures.vk13.dynamicRendering   = f.VK_dynamicRendering.requested ? VK_TRUE : VK_FALSE;
+        m_enabledFeatures.vk13.synchronization2   = f.VK_synchronization2.requested ? VK_TRUE : VK_FALSE;
         m_enabledFeatures.presentWait.presentWait = f.VK_presentWait.requested ? VK_TRUE : VK_FALSE;
         //! PResent Id comes with the present wait
         m_enabledFeatures.presentId.presentId = f.VK_presentWait.requested ? VK_TRUE : VK_FALSE;
@@ -509,6 +538,10 @@ namespace Shift::VK {
 
         VmaAllocatorCreateInfo allocatorCreateInfo{};
         allocatorCreateInfo.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
+        //! BDA-backed buffers need this, tho I hope I was not lied to
+        if (m_enabledFeatures.vk12.bufferDeviceAddress == VK_TRUE) {
+            allocatorCreateInfo.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+        }
         allocatorCreateInfo.pVulkanFunctions = &vulkanFunctions;
         allocatorCreateInfo.vulkanApiVersion = Conf::VULKAN_VERSION;
         allocatorCreateInfo.physicalDevice = m_physicalDevice;
