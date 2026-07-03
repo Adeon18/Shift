@@ -124,7 +124,6 @@ namespace Shift::Graphics {
             rawData->mipLevels,
             ETextureUsageFlags::TransferSrc | ETextureUsageFlags::TransferDst | ETextureUsageFlags::Sampled,
             ETextureAspect::Color,
-            EResourceLayout::Undefined,
             rawData->isCubemap
         ));
 

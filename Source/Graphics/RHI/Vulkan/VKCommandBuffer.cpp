@@ -56,7 +56,8 @@ namespace Shift::VK {
         }
     }
 
-    void CommandBuffer::Reset() const {
+    void CommandBuffer::Reset() {
+        m_textureStates.clear();
         vkResetCommandBuffer(m_buffer, 0);
     }
 
@@ -65,8 +66,10 @@ namespace Shift::VK {
     //     return BeginCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
     // }
     //
-    bool CommandBuffer::Begin() const {
+    bool CommandBuffer::Begin() {
         assert(!m_isSecondary);
+
+        m_textureStates.clear();
 
         auto info = Util::CreateBeginCommandBufferInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr);
         if ( VkCheckV(vkBeginCommandBuffer(m_buffer, &info), res) ) {
@@ -77,8 +80,11 @@ namespace Shift::VK {
         return true;
     }
 
-    bool CommandBuffer::BeginSecondary(const SecondaryBufferBeginPayload &payload) const {
+    bool CommandBuffer::BeginSecondary(const SecondaryBufferBeginPayload &payload) {
         assert(m_isSecondary);
+
+        //! Secondaries never record but this is just in case
+        m_textureStates.clear();
 
         std::vector<VkFormat> colorFormats;
 
@@ -280,14 +286,14 @@ namespace Shift::VK {
     }
 
     bool CommandBuffer::Submit(std::span<TimelineSemaphore*> waitSems, std::span<uint64_t> waitVals,
-        std::span<TimelineSemaphore*> signalSems, std::span<uint64_t> sigVals) const
+        std::span<TimelineSemaphore*> signalSems, std::span<uint64_t> sigVals)
     {
         return Submit(waitSems, waitVals, signalSems, sigVals, {}, {});
     }
 
     bool CommandBuffer::Submit(std::span<TimelineSemaphore*> waitTimeSems, std::span<uint64_t> waitVals,
         std::span<TimelineSemaphore*> signalTimeSems, std::span<uint64_t> sigVals,
-        std::span<BinarySemaphore*> waitBinSems, std::span<BinarySemaphore*> signalBinSems) const
+        std::span<BinarySemaphore*> waitBinSems, std::span<BinarySemaphore*> signalBinSems)
     {
         assert(waitTimeSems.size() == waitVals.size());
         assert(signalTimeSems.size() == sigVals.size());
@@ -357,6 +363,13 @@ namespace Shift::VK {
             Log(Error, "Failed to submit to queue! Code: {}", res);
             return false;
         }
+
+        //! Submit was succesfull, so we record the latest texture's submitted state into them
+        for (auto& [texture, state] : m_textureStates) {
+            texture->VK_CommitSubmittedState(state.layout, state.stage);
+        }
+        m_textureStates.clear();
+
         return true;
     }
 
@@ -409,9 +422,10 @@ namespace Shift::VK {
         for (uint32_t i = 0; i < desc.colorAttachments.size(); i++) {
             const Texture* colTex = colorTextures[i];
             const RenderPassDescriptor::RenderPassAttachmentInfo& att = desc.colorAttachments[i];
+            //! The attachment layout is whatever this recording has transitioned the texture to (not the submitted one!!!!!!!)
             colorInfo.push_back(Util::CreateRenderingAttachmentInfo(
                     colTex->VK_GetView(),
-                    Util::ShiftToVKResourceLayout(colTex->GetResourceLayout()),
+                    PeekTextureState(*colTex).layout,
                     Util::ShiftToVKClearColor(att.clearValue),
                     Util::ShiftToVKAttachmentLoadOperation(att.loadOperation),
                     Util::ShiftToVKAttachmentStoreOperation(att.storeOperation)
@@ -423,7 +437,7 @@ namespace Shift::VK {
             const RenderPassDescriptor::RenderPassAttachmentInfo& att = desc.depthAttachment.value();
             depthInfo = Util::CreateRenderingAttachmentInfo(
                     (*depthTexture)->VK_GetView(),
-                    Util::ShiftToVKResourceLayout((*depthTexture)->GetResourceLayout()),
+                    PeekTextureState(**depthTexture).layout,
                     Util::ShiftToVKClearDepthStencil(att.clearValue),
                     Util::ShiftToVKAttachmentLoadOperation(att.loadOperation),
                     Util::ShiftToVKAttachmentStoreOperation(att.storeOperation)
@@ -448,7 +462,27 @@ namespace Shift::VK {
         vkCmdEndRendering(m_buffer);
     }
 
-    void CommandBuffer::TransitionTexture(const Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags) const {
+    CommandBuffer::TextureTrackedState& CommandBuffer::ResolveTextureState(Texture& texture) {
+        for (auto& [tex, state] : m_textureStates) {
+            if (tex == &texture) { return state; }
+        }
+        //! Initialize from tetxure's last submitted state
+        return m_textureStates.emplace_back(
+            &texture, TextureTrackedState{texture.VK_GetSubmittedLayout(), texture.VK_GetSubmittedStage()}).second;
+    }
+
+    CommandBuffer::TextureTrackedState CommandBuffer::PeekTextureState(const Texture& texture) const {
+        for (const auto& [tex, state] : m_textureStates) {
+            if (tex == &texture) { return state; }
+        }
+        return {texture.VK_GetSubmittedLayout(), texture.VK_GetSubmittedStage()};
+    }
+
+    void CommandBuffer::TransitionTexture(Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags) {
+        //! Barriers can only be done by a primary buffer, as secondaries run only after beginrenderpass
+        //! where transitions are forbidden
+        assert(!m_isSecondary);
+
         //! Derive the barrier aspect from the texture's real aspect
         //! VK_REMAINING_* covers every mip and array layer
         VkImageSubresourceRange subresourceRange{};
@@ -458,19 +492,21 @@ namespace Shift::VK {
         subresourceRange.baseArrayLayer = 0;
         subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
 
+        const VkImageLayout dstLayout = Util::ShiftToVKResourceLayout(newLayout);
         const VkPipelineStageFlags2 dstStage = Util::ShiftToVKPipelineStageFlags2(newStageFlags);
+
+        TextureTrackedState& trackedState = ResolveTextureState(texture);
 
         VK_TransferImageLayout(
             texture.VK_GetImage(),
-            Util::ShiftToVKResourceLayout(texture.GetResourceLayout()),
-            Util::ShiftToVKResourceLayout(newLayout),
-            texture.VK_GetStageFlags(),
+            trackedState.layout,
+            dstLayout,
+            trackedState.stage,
             dstStage,
             subresourceRange
         );
 
-        texture.SetResourceLayout(newLayout);
-        texture.VK_SetStageFlags(dstStage);
+        trackedState = {dstLayout, dstStage};
     }
 
     void CommandBuffer::SetViewport(Viewport viewport) const {
@@ -551,8 +587,8 @@ namespace Shift::VK {
         VkImageBlit blit = ShiftToVKBlitRegion(blitRegion);
 
         vkCmdBlitImage(m_buffer,
-                       srcTexture.texture->VK_GetImage(), Util::ShiftToVKResourceLayout(srcTexture.texture->GetResourceLayout()),
-                       dstTexture.texture->VK_GetImage(), Util::ShiftToVKResourceLayout(dstTexture.texture->GetResourceLayout()),
+                       srcTexture.texture->VK_GetImage(), PeekTextureState(*srcTexture.texture).layout,
+                       dstTexture.texture->VK_GetImage(), PeekTextureState(*dstTexture.texture).layout,
                        1, &blit,
                        Util::ShiftToVKFilterMode(filter));
     }

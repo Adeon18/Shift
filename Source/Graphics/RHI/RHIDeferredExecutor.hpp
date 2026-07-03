@@ -34,10 +34,12 @@ namespace Shift {
         //! @param fn function to execute
         void DeferExecuteEndOfSession(Callback fn);
 
-        //! Process all deferred callbacks and execute the ones that are ready
+        //! Process all deferred callbacks and execute the ones that are ready.
+        //! Callbacks run OUTSIDE the executor lock, so they may safely defer further work themselves.
         void ProcessDeferredCallbacks(uint64_t currentFrameGlobalIndex);
 
-        //! Flush all semaphore and end
+        //! Flush everything pending regardless of gating. Drains to a fixpoint: callbacks that
+        //! re-defer during the flush are executed too. Order is NOT guaranteed. Thread-safe
         void FlushAllDeferredCallbacks();
     private:
         std::map<TimelineSemaphore*, std::vector<Pending>> m_callbacks;

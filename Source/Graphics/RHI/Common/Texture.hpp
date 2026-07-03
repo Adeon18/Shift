@@ -85,8 +85,6 @@ namespace Shift {
         ETextureType textureType = ETextureType::Texture2D;
         ETextureViewType textureViewType = ETextureViewType::View2D;
         ETextureAspect textureAspect = ETextureAspect::Color;
-        //! THis is a tracker field for transitions, it can be changed
-        mutable EResourceLayout resourceLayout = EResourceLayout::Undefined;
         const char* name = "EMPTY";
 
         static TextureDescriptor CreateTexture2DDesc(
@@ -97,7 +95,6 @@ namespace Shift {
             uint32_t mipCount,
             ETextureUsageFlags usageFlags,
             ETextureAspect textureAspect,
-            EResourceLayout resourceLayout = EResourceLayout::Undefined,
             bool isCubemap = false
         ) {
             return {
@@ -111,7 +108,6 @@ namespace Shift {
                 .textureType = ETextureType::Texture2D,
                 .textureViewType = ETextureViewType::View2D,
                 .textureAspect = textureAspect,
-                .resourceLayout = resourceLayout,
                 .name = name
             };
         }
@@ -179,7 +175,6 @@ namespace Shift {
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetType() } -> std::same_as<ETextureType>;
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetAspect() } -> std::same_as<ETextureAspect>;
         { CONCEPT_CONST_VAR(Texture, InputTexture).GetUsageFlags() } -> std::same_as<ETextureUsageFlags>;
-        { CONCEPT_CONST_VAR(Texture, InputTexture).GetResourceLayout() } -> std::same_as<EResourceLayout>;
     };
 } // Shift
 

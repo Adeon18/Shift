@@ -39,7 +39,8 @@ namespace Shift::VK {
     }
 
     void ResourceSet::UpdateTexture(uint32_t bind, uint32_t arrElement, const VK::Texture &InputTexture) {
-        m_imageInfos.emplace_back(VK_NULL_HANDLE, InputTexture.VK_GetView(), Util::ShiftToVKResourceLayout(InputTexture.GetResourceLayout()));
+        //! A sampled texture can only be in read state ( I hope)
+        m_imageInfos.emplace_back(VK_NULL_HANDLE, InputTexture.VK_GetView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         VkWriteDescriptorSet writeSet{};
 

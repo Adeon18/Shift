@@ -33,16 +33,14 @@ namespace Shift::VK {
         [[nodiscard]] ETextureAspect GetAspect() const { return m_textureDesc.textureAspect; }
         [[nodiscard]] ETextureUsageFlags GetUsageFlags() const { return m_textureDesc.usageFlags; }
 
-        void SetResourceLayout(EResourceLayout layout) const { m_textureDesc.resourceLayout = layout; }
-        [[nodiscard]] EResourceLayout GetResourceLayout() const { return m_textureDesc.resourceLayout; }
-
         ~Texture();
     private:
         //! API SPECIFIC, backend-only (friended). DO NOT USE OUTSIDE THE VK BACKEND.
         [[nodiscard]] VkImage VK_GetImage() const { return m_image; }
         [[nodiscard]] VkImageView VK_GetView() const { return m_imageView; }
-        [[nodiscard]] VkPipelineStageFlags2 VK_GetStageFlags() const { return m_stageFlags; }
-        void VK_SetStageFlags(VkPipelineStageFlags2 stageFlags) const { m_stageFlags = stageFlags; }
+        [[nodiscard]] VkImageLayout VK_GetSubmittedLayout() const { return m_submittedLayout; }
+        [[nodiscard]] VkPipelineStageFlags2 VK_GetSubmittedStage() const { return m_submittedStage; }
+        void VK_CommitSubmittedState(VkImageLayout layout, VkPipelineStageFlags2 stage) { m_submittedLayout = layout; m_submittedStage = stage; }
 
         //! TODO
         void GenerateMips();
@@ -55,9 +53,9 @@ namespace Shift::VK {
         VmaAllocationInfo m_allocationInfo{};
         bool m_ownsImage = true;
 
-        //! These are just cached layouts, really, they are only used to keep track of the resource state to make transtion
-        //! functions cleaner
-        mutable VkPipelineStageFlags2 m_stageFlags = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+        //! Moved layout/Stage flags to store data only when command buffer actually submitted the chnages to texture succesfully
+        VkImageLayout m_submittedLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        VkPipelineStageFlags2 m_submittedStage = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
 
         bool valid = false;
 

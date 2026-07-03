@@ -19,7 +19,9 @@ namespace Shift::VK {
         imageInfo.arrayLayers = m_textureDesc.levels;
         imageInfo.format = Util::ShiftToVKTextureFormat(m_textureDesc.format);
         imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-        imageInfo.initialLayout = Util::ShiftToVKResourceLayout(textureDesc.resourceLayout);
+        //! Spec only allows UNDEFINED or PREINITIALIZED here (VUID-VkImageCreateInfo-initialLayout-00993)
+        //! PREINIITALIZED is only for the CPU written texel data (and VK_IMAGE_TILING_LINEAR bullshit) and we use staging buffer
+        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         imageInfo.usage = Util::ShiftToVKTextureUsageFlags(textureDesc.usageFlags);
         imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;

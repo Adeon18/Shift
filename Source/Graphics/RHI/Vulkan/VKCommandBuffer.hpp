@@ -3,6 +3,8 @@
 
 #include <memory>
 #include <span>
+#include <utility>
+#include <vector>
 
 #include "VKDevice.hpp"
 #include "VKFence.hpp"
@@ -52,18 +54,21 @@ namespace Shift::VK {
         //! Begins command buffer that can be used multiple times
         //bool BeginCommandBuffer(VkCommandBufferUsageFlags flags = 0) const;
 
-        //! Begin command buffer
-        //! \return true if successful, false otherwise
-        [[nodiscard]] bool Begin() const;
+        //! NOTE on const-ness: methods that mutate the CPU-side recording state are
+        //! non const, methods that only append to the GPU command stream stay const.
 
-        [[nodiscard]] bool BeginSecondary(const SecondaryBufferBeginPayload& payload) const;
+        //! Begin command buffer. Drops the per-recording texture-state table
+        //! \return true if successful, false otherwise
+        [[nodiscard]] bool Begin();
+
+        [[nodiscard]] bool BeginSecondary(const SecondaryBufferBeginPayload& payload);
 
         //! Begin command buffer
         //! \return true if successful, false otherwise
         [[nodiscard]] bool End() const;
 
-        //! Reset the entire buffer (same as ResetFence for now)
-        void Reset() const;
+        //! Reset the entire buffer (same as ResetFence for now). Drops the per-recording texture-state table
+        void Reset();
 
         //! Begin dynamic rendering. Builds the VkRenderingInfo from the agnostic descriptor +
         //! attachment textures
@@ -72,17 +77,22 @@ namespace Shift::VK {
         //! End dynamic rendering.
         void EndRenderPass() const;
 
-        //! Record an image-layout transition for the texture and update its tracked layout/stage
-        void TransitionTexture(const Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags) const;
+        //! Record an image-layout transition. Source layout/stage come from this command buffer's
+        //! per-recording view of the texture (seeded from its last-submitted state on first touch)
+        //! the texture itself is only updated when this command buffer is submitted
+        //! Secondary CBs are draw only so this is a primary CB only call
+        void TransitionTexture(Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags);
 
         void ExecuteSecondaryBuffers(std::span<CommandBuffer*> secondaryBuffs) const;
 
+        //! Submit the recording. On success, commits the per-recording texture states back to the
+        //! textures
         [[nodiscard]] bool Submit(
             std::span<TimelineSemaphore*> waitSems,
             std::span<uint64_t> waitVals,
             std::span<TimelineSemaphore*> signalSems,
             std::span<uint64_t> sigVals
-        ) const;
+        );
 
         [[nodiscard]] bool Submit(
             std::span<TimelineSemaphore*> waitTimeSems,
@@ -91,7 +101,7 @@ namespace Shift::VK {
             std::span<uint64_t> sigVals,
             std::span<BinarySemaphore*> waitBinSems,
             std::span<BinarySemaphore*> signalBinSems
-        ) const;
+        );
 
         ///! ------------------- Copy Buffer Commands ------------------- !///
 
@@ -224,12 +234,28 @@ namespace Shift::VK {
 
         ~CommandBuffer()=default;
     private:
+        //! CPU-side view of a texture's (layout, stage) local to the current recording
+        //! Struct tracks last texture transition state, as the texture itself only tracks last succesfully submitted satate
+        struct TextureTrackedState {
+            VkImageLayout layout;
+            VkPipelineStageFlags2 stage;
+        };
+
+        //! Find a texture not-submitted state, or create one from the last submitted state if present
+        TextureTrackedState& ResolveTextureState(Texture& texture);
+        //! Read the effective state at this point of the recording, local not submitted one if exists, else
+        //! last submitted one that is stored in the texture
+        [[nodiscard]] TextureTrackedState PeekTextureState(const Texture& texture) const;
+
         //! API SPECIFIC, backend-only (friended). DO NOT USE OUTSIDE THE VK BACKEND.
         [[nodiscard]] VkCommandBuffer VK_Get() const { return m_buffer; }
         const Device* m_device = nullptr;
         const Instance* m_ins = nullptr;
 
         VkCommandBuffer m_buffer = VK_NULL_HANDLE;
+
+        //! This is gonna be up to 10 textures the most so vector is chill, trust me
+        std::vector<std::pair<Texture*, TextureTrackedState>> m_textureStates;
 
         EPoolQueueType m_poolType = EPoolQueueType::Graphics;
         bool m_isSecondary = false;

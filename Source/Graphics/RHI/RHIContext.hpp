@@ -137,7 +137,8 @@ namespace Shift {
         //! \param scissor scissor structure
         void SetScissor(const Rect2D& scissor) const;
 
-        void TransitionTexture(const Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags);
+        //! Non const texture because recording a transition may change the texture state down the road as it logs the ptr
+        void TransitionTexture(Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags);
     private:
         CommandBuffer* m_boundCB = nullptr;
     };
@@ -346,7 +347,7 @@ namespace Shift {
     }
 
     template<ValidAPI API>
-    void RHIEncoder<API>::TransitionTexture(const Texture& texture, EResourceLayout newLayout,
+    void RHIEncoder<API>::TransitionTexture(Texture& texture, EResourceLayout newLayout,
         EPipelineStageFlags newStageFlags)
     {
         m_boundCB->TransitionTexture(texture, newLayout, newStageFlags);

@@ -62,10 +62,10 @@ namespace Shift {
         Offset3D dstOffsets[2];
     };
 
-    //! Texture Data that you pass in during the blitting process
+    //! Texture Data that you pass in during the blitting process.
+    //! The blit layouts are resolved from the command buffer's tracked texture state
     struct TextureBlitData {
         Texture* texture;
-        EResourceLayout layout;
     };
 
     enum class EPoolQueueType {
