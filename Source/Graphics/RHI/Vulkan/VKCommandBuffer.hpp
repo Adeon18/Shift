@@ -176,58 +176,50 @@ namespace Shift::VK {
         //! \param scissor scissor structure
         void SetScissor(Rect2D scissor) const;
 
-        //! [VK backend only function] This is just a utility wrapper, is not meant to be used directly, but you can still use it. Sets a pipeline barrier
-        //! \param srcStage source stage
-        //! \param dstStage dest stage
-        //! \param imgSpan the span of image memory barriers(if we have an image barrier)
-        //! \param memSpan the span of memory barriers by default
-        //! \param bufMemSpan the span of buffer barriers
+        //! [VK backend only function] This is just a utility wrapper, is not meant to be used directly, but you can still use it.
+        //! \param imgSpan the span of sync2 image memory barriers
+        //! \param memSpan the span of sync2 global memory barriers
+        //! \param bufMemSpan the span of sync2 buffer memory barriers
         //! \param flags meh, fuck this shit
-        void VK_SetPipelineBarrier(VkPipelineStageFlags srcStage,
-                                   VkPipelineStageFlags dstStage,
-                                   std::span<VkImageMemoryBarrier> imgSpan,
-                                   std::span<VkMemoryBarrier> memSpan,
-                                   std::span<VkBufferMemoryBarrier> bufMemSpan,
+        void VK_SetPipelineBarrier(std::span<VkImageMemoryBarrier2> imgSpan,
+                                   std::span<VkMemoryBarrier2> memSpan,
+                                   std::span<VkBufferMemoryBarrier2> bufMemSpan,
                                    VkDependencyFlags flags) const;
 
-        //! [VK backend only function] Set image pipeline barrier at transition
-        //! \param srcStage
-        //! \param dstStage
-        //! \param imgBarrier
-        //! \param flags
-        void VK_SetPipelineBarrierImage(VkPipelineStageFlags srcStage,
-                                        VkPipelineStageFlags dstStage,
-                                        VkImageMemoryBarrier imgBarrier,
+        //! [VK backend only function] Record a single sync2 image memory barrier
+        //! \param imgBarrier fully-formed sync2 image barrier
+        //! \param flags dependency flags
+        void VK_SetPipelineBarrierImage(VkImageMemoryBarrier2 imgBarrier,
                                         VkDependencyFlags flags) const;
 
-        //! [VK backend only function] Transition the image layout
+        //! [VK backend only function] Transition the image layout (sync2). Access masks are derived from the layouts.
         //! \param image
         //! \param oldLayout
         //! \param newLayout
-        //! \param srcStage
-        //! \param dstStage
+        //! \param srcStage sync2 source stage mask
+        //! \param dstStage sync2 destination stage mask
         //! \param subresourceRange
         void VK_TransferImageLayout(
                 VkImage image,
                 VkImageLayout oldLayout,
                 VkImageLayout newLayout,
-                VkPipelineStageFlags srcStage,
-                VkPipelineStageFlags dstStage,
+                VkPipelineStageFlags2 srcStage,
+                VkPipelineStageFlags2 dstStage,
                 VkImageSubresourceRange subresourceRange) const;
 
-        //! [VK backend only function] Transition the image layout simpler version
+        //! [VK backend only function] Transition the image layout simpler version (sync2)
         //! \param image
         //! \param oldLayout
         //! \param newLayout
-        //! \param srcStage
-        //! \param dstStage
+        //! \param srcStage sync2 source stage mask
+        //! \param dstStage sync2 destination stage mask
         //! \param isDepth
         void VK_TransferImageLayout(
                 VkImage image,
                 VkImageLayout oldLayout,
                 VkImageLayout newLayout,
-                VkPipelineStageFlags srcStage,
-                VkPipelineStageFlags dstStage,
+                VkPipelineStageFlags2 srcStage,
+                VkPipelineStageFlags2 dstStage,
                 bool isDepth = false) const;
 
         ~CommandBuffer()=default;

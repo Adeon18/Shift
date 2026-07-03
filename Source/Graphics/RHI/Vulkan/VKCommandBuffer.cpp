@@ -153,42 +153,45 @@ namespace Shift::VK {
     }
 
     void CommandBuffer::VK_TransferImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
-                                            VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage,
+                                            VkPipelineStageFlags2 srcStage, VkPipelineStageFlags2 dstStage,
                                             VkImageSubresourceRange subresourceRange) const {
-        VkImageMemoryBarrier barrier{};
-        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        VkImageMemoryBarrier2 barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
         barrier.oldLayout = oldLayout;
         barrier.newLayout = newLayout;
-        // This is filled only if we use it to do queue ffamily ownership transfer
+        // sync2 folds the stage masks into the barrier itself
+        barrier.srcStageMask = srcStage;
+        barrier.dstStageMask = dstStage;
+        // This is filled only if we use it to do queue family ownership transfer
         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
         barrier.image = image;
         barrier.subresourceRange = subresourceRange;
 
-        // Mostly Taken from https://github.com/inexorgame/vulkan-renderer
+        // Access masks are derived from the layout each side represents.
         switch (oldLayout) {
             case VK_IMAGE_LAYOUT_UNDEFINED:
-                barrier.srcAccessMask = 0;
+                barrier.srcAccessMask = VK_ACCESS_2_NONE;
                 break;
             case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-                barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+                barrier.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
                 break;
             case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-                barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+                barrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
                 break;
             case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-                barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+                barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
                 break;
             case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-                barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+                barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
                 break;
             case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-                barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+                barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
                 break;
             case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
                 //! Nothing to wait for
-                barrier.srcAccessMask = 0;
+                barrier.srcAccessMask = VK_ACCESS_2_NONE;
                 break;
             default:
                 spdlog::error("Unsupported source layout!");
@@ -197,36 +200,33 @@ namespace Shift::VK {
 
         switch (newLayout) {
             case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-                barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+                barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
                 break;
             case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-                barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+                barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
                 break;
             case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-                barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+                barrier.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
                 break;
             case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-                barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+                barrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
                 break;
             case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-                if (barrier.srcAccessMask == 0) {
-                    barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
-                }
-                barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+                barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
                 break;
             case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-                barrier.dstAccessMask = 0;
+                barrier.dstAccessMask = VK_ACCESS_2_NONE;
                 break;
             default:
                 spdlog::error("Unsupported destination layout!");
                 break;
         }
 
-        VK_SetPipelineBarrierImage(srcStage, dstStage, barrier, 0);
+        VK_SetPipelineBarrierImage(barrier, 0);
     }
 
     void CommandBuffer::VK_TransferImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
-                                            VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage, bool isDepth) const {
+                                            VkPipelineStageFlags2 srcStage, VkPipelineStageFlags2 dstStage, bool isDepth) const {
 
         VkImageSubresourceRange subresourceRange{};
         subresourceRange.aspectMask = (isDepth) ? VK_IMAGE_ASPECT_DEPTH_BIT: VK_IMAGE_ASPECT_COLOR_BIT;
@@ -239,30 +239,29 @@ namespace Shift::VK {
     }
 
     void CommandBuffer::VK_SetPipelineBarrier(
-        VkPipelineStageFlags srcStage,  VkPipelineStageFlags dstStage,
-        std::span<VkImageMemoryBarrier> imgSpan,
-        std::span<VkMemoryBarrier> memSpan,
-        std::span<VkBufferMemoryBarrier> bufMemSpan,
+        std::span<VkImageMemoryBarrier2> imgSpan,
+        std::span<VkMemoryBarrier2> memSpan,
+        std::span<VkBufferMemoryBarrier2> bufMemSpan,
         VkDependencyFlags flags) const
     {
+        VkDependencyInfo depInfo{};
+        depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+        depInfo.dependencyFlags = flags;
+        depInfo.memoryBarrierCount = static_cast<uint32_t>(memSpan.size());
+        depInfo.pMemoryBarriers = memSpan.data();
+        depInfo.bufferMemoryBarrierCount = static_cast<uint32_t>(bufMemSpan.size());
+        depInfo.pBufferMemoryBarriers = bufMemSpan.data();
+        depInfo.imageMemoryBarrierCount = static_cast<uint32_t>(imgSpan.size());
+        depInfo.pImageMemoryBarriers = imgSpan.data();
 
-        vkCmdPipelineBarrier(
-                m_buffer,
-                srcStage, dstStage,
-                flags,
-                static_cast<uint32_t>(memSpan.size()), memSpan.data(),
-                static_cast<uint32_t>(bufMemSpan.size()), bufMemSpan.data(),
-                static_cast<uint32_t>(imgSpan.size()), imgSpan.data()
-        );
+        vkCmdPipelineBarrier2(m_buffer, &depInfo);
     }
 
     void CommandBuffer::VK_SetPipelineBarrierImage(
-        VkPipelineStageFlags srcStage,
-        VkPipelineStageFlags dstStage,
-        VkImageMemoryBarrier imgBarrier,
+        VkImageMemoryBarrier2 imgBarrier,
         VkDependencyFlags flags) const
     {
-        VK_SetPipelineBarrier(srcStage, dstStage, {&imgBarrier, 1}, {}, {}, flags);
+        VK_SetPipelineBarrier({&imgBarrier, 1}, {}, {}, flags);
     }
 
 
@@ -459,17 +458,19 @@ namespace Shift::VK {
         subresourceRange.baseArrayLayer = 0;
         subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
 
+        const VkPipelineStageFlags2 dstStage = Util::ShiftToVKPipelineStageFlags2(newStageFlags);
+
         VK_TransferImageLayout(
             texture.VK_GetImage(),
             Util::ShiftToVKResourceLayout(texture.GetResourceLayout()),
             Util::ShiftToVKResourceLayout(newLayout),
             texture.VK_GetStageFlags(),
-            Util::ShiftToVKPipelineStageFlags(newStageFlags),
+            dstStage,
             subresourceRange
         );
 
         texture.SetResourceLayout(newLayout);
-        texture.VK_SetStageFlags(Util::ShiftToVKPipelineStageFlags(newStageFlags));
+        texture.VK_SetStageFlags(dstStage);
     }
 
     void CommandBuffer::SetViewport(Viewport viewport) const {

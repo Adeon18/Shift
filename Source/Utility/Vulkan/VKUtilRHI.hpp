@@ -184,10 +184,10 @@ namespace Shift::VK::Util {
 
     VkIndexType ShiftToVKIndexType(EIndexSize size);
 
-    //!
-    //! @param flags
-    //! @return
-    VkPipelineStageFlags ShiftToVKPipelineStageFlags(EPipelineStageFlags flags);
+    //! EPipelineStageFlags is defined 1:1 with VkPipelineStageFlagBits2, so this is a direct 64-bit cast.
+    //! @param flags Shift pipeline stage flags
+    //! @return The corresponding VkPipelineStageFlags2
+    VkPipelineStageFlags2 ShiftToVKPipelineStageFlags2(EPipelineStageFlags flags);
 
     VkClearValue ShiftToVKClearColor(const AttachmentClearValue& src);
 
@@ -313,10 +313,10 @@ namespace Shift::VK::Util {
     //! \return The corresponding EBindingVisibility
     EBindingVisibility VKToShiftBindingVisibility(VkShaderStageFlagBits visibility);
 
-    //!
-    //! @param vkFlags
-    //! @return
-    EPipelineStageFlags VKToShiftPipelineStageFlags(VkPipelineStageFlags vkFlags);
+    //! EPipelineStageFlags is defined 1:1 with VkPipelineStageFlagBits2, so this is a direct 64-bit cast.
+    //! @param vkFlags sync2 VkPipelineStageFlags2 mask
+    //! @return The corresponding EPipelineStageFlags
+    EPipelineStageFlags VKToShiftPipelineStageFlags2(VkPipelineStageFlags2 vkFlags);
 }
 
 #endif //SHIFT_UTILRHI_HPP

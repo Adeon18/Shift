@@ -291,8 +291,8 @@ namespace Shift::VK::Util {
         }
     }
 
-    VkPipelineStageFlags ShiftToVKPipelineStageFlags(EPipelineStageFlags flags) {
-        return static_cast<VkPipelineStageFlags>(static_cast<uint32_t>(flags));
+    VkPipelineStageFlags2 ShiftToVKPipelineStageFlags2(EPipelineStageFlags flags) {
+        return static_cast<VkPipelineStageFlags2>(static_cast<uint64_t>(flags));
     }
 
     //! TODO [FEATURE] only float clear color is supported for now!
@@ -429,7 +429,8 @@ namespace Shift::VK::Util {
         return static_cast<EBindingVisibility>(visibility);
     }
 
-    EPipelineStageFlags VKToShiftPipelineStageFlags(VkPipelineStageFlags vkFlags) {
+    EPipelineStageFlags VKToShiftPipelineStageFlags2(VkPipelineStageFlags2 vkFlags) {
         return static_cast<EPipelineStageFlags>(vkFlags);
     }
+
 } // Shift::VK::Util

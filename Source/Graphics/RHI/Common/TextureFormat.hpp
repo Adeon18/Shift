@@ -23,6 +23,7 @@ namespace Shift {
     };
 
 
+    //! 1:1 with VkPipelineStageFlagBits2 (sync2, 64-bit)
     enum class EPipelineStageFlags : uint64_t
     {
         NoneBit                        = 0,
@@ -45,13 +46,13 @@ namespace Shift {
         AllCommandsBit                 = 1ull << 16,
 
         // New in sync2
-        CopyBit                        = 1ull << 17,
-        ResolveBit                     = 1ull << 18,
-        BlitBit                        = 1ull << 19,
-        ClearBit                       = 1ull << 20,
-        IndexInputBit                  = 1ull << 21,
-        VertexAttributeInputBit        = 1ull << 22,
-        PreRasterizationShadersBit     = 1ull << 23
+        CopyBit                        = 1ull << 32,
+        ResolveBit                     = 1ull << 33,
+        BlitBit                        = 1ull << 34,
+        ClearBit                       = 1ull << 35,
+        IndexInputBit                  = 1ull << 36,
+        VertexAttributeInputBit        = 1ull << 37,
+        PreRasterizationShadersBit     = 1ull << 38
     };
     DEFINE_ENUM_CLASS_BITWISE_OPERATORS(EPipelineStageFlags);
 

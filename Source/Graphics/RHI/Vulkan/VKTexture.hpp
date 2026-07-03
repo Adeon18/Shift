@@ -41,8 +41,8 @@ namespace Shift::VK {
         //! API SPECIFIC, backend-only (friended). DO NOT USE OUTSIDE THE VK BACKEND.
         [[nodiscard]] VkImage VK_GetImage() const { return m_image; }
         [[nodiscard]] VkImageView VK_GetView() const { return m_imageView; }
-        [[nodiscard]] VkPipelineStageFlags VK_GetStageFlags() const { return m_stageFlags; }
-        void VK_SetStageFlags(VkPipelineStageFlags stageFlags) const { m_stageFlags = stageFlags; }
+        [[nodiscard]] VkPipelineStageFlags2 VK_GetStageFlags() const { return m_stageFlags; }
+        void VK_SetStageFlags(VkPipelineStageFlags2 stageFlags) const { m_stageFlags = stageFlags; }
 
         //! TODO
         void GenerateMips();
@@ -57,7 +57,7 @@ namespace Shift::VK {
 
         //! These are just cached layouts, really, they are only used to keep track of the resource state to make transtion
         //! functions cleaner
-        mutable VkPipelineStageFlags m_stageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        mutable VkPipelineStageFlags2 m_stageFlags = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
 
         bool valid = false;
 
