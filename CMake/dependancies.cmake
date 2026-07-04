@@ -38,12 +38,26 @@ FetchContent_Declare(spdlog
         FIND_PACKAGE_ARGS 1.11.0)
 
 # 3D Models
+# Assimp's own tests are useless to us and their gtest target breaks the `all` build
+# outside a VS dev environment, so they are off
+set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+
 FetchContent_Declare(assimp
         GIT_REPOSITORY https://github.com/assimp/assimp.git
         GIT_TAG v5.3.1
         GIT_SHALLOW ON
         GIT_PROGRESS ON
         FIND_PACKAGE_ARGS 5.3.1)
+
+# DocTest test framework
+set(DOCTEST_WITH_TESTS OFF CACHE BOOL "" FORCE)
+set(DOCTEST_NO_INSTALL ON CACHE BOOL "" FORCE)
+
+FetchContent_Declare(doctest
+        GIT_REPOSITORY https://github.com/doctest/doctest.git
+        GIT_TAG v2.4.12
+        GIT_SHALLOW ON
+        GIT_PROGRESS ON)
 
 # efsw - file watcher
 set(STATIC_LIB ON CACHE BOOL "Build efsw as static library" FORCE)

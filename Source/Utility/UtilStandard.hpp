@@ -48,6 +48,16 @@ namespace Shift::Util {
         return ec == std::errc();
     }
 
+    //! Parsed "major.minor.patch" version
+    struct VersionTriple {
+        uint32_t uMajor = 1;
+        uint32_t uMinor = 0;
+        uint32_t uPatch = 0;
+    };
+
+    //! Parse a strict "major.minor.patch" version string). Any malformed input falls back to 1.0.0 with a warning
+    [[nodiscard]] VersionTriple ParseVersionTriple(std::string_view version);
+
 
     //! TODO: Can be optimized!
     [[nodiscard]] std::vector<char> ReadFile(const std::string& filename);

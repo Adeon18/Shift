@@ -140,29 +140,14 @@ namespace Shift {
 
         m_handleCreator = HandleCreator{this};
 
-        auto getVersionUintFromString = [](const std::string& str) {
-            std::vector<std::string_view> tokens;
-            Util::StrSplitView(str, '.', &tokens);
-            if (tokens.size() != 3) {
-                tokens.resize(3);
-                Log(Warning, "Version has to have 3 version codes split by '.'. Defaulting to 1.0.0");
-                tokens[0] = "1"; tokens[1] = "0"; tokens[2] = "0";
-            }
-            uint32_t uMajor; Util::StrToUint32Fast(tokens[0], uMajor);
-            uint32_t uMinor; Util::StrToUint32Fast(tokens[1], uMinor);
-            uint32_t uPatch; Util::StrToUint32Fast(tokens[2], uPatch);
-
-            return std::tuple{uMajor, uMinor, uPatch};
-        };
-
-        auto [uAppMajor, uAppMinor, uAppPatch] = getVersionUintFromString(appVersion);
-        auto [uEngMajor, uEngMinor, uEngPatch] = getVersionUintFromString(engineVersion);
+        const Util::VersionTriple appV = Util::ParseVersionTriple(appVersion);
+        const Util::VersionTriple engV = Util::ParseVersionTriple(engineVersion);
 
         const RHIAppInfo appInfo{
             .appName = appName,
-            .appVersionMajor = uAppMajor, .appVersionMinor = uAppMinor, .appVersionPatch = uAppPatch,
+            .appVersionMajor = appV.uMajor, .appVersionMinor = appV.uMinor, .appVersionPatch = appV.uPatch,
             .engineName = engineName,
-            .engineVersionMajor = uEngMajor, .engineVersionMinor = uEngMinor, .engineVersionPatch = uEngPatch,
+            .engineVersionMajor = engV.uMajor, .engineVersionMinor = engV.uMinor, .engineVersionPatch = engV.uPatch,
         };
 
         //! Native backend bring-up lives behind a per-API hook
