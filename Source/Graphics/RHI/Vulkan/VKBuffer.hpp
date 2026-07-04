@@ -19,7 +19,7 @@ namespace Shift::VK {
         [[nodiscard]] bool IsValid() const { return valid; }
 
         [[nodiscard]] uint64_t GetSize() const { return m_desc.size; }
-        [[nodiscard]] const char* GetName() const { return m_desc.name; }
+        [[nodiscard]] const char* GetName() const { return m_desc.name.c_str(); }
 
         //! Get the mapped buffer ptr, only works for mapped buffers at creation, or after calling Map!
         //! \return The mapped buffer pointer, nullptr if not mapped

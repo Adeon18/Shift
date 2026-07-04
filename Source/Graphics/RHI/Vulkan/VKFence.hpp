@@ -2,6 +2,7 @@
 #define SHIFT_VKFENCE_HPP
 
 #include "VKDevice.hpp"
+#include "Utility/Vulkan/VKDebugUtils.hpp"
 
 #include "../Common/Fence.hpp"
 
@@ -32,6 +33,9 @@ namespace Shift::VK {
         //! Get Fence status as VkResult
         //! \return VkResult as status of the fence
         [[nodiscard]] VkResult Status() const;
+
+        //! Attach a debug-utils name
+        void SetDebugName(const char* name) const { Util::SetDebugName(m_device->Get(), VK_OBJECT_TYPE_FENCE, reinterpret_cast<uint64_t>(m_fence), name); }
 
         //! Free the VkFence
         ~Fence();

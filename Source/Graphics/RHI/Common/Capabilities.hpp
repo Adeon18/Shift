@@ -5,9 +5,26 @@
 #ifndef SHIFT_CAPABILITIES_HP
 #define SHIFT_CAPABILITIES_HP
 
+#include <cstdint>
 #include <string>
+#include <vector>
 
 namespace Shift {
+    //! Snapshot of everything the API's debug/validation layer has reported since process start
+    //! The counters live in static storage inside the active backend, so they survive RHI shutdown
+    struct ValidationStats {
+        uint64_t errorCount = 0;
+        uint64_t warningCount = 0;
+        uint64_t infoCount = 0;
+        //! Most recent warning/error messages, oldest first, capped at a small fixed depth
+        std::vector<std::string> lastMessages;
+    };
+
+    //! Defined by the active backend (Vulkan: the debug-utils messenger sink in VKUtilCore.cpp)
+    [[nodiscard]] ValidationStats GetValidationStats();
+    //! Zero the counters and drop the stored messages (test isolation)
+    void ResetValidationStats();
+
     // Central struct to define which features the engine wants to request
     struct RHIRequiredFeatures {
         bool robustBufferAccess      = false;
@@ -39,6 +56,8 @@ namespace Shift {
         bool VK_bufferDeviceAddress     = false;
         bool VK_scalarBlockLayout       = false;
         bool VK_enableValidationLayers      = false;
+        //! Programmatically enable the validation layer's synchronization validation
+        bool VK_syncValidation          = false;
         bool VK_requireSwapchain        = false;
         bool VK_hostQueryReset = false;
         bool VK_presentWait = false;

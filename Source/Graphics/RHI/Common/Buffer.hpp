@@ -6,6 +6,7 @@
 #define SHIFT_BUFFER_HPP
 
 #include <concepts>
+#include <string>
 #include <type_traits>
 
 #include "Base.hpp"
@@ -25,7 +26,8 @@ namespace Shift {
     //! A buffer descriptor struct, buffer size SHOULD BE ALWAYS ALIGNED BY 16!
     struct BufferDescriptor {
         uint64_t size = 0u;
-        const char* name = "EMPTY";
+        //! Owned string on purpose
+        std::string name = "EMPTY";
         EBufferType type = EBufferType::Uniform;
     };
 

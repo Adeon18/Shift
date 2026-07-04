@@ -113,6 +113,7 @@ namespace Shift::VK {
             TextureDescriptor desc{};
             desc.format = m_swapchainDesc.swapChainImageFormat;
             desc.textureAspect = ETextureAspect::Color;
+            desc.name = "SwapchainImage[" + std::to_string(i) + "]";
 
             m_swapChainTextures[i] = Core::CreateUnique<Texture>(
                 m_device, m_swapChainImages[i], VK_IMAGE_VIEW_TYPE_2D, desc);

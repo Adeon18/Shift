@@ -1,5 +1,6 @@
 #include "VKPipeline.hpp"
 
+#include "Utility/Vulkan/VKDebugUtils.hpp"
 #include "Utility/Vulkan/VKUtilRHI.hpp"
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 
@@ -140,5 +141,13 @@ namespace Shift::VK {
         m_pipeline = m_device->CreateGraphicsPipeline(pipelineInfo);
 
         m_valid = VkNullCheck(m_pipeline);
+
+        if (m_valid) {
+            //! Re-applied on every Rebuild
+            Util::SetDebugName(m_device->Get(), VK_OBJECT_TYPE_PIPELINE, reinterpret_cast<uint64_t>(m_pipeline), m_desc.name.c_str());
+            if (createLayout) {
+                Util::SetDebugName(m_device->Get(), VK_OBJECT_TYPE_PIPELINE_LAYOUT, reinterpret_cast<uint64_t>(m_layout), (m_desc.name + "_layout").c_str());
+            }
+        }
     }
 } // shift

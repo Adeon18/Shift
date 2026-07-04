@@ -1,5 +1,6 @@
 #include "VKTexture.hpp"
 
+#include "Utility/Vulkan/VKDebugUtils.hpp"
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 #include "Utility/Vulkan/VKUtilRHI.hpp"
 
@@ -52,6 +53,11 @@ namespace Shift::VK {
         m_imageView = m_device->CreateImageView(Util::CreateImageViewInfo(m_image, viewType, Util::ShiftToVKTextureFormat(m_textureDesc.format), sRange));
 
         valid = m_imageView != VK_NULL_HANDLE;
+
+        if (valid) {
+            Util::SetDebugName(m_device->Get(), VK_OBJECT_TYPE_IMAGE, reinterpret_cast<uint64_t>(m_image), m_textureDesc.name.c_str());
+            Util::SetDebugName(m_device->Get(), VK_OBJECT_TYPE_IMAGE_VIEW, reinterpret_cast<uint64_t>(m_imageView), (m_textureDesc.name + "_view").c_str());
+        }
     }
 
     Texture::Texture(const Device *device, VkImage externalImage, VkImageViewType viewType, const TextureDescriptor &textureDesc)
@@ -70,6 +76,12 @@ namespace Shift::VK {
             Util::CreateImageViewInfo(m_image, viewType, Util::ShiftToVKTextureFormat(m_textureDesc.format), sRange));
 
         valid = m_imageView != VK_NULL_HANDLE;
+
+        if (valid) {
+            //! Naming an externally-owned image (e.g. a swapchain backbuffer) is legal and useful
+            Util::SetDebugName(m_device->Get(), VK_OBJECT_TYPE_IMAGE, reinterpret_cast<uint64_t>(m_image), m_textureDesc.name.c_str());
+            Util::SetDebugName(m_device->Get(), VK_OBJECT_TYPE_IMAGE_VIEW, reinterpret_cast<uint64_t>(m_imageView), (m_textureDesc.name + "_view").c_str());
+        }
     }
 
     Texture::~Texture() {

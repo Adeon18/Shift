@@ -1,5 +1,7 @@
 #include "VKBuffer.hpp"
 
+#include "Utility/Vulkan/VKDebugUtils.hpp"
+
 namespace Shift::VK {
     VkBufferUsageFlags BufferTypeToUsageFlags(EBufferType type) {
         VkBufferUsageFlags flags = 0;
@@ -67,11 +69,16 @@ namespace Shift::VK {
             return;
         }
         valid = true;
+
+        Util::SetDebugName(m_device->Get(), VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(m_buffer), m_desc.name.c_str());
+        //! VMA leak reports then print the buffer's name instead of a bare allocation handle
+        //! This thing is actually so cool now that I know that it exists
+        vmaSetAllocationName(m_device->GetAllocator(), m_allocation, m_desc.name.c_str());
     }
 
     void *Buffer::Map() {
         if ( VkCheck(vmaMapMemory(m_device->GetAllocator(), m_allocation, &m_allocationInfo.pMappedData)) ) {
-            Log(Error, "Failed to map buffer: %s", m_desc.name);
+            Log(Error, "Failed to map buffer: {}", m_desc.name);
             return nullptr;
         }
         return m_allocationInfo.pMappedData;

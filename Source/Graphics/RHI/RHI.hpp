@@ -33,7 +33,8 @@ namespace Shift {
         private:
             RenderHardwareInterface* m_backend = nullptr;
         };
-        bool Init(GLFWwindow* window, uint32_t width, uint32_t height, const std::string& appName, const std::string& appVersion, const std::string& engineName, const std::string& engineVersion);
+        //! requiredFeatures defaults to the backend's standard set; tests override it
+        bool Init(GLFWwindow* window, uint32_t width, uint32_t height, const std::string& appName, const std::string& appVersion, const std::string& engineName, const std::string& engineVersion, const RHIRequiredFeatures& requiredFeatures = API::requiredFeatures);
 
         //! Wait for GPU to complete work before deleting stuff
         void WaitForGPU();
@@ -135,7 +136,7 @@ namespace Shift {
     template<ValidAPI API>
     bool RenderHardwareInterface<API>::Init(GLFWwindow *window, uint32_t width, uint32_t height,
         const std::string &appName, const std::string &appVersion, const std::string &engineName,
-        const std::string &engineVersion)
+        const std::string &engineVersion, const RHIRequiredFeatures& requiredFeatures)
     {
 
         m_handleCreator = HandleCreator{this};
@@ -151,16 +152,18 @@ namespace Shift {
         };
 
         //! Native backend bring-up lives behind a per-API hook
-        CheckCritical(m_local.InitBackend(window, width, height, appInfo, API::requiredFeatures), "Failed to initialize the main backend handles!");
+        CheckCritical(m_local.InitBackend(window, width, height, appInfo, requiredFeatures), "Failed to initialize the main backend handles!");
 
         for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
             CheckCritical(m_graphicsContexts[i].Init(&m_local, EContextType::Graphics, false), "Failed to create Graphics Context in flight!");
+            m_graphicsContexts[i].GetCommandBuffer().SetDebugName(("GraphicsPrimaryCB[" + std::to_string(i) + "]").c_str());
         }
 
         for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
             m_secondaryGraphicsContexts[i].resize(Conf::MAX_SECONDARY_CONTEXTS);
             for (uint32_t j = 0; j < m_secondaryGraphicsContexts[i].size(); ++j) {
                 m_secondaryGraphicsContexts[i][j].Init(&m_local, EContextType::Graphics, true);
+                m_secondaryGraphicsContexts[i][j].GetCommandBuffer().SetDebugName(("SecondaryGraphicsCB[" + std::to_string(i) + "][" + std::to_string(j) + "]").c_str());
                 m_secondaryGraphicsContextData[&m_secondaryGraphicsContexts[i][j]].inUse = false;
                 m_secondaryGraphicsContextData[&m_secondaryGraphicsContexts[i][j]].submittedToPrimary = false;
                 m_secondaryGraphicsContextData[&m_secondaryGraphicsContexts[i][j]].id = Conf::MAX_SECONDARY_CONTEXTS * i + j;
@@ -168,21 +171,26 @@ namespace Shift {
         }
 
         CheckCritical(m_computeContext.Init(&m_local, EContextType::Compute, false), "Failed to create Compute Context!");
+        m_computeContext.GetCommandBuffer().SetDebugName("ComputeCB");
 
         CheckCritical(m_transferContext.Init(&m_local, EContextType::Transfer, false), "Failed to create Transfer Context!");
+        m_transferContext.GetCommandBuffer().SetDebugName("TransferCB");
 
         uint32_t imageCount = m_local.swapchain->GetImages().size();
         m_renderFinished.clear();
         for(uint32_t i = 0; i < imageCount; i++) {
             auto& sem = m_renderFinished.emplace_back(Core::CreateUnique<BinarySemaphore>(m_local.device.get()));
             CheckCritical(sem->IsValid(), "Failed to create render semaphore");
+            sem->SetDebugName(("RenderFinished[" + std::to_string(i) + "]").c_str());
             auto& fence = m_presentFences.emplace_back(Core::CreateUnique<Fence>(m_local.device.get(), true));
             CheckCritical(fence->IsValid(), "Failed to create present wait fence");
+            fence->SetDebugName(("PresentFence[" + std::to_string(i) + "]").c_str());
         }
 
         for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
             m_imageAvailable[i] = Core::CreateUnique<BinarySemaphore>(m_local.device.get());
             CheckCritical(m_imageAvailable[i]->IsValid(), "Failed Init Acquire Sem");
+            m_imageAvailable[i]->SetDebugName(("ImageAvailable[" + std::to_string(i) + "]").c_str());
         }
 
         // m_imagePresentIds.clear();
@@ -192,6 +200,11 @@ namespace Shift {
         m_timelineCompute = Core::CreateUnique<TimelineSemaphore>(m_local.device.get(), 0);
         m_timelineGraphics = Core::CreateUnique<TimelineSemaphore>(m_local.device.get(), 0);
         m_timelineTransfer = Core::CreateUnique<TimelineSemaphore>(m_local.device.get(), 0);
+
+        //! Named sync objects make sync-validation output name the offender (F-DEBUGMARKERS)
+        m_timelineCompute->SetDebugName("TimelineCompute");
+        m_timelineGraphics->SetDebugName("TimelineGraphics");
+        m_timelineTransfer->SetDebugName("TimelineTransfer");
 
         return true;
     }
@@ -238,6 +251,11 @@ namespace Shift {
 
         m_local.device.reset();
         m_local.instance.reset();
+
+        //! Post-mortem summary: by this point every teardown leak report has been counted by the
+        //! validation sink, so a non-zero error count here means the run was NOT clean (F-VALSINK)
+        const ValidationStats validationStats = GetValidationStats();
+        Log(Info, "Validation summary: {} error(s), {} warning(s)", validationStats.errorCount, validationStats.warningCount);
     }
 
     template<ValidAPI API>
@@ -282,6 +300,7 @@ namespace Shift {
             for(uint32_t i = 0; i < newImageCount; i++) {
                 auto& sem = m_renderFinished.emplace_back(Core::CreateUnique<BinarySemaphore>(m_local.device.get()));
                 CheckCritical(sem->IsValid(), "Failed to recreate render semaphore");
+                sem->SetDebugName(("RenderFinished[" + std::to_string(i) + "]").c_str());
             }
         }
         return true;

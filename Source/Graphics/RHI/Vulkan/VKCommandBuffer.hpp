@@ -70,6 +70,14 @@ namespace Shift::VK {
         //! Reset the entire buffer (same as ResetFence for now). Drops the per-recording texture-state table
         void Reset();
 
+        void SetDebugName(const char* name) const;
+
+        //! Debug-utils label region must be paired.
+        void PushDebugGroup(const char* label) const;
+        void PopDebugGroup() const;
+        //! Drop a single point label into the command stream
+        void InsertDebugLabel(const char* label) const;
+
         //! Begin dynamic rendering. Builds the VkRenderingInfo from the agnostic descriptor +
         //! attachment textures
         void BeginRenderPass(const RenderPassDescriptor& desc, std::span<Texture*> colorTextures, std::optional<Texture*> depthTexture) const;

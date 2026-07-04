@@ -41,6 +41,11 @@ namespace Shift::VK {
 
         // Debug messenger for instance creation/destruction messages
         VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
+        //! Programmatic sync-validation
+        VkValidationFeaturesEXT validationFeatures{};
+        const VkValidationFeatureEnableEXT enabledValidationFeatures[] = {
+            VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT
+        };
 
     #if SHIFT_VALIDATION
         if (required.VK_enableValidationLayers) {
@@ -50,6 +55,14 @@ namespace Shift::VK {
             // Chain debug messenger for instance-level validation
             Util::FillDebugMessengerCreateInfo(debugCreateInfo);
             createInfo.pNext = &debugCreateInfo;
+
+            //! Sync-validation without touching vkconfig tests force this on via the features override
+            if (required.VK_syncValidation) {
+                validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+                validationFeatures.enabledValidationFeatureCount = 1;
+                validationFeatures.pEnabledValidationFeatures = enabledValidationFeatures;
+                debugCreateInfo.pNext = &validationFeatures;
+            }
         } else {
             createInfo.enabledLayerCount = 0;
             createInfo.pNext = nullptr;

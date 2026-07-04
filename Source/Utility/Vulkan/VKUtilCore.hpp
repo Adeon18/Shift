@@ -41,34 +41,10 @@ namespace Shift::VK::Util {
 
     // Debug utils
     bool CheckValidationLayerSupport();
+    //! Fills the messenger create-info with the engine's counting/logging callback
+    //! The callback itself is internal to VKUtilCore.cpp it feeds the process-wide validation
+    //! sink read through Shift::GetValidationStats().
     void FillDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
-
-    //! VKAPI_ATTR and VKAPI_ATTR ensure that Vulkan has the right signature to call the function
-    //! Callback very similar to DirectX
-    static VKAPI_ATTR VkBool32 VKAPI_ATTR debugCallback
-            (
-                    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,     // Severity of the message, verbose < info < warning < error
-                    VkDebugUtilsMessageTypeFlagsEXT messageType,                // Basically General, Validation or Performance
-                    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,  // Basically inportant stuff, like the message, object handles and size
-                    void* pUserData                                             // Pointer that you can pass your own data to
-            ) {
-        switch (messageSeverity) {
-            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-                Log(Trace, "Validation layer: " + std::string{pCallbackData->pMessage});
-                break;
-            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
-                Log(Info, "Validation layer: " + std::string{pCallbackData->pMessage});
-                break;
-            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-                Log(Warn, "Validation layer: " + std::string{pCallbackData->pMessage});
-                break;
-            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-                Log(Error, "Validation layer: " + std::string{pCallbackData->pMessage});
-                break;
-        }
-
-        return VK_FALSE;
-    }
 
     //! Build required device extension list from RHIRequiredFeatures
     std::vector<const char*> ResolveDeviceExtensions(const RHIRequiredFeatures& required);

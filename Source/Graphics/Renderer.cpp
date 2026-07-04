@@ -23,6 +23,7 @@ namespace Shift::Graphics {
         RenderContext& tctx = m_renderBackend.GetTransferContext();
         RenderContextEncoder* tEncoder = tctx.CreateCommandEncoder();
         tctx.BeginCmds();
+        tEncoder->PushDebugGroup("InitUploads");
 
         m_textureLoader = std::make_unique<StbLoader>();
         m_textureManager = std::make_unique<Graphics::TextureManager>(m_textureLoader.get(), &m_renderBackend, tctx.CreateCommandEncoder());
@@ -32,6 +33,7 @@ namespace Shift::Graphics {
 
 
         PipelineDescriptor pipelineDescriptor;
+        pipelineDescriptor.name = "TrianglePipeline";
         ShaderDescriptor vsDescriptor;
         vsDescriptor.type = EShaderType::Vertex;
         vsDescriptor.path = Shift::Util::GetShiftShaderSrcDir() + "Debug/TriangleVS.slang";
@@ -81,7 +83,8 @@ namespace Shift::Graphics {
             viewportSampler = rbi->CreateSampler(
                 {
                     .minFilter = EFilterMode::Nearest,
-                    .magFilter = EFilterMode::Nearest
+                    .magFilter = EFilterMode::Nearest,
+                    .name = "ViewportSampler"
                 }
             );
         }
@@ -93,12 +96,14 @@ namespace Shift::Graphics {
                     .height = m_window.GetHeight(),
                     .format = ETextureFormat::B8G8R8A8_SRGB,
                     .usageFlags = ETextureUsageFlags::ColorAttachment | ETextureUsageFlags::Sampled,
+                    .name = "ViewportRT"
                 }
             );
 
         }
         //! First frame the viewport may be hidden so we immediately transfer this
 
+        tEncoder->PopDebugGroup();
         tctx.EndCmds();
 
         std::array sigPayloads{m_renderBackend.ReserveTransferSignalPayload()};
@@ -110,7 +115,9 @@ namespace Shift::Graphics {
         RenderContext& gContext = m_renderBackend.GetGraphicsContext();
         gContext.BeginCmds();
 
+        gContext.CreateCommandEncoder()->PushDebugGroup("TextureUploadFinalize");
         m_textureManager->UploadTexturesToGPU(gContext.CreateCommandEncoder());
+        gContext.CreateCommandEncoder()->PopDebugGroup();
 
         gContext.EndCmds();
         std::array waitPayloads{m_renderBackend.GetTransferWaitPayload()};
@@ -164,6 +171,7 @@ namespace Shift::Graphics {
         CheckCritical(gContext.BeginCmds(), "Failed to begin the command Buffer!");
 
         if (shouldRenderMainViewport) {
+            gEncoder->PushDebugGroup("ViewportPass");
             // gContext.TransitionTexture(m_SRHI.GetSwapchain().GetSwapchainTexture(imageIndex), EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
             gEncoder->TransitionTexture(*viewportTexture, EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
 
@@ -237,9 +245,11 @@ namespace Shift::Graphics {
             gEncoder->EndRenderPass();
 
             gEncoder->TransitionTexture(*viewportTexture, EResourceLayout::ShaderReadOnlyOptimal, EPipelineStageFlags::FragmentShaderBit);
+            gEncoder->PopDebugGroup();
         }
 
         if (shouldRenderMainWindow) {
+            gEncoder->PushDebugGroup("UIPass");
             // 1. Transition Swapchain to WRITE
             gEncoder->TransitionTexture(m_renderBackend.GetSwapchain().GetSwapchainTexture(imageIndex), EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
 
@@ -261,6 +271,7 @@ namespace Shift::Graphics {
             gEncoder->EndRenderPass();
 
             gEncoder->TransitionTexture(m_renderBackend.GetSwapchain().GetSwapchainTexture(imageIndex), EResourceLayout::Present, EPipelineStageFlags::BottomOfPipeBit);
+            gEncoder->PopDebugGroup();
         }
 
         CheckCritical(gContext.EndCmds(), "Failed to end the command Buffer!");
@@ -325,7 +336,8 @@ namespace Shift::Graphics {
             .width = width,
             .height = height,
             .format = ETextureFormat::B8G8R8A8_SRGB,
-            .usageFlags = ETextureUsageFlags::ColorAttachment | ETextureUsageFlags::Sampled
+            .usageFlags = ETextureUsageFlags::ColorAttachment | ETextureUsageFlags::Sampled,
+            .name = "ViewportRT"
         });
 
         RegisterViewportTexture();

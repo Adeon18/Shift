@@ -6,6 +6,7 @@
 #define SHIFT_SAMPLER_HPP
 
 #include <concepts>
+#include <string>
 #include <type_traits>
 
 #include "Base.hpp"
@@ -61,6 +62,7 @@ namespace Shift {
         float minLod = 0.0f;
         float maxLod = 16.0f;
 
+        std::string name = "EMPTY";
         //SamplerReductionMode reductionMode = SamplerReductionMode::Standard;
     };
 

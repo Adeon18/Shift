@@ -1,5 +1,9 @@
 #include "VKUtilCore.hpp"
 
+#include <array>
+#include <atomic>
+#include <mutex>
+
 #include "GLFW/glfw3.h"
 
 namespace Shift::VK::Util {
@@ -8,6 +12,62 @@ namespace Shift::VK::Util {
     };
 
     const float DEFAULT_QUEUE_PRIORITY = 1.0f;
+
+    //! Validation sink
+    //! Static storage on purpose: teardown leak reports arrive while the RHI is mid-destruction,
+    //! and tests assert on these counters AFTER the engine is gone.
+    namespace {
+        constexpr uint64_t VALIDATION_MESSAGE_RING_DEPTH = 8;
+
+        std::atomic<uint64_t> s_validationErrors{0};
+        std::atomic<uint64_t> s_validationWarnings{0};
+        std::atomic<uint64_t> s_validationInfos{0};
+
+        std::mutex s_validationRingMutex;
+        std::array<std::string, VALIDATION_MESSAGE_RING_DEPTH> s_validationRing;
+        uint64_t s_validationRingNext = 0;
+
+        void RecordValidationMessage(const char* severity, const char* message) {
+            std::lock_guard<std::mutex> guard(s_validationRingMutex);
+            s_validationRing[s_validationRingNext % VALIDATION_MESSAGE_RING_DEPTH] =
+                std::string("[") + severity + "] " + message;
+            ++s_validationRingNext;
+        }
+
+        //! VKAPI_ATTR and VKAPI_CALL ensure that Vulkan has the right signature to call the function.
+        //! Counts per severity into the sink above, then logs.
+        VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback
+                (
+                        VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,     // Severity of the message, verbose < info < warning < error
+                        VkDebugUtilsMessageTypeFlagsEXT /*messageType*/,            // Basically General, Validation or Performance
+                        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,  // Basically inportant stuff, like the message, object handles and size
+                        void* /*pUserData*/                                         // Pointer that you can pass your own data to
+                ) {
+            switch (messageSeverity) {
+                case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+                    Log(Trace, "Validation layer: {}", pCallbackData->pMessage);
+                    break;
+                case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+                    s_validationInfos.fetch_add(1, std::memory_order_relaxed);
+                    Log(Info, "Validation layer: {}", pCallbackData->pMessage);
+                    break;
+                case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+                    s_validationWarnings.fetch_add(1, std::memory_order_relaxed);
+                    RecordValidationMessage("warning", pCallbackData->pMessage);
+                    Log(Warn, "Validation layer: {}", pCallbackData->pMessage);
+                    break;
+                case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+                    s_validationErrors.fetch_add(1, std::memory_order_relaxed);
+                    RecordValidationMessage("error", pCallbackData->pMessage);
+                    Log(Error, "Validation layer: {}", pCallbackData->pMessage);
+                    break;
+                default:
+                    break;
+            }
+
+            return VK_FALSE;
+        }
+    }
 
     //! ------------- Debug utils -------------
     bool CheckValidationLayerSupport() {
@@ -44,7 +104,7 @@ namespace Shift::VK::Util {
             VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
             VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
             VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-        createInfo.pfnUserCallback = debugCallback;
+        createInfo.pfnUserCallback = DebugCallback;
         createInfo.pUserData = nullptr;
     }
 
@@ -312,3 +372,35 @@ namespace Shift::VK::Util {
         return score;
     }
 } // Shift::VK::Util
+
+//! Agnostic validation-stats surface: declared in Common/Capabilities.hpp, defined by the
+//! active backend (exactly one backend per binary
+namespace Shift {
+    ValidationStats GetValidationStats() {
+        ValidationStats stats;
+        stats.errorCount = VK::Util::s_validationErrors.load(std::memory_order_relaxed);
+        stats.warningCount = VK::Util::s_validationWarnings.load(std::memory_order_relaxed);
+        stats.infoCount = VK::Util::s_validationInfos.load(std::memory_order_relaxed);
+
+        std::lock_guard<std::mutex> guard(VK::Util::s_validationRingMutex);
+        const uint64_t total = VK::Util::s_validationRingNext;
+        const uint64_t depth = std::min<uint64_t>(total, VK::Util::VALIDATION_MESSAGE_RING_DEPTH);
+        stats.lastMessages.reserve(depth);
+        for (uint64_t i = total - depth; i < total; ++i) {
+            stats.lastMessages.push_back(VK::Util::s_validationRing[i % VK::Util::VALIDATION_MESSAGE_RING_DEPTH]);
+        }
+        return stats;
+    }
+
+    void ResetValidationStats() {
+        VK::Util::s_validationErrors.store(0, std::memory_order_relaxed);
+        VK::Util::s_validationWarnings.store(0, std::memory_order_relaxed);
+        VK::Util::s_validationInfos.store(0, std::memory_order_relaxed);
+
+        std::lock_guard<std::mutex> guard(VK::Util::s_validationRingMutex);
+        for (auto& message : VK::Util::s_validationRing) {
+            message.clear();
+        }
+        VK::Util::s_validationRingNext = 0;
+    }
+} // Shift

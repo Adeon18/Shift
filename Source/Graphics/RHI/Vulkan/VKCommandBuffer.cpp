@@ -1,5 +1,6 @@
 #include "VKCommandBuffer.hpp"
 
+#include "Utility/Vulkan/VKDebugUtils.hpp"
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 #include "Utility/Vulkan/VKUtilRHI.hpp"
 #include <iostream>
@@ -59,6 +60,22 @@ namespace Shift::VK {
     void CommandBuffer::Reset() {
         m_textureStates.clear();
         vkResetCommandBuffer(m_buffer, 0);
+    }
+
+    void CommandBuffer::SetDebugName(const char* name) const {
+        Util::SetDebugName(m_device->Get(), VK_OBJECT_TYPE_COMMAND_BUFFER, reinterpret_cast<uint64_t>(m_buffer), name);
+    }
+
+    void CommandBuffer::PushDebugGroup(const char* label) const {
+        Util::CmdBeginDebugLabel(m_buffer, label);
+    }
+
+    void CommandBuffer::PopDebugGroup() const {
+        Util::CmdEndDebugLabel(m_buffer);
+    }
+
+    void CommandBuffer::InsertDebugLabel(const char* label) const {
+        Util::CmdInsertDebugLabel(m_buffer, label);
     }
 
 

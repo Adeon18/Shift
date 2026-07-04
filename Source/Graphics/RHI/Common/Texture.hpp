@@ -6,6 +6,7 @@
 #define SHIFT_TEXTURE_HPP
 
 #include <concepts>
+#include <string>
 #include <type_traits>
 
 #include "Base.hpp"
@@ -85,7 +86,8 @@ namespace Shift {
         ETextureType textureType = ETextureType::Texture2D;
         ETextureViewType textureViewType = ETextureViewType::View2D;
         ETextureAspect textureAspect = ETextureAspect::Color;
-        const char* name = "EMPTY";
+        //! Owned string on purpose
+        std::string name = "EMPTY";
 
         static TextureDescriptor CreateTexture2DDesc(
             uint32_t width,

@@ -3,6 +3,7 @@
 
 #include "VKDevice.hpp"
 #include "Graphics/RHI/Common/Semaphore.hpp"
+#include "Utility/Vulkan/VKDebugUtils.hpp"
 
 namespace Shift::VK {
     class BinarySemaphore {
@@ -19,6 +20,8 @@ namespace Shift::VK {
         [[nodiscard]] const VkSemaphore* Ptr() const { return &m_semaphore; }
 
         [[nodiscard]] bool IsValid() const {return m_valid;}
+
+        void SetDebugName(const char* name) const { Util::SetDebugName(m_device->Get(), VK_OBJECT_TYPE_SEMAPHORE, reinterpret_cast<uint64_t>(m_semaphore), name); }
 
         //! Free the VkSemaphore
         ~BinarySemaphore();
@@ -45,6 +48,9 @@ namespace Shift::VK {
 
         [[nodiscard]] uint64_t GetCurrentValue() const;
         [[nodiscard]] bool IsValid() const {return m_valid;}
+
+        //! Attach a debug-utils name; no-op without validation/debug-utils
+        void SetDebugName(const char* name) const { Util::SetDebugName(m_device->Get(), VK_OBJECT_TYPE_SEMAPHORE, reinterpret_cast<uint64_t>(m_semaphore), name); }
 
         void Wait(uint64_t value);
 

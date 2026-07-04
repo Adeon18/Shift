@@ -137,6 +137,13 @@ namespace Shift {
         //! \param scissor scissor structure
         void SetScissor(const Rect2D& scissor) const;
 
+        //! Debug label region for validation output and captures, must be paired. No-op in
+        //! builds without debug-utils. Portable
+        void PushDebugGroup(const char* label) const;
+        void PopDebugGroup() const;
+        //! Drop a single point label into the command stream
+        void InsertDebugLabel(const char* label) const;
+
         //! Non const texture because recording a transition may change the texture state down the road as it logs the ptr
         void TransitionTexture(Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags);
     private:
@@ -300,6 +307,21 @@ namespace Shift {
     template<ValidAPI API>
     void RHIEncoder<API>::SetScissor(const Rect2D& scissor) const {
         m_boundCB->SetScissor(scissor);
+    }
+
+    template<ValidAPI API>
+    void RHIEncoder<API>::PushDebugGroup(const char* label) const {
+        m_boundCB->PushDebugGroup(label);
+    }
+
+    template<ValidAPI API>
+    void RHIEncoder<API>::PopDebugGroup() const {
+        m_boundCB->PopDebugGroup();
+    }
+
+    template<ValidAPI API>
+    void RHIEncoder<API>::InsertDebugLabel(const char* label) const {
+        m_boundCB->InsertDebugLabel(label);
     }
 
     template<ValidAPI API>

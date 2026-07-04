@@ -1,5 +1,6 @@
 #include "VKSampler.hpp"
 
+#include "Utility/Vulkan/VKDebugUtils.hpp"
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 #include "Utility/Vulkan/VKUtilRHI.hpp"
 
@@ -23,6 +24,10 @@ namespace Shift::VK {
         );
 
         m_valid = VkNullCheck(m_sampler);
+
+        if (m_valid) {
+            Util::SetDebugName(m_device->Get(), VK_OBJECT_TYPE_SAMPLER, reinterpret_cast<uint64_t>(m_sampler), desc.name.c_str());
+        }
     }
 
     Sampler::~Sampler() {

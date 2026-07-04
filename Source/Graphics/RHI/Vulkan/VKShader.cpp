@@ -1,5 +1,6 @@
 #include "VKShader.hpp"
 
+#include "Utility/Vulkan/VKDebugUtils.hpp"
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 #include "Utility/Vulkan/VKUtilRHI.hpp"
 
@@ -47,5 +48,11 @@ namespace Shift::VK {
         m_stageInfo.stage = Util::ShiftToVKShaderType(m_descriptor.type);
 
         valid = VkNullCheck(m_module);
+
+        if (valid) {
+            //! The source path doubles as the module's debug name (re-applied on hot-reload Rebuild)
+            //! TODO : Idk if this si how it should be
+            Util::SetDebugName(m_device->Get(), VK_OBJECT_TYPE_SHADER_MODULE, reinterpret_cast<uint64_t>(m_module), m_descriptor.path.c_str());
+        }
     }
 } // Shift::VK

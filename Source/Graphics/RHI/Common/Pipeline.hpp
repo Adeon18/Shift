@@ -6,6 +6,7 @@
 #define SHIFT_PIPELINE_HPP
 
 #include <concepts>
+#include <string>
 #include <type_traits>
 #include <vector>
 
@@ -164,6 +165,7 @@ namespace Shift {
 
     //! The pipeline offline description structures (default values for all except viewport and scissor)
     struct PipelineDescriptor {
+        std::string name = "EMPTY";
 
         //! Batched vertex info
         struct VertexConfig {
