@@ -5,6 +5,8 @@
 #ifndef SHIFT_RENDERER_HPP
 #define SHIFT_RENDERER_HPP
 
+#include <optional>
+
 #include <glm/glm.hpp>
 
 #include "Window/ShiftWindow.hpp"
@@ -49,8 +51,9 @@ namespace Shift::Graphics {
 
         }
 
-        //! Init the renderer and all child elements
-        bool Init();
+        //! Init the renderer and all child elements. featuresOverride replaces the backend's
+        //! default RHIRequiredFeatures for this run
+        bool Init(const std::optional<RHIRequiredFeatures>& featuresOverride = std::nullopt);
 
         void RegisterViewportTexture();
 
@@ -60,7 +63,8 @@ namespace Shift::Graphics {
         //! Render entire frame
         bool RenderFrame(const EngineData& engineData, Editor::EditorLayer* editor);
 
-        void HotReloadShaders();
+        //! Rebuild every pipeline whose shaders are marked dirty, and returns the rebuild pipeline count
+        uint32_t HotReloadShaders();
 
         //! TODO [Design] is this bad?
         void WaitForCleanup();
@@ -73,6 +77,8 @@ namespace Shift::Graphics {
         [[nodiscard]] void* GetViewportTextureID() const { return m_viewportTextureID; }
         template<typename API>
         [[nodiscard]] const RHILocal<API>& GetRHILocal() const { return m_renderBackend.GetLocal();}
+
+        [[nodiscard]] ShaderManager& GetShaderManager() { return m_shaderManager; }
 
     private:
         [[nodiscard]] uint32_t AquireImage(bool *success);

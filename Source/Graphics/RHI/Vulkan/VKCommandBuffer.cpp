@@ -66,16 +66,16 @@ namespace Shift::VK {
         Util::SetDebugName(m_device->Get(), VK_OBJECT_TYPE_COMMAND_BUFFER, reinterpret_cast<uint64_t>(m_buffer), name);
     }
 
-    void CommandBuffer::PushDebugGroup(const char* label) const {
-        Util::CmdBeginDebugLabel(m_buffer, label);
+    void CommandBuffer::PushDebugGroup(const char* label, const DebugLabelColor& color) const {
+        Util::CmdBeginDebugLabel(m_buffer, label, color);
     }
 
     void CommandBuffer::PopDebugGroup() const {
         Util::CmdEndDebugLabel(m_buffer);
     }
 
-    void CommandBuffer::InsertDebugLabel(const char* label) const {
-        Util::CmdInsertDebugLabel(m_buffer, label);
+    void CommandBuffer::InsertDebugLabel(const char* label, const DebugLabelColor& color) const {
+        Util::CmdInsertDebugLabel(m_buffer, label, color);
     }
 
 
@@ -336,7 +336,8 @@ namespace Shift::VK {
 
         for (auto& sem: waitBinSems) {
             waitSemsVk.push_back(sem->Get());
-            waitStages.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+            //! Shared chain point with Swapchain::AquireNextImage's tracked-stage seeding
+            waitStages.push_back(static_cast<VkPipelineStageFlags>(BINARY_WAIT_DST_STAGES));
         }
 
         for (auto& sem: waitTimeSems) {

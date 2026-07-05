@@ -42,7 +42,8 @@ namespace Shift::Graphics {
 
         //! Recompile any dirty shaders and rebuild every affected pipeline in place, deferring the
         //! retired GPU handle's release until the GPU is finished with it.
-        void HotReload();
+        //! Returns the number of pipelines rebuilt
+        uint32_t HotReload();
 
         //! Shutdown teardown. Precondition: GPU idle + RHI deferred queue flushed by the caller.
         void Destroy();

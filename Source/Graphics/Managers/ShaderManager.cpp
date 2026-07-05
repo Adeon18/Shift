@@ -32,9 +32,7 @@ namespace Shift::Graphics {
                         return;
                     }
                     if (action == Shift::Util::FileWatcher::EFileAction::Modified) {
-
-                        std::lock_guard lock{m_dirtyMutex};
-                        m_dirtyFiles.insert(Shift::Util::NormalizePath(path));
+                        MarkDirty(path);
                     }
                 }
             );
@@ -78,6 +76,11 @@ namespace Shift::Graphics {
         }
 
         return m_hashToShaderAsset[cacheKey]->shader;
+    }
+
+    void ShaderManager::MarkDirty(const std::string& path) {
+        std::lock_guard lock{m_dirtyMutex};
+        m_dirtyFiles.insert(Shift::Util::NormalizePath(path));
     }
 
     std::unordered_set<Pipeline*> ShaderManager::HotReload() {

@@ -50,10 +50,10 @@ namespace Shift::Graphics {
         m_rhi->DeferExecute(payload.semaphore, payload.value, [retired]() { delete retired; });
     }
 
-    void PipelineManager::HotReload() {
+    uint32_t PipelineManager::HotReload() {
         //! Recompile dirty shaders and collect affected pipelines
         std::unordered_set<Pipeline*> toRebuild = m_shaderManager->HotReload();
-        if (toRebuild.empty()) { return; }
+        if (toRebuild.empty()) { return 0; }
 
         //! Every rebuild retires its old GPU handle against the same in-flight graphics work, so
         //! one wait payload gates them all
@@ -62,6 +62,7 @@ namespace Shift::Graphics {
             pipeline->Rebuild(false);
             m_rhi->DeferExecute(payload.semaphore, payload.value, [pipeline]() { pipeline->ReleaseRetired(); });
         }
+        return static_cast<uint32_t>(toRebuild.size());
     }
 
     void PipelineManager::Destroy() {

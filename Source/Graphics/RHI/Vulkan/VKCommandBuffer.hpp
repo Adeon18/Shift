@@ -72,11 +72,11 @@ namespace Shift::VK {
 
         void SetDebugName(const char* name) const;
 
-        //! Debug-utils label region must be paired.
-        void PushDebugGroup(const char* label) const;
+        //! Debug-utils label region must be paired. Zeroed color = tool default
+        void PushDebugGroup(const char* label, const DebugLabelColor& color = {}) const;
         void PopDebugGroup() const;
         //! Drop a single point label into the command stream
-        void InsertDebugLabel(const char* label) const;
+        void InsertDebugLabel(const char* label, const DebugLabelColor& color = {}) const;
 
         //! Begin dynamic rendering. Builds the VkRenderingInfo from the agnostic descriptor +
         //! attachment textures

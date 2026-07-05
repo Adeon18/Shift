@@ -13,12 +13,16 @@ namespace Shift::VK::Util {
         vkSetDebugUtilsObjectNameEXT(device, &info);
     }
 
-    void CmdBeginDebugLabel(VkCommandBuffer cmd, const char* label) {
+    void CmdBeginDebugLabel(VkCommandBuffer cmd, const char* label, const DebugLabelColor& color) {
         if (!vkCmdBeginDebugUtilsLabelEXT || !label) { return; }
 
         VkDebugUtilsLabelEXT info{};
         info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
         info.pLabelName = label;
+        info.color[0] = color.r;
+        info.color[1] = color.g;
+        info.color[2] = color.b;
+        info.color[3] = color.a;
 
         vkCmdBeginDebugUtilsLabelEXT(cmd, &info);
     }
@@ -28,12 +32,16 @@ namespace Shift::VK::Util {
         vkCmdEndDebugUtilsLabelEXT(cmd);
     }
 
-    void CmdInsertDebugLabel(VkCommandBuffer cmd, const char* label) {
+    void CmdInsertDebugLabel(VkCommandBuffer cmd, const char* label, const DebugLabelColor& color) {
         if (!vkCmdInsertDebugUtilsLabelEXT || !label) { return; }
 
         VkDebugUtilsLabelEXT info{};
         info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
         info.pLabelName = label;
+        info.color[0] = color.r;
+        info.color[1] = color.g;
+        info.color[2] = color.b;
+        info.color[3] = color.a;
 
         vkCmdInsertDebugUtilsLabelEXT(cmd, &info);
     }

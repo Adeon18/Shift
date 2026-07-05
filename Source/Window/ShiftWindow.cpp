@@ -7,6 +7,9 @@ namespace Shift {
     void ShiftWindow::InitWindow() {
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Because default is OpenGL so no API here
+        //! Hints are global GLFW state: set the value both ways so one hidden window can never
+        //! leak invisibility into a later window creation
+        glfwWindowHint(GLFW_VISIBLE, m_visible ? GLFW_TRUE : GLFW_FALSE);
 
         m_window = glfwCreateWindow(m_width, m_height, m_name.c_str(), nullptr, nullptr);
         glfwSetWindowUserPointer(m_window, this);
@@ -17,8 +20,8 @@ namespace Shift {
         glfwSetScrollCallback(m_window, MouseScrollCallback);
     }
 
-    ShiftWindow::ShiftWindow(uint32_t width, uint32_t height,  std::string  name):
-        m_width{width}, m_height{height}, m_name{std::move(name)}
+    ShiftWindow::ShiftWindow(uint32_t width, uint32_t height,  std::string  name, bool visible):
+        m_width{width}, m_height{height}, m_name{std::move(name)}, m_visible{visible}
     {
         InitWindow();
     }

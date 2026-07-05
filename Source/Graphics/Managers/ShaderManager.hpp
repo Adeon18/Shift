@@ -23,6 +23,10 @@ namespace Shift::Graphics {
         //! Hot reload all relevant shaders and return the list of pipelines to be reloaded and deferred freed
         [[nodiscard]] std::unordered_set<Pipeline*> HotReload();
 
+        //! Mark a shader source file as changed so the next HotReload() recompiles its dependents.
+        //! Usually used just for testing as the file watcher auto detects the changes during runtime anywau
+        void MarkDirty(const std::string& path);
+
         void RegisterPipeline(Shader* shader, Pipeline* pipeline);
         void UnregisterPipeline(Shader* shader, Pipeline* pipeline);
 

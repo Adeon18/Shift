@@ -12,6 +12,7 @@ namespace Shift::VK {
         friend VK::ResourceSet;
         friend VK::ImGuiBackend;
         friend VK::CommandBuffer;
+        friend VK::Swapchain;
     public:
         //! Allocating constructor: creates VkImage via VMA + VkImageView. Owns both.
         Texture(const Device* device, const TextureDescriptor& textureDesc);
@@ -41,6 +42,15 @@ namespace Shift::VK {
         [[nodiscard]] VkImageLayout VK_GetSubmittedLayout() const { return m_submittedLayout; }
         [[nodiscard]] VkPipelineStageFlags2 VK_GetSubmittedStage() const { return m_submittedStage; }
         void VK_CommitSubmittedState(VkImageLayout layout, VkPipelineStageFlags2 stage) { m_submittedLayout = layout; m_submittedStage = stage; }
+
+        //! Swapchain-only, the second (and only other) writer of the tracked state.
+        //! vkAcquireNextImageKHR reads the image, and that read is ordered against later GPU
+        //! work solely through the acquire semaphore, waited at BINARY_WAIT_DST_STAGES. Putting
+        //! the tracked stage with that mask makes the first barrier recorded after the acquire
+        //! chain from the semaphore wait, because the prev stale stage is bottom of the pipe, making a wait on such a stage useless as we are
+        //! starting our frame.
+        //! This shit is so incredibly stupid that IO hope I never have to touch it again
+        void VK_OnSwapchainAcquire(VkPipelineStageFlags2 acquireWaitStages) { m_submittedStage = acquireWaitStages; }
 
         //! TODO
         void GenerateMips();

@@ -10,7 +10,9 @@
 namespace Shift {
 	class ShiftWindow {
     public:
-		ShiftWindow(uint32_t width, uint32_t height, std::string name);
+        //! visible=false creates the window hidden (GLFW_VISIBLE hint) so that automated tests boot the
+        //! real engine without flashing a window; everything else about the window behaves the same
+		ShiftWindow(uint32_t width, uint32_t height, std::string name, bool visible = true);
         ShiftWindow()=delete;
 		ShiftWindow(const ShiftWindow&)=delete;
 		ShiftWindow& operator=(const ShiftWindow&)=delete;
@@ -71,6 +73,7 @@ namespace Shift {
         std::string m_name;
 		uint32_t m_width;
 		uint32_t m_height;
+        bool m_visible = true;
 
         // True when was resized but was not processed by the engine
         bool m_shoudProcessResize = false;

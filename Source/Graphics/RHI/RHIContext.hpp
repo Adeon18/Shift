@@ -138,11 +138,11 @@ namespace Shift {
         void SetScissor(const Rect2D& scissor) const;
 
         //! Debug label region for validation output and captures, must be paired. No-op in
-        //! builds without debug-utils. Portable
-        void PushDebugGroup(const char* label) const;
+        //! builds without debug-utils. Portable. 0 color -> up to impl
+        void PushDebugGroup(const char* label, const DebugLabelColor& color = {}) const;
         void PopDebugGroup() const;
         //! Drop a single point label into the command stream
-        void InsertDebugLabel(const char* label) const;
+        void InsertDebugLabel(const char* label, const DebugLabelColor& color = {}) const;
 
         //! Non const texture because recording a transition may change the texture state down the road as it logs the ptr
         void TransitionTexture(Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags);
@@ -310,8 +310,8 @@ namespace Shift {
     }
 
     template<ValidAPI API>
-    void RHIEncoder<API>::PushDebugGroup(const char* label) const {
-        m_boundCB->PushDebugGroup(label);
+    void RHIEncoder<API>::PushDebugGroup(const char* label, const DebugLabelColor& color) const {
+        m_boundCB->PushDebugGroup(label, color);
     }
 
     template<ValidAPI API>
@@ -320,8 +320,8 @@ namespace Shift {
     }
 
     template<ValidAPI API>
-    void RHIEncoder<API>::InsertDebugLabel(const char* label) const {
-        m_boundCB->InsertDebugLabel(label);
+    void RHIEncoder<API>::InsertDebugLabel(const char* label, const DebugLabelColor& color) const {
+        m_boundCB->InsertDebugLabel(label, color);
     }
 
     template<ValidAPI API>

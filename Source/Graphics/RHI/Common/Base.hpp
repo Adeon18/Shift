@@ -61,6 +61,15 @@ namespace Shift {
         float minDepth;
         float maxDepth;
     };
+
+    //! Normalized RGBA tint for debug label regions
+    //! All zeros means "no preference" and the tool picks its own color, per the Default API spec
+    struct DebugLabelColor {
+        float r = 0.0f;
+        float g = 0.0f;
+        float b = 0.0f;
+        float a = 0.0f;
+    };
 }; // Shift
 
 //! Check whether a class implements a concept interface. Useful for checking compile-time "polymorphism"

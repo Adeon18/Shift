@@ -12,18 +12,18 @@
 #include "Graphics/UI/GenericPanel.hpp"
 
 namespace Shift {
-    bool ShiftEngine::Init(uint32_t width, uint32_t height) {
+    bool ShiftEngine::Init(const EngineDescriptor& desc) {
         spdlog::set_level(spdlog::level::trace);
 
         Util::FileWatcher::Get().Init();
-        m_window = std::make_unique<Shift::ShiftWindow>(width, height, "Shift");
+        m_window = std::make_unique<Shift::ShiftWindow>(desc.width, desc.height, desc.windowName, desc.windowVisible);
 
         const glm::vec3 pos = glm::vec3(0.0f, 0.0f, 1.0f);
         std::pair<uint32_t, uint32_t> sizes{m_window->GetWidth(), m_window->GetHeight()};
         m_controller = std::make_shared<ctrl::FlyingCameraController>(80.0f, sizes, pos);
 
         m_renderer = std::make_unique<Graphics::Renderer>(*m_window, m_controller);
-        if (!m_renderer->Init()) { return false;}
+        if (!m_renderer->Init(desc.featuresOverride)) { return false;}
 
         m_editorLayer.Init(*m_window, m_renderer->GetRHILocal<ShiftSelectedAPI>());
 
@@ -51,21 +51,36 @@ namespace Shift {
     bool ShiftEngine::Run() {
         while (m_window->IsActive()) {
             if (m_timer.HasFrameElapsed()) {
-                m_window->Process();
+                auto showFPS = m_timer.IsDebugFPSShow();
+                if (showFPS.first) {
+                    spdlog::debug("Shift FPS: {}", showFPS.second);
+                }
 
-                Util::FileWatcher::Get().Poll();
-
-                HandleInput();
-                m_controller->CaptureInputAndApply(m_timer.GetDt());
-
-                FillEngineData();
-                if (!m_renderer->RenderFrame(m_engineData, &m_editorLayer)) {
+                if (!Tick(m_timer.GetDt())) {
                     return false;
                 }
-                inp::Keyboard::GetInstance().UpdateKeys();
-                inp::Mouse::GetInstance().UpdatePos();
             }
         }
+
+        return true;
+    }
+
+    bool ShiftEngine::Tick(float dt) {
+        m_timeSinceStart += dt;
+
+        m_window->Process();
+
+        Util::FileWatcher::Get().Poll();
+
+        HandleInput();
+        m_controller->CaptureInputAndApply(dt);
+
+        FillEngineData(dt);
+        if (!m_renderer->RenderFrame(m_engineData, &m_editorLayer)) {
+            return false;
+        }
+        inp::Keyboard::GetInstance().UpdateKeys();
+        inp::Mouse::GetInstance().UpdatePos();
 
         return true;
     }
@@ -77,7 +92,7 @@ namespace Shift {
         m_window.reset();
     }
 
-    void ShiftEngine::FillEngineData() {
+    void ShiftEngine::FillEngineData(float dt) {
         m_engineData.viewMatrix = m_controller->GetCamera().GetViewMatrix();
         m_engineData.projMatrix = m_controller->GetCamera().GetProjectionMatrix();
         m_engineData.camDirection = m_controller->GetDirection();
@@ -90,18 +105,14 @@ namespace Shift {
         m_engineData.oneDivWinWidth = 1.0f / static_cast<float>(m_window->GetWidth());
         m_engineData.oneDivWinHeight =  1.0f / static_cast<float>(m_window->GetHeight());
 
-        m_engineData.dt = m_timer.GetDt();
-        m_engineData.fps = m_timer.GetFPSCurrent();
-        m_engineData.secondsSinceStart = m_timer.GetSecondsSinceStart();
-        m_engineData.frameTimeMs = m_timer.GetFrameTimeInMs();
+        //! All timing derives from the injected dt so a fixed-dt run is fully deterministic
+        m_engineData.dt = dt;
+        m_engineData.fps = (dt > 0.0f) ? (1.0f / dt) : 0.0f;
+        m_engineData.secondsSinceStart = m_timeSinceStart;
+        m_engineData.frameTimeMs = dt * 1000.0f;
     }
 
     void ShiftEngine::HandleInput() {
-        auto showFPS = m_timer.IsDebugFPSShow();
-        if (showFPS.first) {
-            spdlog::debug("Shift FPS: {}", showFPS.second);
-        }
-
         if (inp::Mouse::GetInstance().isRightButtonPressed()) {
             m_window->SetCaptureCursor(true);
         } else {
@@ -113,4 +124,3 @@ namespace Shift {
         }
     }
 } // shift
-

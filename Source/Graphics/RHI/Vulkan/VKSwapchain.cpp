@@ -139,6 +139,9 @@ namespace Shift::VK {
             return UINT32_MAX;
         }
 
+        //! Essentially wait on color attachement output rather than bottom of the pipe bit
+        m_swapChainTextures[imageIdx]->VK_OnSwapchainAcquire(BINARY_WAIT_DST_STAGES);
+
         return imageIdx;
     }
 

@@ -10,9 +10,10 @@
 #include <glm/gtx/string_cast.hpp>
 
 namespace Shift::Graphics {
-    bool Renderer::Init() {
+    bool Renderer::Init(const std::optional<RHIRequiredFeatures>& featuresOverride) {
 
-        CheckCritical(m_renderBackend.Init(m_window.GetHandle(), m_window.GetWidth(), m_window.GetHeight(), "TestApp", "1.0.0", "Shift", "2.0.0"), "Failed to initialize RHI!");
+        const RHIRequiredFeatures requiredFeatures = featuresOverride.value_or(ShiftSelectedAPI::requiredFeatures);
+        CheckCritical(m_renderBackend.Init(m_window.GetHandle(), m_window.GetWidth(), m_window.GetHeight(), "TestApp", "1.0.0", "Shift", "2.0.0", requiredFeatures), "Failed to initialize RHI!");
 
         RenderBackendInterface* rbi = m_renderBackend.CreateInterface();
 
@@ -23,7 +24,7 @@ namespace Shift::Graphics {
         RenderContext& tctx = m_renderBackend.GetTransferContext();
         RenderContextEncoder* tEncoder = tctx.CreateCommandEncoder();
         tctx.BeginCmds();
-        tEncoder->PushDebugGroup("InitUploads");
+        tEncoder->PushDebugGroup("InitUploads", {0.85f, 0.55f, 0.20f, 1.0f});
 
         m_textureLoader = std::make_unique<StbLoader>();
         m_textureManager = std::make_unique<Graphics::TextureManager>(m_textureLoader.get(), &m_renderBackend, tctx.CreateCommandEncoder());
@@ -115,7 +116,7 @@ namespace Shift::Graphics {
         RenderContext& gContext = m_renderBackend.GetGraphicsContext();
         gContext.BeginCmds();
 
-        gContext.CreateCommandEncoder()->PushDebugGroup("TextureUploadFinalize");
+        gContext.CreateCommandEncoder()->PushDebugGroup("TextureUploadFinalize", {0.90f, 0.80f, 0.30f, 1.0f});
         m_textureManager->UploadTexturesToGPU(gContext.CreateCommandEncoder());
         gContext.CreateCommandEncoder()->PopDebugGroup();
 
@@ -171,7 +172,7 @@ namespace Shift::Graphics {
         CheckCritical(gContext.BeginCmds(), "Failed to begin the command Buffer!");
 
         if (shouldRenderMainViewport) {
-            gEncoder->PushDebugGroup("ViewportPass");
+            gEncoder->PushDebugGroup("ViewportPass", {0.30f, 0.65f, 0.35f, 1.0f});
             // gContext.TransitionTexture(m_SRHI.GetSwapchain().GetSwapchainTexture(imageIndex), EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
             gEncoder->TransitionTexture(*viewportTexture, EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
 
@@ -249,7 +250,7 @@ namespace Shift::Graphics {
         }
 
         if (shouldRenderMainWindow) {
-            gEncoder->PushDebugGroup("UIPass");
+            gEncoder->PushDebugGroup("UIPass", {0.35f, 0.55f, 0.90f, 1.0f});
             // 1. Transition Swapchain to WRITE
             gEncoder->TransitionTexture(m_renderBackend.GetSwapchain().GetSwapchainTexture(imageIndex), EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
 
@@ -301,8 +302,8 @@ namespace Shift::Graphics {
         return true;
     }
 
-    void Renderer::HotReloadShaders() {
-        m_pipelineManager.HotReload();
+    uint32_t Renderer::HotReloadShaders() {
+        return m_pipelineManager.HotReload();
     }
 
     void Renderer::WaitForCleanup() {
