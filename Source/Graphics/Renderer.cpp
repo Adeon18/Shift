@@ -152,8 +152,8 @@ namespace Shift::Graphics {
             shouldRenderMainViewport = editor->ShouldRenderViewportPanel() || firstFrame;
         }
 
-        //! Perform fence wait on presentation
-        m_renderBackend.WaitForGraphicsContext();
+        //! Reclaim this frame slot
+        m_renderBackend.BeginFrame();
 
         uint32_t imageIndex = UINT32_MAX;
         if (shouldRenderMainWindow) {
@@ -171,8 +171,12 @@ namespace Shift::Graphics {
         gContext.ResetCmds();
         CheckCritical(gContext.BeginCmds(), "Failed to begin the command Buffer!");
 
+        //! Outermost GPU timing range
+        gEncoder->PushTimeRange("Frame");
+
         if (shouldRenderMainViewport) {
             gEncoder->PushDebugGroup("ViewportPass", {0.30f, 0.65f, 0.35f, 1.0f});
+            gEncoder->PushTimeRange("ViewportPass");
             // gContext.TransitionTexture(m_SRHI.GetSwapchain().GetSwapchainTexture(imageIndex), EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
             gEncoder->TransitionTexture(*viewportTexture, EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
 
@@ -246,11 +250,13 @@ namespace Shift::Graphics {
             gEncoder->EndRenderPass();
 
             gEncoder->TransitionTexture(*viewportTexture, EResourceLayout::ShaderReadOnlyOptimal, EPipelineStageFlags::FragmentShaderBit);
+            gEncoder->PopTimeRange();
             gEncoder->PopDebugGroup();
         }
 
         if (shouldRenderMainWindow) {
             gEncoder->PushDebugGroup("UIPass", {0.35f, 0.55f, 0.90f, 1.0f});
+            gEncoder->PushTimeRange("UIPass");
             // 1. Transition Swapchain to WRITE
             gEncoder->TransitionTexture(m_renderBackend.GetSwapchain().GetSwapchainTexture(imageIndex), EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
 
@@ -272,8 +278,11 @@ namespace Shift::Graphics {
             gEncoder->EndRenderPass();
 
             gEncoder->TransitionTexture(m_renderBackend.GetSwapchain().GetSwapchainTexture(imageIndex), EResourceLayout::Present, EPipelineStageFlags::BottomOfPipeBit);
+            gEncoder->PopTimeRange();
             gEncoder->PopDebugGroup();
         }
+
+        gEncoder->PopTimeRange(); //! Frame end
 
         CheckCritical(gContext.EndCmds(), "Failed to end the command Buffer!");
 
@@ -294,9 +303,6 @@ namespace Shift::Graphics {
         //     editor->RenderFloatingViewPorts();
         // }
 
-        m_renderBackend.ProcessDeferredCallbacks();
-
-        // Update the current frame
         m_renderBackend.EndFrame();
 
         return true;
@@ -343,8 +349,8 @@ namespace Shift::Graphics {
 
         RegisterViewportTexture();
 
-        //! Defer the end of next frame
-        m_renderBackend.DeferExecuteToFrame(m_renderBackend.GetCurrentGlobalIndex()+1, [oldTexture, oldID]() mutable {
+        //! Destruction deferred to current frame + MAX FIF because prev frames might have already submitted write commands to viewport before resize
+        m_renderBackend.DeferExecuteToFrame(m_renderBackend.GetCurrentGlobalIndex() + Conf::SHIFT_MAX_FRAMES_IN_FLIGHT, [oldTexture, oldID]() mutable {
             if (oldID) {
                 ImGuiBackend::UnregisterTexture(oldID);
             }

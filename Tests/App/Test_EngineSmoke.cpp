@@ -3,8 +3,10 @@
 //! Suite tag: [app] (filter with: shift_tests -ts=*[app]*). Needs a GPU + driver.
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "ShiftEngine.hpp"
 #include "Graphics/RHI/Common/Capabilities.hpp"
@@ -39,9 +41,21 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     Shift::ShiftEngine engine;
     REQUIRE_MESSAGE(engine.Init(desc), "engine failed to initialize ([app] tests need a GPU/driver)");
 
-    auto tick = [&engine](int frames) {
+    //! Ssample the resolved GPU zones every frame and keep the max 'Frame' duration.
+    //! A hidden-window frame may record no passes (Frame span ~0), so we can't trust whichever
+    //! frame is collected last -- but frame 0 forces a viewport pass, so a working timestamp
+    //! pipeline must yield at least one positive sample somewhere across the run.
+    float maxFrameMs = 0.0f;
+    bool sawFrameZone = false;
+    auto tick = [&](int frames) {
         for (int i = 0; i < frames; ++i) {
             REQUIRE(engine.Tick(FIXED_DT));
+            for (const Shift::GPUTimeRange& range : engine.GetRenderer().GetLastFrameGPUTimeRanges()) {
+                if (range.name == "Frame") {
+                    sawFrameZone = true;
+                    maxFrameMs = std::max(maxFrameMs, range.milliseconds);
+                }
+            }
         }
     };
 
@@ -110,6 +124,15 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
 
     //! Phase 6: late deferred callbacks land while frames keep flowing
     tick(60);
+
+    //! Over the whole run at least one measured frame did real GPU work (frame 0
+    //! forces a viewport pass), so a working timestamp pipeline must have produced a positive
+    //! 'Frame' duration. Asserting on the running max (not the last frame) tolerates hidden-window
+    //! frames that legitimately record no passes and read ~0.
+    CHECK_MESSAGE(sawFrameZone, "no top-level 'Frame' GPU zone ever resolved");
+    CHECK_MESSAGE(maxFrameMs > 0.0f,
+                  "GPU 'Frame' zone never had a positive duration -- timestamps are not resolving");
+    CHECK(maxFrameMs < 1000.0f);
 
     engine.Cleanup();
 

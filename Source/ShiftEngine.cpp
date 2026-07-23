@@ -54,6 +54,10 @@ namespace Shift {
                 auto showFPS = m_timer.IsDebugFPSShow();
                 if (showFPS.first) {
                     spdlog::debug("Shift FPS: {}", showFPS.second);
+                    //! GPU timing breakdown of the last completed frame
+                    for (const auto& range : m_renderer->GetLastFrameGPUTimeRanges()) {
+                        spdlog::debug("  GPU {}{}: {:.3f} ms", std::string(range.depth * 2, ' '), range.name, range.milliseconds);
+                    }
                 }
 
                 if (!Tick(m_timer.GetDt())) {

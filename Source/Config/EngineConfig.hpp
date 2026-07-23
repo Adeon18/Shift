@@ -17,6 +17,9 @@ namespace Shift::Conf {
     static constexpr uint32_t POINT_LIGHT_MAX_COUNT = 6;
     static constexpr uint32_t SHIFT_MAX_FRAMES_IN_FLIGHT = 2;
     static constexpr uint32_t MAX_BINDLESS_IMAGES = 8192u;
+
+    //! Max named GPU timing ranges recorded per frame. Two timestamps per range
+    static constexpr uint32_t MAX_GPU_TIME_RANGES_PER_FRAME = 64u;
 }
 // shift
 

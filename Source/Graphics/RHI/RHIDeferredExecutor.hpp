@@ -27,7 +27,9 @@ namespace Shift {
         //! @param fn
         void DeferExecute(TimelineSemaphore* timeline, uint64_t value, Callback fn);
 
-        //! Defere execution of a function to a certain frame
+        //! Defer execution until a global frame index is reached. Fires on the first
+        //! ProcessDeferredCallbacks whose current frame is >= frameIdx
+        //! You can do frameidx + MAX_FIF for GPU owned resource deletion
         void DeferExecuteToFrame(uint64_t frameIdx, Callback fn);
 
         //! Defer execute function for end of the program, order is NOT guaranteed, but is thread-safe

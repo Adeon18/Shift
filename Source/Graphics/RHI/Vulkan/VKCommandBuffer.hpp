@@ -8,9 +8,11 @@
 
 #include "VKDevice.hpp"
 #include "VKFence.hpp"
+#include "Assistants/VKGPUProfiler.hpp"
 
 #include "../Common/CommandBuffer.hpp"
 #include "../Common/RenderPass.hpp"
+#include "../Common/GPUProfiling.hpp"
 
 namespace Shift::VK {
 
@@ -77,6 +79,14 @@ namespace Shift::VK {
         void PopDebugGroup() const;
         //! Drop a single point label into the command stream
         void InsertDebugLabel(const char* label, const DebugLabelColor& color = {}) const;
+
+        //! Open/close a nestable named GPU timing range. Must be paired. No-op on
+        //! non-graphics/secondary buffers. Mutates CPU-side range tracking, hence non-const
+        void PushTimeRange(const char* name);
+        void PopTimeRange();
+        //! Resolve the previous recording's range timings. Caller guarantees the GPU is done
+        //! with this buffer
+        [[nodiscard]] std::vector<GPUTimeRange> CollectTimeRanges();
 
         //! Begin dynamic rendering. Builds the VkRenderingInfo from the agnostic descriptor +
         //! attachment textures
@@ -240,7 +250,7 @@ namespace Shift::VK {
                 VkPipelineStageFlags2 dstStage,
                 bool isDepth = false) const;
 
-        ~CommandBuffer()=default;
+        ~CommandBuffer();
     private:
         //! CPU-side view of a texture's (layout, stage) local to the current recording
         //! Struct tracks last texture transition state, as the texture itself only tracks last succesfully submitted satate
@@ -264,6 +274,9 @@ namespace Shift::VK {
 
         //! This is gonna be up to 10 textures the most so vector is chill, trust me
         std::vector<std::pair<Texture*, TextureTrackedState>> m_textureStates;
+
+        //! GPU timing - VK-based ofc
+        GPUProfiler m_profiler;
 
         EPoolQueueType m_poolType = EPoolQueueType::Graphics;
         bool m_isSecondary = false;

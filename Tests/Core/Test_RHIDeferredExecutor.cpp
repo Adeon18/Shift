@@ -1,5 +1,7 @@
 #include <doctest/doctest.h>
 
+#include <vector>
+
 #include "Graphics/RHI/RHIDeferredExecutor.hpp"
 
 using Shift::RHIDeferredExecutor;
@@ -33,11 +35,9 @@ TEST_CASE("A frame callback fires exactly once, on its exact frame") {
     CHECK(runs == 1);
 }
 
-//! F-FRAMEDEFER (fix scheduled with F-FIF, Batch C): a bucket for an already-passed frame
-//! should still fire on the next sweep instead of leaking until shutdown. This asserts the
-//! documented-correct behavior, which is currently known-broken — hence may_fail (reported,
-//! doesn't fail the suite). Flip to a hard CHECK when F-FRAMEDEFER lands.
-TEST_CASE("A past-frame bucket fires on a later sweep" * doctest::may_fail()) {
+//! A bucket whose frame already passed still fires on the next sweep
+//! instead of leaking until shutdown
+TEST_CASE("A past-frame bucket fires on a later sweep") {
     RHIDeferredExecutor executor;
     int runs = 0;
 
@@ -45,6 +45,28 @@ TEST_CASE("A past-frame bucket fires on a later sweep" * doctest::may_fail()) {
 
     executor.ProcessDeferredCallbacks(4);
     CHECK(runs == 1);
+}
+
+//! Every bucket at or before the current frame drains in one sweep, ascending; future buckets stay.
+TEST_CASE("Multiple overdue frame buckets fire together in ascending order") {
+    RHIDeferredExecutor executor;
+    std::vector<int> order;
+
+    executor.DeferExecuteToFrame(2, [&] { order.push_back(2); });
+    executor.DeferExecuteToFrame(5, [&] { order.push_back(5); });
+    executor.DeferExecuteToFrame(4, [&] { order.push_back(4); });
+    executor.DeferExecuteToFrame(9, [&] { order.push_back(9); }); // still in the future at frame 6
+
+    executor.ProcessDeferredCallbacks(6);
+
+    REQUIRE(order.size() == 3);
+    CHECK(order[0] == 2);
+    CHECK(order[1] == 4);
+    CHECK(order[2] == 5);
+
+    executor.ProcessDeferredCallbacks(9);
+    REQUIRE(order.size() == 4);
+    CHECK(order[3] == 9);
 }
 
 TEST_CASE("A callback may defer more work without deadlocking)") {

@@ -57,6 +57,9 @@ namespace Shift {
         RHIContext<API>& GetComputeContext() { return m_computeContext; }
         RHIContext<API>& GetTransferContext() { return m_transferContext; }
 
+        //! Start-of-frame work for the slot about to be recorded
+        void BeginFrame();
+
         BinarySemaphore* GetSwapchainAcquireSemaphore(uint32_t imageIdx) { return m_imageAvailable[imageIdx].get(); }
         BinarySemaphore* GetSwapchainRenderFinishedSemaphore(uint32_t imageIdx) { return m_renderFinished[imageIdx].get(); }
 
@@ -80,6 +83,9 @@ namespace Shift {
         void DeferExecuteToFrame(uint64_t frameIndexGlobal, RHIDeferredExecutor::Callback fn);
 
         void ProcessDeferredCallbacks();
+
+        //! Resolved GPU timing ranges of the most recently completed frame
+        [[nodiscard]] const std::vector<GPUTimeRange>& GetLastFrameGPUTimeRanges() const { return m_lastFrameGPUTimeRanges; }
 
         //! Force-run every pending deferred callback regardless of its gate. Intended for
         //! shutdown: call once the GPU is idle and BEFORE tearing down owned resources, so a
@@ -121,6 +127,10 @@ namespace Shift {
         std::atomic<uint64_t> m_timelineTransferValue{0};
         std::atomic<uint64_t> m_timelineComputeValue{0};
 
+        //! Graphics-timeline value each frame slot's last submit will reach, snapshotted in
+        //! EndFrame. Each next use of the FIF slot waits exactly on its own value
+        std::array<uint64_t, Conf::SHIFT_MAX_FRAMES_IN_FLIGHT> m_frameSlotGraphicsValue{};
+
         //! To be able to wait on presentation
         std::vector<Core::UniquePtr<Fence>> m_presentFences;
 
@@ -131,6 +141,9 @@ namespace Shift {
         //! Swapchain-related semaphores
         std::array<Core::UniquePtr<BinarySemaphore>, Conf::SHIFT_MAX_FRAMES_IN_FLIGHT> m_imageAvailable;
         std::vector<Core::UniquePtr<BinarySemaphore>> m_renderFinished;
+
+        //! Last completed frame's GPU timing ranges, refreshed in BeginFrame
+        std::vector<GPUTimeRange> m_lastFrameGPUTimeRanges;
     };
 
     template<ValidAPI API>
@@ -315,10 +328,23 @@ namespace Shift {
     }
 
     template<ValidAPI API>
-    void RenderHardwareInterface<API>::EndFrame() {
-        ProcessDeferredCallbacks();
+    void RenderHardwareInterface<API>::BeginFrame() {
+        WaitForGraphicsContext();
 
-        m_currentFrame = (++m_currentFrame) % Conf::SHIFT_MAX_FRAMES_IN_FLIGHT;
+        //! The slot's previous frame is now complete, so its timestamp results are readable
+        //! We read them before re-recording the cb (which clears the results)
+        m_lastFrameGPUTimeRanges = m_graphicsContexts[m_currentFrame].GetCommandBuffer().CollectTimeRanges();
+
+        //! Process deferred callbacks runs only when we do have free GPU resources
+        ProcessDeferredCallbacks();
+    }
+
+    template<ValidAPI API>
+    void RenderHardwareInterface<API>::EndFrame() {
+        //! Remember the graphics-timeline value this frame's final submit will reach
+        m_frameSlotGraphicsValue[m_currentFrame] = m_timelineGraphicsValue.load(std::memory_order_acquire);
+
+        m_currentFrame = (m_currentFrame + 1) % Conf::SHIFT_MAX_FRAMES_IN_FLIGHT;
         ++m_currentFrameGlobalIndex;
     }
 
@@ -365,7 +391,9 @@ namespace Shift {
 
     template<ValidAPI API>
     void RenderHardwareInterface<API>::WaitForGraphicsContext() {
-        m_timelineGraphics->Wait(m_timelineGraphicsValue);
+        //! Bugfix, now we wait on the previous frame in flight of the same slot's timeline value instead of the latest value
+        //! This actually enables frames in flight
+        m_timelineGraphics->Wait(m_frameSlotGraphicsValue[m_currentFrame]);
     }
 
     template<ValidAPI API>

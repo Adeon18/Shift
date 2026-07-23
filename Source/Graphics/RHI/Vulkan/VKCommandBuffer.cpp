@@ -12,6 +12,8 @@
 #include "VKSemaphore.hpp"
 #include "VKTexture.hpp"
 
+#include "Config/EngineConfig.hpp"
+
 namespace Shift::VK {
     CommandPool::CommandPool(const Device *device, EPoolQueueType type): m_device {device}, m_type {type} {
         auto queueFamiliIndices = m_device->GetQueueFamilyIndices();
@@ -55,6 +57,18 @@ namespace Shift::VK {
             m_buffer = VK_NULL_HANDLE;
             return;
         }
+
+        //! CONSPECT: GPU timing only makes sense on the primary graphics buffers that record a frame.
+        //! Secondaries are draw-only as their work is inside the primary's ranges, transfer/compute
+        //! queues have no spec-guaranteed timestamp support. But compute is woth adding in the future
+        if (m_poolType == EPoolQueueType::Graphics && !m_isSecondary) {
+            m_profiler.Init(m_device, Conf::MAX_GPU_TIME_RANGES_PER_FRAME);
+        }
+    }
+
+    CommandBuffer::~CommandBuffer() {
+        //! THis will fire only if the profiler is initted
+        m_profiler.Destroy();
     }
 
     void CommandBuffer::Reset() {
@@ -78,6 +92,18 @@ namespace Shift::VK {
         Util::CmdInsertDebugLabel(m_buffer, label, color);
     }
 
+    void CommandBuffer::PushTimeRange(const char* name) {
+        m_profiler.PushRange(m_buffer, name);
+    }
+
+    void CommandBuffer::PopTimeRange() {
+        m_profiler.PopRange(m_buffer);
+    }
+
+    std::vector<GPUTimeRange> CommandBuffer::CollectTimeRanges() {
+        return m_profiler.Collect();
+    }
+
 
     // bool CommandBuffer::BeginCommandBufferSingleTime() const {
     //     return BeginCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
@@ -93,6 +119,9 @@ namespace Shift::VK {
             Log(Error, "Failed to begin primary command buffer! Code: %d", static_cast<int>(res));
             return false;
         }
+
+        //! Reset the timestamp pool + drop the previous recording's range records, no-op if uninitted
+        m_profiler.ResetForRecording(m_buffer);
 
         return true;
     }

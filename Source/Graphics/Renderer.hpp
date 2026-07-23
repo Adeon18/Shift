@@ -80,6 +80,9 @@ namespace Shift::Graphics {
 
         [[nodiscard]] ShaderManager& GetShaderManager() { return m_shaderManager; }
 
+        //! Resolved GPU timing ranges of the most recently completed frame
+        [[nodiscard]] const std::vector<GPUTimeRange>& GetLastFrameGPUTimeRanges() const { return m_renderBackend.GetLastFrameGPUTimeRanges(); }
+
     private:
         [[nodiscard]] uint32_t AquireImage(bool *success);
         [[nodiscard]] bool PresentFinalImage(uint32_t imageIndex);

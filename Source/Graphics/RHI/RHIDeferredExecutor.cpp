@@ -54,12 +54,15 @@ namespace Shift {
                 }
             }
 
-            //! Each frame only 1 frame bucket is processed
-            if (auto it = m_frameCallbacks.find(currentFrameGlobalIdx); it != m_frameCallbacks.end()) {
+            //! Each frame process all frame buckets that are <= current frame
+            for (auto it = m_frameCallbacks.begin(); it != m_frameCallbacks.end();) {
+                if (it->first > currentFrameGlobalIdx) {
+                    break;
+                }
                 for (auto& fn: it->second) {
                     due.push_back(std::move(fn));
                 }
-                m_frameCallbacks.erase(it);
+                it = m_frameCallbacks.erase(it);
             }
         }
 

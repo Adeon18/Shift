@@ -17,6 +17,7 @@
 #include "Common/Swapchain.hpp"
 #include "Common/Shader.hpp"
 #include "Common/RenderPass.hpp"
+#include "Common/GPUProfiling.hpp"
 #include "Config/EngineConfig.hpp"
 
 #include "Utility/UtilStandard.hpp"
@@ -144,6 +145,10 @@ namespace Shift {
         //! Drop a single point label into the command stream
         void InsertDebugLabel(const char* label, const DebugLabelColor& color = {}) const;
 
+        //! Open/close a nestable named GPU timing range Independent of debug groups so passes are timed only where needed
+        void PushTimeRange(const char* name) const;
+        void PopTimeRange() const;
+
         //! Non const texture because recording a transition may change the texture state down the road as it logs the ptr
         void TransitionTexture(Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags);
     private:
@@ -216,6 +221,8 @@ namespace Shift {
 
     template<ValidAPI API>
     void RHIContext<API>::Destroy() {
+        //! Destroy the command buffer (and with it the GPU-zone query pool it owns) here
+        m_cmdBuffer.reset();
         m_cmdPool.reset();
     }
 
@@ -322,6 +329,16 @@ namespace Shift {
     template<ValidAPI API>
     void RHIEncoder<API>::InsertDebugLabel(const char* label, const DebugLabelColor& color) const {
         m_boundCB->InsertDebugLabel(label, color);
+    }
+
+    template<ValidAPI API>
+    void RHIEncoder<API>::PushTimeRange(const char* name) const {
+        m_boundCB->PushTimeRange(name);
+    }
+
+    template<ValidAPI API>
+    void RHIEncoder<API>::PopTimeRange() const {
+        m_boundCB->PopTimeRange();
     }
 
     template<ValidAPI API>

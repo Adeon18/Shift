@@ -340,25 +340,22 @@ namespace Shift::VK {
             m_physicalDevice = candidates.rbegin()->second;
             Util::PrintDeviceName(m_physicalDevice, "Chosen device: ");
 
-            VkPhysicalDeviceProperties props{};
-            vkGetPhysicalDeviceProperties(m_physicalDevice, &props);
-            m_caps.version.apiVersionMajor = VK_VERSION_MAJOR(props.apiVersion);
-            m_caps.version.apiVersionMinor = VK_VERSION_MINOR(props.apiVersion);
-            m_caps.version.driverVersion = props.driverVersion;
-            m_caps.version.deviceName = std::string(props.deviceName).empty() ? props.deviceName : std::string("Unknown");
+            vkGetPhysicalDeviceProperties(m_physicalDevice, &m_deviceProperties);
+            m_caps.version.apiVersionMajor = VK_VERSION_MAJOR(m_deviceProperties.apiVersion);
+            m_caps.version.apiVersionMinor = VK_VERSION_MINOR(m_deviceProperties.apiVersion);
+            m_caps.version.driverVersion = m_deviceProperties.driverVersion;
+            m_caps.version.deviceName = std::string(m_deviceProperties.deviceName).empty() ? m_deviceProperties.deviceName : std::string("Unknown");
         } else {
             LogVerbose(Critical, "Failed to find a suitable GPU!");
             return false;
         }
 
         // basic timestamp checks (kept from your code)
-        VkPhysicalDeviceProperties deviceProps{};
-        vkGetPhysicalDeviceProperties(m_physicalDevice, &deviceProps);
-        if (deviceProps.limits.timestampPeriod == 0) {
+        if (m_deviceProperties.limits.timestampPeriod == 0) {
             LogVerbose(Critical, "GPU does not support timestamp queries!");
             return false;
         }
-        if (!deviceProps.limits.timestampComputeAndGraphics) {
+        if (!m_deviceProperties.limits.timestampComputeAndGraphics) {
             LogVerbose(Critical, "GPU does not support timestamp queries for all queue families!");
             return false;
         }
