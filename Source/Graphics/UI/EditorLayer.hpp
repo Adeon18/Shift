@@ -44,42 +44,42 @@ namespace Shift::Editor {
             ImGuiPlatform::NewFrame();
             ImGui::NewFrame();
 
-            // Create the invisible DockSpace covering the whole window
+            //! Create the invisible DockSpace covering the whole window
             ImGuiID dockspaceID = ImGui::DockSpaceOverViewport(ImGui::GetMainViewport()->ID, ImGui::GetMainViewport());
 
             static bool firstTime = true;
             if (firstTime) {
                 firstTime = false;
 
-                // 2. Clear any existing layout for this ID to ensure a clean slate
+                //! Clear any existing layout for this ID to ensure a clean slate
                 ImGui::DockBuilderRemoveNode(dockspaceID);
                 ImGui::DockBuilderAddNode(dockspaceID, ImGuiDockNodeFlags_DockSpace);
                 ImGui::DockBuilderSetNodeSize(dockspaceID, ImGui::GetMainViewport()->Size);
 
-                // 3. Split the Node
-                // We start with the 'main' ID and split chunks off it.
-                // The "Remaining" part of the split becomes the variable passed as the last argument.
+                //! Split the Node
+                //! We start with the 'main' ID and split chunks off it.
+                //! The "Remaining" part of the split becomes the variable passed as the last argument.
 
                 ImGuiID dock_main_id = dockspaceID;
                 ImGuiID dock_id_right = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Right, 0.25f, nullptr, &dock_main_id);
                 ImGuiID dock_id_left = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Left, 0.20f, nullptr, &dock_main_id);
                 ImGuiID dock_id_bottom = ImGui::DockBuilderSplitNode(dock_main_id, ImGuiDir_Down, 0.25f, nullptr, &dock_main_id);
 
-                // 4. Dock Windows into the Nodes
-                // "Viewport" goes into the center (dock_main_id)
+                //! Dock Windows into the Nodes
+                //! "Viewport" goes into the center (dock_main_id)
                 ImGui::DockBuilderDockWindow("Viewport", dock_main_id);
 
-                // Example: If you have a "Properties" panel, put it on the right
+                //! Right
                 ImGui::DockBuilderDockWindow("Properties", dock_id_right);
+                ImGui::DockBuilderDockWindow("GPU Timing", dock_id_right);
 
-                // Example: "Scene Hierarchy" on the left
+                //! Left
                 ImGui::DockBuilderDockWindow("Scene Hierarchy", dock_id_left);
 
-                // Example: "Content Browser" or "Console" on the bottom
+                //! Bottom
                 ImGui::DockBuilderDockWindow("Content Browser", dock_id_bottom);
                 ImGui::DockBuilderDockWindow("Console", dock_id_bottom);
 
-                // 5. Commit the layout
                 ImGui::DockBuilderFinish(dockspaceID);
             }
         }

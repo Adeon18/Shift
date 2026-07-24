@@ -10,6 +10,7 @@
 
 #include "Graphics/UI/ViewportPanel.hpp"
 #include "Graphics/UI/GenericPanel.hpp"
+#include "Graphics/UI/GPUTimingPanel.hpp"
 
 namespace Shift {
     bool ShiftEngine::Init(const EngineDescriptor& desc) {
@@ -38,6 +39,9 @@ namespace Shift {
         m_editorLayer.AddPanel<Editor::GenericPanel>("Scene Hierarchy");
         m_editorLayer.AddPanel<Editor::GenericPanel>("Content Browser");
         m_editorLayer.AddPanel<Editor::GenericPanel>("Console");
+        m_editorLayer.AddPanel<Editor::GPUTimingPanel>(
+            [this]() -> const std::vector<GPUTimeRange>& { return m_renderer->GetLastFrameGPUTimeRanges(); }
+        );
 
         m_renderer->RegisterViewportTexture();
 
