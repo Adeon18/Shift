@@ -139,13 +139,14 @@ namespace Shift {
         void SetScissor(const Rect2D& scissor) const;
 
         //! Debug label region for validation output and captures, must be paired. No-op in
-        //! builds without debug-utils. Portable. 0 color -> up to impl
-        void PushDebugGroup(const char* label, const DebugLabelColor& color = {}) const;
+        //! builds without debug-utils. Portable. 0 color -> up to impl. timed=true also opens a
+        //! colored GPU timing range
+        void PushDebugGroup(const char* label, const DebugLabelColor& color = {}, bool timed = false) const;
         void PopDebugGroup() const;
         //! Drop a single point label into the command stream
         void InsertDebugLabel(const char* label, const DebugLabelColor& color = {}) const;
 
-        //! Open/close a nestable named GPU timing range Independent of debug groups so passes are timed only where needed
+        //! Open/close a nestable GPU timing range WITHOUT a debug label
         void PushTimeRange(const char* name) const;
         void PopTimeRange() const;
 
@@ -317,8 +318,8 @@ namespace Shift {
     }
 
     template<ValidAPI API>
-    void RHIEncoder<API>::PushDebugGroup(const char* label, const DebugLabelColor& color) const {
-        m_boundCB->PushDebugGroup(label, color);
+    void RHIEncoder<API>::PushDebugGroup(const char* label, const DebugLabelColor& color, bool timed) const {
+        m_boundCB->PushDebugGroup(label, color, timed);
     }
 
     template<ValidAPI API>

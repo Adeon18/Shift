@@ -28,8 +28,9 @@ namespace Shift::VK {
         //! Cmd-reset the pool (must be outside a render pass) + drop the previous recording's ranges
         void ResetForRecording(VkCommandBuffer cmd);
 
-        //! Open/close a nestable named range: allocates a tree slot and writes its timestamp
-        void PushRange(VkCommandBuffer cmd, const char* name);
+        //! Open/close a nestable named range: allocates a tree slot and writes its timestamp.
+        //! color tints the resolved range for the timing UI
+        void PushRange(VkCommandBuffer cmd, const char* name, const DebugLabelColor& color = {});
         void PopRange(VkCommandBuffer cmd);
 
         //! Resolve the previous recording's ranges. Caller guarantees the GPU finished the buffer

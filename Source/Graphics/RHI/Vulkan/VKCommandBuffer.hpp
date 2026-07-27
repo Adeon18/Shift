@@ -74,14 +74,15 @@ namespace Shift::VK {
 
         void SetDebugName(const char* name) const;
 
-        //! Debug-utils label region must be paired. Zeroed color = tool default
-        void PushDebugGroup(const char* label, const DebugLabelColor& color = {}) const;
-        void PopDebugGroup() const;
+        //! Debug-utils label region, must be paired. Zeroed color = tool default. When timed, also
+        //! opens a GPU timing range tinted with color - should be the default way to time stuff
+        void PushDebugGroup(const char* label, const DebugLabelColor& color = {}, bool timed = false);
+        void PopDebugGroup();
         //! Drop a single point label into the command stream
         void InsertDebugLabel(const char* label, const DebugLabelColor& color = {}) const;
 
-        //! Open/close a nestable named GPU timing range. Must be paired. No-op on
-        //! non-graphics/secondary buffers. Mutates CPU-side range tracking, hence non-const
+        //! Open/close a nestable GPU timing range WITHOUT a debug label Must be
+        //! paired. No-op on non-graphics/secondary buffers. Mutates CPU-side range tracking, hence non-const
         void PushTimeRange(const char* name);
         void PopTimeRange();
         //! Resolve the previous recording's range timings. Caller guarantees the GPU is done
@@ -277,6 +278,9 @@ namespace Shift::VK {
 
         //! GPU timing - VK-based ofc
         GPUProfiler m_profiler;
+
+        //! Timed open ddebug group tracking
+        std::vector<uint8_t> m_debugGroupTimed;
 
         EPoolQueueType m_poolType = EPoolQueueType::Graphics;
         bool m_isSecondary = false;

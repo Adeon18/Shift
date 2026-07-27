@@ -171,12 +171,11 @@ namespace Shift::Graphics {
         gContext.ResetCmds();
         CheckCritical(gContext.BeginCmds(), "Failed to begin the command Buffer!");
 
-        //! Outermost GPU timing range
-        gEncoder->PushTimeRange("Frame");
+        //! Outermost timed group
+        gEncoder->PushDebugGroup("Frame", {0.55f, 0.45f, 0.85f, 1.0f}, true);
 
         if (shouldRenderMainViewport) {
-            gEncoder->PushDebugGroup("ViewportPass", {0.30f, 0.65f, 0.35f, 1.0f});
-            gEncoder->PushTimeRange("ViewportPass");
+            gEncoder->PushDebugGroup("ViewportPass", {0.30f, 0.65f, 0.35f, 1.0f}, true);
             // gContext.TransitionTexture(m_SRHI.GetSwapchain().GetSwapchainTexture(imageIndex), EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
             gEncoder->TransitionTexture(*viewportTexture, EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
 
@@ -250,13 +249,11 @@ namespace Shift::Graphics {
             gEncoder->EndRenderPass();
 
             gEncoder->TransitionTexture(*viewportTexture, EResourceLayout::ShaderReadOnlyOptimal, EPipelineStageFlags::FragmentShaderBit);
-            gEncoder->PopTimeRange();
             gEncoder->PopDebugGroup();
         }
 
         if (shouldRenderMainWindow) {
-            gEncoder->PushDebugGroup("UIPass", {0.35f, 0.55f, 0.90f, 1.0f});
-            gEncoder->PushTimeRange("UIPass");
+            gEncoder->PushDebugGroup("UIPass", {0.35f, 0.55f, 0.90f, 1.0f}, true);
             // 1. Transition Swapchain to WRITE
             gEncoder->TransitionTexture(m_renderBackend.GetSwapchain().GetSwapchainTexture(imageIndex), EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
 
@@ -278,11 +275,10 @@ namespace Shift::Graphics {
             gEncoder->EndRenderPass();
 
             gEncoder->TransitionTexture(m_renderBackend.GetSwapchain().GetSwapchainTexture(imageIndex), EResourceLayout::Present, EPipelineStageFlags::BottomOfPipeBit);
-            gEncoder->PopTimeRange();
             gEncoder->PopDebugGroup();
         }
 
-        gEncoder->PopTimeRange(); //! Frame end
+        gEncoder->PopDebugGroup(); //! Frame end
 
         CheckCritical(gContext.EndCmds(), "Failed to end the command Buffer!");
 

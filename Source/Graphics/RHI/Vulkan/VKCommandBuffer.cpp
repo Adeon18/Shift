@@ -73,6 +73,7 @@ namespace Shift::VK {
 
     void CommandBuffer::Reset() {
         m_textureStates.clear();
+        m_debugGroupTimed.clear();
         vkResetCommandBuffer(m_buffer, 0);
     }
 
@@ -80,11 +81,22 @@ namespace Shift::VK {
         Util::SetDebugName(m_device->Get(), VK_OBJECT_TYPE_COMMAND_BUFFER, reinterpret_cast<uint64_t>(m_buffer), name);
     }
 
-    void CommandBuffer::PushDebugGroup(const char* label, const DebugLabelColor& color) const {
+    void CommandBuffer::PushDebugGroup(const char* label, const DebugLabelColor& color, bool timed) {
         Util::CmdBeginDebugLabel(m_buffer, label, color);
+        m_debugGroupTimed.push_back(timed ? 1 : 0);
+        if (timed) {
+            m_profiler.PushRange(m_buffer, label, color);
+        }
     }
 
-    void CommandBuffer::PopDebugGroup() const {
+    void CommandBuffer::PopDebugGroup() {
+        const bool wasTimed = !m_debugGroupTimed.empty() && m_debugGroupTimed.back() != 0;
+        if (!m_debugGroupTimed.empty()) {
+            m_debugGroupTimed.pop_back();
+        }
+        if (wasTimed) {
+            m_profiler.PopRange(m_buffer);
+        }
         Util::CmdEndDebugLabel(m_buffer);
     }
 
@@ -113,6 +125,7 @@ namespace Shift::VK {
         assert(!m_isSecondary);
 
         m_textureStates.clear();
+        m_debugGroupTimed.clear();
 
         auto info = Util::CreateBeginCommandBufferInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr);
         if ( VkCheckV(vkBeginCommandBuffer(m_buffer, &info), res) ) {
@@ -131,6 +144,7 @@ namespace Shift::VK {
 
         //! Secondaries never record but this is just in case
         m_textureStates.clear();
+        m_debugGroupTimed.clear();
 
         std::vector<VkFormat> colorFormats;
 

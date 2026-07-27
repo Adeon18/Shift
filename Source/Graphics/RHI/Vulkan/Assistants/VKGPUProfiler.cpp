@@ -62,8 +62,8 @@ namespace Shift::VK {
         m_tree.Clear();
     }
 
-    void GPUProfiler::PushRange(VkCommandBuffer cmd, const char* name) {
-        const uint32_t slot = m_tree.OpenRange(name);
+    void GPUProfiler::PushRange(VkCommandBuffer cmd, const char* name, const DebugLabelColor& color) {
+        const uint32_t slot = m_tree.OpenRange(name, color);
         if (slot != GPUTimeRangeTree::INVALID_SLOT) {
             WriteTimestamp(cmd, slot);
         }

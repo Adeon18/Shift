@@ -47,6 +47,7 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     //! pipeline must yield at least one positive sample somewhere across the run.
     float maxFrameMs = 0.0f;
     bool sawFrameZone = false;
+    Shift::DebugLabelColor frameColor{};
     auto tick = [&](int frames) {
         for (int i = 0; i < frames; ++i) {
             REQUIRE(engine.Tick(FIXED_DT));
@@ -54,6 +55,7 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
                 if (range.name == "Frame") {
                     sawFrameZone = true;
                     maxFrameMs = std::max(maxFrameMs, range.milliseconds);
+                    frameColor = range.color;
                 }
             }
         }
@@ -133,6 +135,10 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     CHECK_MESSAGE(maxFrameMs > 0.0f,
                   "GPU 'Frame' zone never had a positive duration -- timestamps are not resolving");
     CHECK(maxFrameMs < 1000.0f);
+
+    //! Check if frame debug range color has a timing color as well
+    const bool frameColored = (frameColor.r > 0.0f) || (frameColor.g > 0.0f) || (frameColor.b > 0.0f) || (frameColor.a > 0.0f);
+    CHECK_MESSAGE(frameColored, "timed debug-group color did not thread through to the resolved GPU range");
 
     engine.Cleanup();
 
