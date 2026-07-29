@@ -8,6 +8,8 @@
 #include <set>
 #include <cmath>
 #include <algorithm>
+#include <optional>
+#include <span>
 
 #include "Utility/Logging/LogMacros.hpp"
 #include "Utility/Vulkan/VKInclude.hpp"
@@ -65,8 +67,20 @@ namespace Shift::VK::Util {
     bool CheckDeviceExtensionSupport(VkPhysicalDevice device, const std::vector<const char*>& desiredExtensions);
     SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface);
 
-    //! Queue family finder
-    QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface);
+    //! Queue family policy, as a pure function of the driver-reported tables.
+    //! Split out from FindQueueFamilies so it is testable without a device or a surface
+    //! \param families queue family properties, indexed by family
+    //! \param presentSupport per-family present capability, parallel to `families`
+    //! \param forceUnified collapse everything onto the graphics family where legal
+    QueueFamilyIndices SelectQueueFamilies(std::span<const VkQueueFamilyProperties> families,
+                                           std::span<const VkBool32> presentSupport,
+                                           bool forceUnified);
+
+    //! Queue family finder: queries the device tables, then applies SelectQueueFamilies
+    QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface, bool forceUnified = false);
+
+    //! Log the resolved family table plus any capability caveats
+    void LogQueueFamilySelection(VkPhysicalDevice device, const QueueFamilyIndices& indices);
 
     //! Utilities for swapchain selection
     VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);

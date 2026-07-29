@@ -2,6 +2,7 @@
 
 #include <array>
 #include <atomic>
+#include <bit>
 #include <mutex>
 
 #include "GLFW/glfw3.h"
@@ -236,35 +237,161 @@ namespace Shift::VK::Util {
         return details;
     }
 
-    QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface) {
+    //! ========= Queue family selection ===========
+    namespace {
+        //! The spec guarantees that a family which has GRAPHICS or COMPUTE also supports
+        //! transfer operations, whether or not VK_QUEUE_TRANSFER_BIT is actually set
+        constexpr VkQueueFlags EffectiveQueueFlags(VkQueueFlags flags) {
+            if (flags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT)) {
+                flags |= VK_QUEUE_TRANSFER_BIT;
+            }
+            return flags;
+        }
+
+        //! Pick the family that can do `wanted` while sharing as little else as possible.
+        //! [Claude did this:0]
+        //! Ranking, best first:
+        //!   1. fewest of the `avoid` capabilities -- this is the rule that actually finds the
+        //!      dedicated DMA family and the async-compute family. Ranking on the raw flags
+        //!      value instead would rate a GRAPHICS|TRANSFER family (5) above a dedicated
+        //!      TRANSFER|SPARSE one (12), since GRAPHICS is the cheapest bit
+        //!   2. numerically smallest queueFlags -- among equally dedicated families the
+        //!      high-valued engine bits (VIDEO_DECODE 0x20, VIDEO_ENCODE 0x40,
+        //!      OPTICAL_FLOW 0x100) sort those families to the back for free
+        //!   3. lowest family index
+        std::optional<uint32_t> PickQueueFamily(std::span<const VkQueueFamilyProperties> families,
+                                                VkQueueFlags wanted, VkQueueFlags avoid) {
+            std::optional<uint32_t> best;
+            int bestPenalty = 0;
+            VkQueueFlags bestFlags = 0;
+
+            for (uint32_t i = 0; i < families.size(); ++i) {
+                if (families[i].queueCount == 0) continue;
+
+                const VkQueueFlags flags = EffectiveQueueFlags(families[i].queueFlags);
+                if ((flags & wanted) != wanted) continue;
+
+                const int penalty = std::popcount(flags & avoid);
+                const bool better = !best.has_value()
+                                    || penalty < bestPenalty
+                                    || (penalty == bestPenalty && flags < bestFlags);
+                if (better) {
+                    best = i;
+                    bestPenalty = penalty;
+                    bestFlags = flags;
+                }
+            }
+            return best;
+        }
+    }
+
+    QueueFamilyIndices SelectQueueFamilies(std::span<const VkQueueFamilyProperties> families,
+                                           std::span<const VkBool32> presentSupport,
+                                           bool forceUnified) {
         QueueFamilyIndices indices;
 
+        //! Graphics: first capable family
+        for (uint32_t i = 0; i < families.size(); ++i) {
+            if (families[i].queueCount == 0) continue;
+            if (families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+                indices.graphicsFamily = i;
+                break;
+            }
+        }
+
+        indices.computeFamily  = PickQueueFamily(families, VK_QUEUE_COMPUTE_BIT, VK_QUEUE_GRAPHICS_BIT);
+        indices.transferFamily = PickQueueFamily(families, VK_QUEUE_TRANSFER_BIT,
+                                                 VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
+
+        auto canPresent = [&](uint32_t family) {
+            return family < presentSupport.size() && presentSupport[family] == VK_TRUE;
+        };
+
+        //! Present: stay on the graphics family whenever it can. That keeps the
+        //! swapchain EXCLUSIVE and the whole acquire -> render -> present chain on one queue
+        //! TODO: Perhaps this is why imgui floating windows did not work???
+        if (indices.graphicsFamily.has_value() && canPresent(*indices.graphicsFamily)) {
+            indices.presentFamily = indices.graphicsFamily;
+        } else {
+            for (uint32_t i = 0; i < families.size(); ++i) {
+                if (canPresent(i)) {
+                    indices.presentFamily = i;
+                    break;
+                }
+            }
+        }
+
+        if (forceUnified && indices.graphicsFamily.has_value()) {
+            const uint32_t graphics = *indices.graphicsFamily;
+            const VkQueueFlags graphicsFlags = EffectiveQueueFlags(families[graphics].queueFlags);
+            indices.transferFamily = graphics;
+
+            //! Compute is NOT implied by graphics
+            if (graphicsFlags & VK_QUEUE_COMPUTE_BIT) {
+                indices.computeFamily = graphics;
+            } else {
+                Log(Warn, "forceUnifiedQueues: graphics family {} has no compute support, keeping the separate compute family", graphics);
+            }
+
+            if (canPresent(graphics)) {
+                indices.presentFamily = graphics;
+            } else {
+                Log(Warn, "forceUnifiedQueues: graphics family {} cannot present, keeping the separate present family", graphics);
+            }
+        }
+
+        return indices;
+    }
+
+    QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surface, bool forceUnified) {
         uint32_t count = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(device, &count, nullptr);
         std::vector<VkQueueFamilyProperties> families(count);
         vkGetPhysicalDeviceQueueFamilyProperties(device, &count, families.data());
 
-        int i = 0;
-        for (const auto& fam : families) {
-            if (fam.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-                indices.graphicsFamily = i;
+        //! A null surface means we are only asking about compute/transfer capability
+        //! But tbf I don't design Shift fot this for now
+        std::vector<VkBool32> presentSupport(count, VK_FALSE);
+        if (surface != VK_NULL_HANDLE) {
+            for (uint32_t i = 0; i < count; ++i) {
+                vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport[i]);
             }
-            if (fam.queueFlags & VK_QUEUE_COMPUTE_BIT) {
-                indices.computeFamily = i;
-            }
-            if (fam.queueFlags & VK_QUEUE_TRANSFER_BIT) {
-                indices.transferFamily = i;
-            }
-            VkBool32 presentSupport = false;
-            if (surface != VK_NULL_HANDLE) {
-                vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
-                if (presentSupport)
-                    indices.presentFamily = i;
-            }
-            ++i;
         }
 
-        return indices;
+        return SelectQueueFamilies(families, presentSupport, forceUnified);
+    }
+
+    void LogQueueFamilySelection(VkPhysicalDevice device, const QueueFamilyIndices& indices) {
+        uint32_t count = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &count, nullptr);
+        std::vector<VkQueueFamilyProperties> families(count);
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &count, families.data());
+
+        auto describe = [&](const char* role, const std::optional<uint32_t>& family) {
+            if (!family.has_value()) {
+                Log(Trace, "  {:<9} family: <none>", role);
+                return;
+            }
+            const auto& props = families[*family];
+            Log(Trace, "  {:<9} family {} (flags 0x{:X}, {} queue(s))", role, *family, props.queueFlags, props.queueCount);
+        };
+
+        Log(Trace, "Resolved queue families ({} available):", count);
+        describe("graphics", indices.graphicsFamily);
+        describe("present", indices.presentFamily);
+        describe("compute", indices.computeFamily);
+        describe("transfer", indices.transferFamily);
+
+        //! Whole-mip copies are legal under any granularity, but partial-region copies on this
+        //! family would have to be aligned to it
+        if (indices.transferFamily.has_value()) {
+            const auto& granularity = families[*indices.transferFamily].minImageTransferGranularity;
+            const bool isUnitGranularity = granularity.width == 1 && granularity.height == 1 && granularity.depth == 1;
+            if (!isUnitGranularity) {
+                Log(Warn, "Transfer family {} has minImageTransferGranularity ({}, {}, {}): partial image copies on it must be aligned to that",
+                    *indices.transferFamily, granularity.width, granularity.height, granularity.depth);
+            }
+        }
     }
 
     VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
@@ -321,7 +448,7 @@ namespace Shift::VK::Util {
         else if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) score += 500;
 
         // Queue checks
-        if (!FindQueueFamilies(device, surface).isComplete()) return 0;
+        if (!FindQueueFamilies(device, surface, required.VK_forceUnifiedQueues).isComplete()) return 0;
 
         // Device extensions
         if (!CheckDeviceExtensionSupport(device, ResolveDeviceExtensions(required))) return 0;

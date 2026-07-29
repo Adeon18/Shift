@@ -76,7 +76,7 @@ namespace Shift::VK {
         // query features into persistent memory
         vkGetPhysicalDeviceFeatures2(m_physicalDevice, &m_enabledFeatures.features2);
 
-        // queue availability
+        // queue availability. A capability request so we do not force the all same queues var here
         auto qIndices = Util::FindQueueFamilies(m_physicalDevice, VK_NULL_HANDLE);
         bool hasComputeQueue = qIndices.computeFamily.has_value();
 
@@ -239,8 +239,10 @@ namespace Shift::VK {
 
 
     bool Device::CreateLogicalDevice(VkSurfaceKHR surface) {
-        m_queueFamilyIndices = Util::FindQueueFamilies(m_physicalDevice, surface);
+        //! And here we actually may force same queues
+        m_queueFamilyIndices = Util::FindQueueFamilies(m_physicalDevice, surface, m_required.VK_forceUnifiedQueues);
         CheckExit(m_queueFamilyIndices.isComplete());
+        Util::LogQueueFamilySelection(m_physicalDevice, m_queueFamilyIndices);
 
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
         std::set<uint32_t> uniqueQueueFamilies;

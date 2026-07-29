@@ -62,6 +62,8 @@ namespace Shift {
         bool VK_hostQueryReset = false;
         bool VK_presentWait = false;
         bool VK_maintenance1 = false;
+        //! Combine compute/transfer/present onto the graphics family, for testing or if we want to disable async?
+        bool VK_forceUnifiedQueues      = false;
     };
 
     //! Backend-agnostic application identity passed to the RHI at bring-up. The RHI parses
