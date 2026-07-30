@@ -94,6 +94,29 @@ namespace Shift::VK::Util {
     // TODO: Only basic args for now
     VkPipelineDepthStencilStateCreateInfo CreateDepthStencilStateInfo();
 
+    //! Accesses a layout based on the source (already-happened) side of a barrier.
+    //! Unknown -> NONE
+    VkAccessFlags2 LayoutToSrcAccessMask2(VkImageLayout layout);
+
+    //! Accesses a layout based on the destination (about-to-happen) side of a barrier.
+    //! Unknown -> NONE
+    VkAccessFlags2 LayoutToDstAccessMask2(VkImageLayout layout);
+
+    //! Build a sync2 image barrier, deriving both access masks from the layout pair.
+    //!
+    //! Queue-family ownership transfer uses this function
+    //! \param srcQueueFamily releasing family, or VK_QUEUE_FAMILY_IGNORED
+    //! \param dstQueueFamily acquiring family, or VK_QUEUE_FAMILY_IGNORED
+    VkImageMemoryBarrier2 CreateImageMemoryBarrier2(
+            VkImage image,
+            VkImageLayout oldLayout,
+            VkImageLayout newLayout,
+            VkPipelineStageFlags2 srcStage,
+            VkPipelineStageFlags2 dstStage,
+            uint32_t srcQueueFamily,
+            uint32_t dstQueueFamily,
+            VkImageSubresourceRange subresourceRange);
+
     //! Create dynamic rendering attachment - for color attachments by default
     VkRenderingAttachmentInfoKHR CreateRenderingAttachmentInfo(VkImageView view, VkImageLayout layout, VkClearValue val, VkAttachmentLoadOp loadOp, VkAttachmentStoreOp storeOp);
 

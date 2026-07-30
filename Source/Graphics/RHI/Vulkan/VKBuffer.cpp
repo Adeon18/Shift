@@ -56,7 +56,17 @@ namespace Shift::VK {
         VkBufferCreateInfo bufCreateInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
         bufCreateInfo.size = m_desc.size;
         bufCreateInfo.usage = BufferTypeToUsageFlags(m_desc.type);
-        bufCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        //! When we have multiple queue families, buffers can stay concurrent as they do not have any compression
+        //! as images do, hence, we lose minimal, if any, perf on this. Ofc, when we only have one queue family we go exclusive
+        const std::vector<uint32_t>& sharedFamilies = m_device->GetUniqueQueueFamilyIndices();
+        if (sharedFamilies.size() > 1) {
+            bufCreateInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
+            bufCreateInfo.queueFamilyIndexCount = static_cast<uint32_t>(sharedFamilies.size());
+            bufCreateInfo.pQueueFamilyIndices = sharedFamilies.data();
+        } else {
+            bufCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        }
 
         VmaAllocationCreateInfo allocCreateInfo = {};
         //! TODO [OPTIMIZATION]: Look into PREFER_GPU/CPU flags

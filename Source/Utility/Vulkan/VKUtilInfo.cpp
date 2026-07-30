@@ -1,6 +1,85 @@
 #include "VKUtilInfo.hpp"
 
+#include "Utility/Logging/LogMacros.hpp"
+
 namespace Shift::VK::Util {
+    VkAccessFlags2 LayoutToSrcAccessMask2(VkImageLayout layout) {
+        switch (layout) {
+            case VK_IMAGE_LAYOUT_UNDEFINED:
+                return VK_ACCESS_2_NONE;
+            case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+                return VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+            case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+                return VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+                return VK_ACCESS_2_TRANSFER_READ_BIT;
+            case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+                return VK_ACCESS_2_TRANSFER_WRITE_BIT;
+            case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+                return VK_ACCESS_2_SHADER_READ_BIT;
+            case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+                //! Nothing to wait for, the presentation engine's read is ordered by the semaphore
+                return VK_ACCESS_2_NONE;
+            default:
+                Log(Error, "Unsupported source layout!");
+                return VK_ACCESS_2_NONE;
+        }
+    }
+
+    VkAccessFlags2 LayoutToDstAccessMask2(VkImageLayout layout) {
+        switch (layout) {
+            case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+                return VK_ACCESS_2_TRANSFER_WRITE_BIT;
+            case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+                return VK_ACCESS_2_TRANSFER_READ_BIT;
+            case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+                return VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+            case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+                return VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+                return VK_ACCESS_2_SHADER_READ_BIT;
+            case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+                return VK_ACCESS_2_NONE;
+            default:
+                Log(Error, "Unsupported destination layout!");
+                return VK_ACCESS_2_NONE;
+        }
+    }
+
+    VkImageMemoryBarrier2 CreateImageMemoryBarrier2(
+            VkImage image,
+            VkImageLayout oldLayout,
+            VkImageLayout newLayout,
+            VkPipelineStageFlags2 srcStage,
+            VkPipelineStageFlags2 dstStage,
+            uint32_t srcQueueFamily,
+            uint32_t dstQueueFamily,
+            VkImageSubresourceRange subresourceRange)
+    {
+        VkImageMemoryBarrier2 barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+        barrier.oldLayout = oldLayout;
+        barrier.newLayout = newLayout;
+        //! sync2 folds the stage masks into the barrier itself
+        barrier.srcStageMask = srcStage;
+        barrier.dstStageMask = dstStage;
+        //! Only meaningful for a queue-family ownership transfer, IGNORED otherwise
+        barrier.srcQueueFamilyIndex = srcQueueFamily;
+        barrier.dstQueueFamilyIndex = dstQueueFamily;
+
+        barrier.image = image;
+        barrier.subresourceRange = subresourceRange;
+
+        //! A half with no stage scope has no access scope either
+        //! Queue ownership transfer needs this
+        barrier.srcAccessMask = (srcStage == VK_PIPELINE_STAGE_2_NONE)
+            ? VK_ACCESS_2_NONE : LayoutToSrcAccessMask2(oldLayout);
+        barrier.dstAccessMask = (dstStage == VK_PIPELINE_STAGE_2_NONE)
+            ? VK_ACCESS_2_NONE : LayoutToDstAccessMask2(newLayout);
+
+        return barrier;
+    }
+
     VkImageViewCreateInfo CreateImageViewInfo(
             VkImage image,
             VkImageViewType viewType,

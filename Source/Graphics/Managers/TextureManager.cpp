@@ -46,6 +46,9 @@ namespace Shift::Graphics {
         //! freed immediatly (tho ur welcome to try if you want to have fun:D)
         Texture* retired = m_pool.Release(handle);
         if (retired) {
+            //! Drop the acquires for this texture as we have deleted it
+            m_rhi->CancelPendingAcquires(retired);
+
             auto payload = m_rhi->GetGraphicsWaitPayload();
             m_rhi->DeferExecute(payload.semaphore, payload.value, [retired]() { delete retired; });
         }
@@ -147,7 +150,12 @@ namespace Shift::Graphics {
             BufferOpDescriptor{stagingBuf.get(), 0},
             TextureCopyDescriptor{texture, Extent3D{texture->GetWidth(), texture->GetHeight(), texture->GetDepth()}, Offset3D{}, subresourceRange});
 
-        // encoder->TransitionTexture(*texture, EResourceLayout::ShaderReadOnlyOptimal, EPipelineStageFlags::FragmentShaderBit);
+        //! The upload runs on the transfer queue but every reader is a shader on the graphics
+        //! one, so the image is handed over here rather than merely transitioned. This is the
+        //! release half plus the layout change, the acquire half is recorded on the graphics
+        //! context by RHI::FlushPendingAcquires before anything samples it
+        encoder->ReleaseQueueOwnership(*texture, EContextType::Graphics,
+                                       EResourceLayout::ShaderReadOnlyOptimal, EPipelineStageFlags::FragmentShaderBit);
 
         m_usedStagingBuffers.push_back(std::move(stagingBuf));
 

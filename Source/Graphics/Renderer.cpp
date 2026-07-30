@@ -115,13 +115,14 @@ namespace Shift::Graphics {
 
         RenderContext& gContext = m_renderBackend.GetGraphicsContext();
         gContext.BeginCmds();
+        std::vector waitPayloads = m_renderBackend.FlushPendingAcquires(gContext);
 
         gContext.CreateCommandEncoder()->PushDebugGroup("TextureUploadFinalize", {0.90f, 0.80f, 0.30f, 1.0f});
         m_textureManager->UploadTexturesToGPU(gContext.CreateCommandEncoder());
         gContext.CreateCommandEncoder()->PopDebugGroup();
 
         gContext.EndCmds();
-        std::array waitPayloads{m_renderBackend.GetTransferWaitPayload()};
+        waitPayloads.push_back(m_renderBackend.GetTransferWaitPayload());
         std::array sigPayloads2{m_renderBackend.ReserveGraphicsSignalPayload()};
         CheckCritical(gContext.SubmitCmds(waitPayloads, sigPayloads2, {}, {}), "Failed to submit graphics context!");
 
@@ -170,6 +171,7 @@ namespace Shift::Graphics {
 
         gContext.ResetCmds();
         CheckCritical(gContext.BeginCmds(), "Failed to begin the command Buffer!");
+        std::vector waitPayloads = m_renderBackend.FlushPendingAcquires(gContext);
 
         //! Outermost timed group
         gEncoder->PushDebugGroup("Frame", {0.55f, 0.45f, 0.85f, 1.0f}, true);
@@ -282,7 +284,7 @@ namespace Shift::Graphics {
 
         CheckCritical(gContext.EndCmds(), "Failed to end the command Buffer!");
 
-        std::array waitPayloads{m_renderBackend.GetTransferWaitPayload()};
+        waitPayloads.push_back(m_renderBackend.GetTransferWaitPayload());
         std::array sigPayloads{m_renderBackend.ReserveGraphicsSignalPayload()};
         if (shouldRenderMainWindow) {
             std::array imgAcquirePayload{m_renderBackend.GetSwapchainAcquireSemaphore(m_renderBackend.GetCurrentFrame())};

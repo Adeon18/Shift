@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "Config/EngineConfig.hpp"
 
 #include "../Common/Capabilities.hpp"
@@ -243,6 +245,15 @@ namespace Shift::VK {
         m_queueFamilyIndices = Util::FindQueueFamilies(m_physicalDevice, surface, m_required.VK_forceUnifiedQueues);
         CheckExit(m_queueFamilyIndices.isComplete());
         Util::LogQueueFamilySelection(m_physicalDevice, m_queueFamilyIndices);
+
+        //! Resource-touching families only *sus sound effect*
+        for (const uint32_t family : {m_queueFamilyIndices.graphicsFamily.value(),
+                                      m_queueFamilyIndices.computeFamily.value(),
+                                      m_queueFamilyIndices.transferFamily.value()}) {
+            if (std::find(m_uniqueQueueFamilyIndices.begin(), m_uniqueQueueFamilyIndices.end(), family) == m_uniqueQueueFamilyIndices.end()) {
+                m_uniqueQueueFamilyIndices.push_back(family);
+            }
+        }
 
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
         std::set<uint32_t> uniqueQueueFamilies;
@@ -570,6 +581,18 @@ namespace Shift::VK {
 
     void Device::DestroyImageSampler(VkSampler sampler) const {
         vkDestroySampler(m_device, sampler, nullptr);
+    }
+
+    uint32_t Device::GetQueueFamilyIndex(EPoolQueueType type) const {
+        switch (type) {
+            case EPoolQueueType::Compute:
+                return m_queueFamilyIndices.computeFamily.value();
+            case EPoolQueueType::Transfer:
+                return m_queueFamilyIndices.transferFamily.value();
+            case EPoolQueueType::Graphics:
+            default:
+                return m_queueFamilyIndices.graphicsFamily.value();
+        }
     }
 
     VkFormat Device::FindSupportedDepthFormat() const {

@@ -3,6 +3,7 @@
 #include "Utility/Vulkan/VKDebugUtils.hpp"
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 #include "Utility/Vulkan/VKUtilRHI.hpp"
+#include <algorithm>
 #include <iostream>
 #include <array>
 #include <winsock2.h>
@@ -16,22 +17,8 @@
 
 namespace Shift::VK {
     CommandPool::CommandPool(const Device *device, EPoolQueueType type): m_device {device}, m_type {type} {
-        auto queueFamiliIndices = m_device->GetQueueFamilyIndices();
-
-        uint32_t queueFamilyIndex = 0;
-        switch (m_type) {
-            case EPoolQueueType::Compute:
-                queueFamilyIndex = queueFamiliIndices.computeFamily.value();
-                break;
-            case EPoolQueueType::Transfer:
-                queueFamilyIndex = queueFamiliIndices.transferFamily.value();
-                break;
-            case EPoolQueueType::Graphics:
-            default:
-                queueFamilyIndex = queueFamiliIndices.graphicsFamily.value();
-        }
-
-        m_commandPool = m_device->CreateCommandPool(Util::CreateCommandPoolInfo(queueFamilyIndex));
+        m_commandPool = m_device->CreateCommandPool(
+            Util::CreateCommandPoolInfo(m_device->GetQueueFamilyIndex(m_type)));
     }
 
     void CommandPool::Reset() const {
@@ -74,6 +61,8 @@ namespace Shift::VK {
     void CommandBuffer::Reset() {
         m_textureStates.clear();
         m_debugGroupTimed.clear();
+        //! Handoffs go to 1 recording
+        m_recordedHandoffs.clear();
         vkResetCommandBuffer(m_buffer, 0);
     }
 
@@ -126,6 +115,8 @@ namespace Shift::VK {
 
         m_textureStates.clear();
         m_debugGroupTimed.clear();
+        //! Handoffs go to 1 recording
+        m_recordedHandoffs.clear();
 
         auto info = Util::CreateBeginCommandBufferInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr);
         if ( VkCheckV(vkBeginCommandBuffer(m_buffer, &info), res) ) {
@@ -145,6 +136,8 @@ namespace Shift::VK {
         //! Secondaries never record but this is just in case
         m_textureStates.clear();
         m_debugGroupTimed.clear();
+        //! Handoffs go to 1 recording
+        m_recordedHandoffs.clear();
 
         std::vector<VkFormat> colorFormats;
 
@@ -221,74 +214,13 @@ namespace Shift::VK {
     void CommandBuffer::VK_TransferImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
                                             VkPipelineStageFlags2 srcStage, VkPipelineStageFlags2 dstStage,
                                             VkImageSubresourceRange subresourceRange) const {
-        VkImageMemoryBarrier2 barrier{};
-        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-        barrier.oldLayout = oldLayout;
-        barrier.newLayout = newLayout;
-        // sync2 folds the stage masks into the barrier itself
-        barrier.srcStageMask = srcStage;
-        barrier.dstStageMask = dstStage;
-        // This is filled only if we use it to do queue family ownership transfer
-        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-
-        barrier.image = image;
-        barrier.subresourceRange = subresourceRange;
-
-        // Access masks are derived from the layout each side represents.
-        switch (oldLayout) {
-            case VK_IMAGE_LAYOUT_UNDEFINED:
-                barrier.srcAccessMask = VK_ACCESS_2_NONE;
-                break;
-            case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-                barrier.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-                break;
-            case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-                barrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-                break;
-            case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-                barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
-                break;
-            case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-                barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-                break;
-            case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-                barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-                break;
-            case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-                //! Nothing to wait for
-                barrier.srcAccessMask = VK_ACCESS_2_NONE;
-                break;
-            default:
-                spdlog::error("Unsupported source layout!");
-                break;
-        }
-
-        switch (newLayout) {
-            case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-                barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-                break;
-            case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-                barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
-                break;
-            case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-                barrier.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-                break;
-            case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-                barrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-                break;
-            case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-                barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-                break;
-            case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-                barrier.dstAccessMask = VK_ACCESS_2_NONE;
-                break;
-            default:
-                spdlog::error("Unsupported destination layout!");
-                break;
-        }
-
-        VK_SetPipelineBarrierImage(barrier, 0);
+        //! Same-queue barrier: no ownership changes hands, so both families are IGNORED
+        VK_SetPipelineBarrierImage(
+            Util::CreateImageMemoryBarrier2(
+                image, oldLayout, newLayout, srcStage, dstStage,
+                VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
+                subresourceRange),
+            0);
     }
 
     void CommandBuffer::VK_TransferImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
@@ -539,11 +471,7 @@ namespace Shift::VK {
         return {texture.VK_GetSubmittedLayout(), texture.VK_GetSubmittedStage()};
     }
 
-    void CommandBuffer::TransitionTexture(Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags) {
-        //! Barriers can only be done by a primary buffer, as secondaries run only after beginrenderpass
-        //! where transitions are forbidden
-        assert(!m_isSecondary);
-
+    VkImageSubresourceRange CommandBuffer::WholeImageRange(const Texture& texture) {
         //! Derive the barrier aspect from the texture's real aspect
         //! VK_REMAINING_* covers every mip and array layer
         VkImageSubresourceRange subresourceRange{};
@@ -552,11 +480,23 @@ namespace Shift::VK {
         subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
         subresourceRange.baseArrayLayer = 0;
         subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+        return subresourceRange;
+    }
+
+    void CommandBuffer::TransitionTexture(Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags) {
+        //! Barriers can only be done by a primary buffer, as secondaries run only after beginrenderpass
+        //! where transitions are forbidden
+        assert(!m_isSecondary);
 
         const VkImageLayout dstLayout = Util::ShiftToVKResourceLayout(newLayout);
         const VkPipelineStageFlags2 dstStage = Util::ShiftToVKPipelineStageFlags2(newStageFlags);
 
         TextureTrackedState& trackedState = ResolveTextureState(texture);
+
+        //! Early exit as no layout to change
+        if (trackedState.layout == dstLayout && trackedState.stage == dstStage) {
+            return;
+        }
 
         VK_TransferImageLayout(
             texture.VK_GetImage(),
@@ -564,10 +504,80 @@ namespace Shift::VK {
             dstLayout,
             trackedState.stage,
             dstStage,
-            subresourceRange
+            WholeImageRange(texture)
         );
 
         trackedState = {dstLayout, dstStage};
+    }
+
+    void CommandBuffer::ReleaseQueueOwnership(Texture& texture, EPoolQueueType dstQueue,
+                                              EResourceLayout dstLayout, EPipelineStageFlags dstStage) {
+        assert(!m_isSecondary);
+
+        const uint32_t srcFamily = m_device->GetQueueFamilyIndex(m_poolType);
+        const uint32_t dstFamily = m_device->GetQueueFamilyIndex(dstQueue);
+
+        //! Nothing to hand over when both queue are on 1 family
+        if (srcFamily == dstFamily) {
+            TransitionTexture(texture, dstLayout, dstStage);
+            return;
+        }
+
+        const VkImageLayout newLayout = Util::ShiftToVKResourceLayout(dstLayout);
+        const VkPipelineStageFlags2 acquireStage = Util::ShiftToVKPipelineStageFlags2(dstStage);
+
+        //! The handoff and the post-release state both need the pre-release one
+        const TextureTrackedState trackedState = ResolveTextureState(texture);
+        const VkImageLayout oldLayout = trackedState.layout;
+        const VkPipelineStageFlags2 srcStage = trackedState.stage;
+
+        //! Release queue ownership, no dst stages are here as they are on the other queue
+        VK_SetPipelineBarrierImage(
+            Util::CreateImageMemoryBarrier2(
+                texture.VK_GetImage(),
+                oldLayout, newLayout,
+                srcStage, VK_PIPELINE_STAGE_2_NONE,
+                srcFamily, dstFamily,
+                WholeImageRange(texture)),
+            0);
+
+        m_recordedHandoffs.push_back(QueueOwnershipHandoff{
+            .texture = &texture,
+            .srcFamily = srcFamily,
+            .dstFamily = dstFamily,
+            .oldLayout = oldLayout,
+            .newLayout = newLayout,
+            .dstStage = acquireStage
+        });
+
+        //! For the rest of THIS recording has the correct stage and layout but it is left
+        //! kind of useless as the other queue will soon get it
+        ResolveTextureState(texture) = {newLayout, VK_PIPELINE_STAGE_2_NONE};
+    }
+
+    void CommandBuffer::AcquireQueueOwnership(const QueueOwnershipHandoff& handoff) {
+        assert(!m_isSecondary);
+        assert(handoff.texture != nullptr);
+        //! The acquire half only completes the transfer when it executes on the destination
+        //! family's queue. Recorded anywhere else it is a no-op that also consumes the handoff
+        assert(handoff.dstFamily == m_device->GetQueueFamilyIndex(m_poolType));
+
+        //! Acquire image based on stored data
+        VK_SetPipelineBarrierImage(
+            Util::CreateImageMemoryBarrier2(
+                handoff.texture->VK_GetImage(),
+                handoff.oldLayout, handoff.newLayout,
+                VK_PIPELINE_STAGE_2_NONE, handoff.dstStage,
+                handoff.srcFamily, handoff.dstFamily,
+                WholeImageRange(*handoff.texture)),
+            0);
+
+        //! Log the texture
+        ResolveTextureState(*handoff.texture) = {handoff.newLayout, handoff.dstStage};
+    }
+
+    std::vector<QueueOwnershipHandoff> CommandBuffer::TakeRecordedHandoffs() {
+        return std::move(m_recordedHandoffs);
     }
 
     void CommandBuffer::SetViewport(Viewport viewport) const {

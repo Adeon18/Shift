@@ -9,6 +9,8 @@
 
 #include "Utility/Vulkan/VKUtilCore.hpp"
 
+#include "Graphics/RHI/Common/CommandBuffer.hpp"
+
 #include "VKInstance.hpp"
 
 namespace Shift::VK {
@@ -152,6 +154,12 @@ namespace Shift::VK {
         [[nodiscard]] VkQueue GetComputeQueue() const { return m_computeQueue; }
         [[nodiscard]] const Util::QueueFamilyIndices& GetQueueFamilyIndices() const { return m_queueFamilyIndices; }
 
+        //! Queue family that work recorded for this pool type is submitted to
+        [[nodiscard]] uint32_t GetQueueFamilyIndex(EPoolQueueType type) const;
+
+        //! Return families that can touch resources, so graphics, transfer, compute, but not present
+        [[nodiscard]] const std::vector<uint32_t>& GetUniqueQueueFamilyIndices() const { return m_uniqueQueueFamilyIndices; }
+
         ~Device();
     private:
         //! Create a logical device
@@ -184,6 +192,7 @@ namespace Shift::VK {
         VkQueue m_computeQueue = VK_NULL_HANDLE;
 
         Util::QueueFamilyIndices m_queueFamilyIndices;
+        std::vector<uint32_t> m_uniqueQueueFamilyIndices;
         RHICapabilities m_caps{};
         RHIRequiredFeatures m_required{};
 

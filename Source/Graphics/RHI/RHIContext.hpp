@@ -5,8 +5,11 @@
 #ifndef SHIFT_RHICONTEXT_HPP
 #define SHIFT_RHICONTEXT_HPP
 
+#include <algorithm>
 #include <concepts>
 #include <array>
+#include <iterator>
+#include <vector>
 
 #include "Common/Capabilities.hpp"
 #include "Common/Types.hpp"
@@ -53,6 +56,13 @@ namespace Shift {
     template<typename T>
     concept ValidAPI = std::same_as<T, RHI::Vulkan>;
 
+    //! A semaphore plus the value to wait for or signal, depending on
+    //! which side of a submit it is handed to. Used in RHILocal and Global
+    struct SubmitTimelinePayload {
+        TimelineSemaphore* semaphore = nullptr;
+        uint64_t value = 0;
+    };
+
     //! Forward dec for further per API local constructs (device, instance, some descriptor specific stuff)
     template<ValidAPI API> struct RHILocal {};
 
@@ -69,6 +79,16 @@ namespace Shift {
 namespace Shift {
 
     enum class EContextType { Graphics, Compute, Transfer };
+
+    //! Which command-pool/queue family a context of this type submits to
+    inline EPoolQueueType ToPoolQueueType(EContextType type) {
+        switch (type) {
+            case EContextType::Graphics: return EPoolQueueType::Graphics;
+            case EContextType::Compute:  return EPoolQueueType::Compute;
+            case EContextType::Transfer: return EPoolQueueType::Transfer;
+        }
+        return EPoolQueueType::Graphics;
+    }
 
     template<ValidAPI API>
     class RHIEncoder {
@@ -152,6 +172,9 @@ namespace Shift {
 
         //! Non const texture because recording a transition may change the texture state down the road as it logs the ptr
         void TransitionTexture(Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags);
+
+        //! Release ownership of this texture from the queue family
+        void ReleaseQueueOwnership(Texture& texture, EContextType dstContext, EResourceLayout dstLayout, EPipelineStageFlags dstStage);
     private:
         CommandBuffer* m_boundCB = nullptr;
     };
@@ -178,10 +201,7 @@ namespace Shift {
         [[nodiscard]] RHIEncoder<API>* CreateCommandEncoder() { return &m_encoder; }
 
         //! The value is other wait or submit depending on the context
-        struct SubmitTimelinePayload {
-            TimelineSemaphore* semaphore = nullptr;
-            uint64_t value = 0;
-        };
+        using SubmitTimelinePayload = Shift::SubmitTimelinePayload;
 
         [[nodiscard]] bool SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads, std::span<SubmitTimelinePayload> sigSemPayloads) const;
 
@@ -356,10 +376,17 @@ namespace Shift {
     {
         assert(!m_isSecondary);
 
+        //! If we have repeating semaphores -> collapse them into one
         std::vector<TimelineSemaphore*> waitSems;
         std::vector<uint64_t> waitVals;
 
         for (auto& p: waitSemPayloads) {
+            const auto existing = std::ranges::find(waitSems, p.semaphore);
+            if (existing != waitSems.end()) {
+                uint64_t& val = waitVals[std::distance(waitSems.begin(), existing)];
+                val = std::max(val, p.value);
+                continue;
+            }
             waitSems.push_back(p.semaphore);
             waitVals.push_back(p.value);
         }
@@ -371,7 +398,23 @@ namespace Shift {
             sigVals.push_back(p.value);
         }
 
-        return m_cmdBuffer->Submit(waitSems, waitVals, sigSems, sigVals, waitBinSems, sigBinSems);
+        if (!m_cmdBuffer->Submit(waitSems, waitVals, sigSems, sigVals, waitBinSems, sigBinSems)) {
+            return false;
+        }
+
+        //! We take the pending handoffs only on the succesful submit
+        auto handoffs = m_cmdBuffer->TakeRecordedHandoffs();
+        if (!handoffs.empty()) {
+            //! A release is useless without a timeline point the acquirer can wait on.
+            //! So, any timeline semaphore will do here but to keep it consistent, its the first one and we submit the first one to always be
+            //! the one the Flush pending acquires function returns. This works because when we submit the next CB, we need
+            //! to wait on the resources from the prev CB to be done in order to acquire their ownership
+            assert(!sigSemPayloads.empty());
+            const SubmitTimelinePayload& releasePoint = sigSemPayloads.front();
+            m_local->QueuePendingAcquires(std::move(handoffs), releasePoint.semaphore, releasePoint.value);
+        }
+
+        return true;
     }
 
     template<ValidAPI API>
@@ -394,13 +437,15 @@ namespace Shift {
     }
 
     template<ValidAPI API>
+    void RHIEncoder<API>::ReleaseQueueOwnership(Texture& texture, EContextType dstContext,
+        EResourceLayout dstLayout, EPipelineStageFlags dstStage)
+    {
+        m_boundCB->ReleaseQueueOwnership(texture, ToPoolQueueType(dstContext), dstLayout, dstStage);
+    }
+
+    template<ValidAPI API>
     EPoolQueueType RHIContext<API>::GetQueueType(EContextType type) {
-        switch (type) {
-            case EContextType::Graphics: return EPoolQueueType::Graphics;
-            case EContextType::Compute:  return EPoolQueueType::Compute;
-            case EContextType::Transfer: return EPoolQueueType::Transfer;
-        }
-        return EPoolQueueType::Graphics;
+        return ToPoolQueueType(type);
     }
 
 } // Shift

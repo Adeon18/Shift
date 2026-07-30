@@ -38,6 +38,16 @@ namespace Shift::VK {
     };
     ASSERT_INTERFACE(ICommandPool, CommandPool);
 
+    //! A data struct that transfers information about the resource state for syncing queue ownership handoff
+    struct QueueOwnershipHandoff {
+        Texture* texture = nullptr;
+        uint32_t srcFamily = 0;
+        uint32_t dstFamily = 0;
+        VkImageLayout oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        VkImageLayout newLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        VkPipelineStageFlags2 dstStage = VK_PIPELINE_STAGE_2_NONE;
+    };
+
     class CommandBuffer {
         friend VK::ImGuiBackend;
     public:
@@ -100,7 +110,23 @@ namespace Shift::VK {
         //! per-recording view of the texture (seeded from its last-submitted state on first touch)
         //! the texture itself is only updated when this command buffer is submitted
         //! Secondary CBs are draw only so this is a primary CB only call
+        //! Oh and nothing happens if new and old layouts are the same
         void TransitionTexture(Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags);
+
+        [[nodiscard]] EPoolQueueType GetPoolType() const { return m_poolType; }
+
+        //! Release the ownership of the resource from the current queue
+        //! Just a texture transition if queue families are the same
+        //! Otherwise does the release half, and logs the dst aquire half so RHI could poll it in a global buffer
+        //! and other queues could do acquire barriers from this logged data
+        void ReleaseQueueOwnership(Texture& texture, EPoolQueueType dstQueue, EResourceLayout dstLayout, EPipelineStageFlags dstStage);
+
+        //! Record the acquire half from the data that ReleaseQueueOwnership logged on the other queue
+        void AcquireQueueOwnership(const QueueOwnershipHandoff& handoff);
+
+        //! Take the queue ownership transfer handoffs for this recording.
+        //! Take and not Get because we are doing std::move
+        [[nodiscard]] std::vector<QueueOwnershipHandoff> TakeRecordedHandoffs();
 
         void ExecuteSecondaryBuffers(std::span<CommandBuffer*> secondaryBuffs) const;
 
@@ -266,6 +292,9 @@ namespace Shift::VK {
         //! last submitted one that is stored in the texture
         [[nodiscard]] TextureTrackedState PeekTextureState(const Texture& texture) const;
 
+        //! Every mip and array layer of the texture
+        [[nodiscard]] static VkImageSubresourceRange WholeImageRange(const Texture& texture);
+
         //! API SPECIFIC, backend-only (friended). DO NOT USE OUTSIDE THE VK BACKEND.
         [[nodiscard]] VkCommandBuffer VK_Get() const { return m_buffer; }
         const Device* m_device = nullptr;
@@ -275,6 +304,9 @@ namespace Shift::VK {
 
         //! This is gonna be up to 10 textures the most so vector is chill, trust me
         std::vector<std::pair<Texture*, TextureTrackedState>> m_textureStates;
+
+        //! Queue ownership handoffs
+        std::vector<QueueOwnershipHandoff> m_recordedHandoffs;
 
         //! GPU timing - VK-based ofc
         GPUProfiler m_profiler;

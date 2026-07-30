@@ -69,6 +69,18 @@ namespace Shift {
         //! Waits until the swapchain binary semaprhores are released
         void WaitForGraphicsContext();
 
+        ///! ------------------- Queue ownership handoffs (F-QFOT) ------------------- !///
+
+        //! Call after BeginCmd to get all the acquire data for this CB for new textures
+        [[nodiscard]] std::vector<SubmitTimelinePayload>
+        FlushPendingAcquires(RHIContext<API>& ctx) { return m_local.FlushPendingAcquiresIntoCB(ctx.GetCommandBuffer()); }
+
+        //! Drop the handoff for a certain texture if we are freeeing it
+        void CancelPendingAcquires(Texture* texture) { m_local.CancelPendingAcquires(texture); }
+
+        //! Block until every transfer submitted so far has completed on the GPU
+        void WaitForTransferIdle() { m_timelineTransfer->Wait(m_timelineTransferValue.load(std::memory_order_acquire)); }
+
         void WaitForImagePresent(uint32_t imageIndex);
 
         RHIContext<API>::SubmitTimelinePayload GetTransferWaitPayload();
@@ -226,6 +238,8 @@ namespace Shift {
     void RenderHardwareInterface<API>::Destroy() {
 
         m_deferredExecutor.FlushAllDeferredCallbacks();
+
+        m_local.ClearPendingAcquires();
 
         m_local.swapchain.reset();
 
