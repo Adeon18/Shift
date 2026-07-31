@@ -148,6 +148,11 @@ namespace Shift::Editor {
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
+        //! Do not change the file if we don't even see the window, so the ini file chnages do not clutter the system
+        if (!window.IsVisible()) {
+            io.IniFilename = nullptr;
+        }
+
         ImGui::GetStyle().WindowRounding = 0.0f;
 
         //! ImGui platform + renderer backends, both behind backend-agnostic

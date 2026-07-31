@@ -185,16 +185,20 @@ namespace Shift::VK {
     }
 
     void CommandBuffer::CopyBufferToTexture(const BufferOpDescriptor& srcBuf, const TextureCopyDescriptor& dstTex) const {
+        const TextureSubresourceRange& range = dstTex.subresourceRange;
+
+        //! Ah this is some bullshit, if you are reading this, don't -- I will fix later
+        assert(range.levelCount == 1 && "CopyBufferToTexture uploads a single mip level per call");
+
         VkBufferImageCopy region{};
         region.bufferOffset = 0;
         region.bufferRowLength = 0;
         region.bufferImageHeight = 0;
 
-        //! TODO: [BUG] Subresource range don't wotrk
-        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        region.imageSubresource.mipLevel = 0;
-        region.imageSubresource.baseArrayLayer = 0;
-        region.imageSubresource.layerCount = 1;
+        region.imageSubresource.aspectMask = Util::ShiftToVKTextureAspect(range.aspect);
+        region.imageSubresource.mipLevel = range.baseMipLevel;
+        region.imageSubresource.baseArrayLayer = range.baseArrayLayer;
+        region.imageSubresource.layerCount = range.layerCount;
 
         region.imageOffset = {dstTex.offset.x, dstTex.offset.y, dstTex.offset.z };
         region.imageExtent = {

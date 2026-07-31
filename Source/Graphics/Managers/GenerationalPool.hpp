@@ -26,8 +26,10 @@ namespace Shift::Graphics {
         //! Opaque, generation-checked reference into the pool. Distinct nested type per pool
         //! instantiation, so a TextureHandle can never be passed where a PipelineHandle is expected.
         struct Handle {
-            uint32_t slotIdx = 0;
-            uint32_t generation = 0;
+            static constexpr uint32_t INVALID_IDX = UINT32_MAX;
+
+            uint32_t slotIdx = INVALID_IDX;
+            uint32_t generation = INVALID_IDX;
             bool operator==(const Handle& o) const noexcept = default;
         };
 

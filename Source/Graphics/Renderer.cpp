@@ -153,6 +153,9 @@ namespace Shift::Graphics {
             shouldRenderMainViewport = editor->ShouldRenderViewportPanel() || firstFrame;
         }
 
+        //! Pending uploads from the texture manager
+        CheckCritical(m_textureManager->SubmitPendingUploads(), "Failed to submit pending texture uploads!");
+
         //! Reclaim this frame slot
         m_renderBackend.BeginFrame();
 
@@ -172,6 +175,9 @@ namespace Shift::Graphics {
         gContext.ResetCmds();
         CheckCritical(gContext.BeginCmds(), "Failed to begin the command Buffer!");
         std::vector waitPayloads = m_renderBackend.FlushPendingAcquires(gContext);
+
+        //! Register new uploads if any to GPU
+        m_textureManager->RegisterSubmittedUploads();
 
         //! Outermost timed group
         gEncoder->PushDebugGroup("Frame", {0.55f, 0.45f, 0.85f, 1.0f}, true);

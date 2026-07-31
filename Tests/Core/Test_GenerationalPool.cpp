@@ -37,6 +37,20 @@ TEST_CASE("A default handle on an empty pool resolves to nothing") {
     CHECK_FALSE(pool.IsValid({}));
 }
 
+TEST_CASE("A default handle never aliases the first inserted slot") {
+    GenerationalPool<Resource> pool;
+    Resource res{7};
+
+    //! The first insert hands out {slotIdx 0, generation 0}, which is exactly what a zeroed
+    //! Handle would hold. Slot 0 is the permanently-resident placeholder in the texture pool, so
+    //! a default handle resolving to it would quietly serve a live resource instead of nothing
+    const auto first = pool.Insert(&res);
+    REQUIRE(pool.Get(first) == &res);
+
+    CHECK(pool.Get({}) == nullptr);
+    CHECK_FALSE(pool.IsValid({}));
+}
+
 TEST_CASE("Release hands the resource back exactly once and kills the handle") {
     GenerationalPool<Resource> pool;
     Resource res{1};

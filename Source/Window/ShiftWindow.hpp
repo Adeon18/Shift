@@ -64,6 +64,8 @@ namespace Shift {
         [[nodiscard]] GLFWwindow* GetHandle() const { return m_window; }
         [[nodiscard]] uint32_t GetWidth() const { return m_width; }
         [[nodiscard]] uint32_t GetHeight() const { return m_height; }
+        //! Whether this window was created on screen. False means an automated run, not a session
+        [[nodiscard]] bool IsVisible() const { return m_visible; }
 
 		~ShiftWindow();
 	private:

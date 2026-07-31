@@ -8,20 +8,22 @@
 namespace Shift {
 
     std::optional<RawTextureData> StbLoader::LoadFromFile(const std::string& path) {
-        int w, h, channels;
+        int w, h, fileChannels;
         //! TODO: [FEATURE]: One day I will support any desired channel
-        stbi_uc* pixels = stbi_load(path.c_str(), &w, &h, &channels, STBI_rgb_alpha);
+        stbi_uc* pixels = stbi_load(path.c_str(), &w, &h, &fileChannels, STBI_rgb_alpha);
 
         if (!pixels) return std::nullopt;
+
+        //! This will bite my ass later for sure
+        constexpr uint32_t DELIVERED_CHANNELS = 4;
 
         RawTextureData data;
         data.width = static_cast<uint32_t>(w);
         data.height = static_cast<uint32_t>(h);
-        //! STB Image does not know the format, the manager has to infer it from the channels
-        data.channels = channels;
+        data.channels = DELIVERED_CHANNELS;
         data.mipLevels = 1;
 
-        size_t size = w * h * channels;
+        size_t size = static_cast<size_t>(w) * static_cast<size_t>(h) * DELIVERED_CHANNELS;
         data.data.resize(size);
         memcpy(data.data.data(), pixels, size);
         data.mipOffsets.push_back(0);

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "ShiftEngine.hpp"
+#include "Graphics/Managers/TextureManager.hpp"
 #include "Graphics/RHI/Common/Capabilities.hpp"
 #include "Utility/UtilStandard.hpp"
 
@@ -48,6 +49,7 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     float maxFrameMs = 0.0f;
     bool sawFrameZone = false;
     Shift::DebugLabelColor frameColor{};
+
     auto tick = [&](int frames) {
         for (int i = 0; i < frames; ++i) {
             REQUIRE(engine.Tick(FIXED_DT));
@@ -124,7 +126,37 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
                   "expected exactly the triangle pipeline to rebuild after marking its VS dirty");
     tick(10);
 
-    //! Phase 6: late deferred callbacks land while frames keep flowing
+    //! Mid-run texture upload
+    //! The point is that this runs on a warm engine rather than during boot: the copy goes out on
+    //! the transfer queue between two frames, crosses to graphics as a queue-ownership
+    //! release/acquire pair, and has its bindless slot written in the very frame that acquires it
+    auto& textures = renderer.GetTextureManager();
+    const Shift::Graphics::TextureHandle uploaded =
+            textures.LoadTextureDeferred(Shift::Util::GetShiftRoot() + "Assets/Textures/ShiftIcon.jpg");
+    CHECK_MESSAGE(textures.IsValid(uploaded), "mid-run texture load did not produce a live slot");
+    //! Submit happens on the next frame, the acquire and the bindless write on that same frame
+    tick(5);
+    CHECK_MESSAGE(textures.IsValid(uploaded), "the mid-run texture did not survive its own upload");
+
+    //! A file that does not exist must resolve to the placeholder: a usable, always-resident slot.
+    //! Not a live slot holding nullptr (the next ForEachLive sweep would dereference it) and not
+    //! an invalid handle either, since slotIdx is the bindless index a shader would go on to use
+    const Shift::Graphics::TextureHandle missing =
+            textures.LoadTextureDeferred(Shift::Util::GetShiftRoot() + "Assets/Textures/NoSuchTexture.png");
+    CHECK_MESSAGE(textures.IsValid(missing), "a failed load handed out an unusable handle");
+    CHECK_MESSAGE(missing == textures.GetPlaceholderHandle(),
+                  "a failed load did not fall back to the placeholder");
+
+    //! Unloading the fallback must be refused: it is shared by every slot that has no image yet,
+    //! so releasing it would strand those descriptors on a deleted image
+    textures.UnloadTexture(missing);
+    CHECK_MESSAGE(textures.IsValid(textures.GetPlaceholderHandle()),
+                  "the placeholder was unloaded out from under every slot referencing it");
+
+    //! ...and none of that wedged the pending-upload list
+    tick(3);
+
+    //! Phase 7: late deferred callbacks land while frames keep flowing
     tick(60);
 
     //! Over the whole run at least one measured frame did real GPU work (frame 0
