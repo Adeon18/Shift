@@ -21,6 +21,9 @@ namespace Shift::VK {
         [[nodiscard]] uint64_t GetSize() const { return m_desc.size; }
         [[nodiscard]] const char* GetName() const { return m_desc.name.c_str(); }
 
+        //! Buffer Device Address, 0 if buffer does not have one.
+        [[nodiscard]] uint64_t GetDeviceAddress() const;
+
         //! Get the mapped buffer ptr, only works for mapped buffers at creation, or after calling Map!
         //! \return The mapped buffer pointer, nullptr if not mapped
         [[nodiscard]] void* GetMapped() { return m_allocationInfo.pMappedData; }
@@ -50,6 +53,9 @@ namespace Shift::VK {
         VkBuffer m_buffer = VK_NULL_HANDLE;
         VmaAllocation m_allocation = VK_NULL_HANDLE;
         VmaAllocationInfo m_allocationInfo{};
+
+        //! Filled only if BDA is supported
+        uint64_t m_deviceAddress = 0;
 
         bool valid = false;
 

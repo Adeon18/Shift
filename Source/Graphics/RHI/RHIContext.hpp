@@ -135,6 +135,13 @@ namespace Shift {
         //! \param pipeline The Pipeline wrapper
         void BindGraphicsPipeline(const Pipeline& pipeline) const;
 
+        //! Write the pipeline's push-constant block.
+        //! \param pipeline pipeline whose layout declares the range
+        //! \param data pointer to at least size bytes
+        //! \param size bytes to write
+        //! \param offset byte offset RELATIVE to the start of the declared range
+        void SetPushConstants(const Pipeline& pipeline, const void* data, uint32_t size, uint32_t offset = 0) const;
+
         void DrawIndexed(const DrawIndexedConfig& drawConf) const;
 
         //! Draw/Draw instanced
@@ -308,6 +315,11 @@ namespace Shift {
     template<ValidAPI API>
     void RHIEncoder<API>::BindGraphicsPipeline(const Pipeline &pipeline) const {
         m_boundCB->BindGraphicsPipeline(pipeline);
+    }
+
+    template<ValidAPI API>
+    void RHIEncoder<API>::SetPushConstants(const Pipeline& pipeline, const void* data, uint32_t size, uint32_t offset) const {
+        m_boundCB->SetPushConstants(pipeline, data, size, offset);
     }
 
     template<ValidAPI API>

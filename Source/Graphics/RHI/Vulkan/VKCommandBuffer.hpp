@@ -193,6 +193,13 @@ namespace Shift::VK {
         //! \param pipeline The Pipeline wrapper
         void BindGraphicsPipeline(const Pipeline& pipeline) const;
 
+        //! Update the pipeline's push-constant block.
+        //! \param pipeline pipeline whose layout declares the range
+        //! \param data pointer to at least size bytes
+        //! \param size bytes to write
+        //! \param offset byte offset RELATIVE to the start of the declared range
+        void SetPushConstants(const Pipeline& pipeline, const void* data, uint32_t size, uint32_t offset) const;
+
         //! [VK backend only function] Expects a higher level RHI manager to fill in the API specific data
         //! \param descriptorSets range of ds
         //! \param dynamicOffsets dynamic offsets if any

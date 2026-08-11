@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <string>
+#include <utility>
 
 #include "Config/EngineConfig.hpp"
 
@@ -11,6 +13,73 @@
 #include "Utility/Assertions.hpp"
 
 namespace Shift::VK {
+    namespace {
+        constexpr double BYTES_PER_MIB = 1024.0 * 1024.0;
+
+        //! Eeport of the device's memory heaps and types, next to the queue-family log.
+        //! Read it for two things: the VRAM budget, and whether a DEVICE_LOCAL|HOST_VISIBLE type
+        //! spans the whole of VRAM
+        void LogMemoryHeaps(VkPhysicalDevice device) {
+            VkPhysicalDeviceMemoryProperties memProps{};
+            vkGetPhysicalDeviceMemoryProperties(device, &memProps);
+
+            Log(Trace, "Device memory ({} heap(s), {} type(s)):", memProps.memoryHeapCount, memProps.memoryTypeCount);
+
+            VkDeviceSize largestDeviceLocalHeap = 0;
+            for (uint32_t i = 0; i < memProps.memoryHeapCount; ++i) {
+                const VkMemoryHeap& heap = memProps.memoryHeaps[i];
+                const bool isDeviceLocal = (heap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) != 0;
+                if (isDeviceLocal) {
+                    largestDeviceLocalHeap = std::max(largestDeviceLocalHeap, heap.size);
+                }
+                Log(Trace, "  heap {}: {:.0f} MiB{}", i, static_cast<double>(heap.size) / BYTES_PER_MIB,
+                    isDeviceLocal ? " [DEVICE_LOCAL]" : "");
+            }
+
+            //! The largest heap reachable by a type that is both device-local and host-visible
+            VkDeviceSize largestHostVisibleDeviceLocal = 0;
+            for (uint32_t i = 0; i < memProps.memoryTypeCount; ++i) {
+                const VkMemoryType& type = memProps.memoryTypes[i];
+                const VkMemoryPropertyFlags flags = type.propertyFlags;
+
+                std::string decoded;
+                const std::pair<VkMemoryPropertyFlagBits, const char*> named[] = {
+                    {VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,  "DEVICE_LOCAL"},
+                    {VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,  "HOST_VISIBLE"},
+                    {VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, "HOST_COHERENT"},
+                    {VK_MEMORY_PROPERTY_HOST_CACHED_BIT,   "HOST_CACHED"},
+                };
+                for (const auto& [bit, name] : named) {
+                    if (flags & bit) {
+                        if (!decoded.empty()) { decoded += '|'; }
+                        decoded += name;
+                    }
+                }
+                if (decoded.empty()) { decoded = "<none>"; }
+
+                constexpr VkMemoryPropertyFlags hostVisibleVram =
+                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+                if ((flags & hostVisibleVram) == hostVisibleVram) {
+                    largestHostVisibleDeviceLocal =
+                        std::max(largestHostVisibleDeviceLocal, memProps.memoryHeaps[type.heapIndex].size);
+                }
+
+                Log(Trace, "  type {}: heap {} ({})", i, type.heapIndex, decoded);
+            }
+
+            if (largestHostVisibleDeviceLocal == 0) {
+                Log(Trace, "  no DEVICE_LOCAL|HOST_VISIBLE type: CPU writes to VRAM must go through a staging copy");
+            } else if (largestDeviceLocalHeap == 0) {
+                Log(Trace, "  CPU-writable memory window: {:.0f} MiB, on a heap not flagged device-local",
+                    static_cast<double>(largestHostVisibleDeviceLocal) / BYTES_PER_MIB);
+            } else {
+                Log(Trace, "  CPU-writable VRAM window: {:.0f} MiB of {:.0f} MiB device-local{}",
+                    static_cast<double>(largestHostVisibleDeviceLocal) / BYTES_PER_MIB,
+                    static_cast<double>(largestDeviceLocalHeap) / BYTES_PER_MIB,
+                    largestHostVisibleDeviceLocal >= largestDeviceLocalHeap ? " (all of it - resizable BAR)" : "");
+            }
+        }
+    }
 
     Device::Device(const Instance &inst, VkSurfaceKHR surface, const RHIRequiredFeatures& deviceFeatures): m_required{deviceFeatures} {
         CheckCriticalEmptyReturn(PickPhysicalDevice(inst.Get(), surface, m_required), "Failed to pick the physical device!");
@@ -245,6 +314,7 @@ namespace Shift::VK {
         m_queueFamilyIndices = Util::FindQueueFamilies(m_physicalDevice, surface, m_required.VK_forceUnifiedQueues);
         CheckExit(m_queueFamilyIndices.isComplete());
         Util::LogQueueFamilySelection(m_physicalDevice, m_queueFamilyIndices);
+        LogMemoryHeaps(m_physicalDevice);
 
         //! Resource-touching families only *sus sound effect*
         for (const uint32_t family : {m_queueFamilyIndices.graphicsFamily.value(),

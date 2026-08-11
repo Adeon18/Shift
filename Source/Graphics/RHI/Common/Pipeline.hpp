@@ -6,6 +6,7 @@
 #define SHIFT_PIPELINE_HPP
 
 #include <concepts>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -159,8 +160,13 @@ namespace Shift {
             bool writable = false;
         };
         std::vector<LayoutBindingDesc> bindings;
+    };
 
-        //! FEATURE: Add push constants support
+    //! Pipeline push constant struct
+    struct PushConstantRange {
+        uint32_t offset = 0;
+        uint32_t size = 0;
+        EBindingVisibility stageFlags = EBindingVisibility::Vertex | EBindingVisibility::Fragment;
     };
 
     //! The pipeline offline description structures (default values for all except viewport and scissor)
@@ -269,6 +275,9 @@ namespace Shift {
         //! These "virtual" layouts will get picked up at pipeline creation by a
         //! DescriptorManager/PipelineLayoutCache and get either created or pulled from cache
         std::vector<PipelineLayoutDescriptor> descriptorLayouts;
+
+        //! Only one push constant range is supported TODO: [RHI-FEATURE]
+        std::optional<PushConstantRange> pushConstants;
     };
 
     template<typename Pipeline>

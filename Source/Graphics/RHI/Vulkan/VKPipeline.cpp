@@ -100,12 +100,19 @@ namespace Shift::VK {
                                                   );
 
         //! Pipeline Layout
+        VkPushConstantRange pushRange{};
+        if (m_desc.pushConstants) {
+            pushRange.stageFlags = Util::ShiftToVKBindingVisibility(m_desc.pushConstants->stageFlags);
+            pushRange.offset = m_desc.pushConstants->offset;
+            pushRange.size = m_desc.pushConstants->size;
+        }
+
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(m_descLayouts.size());
         pipelineLayoutInfo.pSetLayouts = m_descLayouts.data();
-        pipelineLayoutInfo.pushConstantRangeCount = 0;
-        pipelineLayoutInfo.pPushConstantRanges = nullptr;
+        pipelineLayoutInfo.pushConstantRangeCount = m_desc.pushConstants ? 1u : 0u;
+        pipelineLayoutInfo.pPushConstantRanges = m_desc.pushConstants ? &pushRange : nullptr;
 
         if (createLayout) {
             m_layout = m_device->CreatePipelineLayout(pipelineLayoutInfo);

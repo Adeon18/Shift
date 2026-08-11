@@ -29,6 +29,8 @@ namespace Shift {
         //! Owned string on purpose
         std::string name = "EMPTY";
         EBufferType type = EBufferType::Uniform;
+        //! Can you address this buffer via GPU ptr
+        bool isDeviceAddressable = false;
     };
 
     //! A concept that acts as an interface for all Graphics API Buffer classes
@@ -46,6 +48,8 @@ namespace Shift {
         { InputBuffer.Fill(Data, DataSize, Offset) } -> std::same_as<void>;
         { CONCEPT_CONST_VAR(Buffer, InputBuffer).GetSize() } -> std::same_as<uint64_t>;
         { CONCEPT_CONST_VAR(Buffer, InputBuffer).GetName() } -> std::same_as<const char *>;
+        //! a GPU ptr essentially on VK and Metal, bit different for DX2 but still 64 bit
+        { CONCEPT_CONST_VAR(Buffer, InputBuffer).GetDeviceAddress() } -> std::same_as<uint64_t>;
     };
 } // Shift
 

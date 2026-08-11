@@ -410,6 +410,19 @@ namespace Shift::VK {
         vkCmdBindPipeline(m_buffer, VkPipelineBindPoint::VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.VK_Get());
     }
 
+    void CommandBuffer::SetPushConstants(const Pipeline& pipeline, const void* data, uint32_t size, uint32_t offset) const {
+        const std::optional<PushConstantRange>& range = pipeline.GetDescriptor().pushConstants;
+        if (!range) {
+            Log(Error, "SetPushConstants on pipeline '{}', which declares no push-constant range", pipeline.GetDescriptor().name);
+            return;
+        }
+        //! Offset that is assed is relative to defined push constant range offset
+        vkCmdPushConstants(m_buffer,
+                           pipeline.VK_GetLayout(),
+                           Util::ShiftToVKBindingVisibility(range->stageFlags),
+                           range->offset + offset, size, data);
+    }
+
     void CommandBuffer::BeginRenderPass(const RenderPassDescriptor& desc, std::span<Texture*> colorTextures, std::optional<Texture*> depthTexture) const {
         assert(desc.colorAttachments.size() == colorTextures.size());
         assert(desc.depthAttachment.has_value() == depthTexture.has_value());

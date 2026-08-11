@@ -25,6 +25,8 @@ namespace Shift::Graphics::Util {
             targetDesc.format = SLANG_SPIRV;
             targetDesc.profile = m_globalSession->findProfile("glsl_450");
             targetDesc.flags = SLANG_TARGET_FLAG_GENERATE_SPIRV_DIRECTLY;
+            //! For consistency between shader and cpp struct read
+            targetDesc.forceGLSLScalarBufferLayout = true;
         } else if (m_targetPlatform == EShaderTarget::DX12_DXIL) {
             targetDesc.format = SLANG_DXIL;
             targetDesc.profile = m_globalSession->findProfile("sm_6_5");

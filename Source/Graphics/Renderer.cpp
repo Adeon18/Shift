@@ -10,6 +10,16 @@
 #include <glm/gtx/string_cast.hpp>
 
 namespace Shift::Graphics {
+    namespace {
+        //! A 16B push constant block, will edit it later
+        struct PushBlock {
+            uint64_t frameConstantsRef = 0;
+            uint32_t objectIndex = 0;
+            uint32_t _pad = 0; //! For flags later
+        };
+        static_assert(sizeof(PushBlock) == 16, "push block must stay at 16 bytes");
+    }
+
     bool Renderer::Init(const std::optional<RHIRequiredFeatures>& featuresOverride) {
 
         const RHIRequiredFeatures requiredFeatures = featuresOverride.value_or(ShiftSelectedAPI::requiredFeatures);
@@ -52,6 +62,12 @@ namespace Shift::Graphics {
         );
         pipelineDescriptor.colorBlendConfig.attachments.push_back({.format = ETextureFormat::B8G8R8A8_SRGB});
 
+        pipelineDescriptor.pushConstants = PushConstantRange{
+            .offset = 0,
+            .size = static_cast<uint32_t>(sizeof(PushBlock)),
+            .stageFlags = EBindingVisibility::Vertex | EBindingVisibility::Fragment
+        };
+
         std::array<ShaderDescriptor, 2> shaderSources{vsDescriptor, fsDescriptor};
         m_pipeline = m_pipelineManager.CreatePipeline(pipelineDescriptor, shaderSources);
 
@@ -66,7 +82,11 @@ namespace Shift::Graphics {
         bufferDescriptor2.type = EBufferType::Vertex;
         bufferDescriptor2.name = "Vertex";
         bufferDescriptor2.size = bufSize;
+        bufferDescriptor2.isDeviceAddressable = true;
         m_vertexBuffer = m_bufferManager.CreateBuffer(bufferDescriptor2);
+
+        CheckCritical(m_bufferManager.Get(m_vertexBuffer)->GetDeviceAddress() != 0,
+                      "Device-addressable buffer reported address 0 buffer device address is broken!");
 
         std::vector<float> vertexData = {
             0.5f,  0.5f, 0.5f,
@@ -234,6 +254,14 @@ namespace Shift::Graphics {
                     sec->CreateCommandEncoder()->SetViewport(viewport);
 
                     sec->CreateCommandEncoder()->BindGraphicsPipeline(*pipeline);
+
+                    //! bufferRef stays 0 until the FrameConstants ring exists
+                    const PushBlock push{
+                        .frameConstantsRef = 0,
+                        .objectIndex = (sec == sec0) ? 0u : 1u
+                    };
+                    sec->CreateCommandEncoder()->SetPushConstants(*pipeline, &push, static_cast<uint32_t>(sizeof(push)));
+
                     sec->CreateCommandEncoder()->BindVertexBuffer({vertexBuf, 0}, 0);
                     sec->CreateCommandEncoder()->Draw({3, 1, (sec == sec0) ? 0u: 3u, 0});
 

@@ -56,6 +56,10 @@ namespace Shift::VK {
         VkBufferCreateInfo bufCreateInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
         bufCreateInfo.size = m_desc.size;
         bufCreateInfo.usage = BufferTypeToUsageFlags(m_desc.type);
+        //! Enable BDA
+        if (m_desc.isDeviceAddressable) {
+            bufCreateInfo.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+        }
 
         //! When we have multiple queue families, buffers can stay concurrent as they do not have any compression
         //! as images do, hence, we lose minimal, if any, perf on this. Ofc, when we only have one queue family we go exclusive
@@ -84,6 +88,20 @@ namespace Shift::VK {
         //! VMA leak reports then print the buffer's name instead of a bare allocation handle
         //! This thing is actually so cool now that I know that it exists
         vmaSetAllocationName(m_device->GetAllocator(), m_allocation, m_desc.name.c_str());
+
+        if (m_desc.isDeviceAddressable) {
+            VkBufferDeviceAddressInfo addressInfo{ VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
+            addressInfo.buffer = m_buffer;
+            m_deviceAddress = vkGetBufferDeviceAddress(m_device->Get(), &addressInfo);
+        }
+    }
+
+    uint64_t Buffer::GetDeviceAddress() const {
+        if (!m_desc.isDeviceAddressable) {
+            Log(Error, "GetDeviceAddress on buffer '{}', which was not created with isDeviceAddressable flag", m_desc.name);
+            return 0;
+        }
+        return m_deviceAddress;
     }
 
     void *Buffer::Map() {
