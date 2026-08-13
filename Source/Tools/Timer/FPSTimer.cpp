@@ -3,13 +3,14 @@
 namespace Shift::tool {
     bool FPSTimer::HasFrameElapsed() {
         const auto current_time = clock::now();
-        m_dt = current_time - m_base;
+        const auto sinceLastPoll = current_time - m_base;
         m_base = current_time;
 
-        m_lag += m_dt;
+        m_lag += sinceLastPoll;
 
         if (m_lag > m_fixed_dt) {
             ++m_ActualFPS;
+            m_dt = m_lag;
             m_lag = 0ns;
             return true;
         }

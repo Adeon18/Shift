@@ -4,13 +4,19 @@
 #include <doctest/doctest.h>
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include <glm/glm.hpp>
+
 #include "ShiftEngine.hpp"
+#include "Config/EngineConfig.hpp"
 #include "Graphics/Managers/TextureManager.hpp"
 #include "Graphics/RHI/Common/Capabilities.hpp"
+#include "Graphics/Shared/GPUShared.h"
+#include "Input/Keyboard.hpp"
 #include "Utility/UtilStandard.hpp"
 
 #include <GLFW/glfw3.h>
@@ -18,6 +24,22 @@
 namespace {
     //! Determinism policy: tests never depend on FPSTimer's real-time pacing
     constexpr float FIXED_DT = 1.0f / 60.0f;
+
+    //! Largest absolute element difference between two matrices. Matrix equality needs a
+    //! tolerance: viewProj is composed once on the CPU and recomposed here from its own factors
+    float MaxAbsDiff(const glm::mat4& lhs, const glm::mat4& rhs) {
+        float worst = 0.0f;
+        for (int col = 0; col < 4; ++col) {
+            for (int row = 0; row < 4; ++row) {
+                worst = std::max(worst, std::fabs(lhs[col][row] - rhs[col][row]));
+            }
+        }
+        return worst;
+    }
+
+    float MaxAbs(const glm::mat4& matrix) {
+        return MaxAbsDiff(matrix, glm::mat4(0.0f));
+    }
 }
 
 TEST_SUITE("EngineSmoke [app]") {
@@ -116,6 +138,65 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     renderer.ResizeViewport(1, 1);      //! Same-size early-out path
     tick(2);
 
+    renderer.ResizeViewport(800, 400);
+    tick(3);
+
+    const Shift::GPU::FrameConstants* wideFrame = renderer.GetFrameConstants(0);
+    REQUIRE_MESSAGE(wideFrame != nullptr, "frame slot 0 has no frame constants");
+    const float wideProjX = wideFrame->proj[0][0];
+
+    for (uint32_t slot = 0; slot < Shift::Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++slot) {
+        CAPTURE(slot);
+        const Shift::GPU::FrameConstants* frame = renderer.GetFrameConstants(slot);
+        REQUIRE_MESSAGE(frame != nullptr, "in-flight slot has no frame constants");
+
+        //! Several frames have gone by, so every slot must have been written. A slot still holding
+        //! the zeroed initial state means the renderer writes one slot for every frame instead of
+        //! the frame's own - which would be invisible on screen and a race under overlap
+        const bool viewProjWritten = MaxAbs(frame->viewProj) > 0.0f;
+        CHECK_MESSAGE(viewProjWritten,
+                      "frame slot was never written: the ring is not being indexed per frame");
+
+        //! The shader multiplies by viewProj alone, so it has to agree with the view and proj it
+        //! was built from - this is what catches a half-updated or torn write
+        CHECK(MaxAbsDiff(frame->viewProj, frame->proj * frame->view) < 1e-4f);
+
+        //! The pull-model stream address reached the struct the shader reads. Zero here means the
+        //! vertex shader is dereferencing a null pointer for every vertex
+        CHECK_MESSAGE(frame->positionsRef != 0, "position stream address never reached the GPU struct");
+    }
+
+    //! Projection tracks the VIEWPORT render target's aspect, not the OS window's: the scene is
+    //! drawn into the viewport texture, and the editor is free to give it any shape
+    renderer.ResizeViewport(400, 800);
+    tick(3);
+
+    const Shift::GPU::FrameConstants* tallFrame = renderer.GetFrameConstants(0);
+    REQUIRE_MESSAGE(tallFrame != nullptr, "frame slot 0 has no frame constants");
+    CHECK_MESSAGE(std::fabs(tallFrame->proj[0][0] - wideProjX) > 1e-3f,
+                  "projection did not change when the viewport aspect flipped from 2:1 to 1:2, so "
+                  "either the camera is not tracking the render target or the ring is stale");
+
+    {
+        const Shift::GPU::FrameConstants* before = renderer.GetFrameConstants(0);
+        REQUIRE(before != nullptr);
+        const glm::mat4 viewBefore = before->view;
+
+        //! Exactly what MouseButtonCallback/KeyCallback do when you hold RMB and press W
+        Shift::inp::Keyboard::GetInstance().SetKeyAction(GLFW_MOUSE_BUTTON_RIGHT, GLFW_PRESS);
+        Shift::inp::Keyboard::GetInstance().SetKeyAction(GLFW_KEY_W, GLFW_PRESS);
+        tick(5);
+        Shift::inp::Keyboard::GetInstance().SetKeyAction(GLFW_KEY_W, GLFW_RELEASE);
+        Shift::inp::Keyboard::GetInstance().SetKeyAction(GLFW_MOUSE_BUTTON_RIGHT, GLFW_RELEASE);
+        tick(2);
+
+        const Shift::GPU::FrameConstants* after = renderer.GetFrameConstants(0);
+        REQUIRE(after != nullptr);
+        CHECK_MESSAGE(MaxAbsDiff(viewBefore, after->view) > 1e-4f,
+                      "holding RMB + W did not move the camera: either the controller never ran, "
+                      "or the camera's movement never reached the frame constants");
+    }
+
     //! Phase 5: shader hot-reload (watcher deliberately bypassed: MarkDirty is used)
     //! Real recompile of the live vertex shader, in-place pipeline rebuild, retired GPU handle
     //! released via the deferred executor once the timeline passes
@@ -125,6 +206,14 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     CHECK_MESSAGE(rebuiltCount == 1,
                   "expected exactly the triangle pipeline to rebuild after marking its VS dirty");
     tick(10);
+
+    const std::string frameDataLib = Shift::Util::GetShiftShaderSrcDir() + "Lib/FrameData.slang";
+    renderer.GetShaderManager().MarkDirty(frameDataLib);
+    const uint32_t libRebuiltCount = renderer.HotReloadShaders();
+    CHECK_MESSAGE(libRebuiltCount == 1,
+                  "editing an imported Lib module rebuilt nothing: the shader's dependency list "
+                  "does not reach through the import");
+    tick(5);
 
     //! Mid-run texture upload
     //! The point is that this runs on a warm engine rather than during boot: the copy goes out on

@@ -10,16 +10,6 @@
 #include <glm/gtx/string_cast.hpp>
 
 namespace Shift::Graphics {
-    namespace {
-        //! A 16B push constant block, will edit it later
-        struct PushBlock {
-            uint64_t frameConstantsRef = 0;
-            uint32_t objectIndex = 0;
-            uint32_t _pad = 0; //! For flags later
-        };
-        static_assert(sizeof(PushBlock) == 16, "push block must stay at 16 bytes");
-    }
-
     bool Renderer::Init(const std::optional<RHIRequiredFeatures>& featuresOverride) {
 
         const RHIRequiredFeatures requiredFeatures = featuresOverride.value_or(ShiftSelectedAPI::requiredFeatures);
@@ -30,6 +20,9 @@ namespace Shift::Graphics {
         m_shaderManager.Init(rbi, Shift::Util::GetShiftShaderRootDir());
         m_pipelineManager.Init(&m_renderBackend, &m_shaderManager);
         m_bufferManager.Init(&m_renderBackend);
+
+        CheckCritical(m_frameConstants.Init(m_bufferManager, "FrameConstantsRing"),
+                      "Failed to create the frame constants ring!");
 
         RenderContext& tctx = m_renderBackend.GetTransferContext();
         RenderContextEncoder* tEncoder = tctx.CreateCommandEncoder();
@@ -54,17 +47,11 @@ namespace Shift::Graphics {
         fsDescriptor.path = Shift::Util::GetShiftShaderSrcDir() + "Debug/TrianglePS.slang";
         fsDescriptor.entry = "mainPS";
 
-        pipelineDescriptor.vertexConfig.vertexBindings.emplace_back(
-            0, 12, EVertexInputRate::PerVertex
-        );
-        pipelineDescriptor.vertexConfig.attributeDescs.emplace_back(
-            0, 0, 0, EVertexAttributeFormat::R32G32B32_SignedFloat
-        );
         pipelineDescriptor.colorBlendConfig.attachments.push_back({.format = ETextureFormat::B8G8R8A8_SRGB});
 
         pipelineDescriptor.pushConstants = PushConstantRange{
             .offset = 0,
-            .size = static_cast<uint32_t>(sizeof(PushBlock)),
+            .size = static_cast<uint32_t>(sizeof(GPU::PushConstants)),
             .stageFlags = EBindingVisibility::Vertex | EBindingVisibility::Fragment
         };
 
@@ -80,12 +67,12 @@ namespace Shift::Graphics {
 
         BufferDescriptor bufferDescriptor2;
         bufferDescriptor2.type = EBufferType::Vertex;
-        bufferDescriptor2.name = "Vertex";
+        bufferDescriptor2.name = "TrianglePositions";
         bufferDescriptor2.size = bufSize;
         bufferDescriptor2.isDeviceAddressable = true;
-        m_vertexBuffer = m_bufferManager.CreateBuffer(bufferDescriptor2);
+        m_positionStream = m_bufferManager.CreateBuffer(bufferDescriptor2);
 
-        CheckCritical(m_bufferManager.Get(m_vertexBuffer)->GetDeviceAddress() != 0,
+        CheckCritical(m_bufferManager.Get(m_positionStream)->GetDeviceAddress() != 0,
                       "Device-addressable buffer reported address 0 buffer device address is broken!");
 
         std::vector<float> vertexData = {
@@ -98,7 +85,7 @@ namespace Shift::Graphics {
         };
 
         staging->Fill(vertexData.data(), bufSize, 0);
-        tctx.CreateCommandEncoder()->CopyBufferToBuffer({staging, 0}, {m_bufferManager.Get(m_vertexBuffer), 0}, bufSize);
+        tctx.CreateCommandEncoder()->CopyBufferToBuffer({staging, 0}, {m_bufferManager.Get(m_positionStream), 0}, bufSize);
 
         {
             viewportSampler = rbi->CreateSampler(
@@ -179,6 +166,12 @@ namespace Shift::Graphics {
         //! Reclaim this frame slot
         m_renderBackend.BeginFrame();
 
+        const uint32_t frameSlot = m_renderBackend.GetCurrentFrame();
+        GPU::FrameConstants* frameConstants = m_frameConstants.Slot(frameSlot);
+        CheckCritical(frameConstants != nullptr, "Frame constants ring has no slot for this frame!");
+
+        FillFrameConstants(frameConstants, engineData);
+
         uint32_t imageIndex = UINT32_MAX;
         if (shouldRenderMainWindow) {
             bool aquireSuccess = true;
@@ -228,7 +221,6 @@ namespace Shift::Graphics {
             RenderContext* sec1 = m_renderBackend.AcquireSecondaryGraphicsContext();
 
             Pipeline* pipeline = m_pipelineManager.Get(m_pipeline);
-            Buffer* vertexBuf = m_bufferManager.Get(m_vertexBuffer);
 
             std::vector<ETextureFormat> colorTexturesFormats{};
             for (auto& c: pipeline->GetDescriptor().colorBlendConfig.attachments) {
@@ -255,15 +247,13 @@ namespace Shift::Graphics {
 
                     sec->CreateCommandEncoder()->BindGraphicsPipeline(*pipeline);
 
-                    //! bufferRef stays 0 until the FrameConstants ring exists
-                    const PushBlock push{
-                        .frameConstantsRef = 0,
-                        .objectIndex = (sec == sec0) ? 0u : 1u
+                    const GPU::PushConstants push{
+                        .frameConstantsRef = m_frameConstants.SlotAddress(frameSlot),
+                        .firstInstance = (sec == sec0) ? 0u : 1u
                     };
                     sec->CreateCommandEncoder()->SetPushConstants(*pipeline, &push, static_cast<uint32_t>(sizeof(push)));
 
-                    sec->CreateCommandEncoder()->BindVertexBuffer({vertexBuf, 0}, 0);
-                    sec->CreateCommandEncoder()->Draw({3, 1, (sec == sec0) ? 0u: 3u, 0});
+                    sec->CreateCommandEncoder()->Draw({3, 1, 0, 0});
 
                     CheckCritical(sec->EndCmds(), "Failed to end secondary command buffer!");
                     return true;
@@ -368,6 +358,9 @@ namespace Shift::Graphics {
         if (width == 0 || height == 0) return;
         if (width == viewportTexture->GetWidth() && height == viewportTexture->GetHeight()) return;
 
+        //! Follow the viewport and not full window
+        m_controller->UpdateScreenSize(static_cast<float>(width), static_cast<float>(height));
+
         Texture* oldTexture = viewportTexture;
         void* oldID = m_viewportTextureID;
 
@@ -397,11 +390,20 @@ namespace Shift::Graphics {
 
         if (isOld || m_window.ShouldProcessResize()) {
             m_window.ProcessResize();
-            m_controller->UpdateScreenSize(static_cast<float>(m_window.GetWidth()), static_cast<float>(m_window.GetHeight()));
             if (!m_renderBackend.ResizeSwapchain(m_window.GetWidth(), m_window.GetHeight())) { return false; }
         }
 
         return true;
+    }
+
+    void Renderer::FillFrameConstants(GPU::FrameConstants *frameConstantsPtr, const EngineData &engineData) {
+        frameConstantsPtr->cameraPosExposure = glm::vec4(engineData.camPosition, 1.0f);
+        frameConstantsPtr->view = engineData.viewMatrix;
+        frameConstantsPtr->proj = engineData.projMatrix;
+        frameConstantsPtr->viewProj = engineData.projMatrix * engineData.viewMatrix;
+        frameConstantsPtr->cameraDir = glm::vec4(engineData.camDirection, 0.0f);
+        frameConstantsPtr->lightCount = 0u;
+        frameConstantsPtr->positionsRef = m_bufferManager.Get(m_positionStream)->GetDeviceAddress();
     }
 
     uint32_t Renderer::AquireImage(bool *success) {

@@ -44,6 +44,8 @@ namespace Shift {
         bool textureCompressionETC2  = false;
         bool computeShader           = true;
         bool dualSrcBlend            = false;
+        //! Addresses are 64-bit
+        bool shaderInt64             = false;
 
         // Metal-specific
         bool MTL_argumentBuffers         = false;
@@ -62,6 +64,10 @@ namespace Shift {
         bool VK_hostQueryReset = false;
         bool VK_presentWait = false;
         bool VK_maintenance1 = false;
+        //! Needed by SV_VertexID / SV_InstanceID as Slang lowers them: HLSL semantics EXCLUDE the
+        //! draw's base vertex/instance while Vulkan's builtins include them, so Slang emits
+        //! `VertexIndex - BaseVertex`, and reading BaseVertex needs this feature
+        bool VK_shaderDrawParameters = false;
         //! Combine compute/transfer/present onto the graphics family, for testing or if we want to disable async?
         bool VK_forceUnifiedQueues      = false;
     };
@@ -117,6 +123,7 @@ namespace Shift {
         RHICommonFeature textureCompressionETC2;
         RHICommonFeature computeShader;
         RHICommonFeature dualSrcBlend;
+        RHICommonFeature shaderInt64;
 
         // Vulkan convenience
         RHICommonFeature VK_timelineSemaphores;
@@ -128,6 +135,7 @@ namespace Shift {
         RHICommonFeature VK_hostQueryReset;
         RHICommonFeature VK_presentWait;
         RHICommonFeature VK_maintenance1;
+        RHICommonFeature VK_shaderDrawParameters;
     };
 
     struct RHIVersion {

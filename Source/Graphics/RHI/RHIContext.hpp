@@ -31,6 +31,9 @@ namespace Shift {
         struct Vulkan {
             static constexpr const char* Name = "Vulkan";
             static constexpr RHIRequiredFeatures requiredFeatures{
+                //! A shader dereferencing a buffer address needs a 64-bit integer type
+                .shaderInt64 = true,
+
                 .VK_timelineSemaphore = true,
                 .VK_descriptorIndexing = true,
                 .VK_dynamicRendering = true,
@@ -43,6 +46,8 @@ namespace Shift {
                 .VK_hostQueryReset = true,
                 .VK_presentWait = false,
                 .VK_maintenance1 = true,
+                //! Slang's SV_VertexID lowering reads BaseVertex to match HLSL semantics
+                .VK_shaderDrawParameters = true,
             };
         };
 

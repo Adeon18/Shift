@@ -20,6 +20,8 @@
 #include "Graphics/Managers/ShaderManager.hpp"
 #include "Graphics/Managers/PipelineManager.hpp"
 #include "Graphics/Managers/BufferManager.hpp"
+#include "Graphics/Managers/FrameRingBuffer.hpp"
+#include "Graphics/Shared/GPUShared.h"
 #include "Loaders/TextureLoader/StbLoader.hpp"
 
 namespace Shift::Graphics {
@@ -82,18 +84,24 @@ namespace Shift::Graphics {
 
         [[nodiscard]] TextureManager& GetTextureManager() { return *m_textureManager; }
 
+        //! The frame constants of one in-flight slot
+        [[nodiscard]] const GPU::FrameConstants* GetFrameConstants(uint32_t frameSlot) const {
+            return m_frameConstants.Slot(frameSlot);
+        }
+
         //! Resolved GPU timing ranges of the most recently completed frame
         [[nodiscard]] const std::vector<GPUTimeRange>& GetLastFrameGPUTimeRanges() const { return m_renderBackend.GetLastFrameGPUTimeRanges(); }
 
     private:
         [[nodiscard]] uint32_t AquireImage(bool *success);
         [[nodiscard]] bool PresentFinalImage(uint32_t imageIndex);
+        void FillFrameConstants(GPU::FrameConstants* frameConstantsPtr, const EngineData& engineData);
 
         ShiftWindow& m_window;
         std::shared_ptr<ctrl::FlyingCameraController> m_controller;
 
         Graphics::PipelineHandle m_pipeline;
-        Graphics::BufferHandle m_vertexBuffer;
+        Graphics::BufferHandle m_positionStream;
 
         RenderBackend m_renderBackend;
 
@@ -101,6 +109,9 @@ namespace Shift::Graphics {
         Graphics::ShaderManager m_shaderManager;
         Graphics::PipelineManager m_pipelineManager;
         Graphics::BufferManager m_bufferManager;
+
+        //! One FrameConstants slot per frame in flight
+        Graphics::FrameRingBuffer<GPU::FrameConstants> m_frameConstants;
 
         Texture* viewportTexture;
         Sampler* viewportSampler;

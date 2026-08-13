@@ -35,6 +35,8 @@ namespace Shift::Graphics::Util {
         sessionDesc.targets = &targetDesc;
         sessionDesc.targetCount = 1;
 
+        sessionDesc.defaultMatrixLayoutMode = SLANG_MATRIX_LAYOUT_ROW_MAJOR;
+
         //! Include paths for modules — extract c_str() into local array for Slang API
         std::vector<const char*> searchPathPtrs;
         searchPathPtrs.reserve(m_includePaths.size());
@@ -81,14 +83,27 @@ namespace Shift::Graphics::Util {
 
         //! --------- Combine module + entry point into a program ---------
         std::vector<slang::IComponentType*> components = { module, slangEntryPoint };
-        Slang::ComPtr<slang::IComponentType> linkedProgram;
+        Slang::ComPtr<slang::IComponentType> composedProgram;
 
         session->createCompositeComponentType(
             components.data(),
             static_cast<SlangInt>(components.size()),
-            linkedProgram.writeRef(),
+            composedProgram.writeRef(),
             diagnosticBlob.writeRef()
         );
+
+        if (diagnosticBlob) {
+            result.errorLog += static_cast<const char*>(diagnosticBlob->getBufferPointer());
+        }
+
+        if (!composedProgram) {
+            result.isValid = false;
+            return result;
+        }
+
+        //! --------- Link: pull in whatever the module imports ---------
+        Slang::ComPtr<slang::IComponentType> linkedProgram;
+        composedProgram->link(linkedProgram.writeRef(), diagnosticBlob.writeRef());
 
         if (diagnosticBlob) {
             result.errorLog += static_cast<const char*>(diagnosticBlob->getBufferPointer());

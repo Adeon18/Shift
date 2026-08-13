@@ -19,8 +19,14 @@ namespace Shift::Graphics {
         }
         m_shaderSourceFolder = std::filesystem::path(shaderRootFolder).parent_path() / "Source";
 
+        //! Shader dir and shared structs
+        const std::vector<std::string> includePaths{
+            m_shaderSourceFolder.string(),
+            Shift::Util::GetShiftGPUSharedDir(),
+        };
+
 #ifdef SHIFT_VULKAN_BACKEND
-        m_compiler.Init(std::vector{m_shaderSourceFolder.string()}, Util::EShaderTarget::Vulkan_SPIRV);
+        m_compiler.Init(includePaths, Util::EShaderTarget::Vulkan_SPIRV);
 #endif
 
 
@@ -225,6 +231,14 @@ namespace Shift::Graphics {
         Util::ShaderCompileResult result = m_compiler.Compile(asset->descriptor.path, asset->descriptor.entry, asset->descriptor.type);
 
         if (result.isValid) {
+            //! A successful compile can still have plenty to say. Slang reports uninitialized
+            //! variables and non-void functions that fall off the end as WARNINGS, and a shader
+            //! carrying either produces undefined values with nothing else to notice - so they are
+            //! worth seeing at the moment the shader compiles, not after chasing the artifact
+            if (!result.errorLog.empty()) {
+                Log(Warning, "Shader {} compiled with diagnostics:\n{}", key, result.errorLog);
+            }
+
             asset->bytecode = result.data;
             if (m_hashToShaderAsset.contains(key)) {
                 asset->shader->Rebuild(asset->bytecode);

@@ -117,6 +117,8 @@ namespace Shift::VK {
         f.textureCompressionETC2.requested = req.textureCompressionETC2;
         f.dualSrcBlend.requested         = req.dualSrcBlend;
         f.computeShader.requested        = req.computeShader;
+        f.shaderInt64.requested          = req.shaderInt64;
+        f.VK_shaderDrawParameters.requested = req.VK_shaderDrawParameters;
         f.VK_timelineSemaphores.requested   = req.VK_timelineSemaphore;
         f.VK_descriptorIndexing.requested   = req.VK_descriptorIndexing;
         f.VK_dynamicRendering.requested     = req.VK_dynamicRendering;
@@ -168,6 +170,10 @@ namespace Shift::VK {
         f.textureCompressionETC2.supported = m_enabledFeatures.features2.features.textureCompressionETC2 ? true : false;
         f.computeShader.supported        = hasComputeQueue;
         f.dualSrcBlend.supported         = m_enabledFeatures.features2.features.dualSrcBlend ? true : false;
+        f.shaderInt64.supported          = m_enabledFeatures.features2.features.shaderInt64 ? true : false;
+
+        // 1.1 promoted features
+        f.VK_shaderDrawParameters.supported = m_enabledFeatures.vk11.shaderDrawParameters ? true : false;
 
         // 1.2 / 1.3 promoted features
         f.VK_timelineSemaphores.supported   = m_enabledFeatures.vk12.timelineSemaphore ? true : false;
@@ -247,6 +253,9 @@ namespace Shift::VK {
         if (!require_or_fail("synchronization2", f.VK_synchronization2)) return false;
         if (!require_or_fail("bufferDeviceAddress", f.VK_bufferDeviceAddress)) return false;
         if (!require_or_fail("scalarBlockLayout", f.VK_scalarBlockLayout)) return false;
+        //! Both are what a pull-model shader needs to exist
+        if (!require_or_fail("shaderInt64", f.shaderInt64)) return false;
+        if (!require_or_fail("shaderDrawParameters", f.VK_shaderDrawParameters)) return false;
         if (!require_or_fail("hostQueryReset", f.VK_hostQueryReset)) return false;
         if (!require_or_fail("presentWait", f.VK_presentWait)) return false;
         if (!require_or_fail("maintenance1", f.VK_maintenance1)) return false;
@@ -267,13 +276,15 @@ namespace Shift::VK {
         if (f.textureCompressionASTC.requested) m_enabledFeatures.core.textureCompressionASTC_LDR = VK_TRUE;
         if (f.textureCompressionETC2.requested) m_enabledFeatures.core.textureCompressionETC2 = VK_TRUE;
         if (f.dualSrcBlend.requested) m_enabledFeatures.core.dualSrcBlend = VK_TRUE;
+        if (f.shaderInt64.requested) m_enabledFeatures.core.shaderInt64 = VK_TRUE;
 
         //! Make sure we only enabled what we requested
         m_enabledFeatures.vk11 = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
         m_enabledFeatures.vk12 = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
         m_enabledFeatures.vk13 = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
 
-        // set requested -> enable in vk12/vk13
+        // set requested -> enable in vk11/vk12/vk13
+        m_enabledFeatures.vk11.shaderDrawParameters = f.VK_shaderDrawParameters.requested ? VK_TRUE : VK_FALSE;
         m_enabledFeatures.vk12.timelineSemaphore  = f.VK_timelineSemaphores.requested ? VK_TRUE : VK_FALSE;
         if (f.VK_descriptorIndexing.requested) {
             m_enabledFeatures.vk12.descriptorIndexing = VK_TRUE;

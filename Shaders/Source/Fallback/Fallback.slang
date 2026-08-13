@@ -1,18 +1,17 @@
-struct VertexInput
-{
-    float3 pos : POSITION;
-};
-
+//! The shader used when a real one fails to compile
 struct VertexOutput
 {
     float4 position : SV_Position;
 };
 
 [shader("vertex")]
-VertexOutput mainVS(VertexInput input)
+VertexOutput mainVS(uint vertexID : SV_VertexID)
 {
+    //! I use vertex pulling now so no VB lol
+    const float2 positions[3] = { float2(-0.5, -0.5), float2(0.5, -0.5), float2(0.0, 0.5) };
+
     VertexOutput output;
-    output.position = float4(input.pos.xyz, 1.0);
+    output.position = float4(positions[vertexID % 3], 0.0, 1.0);
 
     return output;
 }
@@ -22,4 +21,3 @@ float4 mainPS() : SV_Target
 {
     return float4(0.75, 0.25, 0.75, 1.0);
 }
-

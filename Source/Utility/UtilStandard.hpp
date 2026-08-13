@@ -27,6 +27,11 @@ namespace Shift::Util {
         return std::string{SHIFT_ROOT} + "/Shaders/Source/";
     }
 
+    //! The CPU/GPU shared header directory
+    constexpr std::string GetShiftGPUSharedDir() {
+        return std::string{SHIFT_ROOT} + "/Source/Graphics/Shared/";
+    }
+
     constexpr std::string NormalizePath(std::string path) {
         std::replace(path.begin(), path.end(), '\\', '/');
         return path;
