@@ -37,8 +37,9 @@ namespace Shift::VK {
 
         //! Update Sampler
         //! \param bind
+        //! \param arrElement Index within the binding's array; 0 for a single sampler
         //! \param InputSampler
-        void UpdateSampler(uint32_t bind, const Sampler& InputSampler);
+        void UpdateSampler(uint32_t bind, uint32_t arrElement, const Sampler& InputSampler);
 
         //! Apply the updates, if this is not called after the update functions, none will stick!
         void Apply();

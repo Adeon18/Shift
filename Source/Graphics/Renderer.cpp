@@ -21,6 +21,10 @@ namespace Shift::Graphics {
         m_pipelineManager.Init(&m_renderBackend, &m_shaderManager);
         m_bufferManager.Init(&m_renderBackend);
 
+        CheckCritical(m_globalSet.Init(rbi), "Failed to create the global resource set!");
+        //! Sampler manager writes to global set during init
+        CheckCritical(m_samplerManager.Init(rbi, m_globalSet), "Failed to initialize the sampler manager!");
+
         CheckCritical(m_frameConstants.Init(m_bufferManager, "FrameConstantsRing"),
                       "Failed to create the frame constants ring!");
 
@@ -30,7 +34,7 @@ namespace Shift::Graphics {
         tEncoder->PushDebugGroup("InitUploads", {0.85f, 0.55f, 0.20f, 1.0f});
 
         m_textureLoader = std::make_unique<StbLoader>();
-        m_textureManager = std::make_unique<Graphics::TextureManager>(m_textureLoader.get(), &m_renderBackend, tctx.CreateCommandEncoder());
+        m_textureManager = std::make_unique<Graphics::TextureManager>(m_textureLoader.get(), &m_renderBackend, &m_globalSet, tctx.CreateCommandEncoder());
 
         m_textureManager->GetOrLoadTexture(Shift::Util::GetShiftRoot() + "Assets/Textures/NB.jpg", tEncoder);
         LoadScene();
@@ -88,7 +92,7 @@ namespace Shift::Graphics {
         tctx.CreateCommandEncoder()->CopyBufferToBuffer({staging, 0}, {m_bufferManager.Get(m_positionStream), 0}, bufSize);
 
         {
-            viewportSampler = rbi->CreateSampler(
+            m_viewportSamplerIdx = m_samplerManager.GetOrCreate(
                 {
                     .minFilter = EFilterMode::Nearest,
                     .magFilter = EFilterMode::Nearest,
@@ -140,6 +144,9 @@ namespace Shift::Graphics {
     }
 
     void Renderer::RegisterViewportTexture() {
+        Sampler* viewportSampler = m_samplerManager.Get(m_viewportSamplerIdx);
+        CheckCriticalEmptyReturn(viewportSampler != nullptr, "The viewport sampler index resolves to nothing!");
+
         m_viewportTextureID = ImGuiBackend::RegisterTexture(*viewportTexture, *viewportSampler);
     }
 
@@ -343,7 +350,6 @@ namespace Shift::Graphics {
         m_renderBackend.FlushAllDeferredCallbacks();
 
         delete viewportTexture;
-        delete viewportSampler;
 
         m_bufferManager.Destroy();
         m_pipelineManager.Destroy();
@@ -351,6 +357,10 @@ namespace Shift::Graphics {
 
         m_textureManager.reset();
         m_textureLoader.reset();
+
+        m_samplerManager.Destroy();
+        m_globalSet.Destroy();
+
         m_renderBackend.Destroy();
     }
 

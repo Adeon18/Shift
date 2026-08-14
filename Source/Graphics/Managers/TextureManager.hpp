@@ -11,6 +11,7 @@
 
 #include "Graphics/RHI/RHI.hpp"
 #include "GenerationalPool.hpp"
+#include "GlobalResourceSet.hpp"
 
 namespace Shift::Graphics {
 
@@ -20,7 +21,7 @@ namespace Shift::Graphics {
 
     class TextureManager {
     public:
-        TextureManager(ITextureLoader* loader, RenderBackend* rhi, RenderContextEncoder* encode);
+        TextureManager(ITextureLoader* loader, RenderBackend* rhi, GlobalResourceSet* globalSet, RenderContextEncoder* encode);
 
         [[nodiscard]] TextureHandle GetOrLoadTexture(const std::string& path, RenderContextEncoder* encode);
 
@@ -75,7 +76,7 @@ namespace Shift::Graphics {
         ITextureLoader* m_loader;
         RenderBackend* m_rhi;
         RenderBackendInterface* m_backend;
-        ResourceSet* m_bindlessTextureSet;
+        GlobalResourceSet* m_globalSet;
 
         std::vector<Core::UniquePtr<Buffer>> m_usedStagingBuffers;
 

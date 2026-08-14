@@ -16,6 +16,8 @@
 //! TODO [Design]Editor leak to renderer
 #include "Graphics/UI/EditorLayer.hpp"
 
+#include "Graphics/Managers/GlobalResourceSet.hpp"
+#include "Graphics/Managers/SamplerManager.hpp"
 #include "Graphics/Managers/TextureManager.hpp"
 #include "Graphics/Managers/ShaderManager.hpp"
 #include "Graphics/Managers/PipelineManager.hpp"
@@ -84,6 +86,10 @@ namespace Shift::Graphics {
 
         [[nodiscard]] TextureManager& GetTextureManager() { return *m_textureManager; }
 
+        [[nodiscard]] SamplerManager& GetSamplerManager() { return m_samplerManager; }
+
+        [[nodiscard]] GlobalResourceSet& GetGlobalResourceSet() { return m_globalSet; }
+
         //! The frame constants of one in-flight slot
         [[nodiscard]] const GPU::FrameConstants* GetFrameConstants(uint32_t frameSlot) const {
             return m_frameConstants.Slot(frameSlot);
@@ -109,12 +115,17 @@ namespace Shift::Graphics {
         Graphics::ShaderManager m_shaderManager;
         Graphics::PipelineManager m_pipelineManager;
         Graphics::BufferManager m_bufferManager;
+        Graphics::SamplerManager m_samplerManager;
+
+        //! Bindless set b0
+        Graphics::GlobalResourceSet m_globalSet;
 
         //! One FrameConstants slot per frame in flight
         Graphics::FrameRingBuffer<GPU::FrameConstants> m_frameConstants;
 
         Texture* viewportTexture;
-        Sampler* viewportSampler;
+        //! Slot in the global sampler array
+        uint32_t m_viewportSamplerIdx = 0;
         void* m_viewportTextureID = nullptr;
 
         std::unique_ptr<ITextureLoader> m_textureLoader;

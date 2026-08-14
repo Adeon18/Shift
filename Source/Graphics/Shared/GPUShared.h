@@ -30,6 +30,12 @@ namespace Shift::GPU {
 typedef uint64_t GPUBufferRef;
 #endif
 
+//! Slots of the global sampler array (set 0, binding 0) that shader code names at compile time.
+static const uint SAMPLER_LINEAR_REPEAT  = 0;
+static const uint SAMPLER_LINEAR_CLAMP   = 1;
+static const uint SAMPLER_NEAREST_REPEAT = 2;
+static const uint SAMPLER_ANISO_REPEAT   = 3;
+
 //! Per-frame, per-view constants. Written into this frame's ring slot on the CPU and reached by
 //! the shader through the address in PushConstants
 struct FrameConstants {

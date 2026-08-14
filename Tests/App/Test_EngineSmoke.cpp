@@ -90,6 +90,47 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     //! Phase 1: steady warmup
     tick(30);
 
+    //! Phase 1.5: the global sampler array is a cache, not a fixed table.
+    //! Boot already registered the states shader code names by constant; what matters here is that
+    //! the array behaves like a cache on both sides - identical states share a slot, and a state
+    //! nobody thought of at startup can still be had
+    {
+        auto& samplers = engine.GetRenderer().GetSamplerManager();
+
+        const uint32_t namedCount = samplers.GetCount();
+        CHECK_MESSAGE(namedCount == 4u,
+                      "boot did not end with exactly the four named samplers; either one failed to "
+                      "create or something registered a duplicate state");
+        CHECK_MESSAGE(samplers.Get(Shift::GPU::SAMPLER_ANISO_REPEAT) != nullptr,
+                      "the slot a shader would index with SAMPLER_ANISO_REPEAT holds no sampler");
+
+        //! The viewport sampler already exercised this at boot: it asks for nearest/repeat under a
+        //! different debug name and must land on the named slot rather than spend a fifth one
+        Shift::SamplerDescriptor repeated{};
+        repeated.minFilter = Shift::EFilterMode::Nearest;
+        repeated.magFilter = Shift::EFilterMode::Nearest;
+        repeated.name = "ADifferentDebugName";
+        const uint32_t deduped = samplers.GetOrCreate(repeated);
+        CHECK_MESSAGE(deduped == Shift::GPU::SAMPLER_NEAREST_REPEAT,
+                      "an identical sampler state took a second slot - the debug name is splitting the cache");
+        CHECK(samplers.GetCount() == namedCount);
+
+        //! ...and a state nobody registered at boot is reachable mid-run, which is why b0 is
+        //! update-after-bind: this writes a descriptor into a set command buffers already hold
+        Shift::SamplerDescriptor nearestClamp{};
+        nearestClamp.minFilter = Shift::EFilterMode::Nearest;
+        nearestClamp.magFilter = Shift::EFilterMode::Nearest;
+        nearestClamp.addressModeU = Shift::ESamplerAddressMode::ClampEdge;
+        nearestClamp.addressModeV = Shift::ESamplerAddressMode::ClampEdge;
+        nearestClamp.addressModeW = Shift::ESamplerAddressMode::ClampEdge;
+        nearestClamp.name = "NearestClamp";
+        const uint32_t fresh = samplers.GetOrCreate(nearestClamp);
+        CHECK_MESSAGE(fresh == namedCount, "a new sampler state did not take the next free slot");
+        CHECK(samplers.Get(fresh) != nullptr);
+        CHECK(samplers.GetCount() == namedCount + 1u);
+    }
+    tick(3);
+
     //! Phase 2: OS-window resize
     //! Exercises OUT_OF_DATE/SUBOPTIMAL acquires, swapchain + per-image semaphore recreation,
     //! and the abandoned-frame path (acquire fails, frame skipped, no submit)

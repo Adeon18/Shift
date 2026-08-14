@@ -177,13 +177,12 @@ namespace Shift::VK {
 
         // 1.2 / 1.3 promoted features
         f.VK_timelineSemaphores.supported   = m_enabledFeatures.vk12.timelineSemaphore ? true : false;
-        //! Bindless requires runtime arrays + partially-bound + variable-count + sampled-image update-after-bind +
+        //! Bindless requires runtime arrays + partially-bound + sampled-image update-after-bind +
         //! update-unused-while-pending + non-uniform sampled-image indexing
         bool supportsBindless =
             m_enabledFeatures.vk12.descriptorIndexing &&
             m_enabledFeatures.vk12.runtimeDescriptorArray &&
             m_enabledFeatures.vk12.descriptorBindingPartiallyBound &&
-            m_enabledFeatures.vk12.descriptorBindingVariableDescriptorCount &&
             m_enabledFeatures.vk12.descriptorBindingSampledImageUpdateAfterBind &&
             m_enabledFeatures.vk12.descriptorBindingUpdateUnusedWhilePending &&
             m_enabledFeatures.vk12.shaderSampledImageArrayNonUniformIndexing;
@@ -290,8 +289,7 @@ namespace Shift::VK {
             m_enabledFeatures.vk12.descriptorIndexing = VK_TRUE;
             m_enabledFeatures.vk12.runtimeDescriptorArray = VK_TRUE;
             m_enabledFeatures.vk12.descriptorBindingPartiallyBound = VK_TRUE;
-            m_enabledFeatures.vk12.descriptorBindingVariableDescriptorCount = VK_TRUE;
-            //! Required by the bindless texture layout
+            //! Covers samplers too
             m_enabledFeatures.vk12.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
             m_enabledFeatures.vk12.descriptorBindingUpdateUnusedWhilePending = VK_TRUE;
             m_enabledFeatures.vk12.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;

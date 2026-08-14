@@ -157,6 +157,9 @@ namespace Shift {
             //! Secondary
             uint32_t count = 1;
             bool isBindless = false;
+            //! Descriptors of this binding may be rewritten while the set is bound in a command
+            //! buffer that has not finished.
+            bool updateAfterBind = false;
             bool writable = false;
         };
         std::vector<LayoutBindingDesc> bindings;

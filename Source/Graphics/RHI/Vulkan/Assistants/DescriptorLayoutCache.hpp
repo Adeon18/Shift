@@ -5,6 +5,7 @@
 #ifndef SHIFT_DESCRIPTORLAYOUTCACHE_HP
 #define SHIFT_DESCRIPTORLAYOUTCACHE_HP
 
+#include <span>
 #include <vector>
 
 #include "Graphics/RHI/Vulkan/VKDevice.hpp"
@@ -16,11 +17,16 @@ namespace Shift::VK {
         void Destroy();
 
         //! THe data conversion to this input format lies on the SRHI
-        VkDescriptorSetLayout CreateDescriptorLayout(const VkDescriptorSetLayoutCreateInfo& info);
+        //! \param bindingFlags Per-binding flags
+        VkDescriptorSetLayout CreateDescriptorLayout(const VkDescriptorSetLayoutCreateInfo& info,
+                                                     std::span<const VkDescriptorBindingFlags> bindingFlags);
 
         //! Layout info stucture
         struct DescriptorLayoutInfo {
             std::vector<VkDescriptorSetLayoutBinding> bindings;
+            //! Parallel to `bindings`, sorted together with them
+            std::vector<VkDescriptorBindingFlags> bindingFlags;
+            VkDescriptorSetLayoutCreateFlags createFlags = 0;
 
             bool operator==(const DescriptorLayoutInfo& other) const;
 

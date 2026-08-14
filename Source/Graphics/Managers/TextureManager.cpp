@@ -2,33 +2,14 @@
 // Created by otrush on 1/16/2026.
 //
 #include "TextureManager.hpp"
-#include "Config/EngineConfig.hpp"
 
 #include <algorithm>
 #include <array>
 #include <utility>
 
 namespace Shift::Graphics {
-    TextureManager::TextureManager(ITextureLoader* loader, RenderBackend* rhi, RenderContextEncoder* encoder)
-        : m_loader(loader), m_rhi(rhi), m_backend(rhi->CreateInterface()) {
-
-        PipelineLayoutDescriptor pipelineLayoutDescriptor;
-        pipelineLayoutDescriptor.bindings.push_back(
-            PipelineLayoutDescriptor::LayoutBindingDesc {
-                .binding = 0,
-                .type = EBindingType::SampledImage,
-                .stageFlags = EBindingVisibility::Vertex |
-                    // EBindingVisibility::TesselationEvaluation |
-                    // EBindingVisibility::TesselationControl |
-                    EBindingVisibility::Geometry |
-                    EBindingVisibility::Fragment |
-                    EBindingVisibility::Compute,
-                .count = Conf::MAX_BINDLESS_IMAGES,
-                .isBindless = true
-            }
-        );
-
-        m_bindlessTextureSet = m_backend->CreateResourceSet(pipelineLayoutDescriptor);
+    TextureManager::TextureManager(ITextureLoader* loader, RenderBackend* rhi, GlobalResourceSet* globalSet, RenderContextEncoder* encoder)
+        : m_loader(loader), m_rhi(rhi), m_backend(rhi->CreateInterface()), m_globalSet(globalSet) {
 
         //! Slot 0 is the permanently-resident placeholder, it is never released
         m_placeholder = m_pool.Insert(LoadAndCreateTexture("PLACEHOLDER", encoder));
@@ -167,8 +148,6 @@ namespace Shift::Graphics {
         //! Caller has to guarantee GPU is idle
         m_pool.ForEachLive([](uint32_t, Texture* texture) { delete texture; });
         m_pool.Clear();
-
-        delete m_bindlessTextureSet;
     }
 
     std::optional<RawTextureData> TextureManager::LoadRawData(const std::string &path) {
@@ -278,12 +257,12 @@ namespace Shift::Graphics {
     }
 
     void TextureManager::UploadToGPU(uint32_t slotIdx, Texture *texture) {
-        m_bindlessTextureSet->UpdateTexture(0, slotIdx, *texture);
-        m_bindlessTextureSet->Apply();
+        m_globalSet->WriteImage2D(slotIdx, *texture);
+        m_globalSet->Apply();
     }
 
     void TextureManager::ClearTexture(uint32_t slotIdx) {
-        m_bindlessTextureSet->UpdateTexture(0, slotIdx, *m_pool.Get(m_placeholder));
-        m_bindlessTextureSet->Apply();
+        m_globalSet->WriteImage2D(slotIdx, *m_pool.Get(m_placeholder));
+        m_globalSet->Apply();
     }
 }

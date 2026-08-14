@@ -11,7 +11,7 @@ namespace Shift::VK {
             m_sizeRatios.push_back(r);
         }
 
-        VkDescriptorPool newPool = CreatePool(initialSets, m_sizeRatios);
+        VkDescriptorPool newPool = CreatePool(initialSets, m_sizeRatios, GENERAL_POOL_FLAGS);
 
         m_setsPerPool = initialSets * 2u;
 
@@ -24,8 +24,12 @@ namespace Shift::VK {
         //! Extra beefy pool for imgui
         m_imguiPool = CreatePool(500, imguiRatios, VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT);
 
-        std::vector<PoolSizeRatio> bindlessPoolRatios {PoolSizeRatio{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, Conf::MAX_BINDLESS_IMAGES}};
-        m_bindlessTexturePool = CreatePool(1, bindlessPoolRatios, VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT);
+        std::vector<PoolSizeRatio> bindlessPoolRatios {
+            PoolSizeRatio{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, Conf::MAX_BINDLESS_IMAGES},
+            PoolSizeRatio{VK_DESCRIPTOR_TYPE_SAMPLER, Conf::MAX_BINDLESS_SAMPLERS}
+        };
+        //! We can have multiple bindless sets
+        m_bindlessPool = CreatePool(Conf::MAX_BINDLESS_SETS, bindlessPoolRatios, VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT);
     }
 
     DescriptorAllocator::~DescriptorAllocator() {
@@ -40,7 +44,7 @@ namespace Shift::VK {
         m_fullPools.clear();
 
         m_device->DestroyDescriptorPool(m_imguiPool);
-        m_device->DestroyDescriptorPool(m_bindlessTexturePool);
+        m_device->DestroyDescriptorPool(m_bindlessPool);
     }
 
     void DescriptorAllocator::Clear() {
@@ -62,7 +66,7 @@ namespace Shift::VK {
         }
         else {
             //! Need to create a new pool
-            newPool = CreatePool(m_setsPerPool, m_sizeRatios);
+            newPool = CreatePool(m_setsPerPool, m_sizeRatios, GENERAL_POOL_FLAGS);
 
             m_setsPerPool = m_setsPerPool * 1.5;
             if (m_setsPerPool > SET_LIMIT_PER_POOL) {
@@ -93,20 +97,9 @@ namespace Shift::VK {
         return newPool;
     }
 
-    VkDescriptorSet DescriptorAllocator::Allocate(VkDescriptorSetLayout layout, uint32_t bindlessCount, EBindingType bindlessType) {
+    VkDescriptorSet DescriptorAllocator::Allocate(VkDescriptorSetLayout layout, bool fromBindlessPool) {
 
-        bool isBindless = bindlessCount > 0;
-
-        VkDescriptorPool poolToUse = VK_NULL_HANDLE;
-        if (isBindless) {
-            switch (bindlessType) {
-                case EBindingType::SampledImage:
-                default:
-                    poolToUse = m_bindlessTexturePool;
-            }
-        } else {
-            poolToUse = GetPool();
-        }
+        VkDescriptorPool poolToUse = fromBindlessPool ? m_bindlessPool : GetPool();
 
         VkDescriptorSetAllocateInfo allocInfo = {};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -114,21 +107,15 @@ namespace Shift::VK {
         allocInfo.descriptorSetCount = 1;
         allocInfo.pSetLayouts = &layout;
 
-        //! Bindless handling
-        VkDescriptorSetVariableDescriptorCountAllocateInfo countInfo{};
-        if (isBindless) {
-            countInfo.sType =
-                VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
-            countInfo.descriptorSetCount = 1;
-            countInfo.pDescriptorCounts = &bindlessCount;
-            allocInfo.pNext = &countInfo;
-        }
-
+        //! We dropped variable count here as variable count can have only one binding in sset and we want our set to have multiple
         VkResult result;
         VkDescriptorSet ds = m_device->AllocateDescriptorSet(allocInfo, &result);
 
-        //! Early exit at bindless as we do not want to manage the pool structs
-        if (isBindless) {
+        //! The bindless pool is fixed-size and not recycled, so there is no second attempt
+        if (fromBindlessPool) {
+            if (ds == VK_NULL_HANDLE) {
+                Log(Error, "Failed to allocate a descriptor set from the bindless pool. It is sized for {} set(s)", Conf::MAX_BINDLESS_SETS);
+            }
             return ds;
         }
 

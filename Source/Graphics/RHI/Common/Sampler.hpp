@@ -62,6 +62,8 @@ namespace Shift {
         float minLod = 0.0f;
         float maxLod = 16.0f;
 
+        float maxAnisotropy = 1.0f;
+
         std::string name = "EMPTY";
         //SamplerReductionMode reductionMode = SamplerReductionMode::Standard;
     };

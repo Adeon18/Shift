@@ -37,6 +37,9 @@ namespace Shift::VK {
 
         static constexpr uint32_t SET_LIMIT_PER_POOL = 4096u;
 
+        //! We have minimal pools and sets so we can allow this
+        static constexpr VkDescriptorPoolCreateFlags GENERAL_POOL_FLAGS = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+
         //! Initialize the Descriptor allocator, which will create descriptor pools under the hood
         //! \param device
         //! \param initialSets The base amount of pool descriptor size
@@ -57,13 +60,13 @@ namespace Shift::VK {
         VkDescriptorPool GetPool();
 
         [[nodiscard]] VkDescriptorPool GetImGuiPool() const { return m_imguiPool; }
-        [[nodiscard]] VkDescriptorPool GetBindlessPool() const { return m_bindlessTexturePool; }
+        [[nodiscard]] VkDescriptorPool GetBindlessPool() const { return m_bindlessPool; }
 
         /// Allocate a descriptor set
         /// \param layout descriptor layout
-        /// \param bindlessCount Used only for bindless sets = max count of the bindless array resource
+        /// \param fromBindlessPool Take it from the UPDATE_AFTER_BIND pool sized for the global set's arrays, rather than from the growable general pools
         /// \return allocated set, VK_NULL_HANDLE if there was an error
-        VkDescriptorSet Allocate(VkDescriptorSetLayout layout, uint32_t bindlessCount = 0u, EBindingType bindlessType = EBindingType::SampledImage);
+        VkDescriptorSet Allocate(VkDescriptorSetLayout layout, bool fromBindlessPool = false);
     private:
         //! Create a pool
         //! \param device
@@ -80,7 +83,8 @@ namespace Shift::VK {
 
         //! Created with VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT
         VkDescriptorPool m_imguiPool = VK_NULL_HANDLE;
-        VkDescriptorPool m_bindlessTexturePool = VK_NULL_HANDLE;
+        //! Sized for the global set's arrays (images and samplers), UPDATE_AFTER_BIND, MAX_BINDLESS_SETS sets
+        VkDescriptorPool m_bindlessPool = VK_NULL_HANDLE;
 
         uint32_t m_setsPerPool = 1u;
     };

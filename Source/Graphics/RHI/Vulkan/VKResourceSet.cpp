@@ -55,7 +55,7 @@ namespace Shift::VK {
         m_writeSets.push_back(writeSet);
     }
 
-    void ResourceSet::UpdateSampler(uint32_t bind, const VK::Sampler &InputSampler) {
+    void ResourceSet::UpdateSampler(uint32_t bind, uint32_t arrElement, const VK::Sampler &InputSampler) {
         // TODO [SANITY_CHECK] @gronk is this true?
         m_samplerInfos.emplace_back(InputSampler.VK_Get());
 
@@ -64,8 +64,7 @@ namespace Shift::VK {
         writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writeSet.dstSet = m_set;
         writeSet.dstBinding = bind;
-        //! TODO: [FEATURE] Add bindless sampler support?
-        writeSet.dstArrayElement = 0;
+        writeSet.dstArrayElement = arrElement;
         writeSet.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
         writeSet.descriptorCount = 1;
         writeSet.pImageInfo = &m_samplerInfos.back();
