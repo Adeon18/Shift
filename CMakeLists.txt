@@ -22,7 +22,8 @@ include(CMake/dependancies.cmake)
 
 FetchContent_MakeAvailable(glfw)
 FetchContent_MakeAvailable(glm)
-FetchContent_MakeAvailable(assimp)
+FetchContent_MakeAvailable(fastgltf)
+FetchContent_MakeAvailable(meshoptimizer)
 FetchContent_MakeAvailable(spdlog)
 FetchContent_MakeAvailable(efsw)
 FetchContent_MakeAvailable(volk)
@@ -35,7 +36,9 @@ FetchContent_MakeAvailable(doctest)
 file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/Source/*.cpp)
 list(REMOVE_ITEM SOURCES ${PROJECT_SOURCE_DIR}/Source/AppDefault.cpp)
 
-add_library(shift_core STATIC ${SOURCES})
+set(VENDORED_SOURCES ${PROJECT_SOURCE_DIR}/Vendor/local/mikktspace.c)
+
+add_library(shift_core STATIC ${SOURCES} ${VENDORED_SOURCES})
 target_compile_features(shift_core PUBLIC cxx_std_20)
 # PUBLIC on purpose: these defines shape headers (backend selection, volk prototypes,
 # VMA mode), so every consumer (engine exe, tests) must compile with the same set
@@ -101,7 +104,6 @@ if (WIN32)
     ${PROJECT_SOURCE_DIR}/Vendor/local
     ${Vulkan_INCLUDE_DIRS}
     ${GLFW_INCLUDE_DIRS}
-    ${assimp_INCLUDE_DIRS}
     ${efsw_SOURCE_DIR}/include
     )
 
@@ -110,7 +112,8 @@ if (WIN32)
       volk
       spdlog::spdlog
       Threads::Threads
-      assimp
+      fastgltf::fastgltf
+      meshoptimizer
       Slang::Slang
       efsw
   )
@@ -146,6 +149,8 @@ elseif (UNIX)
         imgui
         spdlog::spdlog
         ${Vulkan_LIBRARIES}
+        fastgltf::fastgltf
+        meshoptimizer
         Slang::Slang
         efsw
     )

@@ -46,8 +46,10 @@ Shift CMake system pulls all dependencies except for the Vulkan related ones (th
 - [GLFW](https://github.com/glfw/glfw.git)
 - [GLM](https://github.com/g-truc/glm.git)
 - [Dear ImGui](https://github.com/ocornut/imgui.git)
-- [Assimp](https://github.com/assimp/assimp.git)
+- [fastgltf](https://github.com/spnda/fastgltf.git): glTF 2.0 loading.
+- [meshoptimizer](https://github.com/zeux/meshoptimizer.git): import-time index/vertex optimization.
 - [stb_image](https://github.com/nothings/stb.git): Provided in [Vendor\local](https://github.com/Adeon18/Shift/tree/main/Vendor/local).
+- [MikkTSpace](https://github.com/mmikk/MikkTSpace): tangent generation. Also provided in [Vendor\local](https://github.com/Adeon18/Shift/tree/main/Vendor/local).
 ---
 
 ### Building
@@ -60,8 +62,6 @@ Shift CMake system pulls all dependencies except for the Vulkan related ones (th
 3. Set **Shift** as a startup project and build.
 4. _Pray, I Guess..._
 ---
-
-*Note: There will be a lot of warnings when building Assimp so don't get too scared:D*
 
 After running Shift you should get a skeleton:
 

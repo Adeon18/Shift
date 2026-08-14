@@ -68,15 +68,4 @@ namespace Shift::Util {
         return std::filesystem::path{ path }.parent_path().string() + "/";
     }
 
-    namespace Ass {
-        glm::vec3 ToGlm(const aiVector3D& vec)
-        {
-            return { vec.x, vec.y, vec.z };
-        }
-
-        glm::mat4 ToGlm(const aiMatrix4x4& mat)
-        {
-            return glm::transpose(glm::make_mat4(&mat.a1));
-        }
-    }
 } // Shift::Util

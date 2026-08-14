@@ -5,10 +5,10 @@
 #include <vector>
 #include <fstream>
 #include <charconv>
+#include <algorithm>
+#include <cctype>
 #include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <assimp/Importer.hpp>
 
 namespace Shift::Util {
     constexpr std::string GetShiftRoot() {
@@ -68,12 +68,6 @@ namespace Shift::Util {
     [[nodiscard]] std::vector<char> ReadFile(const std::string& filename);
 
     [[nodiscard]] std::string GetDirectoryFromPath(const std::string& path);
-
-    namespace Ass {
-        glm::vec3 ToGlm(const aiVector3D& vec);
-
-        glm::mat4 ToGlm(const aiMatrix4x4& mat);
-    }
 } // Shift::Util
 
 #endif //SHIFT_UTILITY_HPP

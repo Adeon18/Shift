@@ -37,17 +37,22 @@ FetchContent_Declare(spdlog
         GIT_PROGRESS ON
         FIND_PACKAGE_ARGS 1.11.0)
 
-# 3D Models
-# Assimp's own tests are useless to us and their gtest target breaks the `all` build
-# outside a VS dev environment, so they are off
-set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-
-FetchContent_Declare(assimp
-        GIT_REPOSITORY https://github.com/assimp/assimp.git
-        GIT_TAG v5.3.1
+FetchContent_Declare(fastgltf
+        GIT_REPOSITORY https://github.com/spnda/fastgltf.git
+        GIT_TAG v0.9.0
         GIT_SHALLOW ON
-        GIT_PROGRESS ON
-        FIND_PACKAGE_ARGS 5.3.1)
+        GIT_PROGRESS ON)
+
+set(FASTGLTF_COMPILE_AS_CPP20 ON CACHE BOOL "" FORCE)
+
+FetchContent_Declare(meshoptimizer
+        GIT_REPOSITORY https://github.com/zeux/meshoptimizer.git
+        GIT_TAG v1.2
+        GIT_SHALLOW ON
+        GIT_PROGRESS ON)
+
+# We never run `cmake --install`, so don't let a dependency add install rules to our build
+set(MESHOPT_INSTALL OFF CACHE BOOL "" FORCE)
 
 # DocTest test framework
 set(DOCTEST_WITH_TESTS OFF CACHE BOOL "" FORCE)
