@@ -59,6 +59,9 @@ namespace Shift::Graphics {
             .stageFlags = EBindingVisibility::Vertex | EBindingVisibility::Fragment
         };
 
+        pipelineDescriptor.descriptorLayouts.resize(GlobalResourceSet::SET_INDEX + 1);
+        pipelineDescriptor.descriptorLayouts[GlobalResourceSet::SET_INDEX] = GlobalResourceSet::Layout();
+
         std::array<ShaderDescriptor, 2> shaderSources{vsDescriptor, fsDescriptor};
         m_pipeline = m_pipelineManager.CreatePipeline(pipelineDescriptor, shaderSources);
 
@@ -253,6 +256,8 @@ namespace Shift::Graphics {
                     sec->CreateCommandEncoder()->SetViewport(viewport);
 
                     sec->CreateCommandEncoder()->BindGraphicsPipeline(*pipeline);
+
+                    sec->CreateCommandEncoder()->BindResourceSet(*pipeline, GlobalResourceSet::SET_INDEX, *m_globalSet.Get());
 
                     const GPU::PushConstants push{
                         .frameConstantsRef = m_frameConstants.SlotAddress(frameSlot),

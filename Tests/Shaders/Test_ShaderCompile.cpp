@@ -3,9 +3,11 @@
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
+#include <map>
 #include <string>
 #include <vector>
 
+#include "Graphics/Managers/GlobalResourceSet.hpp"
 #include "Utility/SlangCompiler/SlangCompiler.hpp"
 #include "Utility/UtilStandard.hpp"
 
@@ -40,6 +42,14 @@ namespace {
     constexpr uint32_t OP_NAME = 5;
     constexpr uint32_t OP_DECORATE = 71;
     constexpr uint32_t DECORATION_ARRAY_STRIDE = 6;
+    constexpr uint32_t DECORATION_BINDING = 33;
+    constexpr uint32_t DECORATION_DESCRIPTOR_SET = 34;
+    constexpr uint32_t OP_TYPE_IMAGE = 25;
+    constexpr uint32_t OP_TYPE_SAMPLER = 26;
+    constexpr uint32_t OP_TYPE_ARRAY = 28;
+    constexpr uint32_t OP_TYPE_RUNTIME_ARRAY = 29;
+    constexpr uint32_t OP_TYPE_POINTER = 32;
+    constexpr uint32_t OP_VARIABLE = 59;
 
     //! Every ArrayStride decoration in the module, in encounter order. A pointer type used for
     //! indexed access carries this decoration, which is exactly where the layout rule shows up
@@ -108,6 +118,111 @@ namespace {
         }
 
         return names;
+    }
+
+    //! What a descriptor variable actually IS, resolved through its type chain. The binding number
+    //! alone cannot catch a b0/b1 swap - both numbers still exist, they just mean the wrong thing
+    enum class EDeclaredKind { Sampler, Image, Other };
+
+    //! One shader-declared descriptor: the (set, binding) pair it was decorated with, what kind of
+    //! descriptor it is, and the variable name so a test can say WHICH declaration moved
+    struct DeclaredDescriptor {
+        std::string name;
+        uint32_t set = UINT32_MAX;
+        uint32_t binding = UINT32_MAX;
+        EDeclaredKind kind = EDeclaredKind::Other;
+    };
+
+    //! Every variable in the module carrying BOTH a DescriptorSet and a Binding decoration, with
+    //! its kind resolved by walking OpVariable -> OpTypePointer -> (OpTypeRuntimeArray|OpTypeArray)*
+    //! -> OpTypeSampler / OpTypeImage. Names come from OpName, where source-level identity survives
+    std::vector<DeclaredDescriptor> CollectDeclaredDescriptors(const std::vector<uint8_t>& bytecode) {
+        std::vector<DeclaredDescriptor> declared;
+        if (bytecode.empty()) { return declared; }
+        if (bytecode.size() % sizeof(uint32_t) != 0) { return declared; }
+
+        std::vector<uint32_t> words(bytecode.size() / sizeof(uint32_t));
+        std::memcpy(words.data(), bytecode.data(), bytecode.size());
+
+        if (words.size() < SPIRV_HEADER_WORDS) { return declared; }
+        if (words[0] != SPIRV_MAGIC) { return declared; }
+
+        std::map<uint32_t, std::string> names;
+        std::map<uint32_t, uint32_t> sets;
+        std::map<uint32_t, uint32_t> bindings;
+        //! Type graph, just the edges needed to walk a descriptor variable down to its leaf type
+        std::map<uint32_t, uint32_t> pointeeOf;      //! OpTypePointer  -> pointed-to type
+        std::map<uint32_t, uint32_t> elementOf;      //! OpType[Runtime]Array -> element type
+        std::map<uint32_t, uint32_t> typeOfVariable; //! OpVariable -> its (pointer) result type
+        std::map<uint32_t, EDeclaredKind> leafKind;  //! OpTypeSampler / OpTypeImage -> kind
+
+        for (size_t i = SPIRV_HEADER_WORDS; i < words.size();) {
+            const uint32_t wordCount = words[i] >> 16;
+            const uint32_t opcode = words[i] & 0xFFFFu;
+            if (wordCount == 0) { break; }
+            if (i + wordCount > words.size()) { break; }
+
+            if (opcode == OP_NAME && wordCount > 2) {
+                const char* chars = reinterpret_cast<const char*>(&words[i + 2]);
+                const size_t maxBytes = (wordCount - 2) * sizeof(uint32_t);
+                size_t length = 0;
+                while (length < maxBytes && chars[length] != '\0') { ++length; }
+                names[words[i + 1]] = std::string(chars, length);
+            }
+
+            //! OpDecorate: [0] header, [1] target id, [2] decoration, [3] literal
+            if (opcode == OP_DECORATE && wordCount >= 4) {
+                if (words[i + 2] == DECORATION_DESCRIPTOR_SET) { sets[words[i + 1]] = words[i + 3]; }
+                if (words[i + 2] == DECORATION_BINDING) { bindings[words[i + 1]] = words[i + 3]; }
+            }
+
+            //! Type declarations: result id is always the first operand except on OpVariable,
+            //! where [1] is the result TYPE and [2] is the result id
+            if (opcode == OP_TYPE_IMAGE && wordCount >= 2) { leafKind[words[i + 1]] = EDeclaredKind::Image; }
+            if (opcode == OP_TYPE_SAMPLER && wordCount >= 2) { leafKind[words[i + 1]] = EDeclaredKind::Sampler; }
+            if (opcode == OP_TYPE_RUNTIME_ARRAY && wordCount >= 3) { elementOf[words[i + 1]] = words[i + 2]; }
+            if (opcode == OP_TYPE_ARRAY && wordCount >= 3) { elementOf[words[i + 1]] = words[i + 2]; }
+            if (opcode == OP_TYPE_POINTER && wordCount >= 4) { pointeeOf[words[i + 1]] = words[i + 3]; }
+            if (opcode == OP_VARIABLE && wordCount >= 4) { typeOfVariable[words[i + 2]] = words[i + 1]; }
+
+            i += wordCount;
+        }
+
+        //! Walk pointer -> arrays -> leaf. Bounded by the map sizes so a malformed or cyclic type
+        //! graph cannot spin here
+        auto resolveKind = [&](uint32_t variableId) {
+            const auto variableType = typeOfVariable.find(variableId);
+            if (variableType == typeOfVariable.end()) { return EDeclaredKind::Other; }
+
+            const auto pointee = pointeeOf.find(variableType->second);
+            if (pointee == pointeeOf.end()) { return EDeclaredKind::Other; }
+
+            uint32_t current = pointee->second;
+            for (size_t step = 0; step <= elementOf.size(); ++step) {
+                const auto leaf = leafKind.find(current);
+                if (leaf != leafKind.end()) { return leaf->second; }
+
+                const auto element = elementOf.find(current);
+                if (element == elementOf.end()) { return EDeclaredKind::Other; }
+                current = element->second;
+            }
+            return EDeclaredKind::Other;
+        };
+
+        for (const auto& [id, set] : sets) {
+            const auto binding = bindings.find(id);
+            if (binding == bindings.end()) { continue; }
+
+            const auto name = names.find(id);
+            declared.push_back({
+                name == names.end() ? std::string{} : name->second,
+                set,
+                binding->second,
+                resolveKind(id)
+            });
+        }
+
+        return declared;
     }
 #endif
 }
@@ -185,6 +300,78 @@ TEST_CASE("Slang packs buffers by scalar layout on both the pointer and bound pa
 
     CHECK_MESSAGE(sawFloat3Stride,
                   "no 12-byte stride anywhere: the float3 array is no longer being witnessed");
+
+    compiler.Destroy();
+}
+
+//! CPU-only. The global set is declared TWICE - once in C++ (GlobalResourceSet::Layout, which both
+//! allocates the set and goes into every pipeline layout) and once in Slang (Lib/Bindless.slang's
+//! [[vk::binding]] attributes). Nothing at runtime reconciles the two: the descriptors are typed
+//! and numbered on the C++ side, and the shader just indexes whatever numbers it was compiled
+//! with. Swap b0 and b1 in one of the two files and you get a sampler where an image is expected -
+//! which validation may catch as a type mismatch, or may not, since a partially-bound array is
+//! allowed to have nothing in the slot being read.
+//!
+//! So this reads the numbers back out of the compiled module and compares them with the C++
+//! constants. It compiles the real engine PS rather than a fixture, so it also fails if the
+//! shader stops sampling bindlessly at all.
+TEST_CASE("the shader's bindless declarations sit where the global set declares them") {
+    const std::string shaderSrcDir = Util::GetShiftShaderSrcDir();
+    const std::string trianglePS = shaderSrcDir + "Debug/TrianglePS.slang";
+    REQUIRE_MESSAGE(std::filesystem::exists(trianglePS), "triangle PS missing: ", trianglePS);
+
+    SlangCompiler compiler;
+    compiler.Init(std::vector<std::string>{shaderSrcDir, Util::GetShiftGPUSharedDir()}, SHADER_TARGET);
+
+    const auto result = compiler.Compile(trianglePS, "mainPS", EShaderType::Fragment);
+    REQUIRE_MESSAGE(result.isValid, result.errorLog);
+    REQUIRE_FALSE(result.data.empty());
+
+    const std::vector<DeclaredDescriptor> declared = CollectDeclaredDescriptors(result.data);
+
+    REQUIRE_MESSAGE(declared.size() == 2,
+                    "expected exactly the sampler array and the 2D image array to be declared, got ",
+                    declared.size(), " - a shader reaching the global set through anything else is "
+                    "a binding this test does not know about");
+
+    bool sawSamplers = false;
+    bool sawImages = false;
+    for (const DeclaredDescriptor& descriptor : declared) {
+        CAPTURE(descriptor.name);
+        CAPTURE(descriptor.set);
+        CAPTURE(descriptor.binding);
+
+        //! Set 0 is the global set; nothing else exists yet, and a stray set 1 here would be a
+        //! declaration no pipeline layout in the engine describes
+        CHECK_MESSAGE(descriptor.set == 0u, "bindless declaration left set 0");
+
+        const bool isSamplerArray = descriptor.binding == Shift::Graphics::GlobalResourceSet::BINDING_SAMPLERS;
+        const bool isImageArray = descriptor.binding == Shift::Graphics::GlobalResourceSet::BINDING_IMAGES_2D;
+        sawSamplers = sawSamplers || isSamplerArray;
+        sawImages = sawImages || isImageArray;
+
+        const bool isKnownBinding = isSamplerArray || isImageArray;
+        CHECK_MESSAGE(isKnownBinding,
+                      "binding number has no counterpart in GlobalResourceSet - the two halves of "
+                      "the global set declaration have drifted apart");
+
+        //! The number matching is not enough on its own: swap the two attributes in the shader and
+        //! both numbers still exist, they just describe the wrong descriptor. THIS is the check
+        //! that catches it, because the C++ side declares b0 SAMPLER and b1 SAMPLED_IMAGE
+        if (isSamplerArray) {
+            CHECK_MESSAGE(descriptor.kind == EDeclaredKind::Sampler,
+                          "the shader declares something other than a sampler array at "
+                          "BINDING_SAMPLERS, where the C++ layout declares VK_DESCRIPTOR_TYPE_SAMPLER");
+        }
+        if (isImageArray) {
+            CHECK_MESSAGE(descriptor.kind == EDeclaredKind::Image,
+                          "the shader declares something other than an image array at "
+                          "BINDING_IMAGES_2D, where the C++ layout declares VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE");
+        }
+    }
+
+    CHECK_MESSAGE(sawSamplers, "no declaration at BINDING_SAMPLERS");
+    CHECK_MESSAGE(sawImages, "no declaration at BINDING_IMAGES_2D");
 
     compiler.Destroy();
 }

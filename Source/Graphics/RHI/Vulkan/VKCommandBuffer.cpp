@@ -10,6 +10,7 @@
 
 #include "VKBuffer.hpp"
 #include "VKPipeline.hpp"
+#include "VKResourceSet.hpp"
 #include "VKSemaphore.hpp"
 #include "VKTexture.hpp"
 
@@ -608,6 +609,11 @@ namespace Shift::VK {
             .extent = VkExtent2D{.width = scissor.extent.x, .height = scissor.extent.y}
             };
         vkCmdSetScissor(m_buffer, 0, 1, &s);
+    }
+
+    void CommandBuffer::BindResourceSet(const Pipeline& pipeline, uint32_t setIdx, const ResourceSet& set) const {
+        std::array descriptorSets{set.VK_Get()};
+        VK_BindDescriptorSets(descriptorSets, {}, pipeline.VK_GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, setIdx);
     }
 
     void CommandBuffer::VK_BindDescriptorSets(const std::span<VkDescriptorSet> descriptorSets,

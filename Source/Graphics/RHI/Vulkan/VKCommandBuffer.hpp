@@ -200,6 +200,13 @@ namespace Shift::VK {
         //! \param offset byte offset RELATIVE to the start of the declared range
         void SetPushConstants(const Pipeline& pipeline, const void* data, uint32_t size, uint32_t offset) const;
 
+        //! Bind one resource set at a set index of the pipeline's layout.
+        //! Graphics bind point only as there is no compute pipeline type to take yet
+        //! \param pipeline pipeline whose layout declares this set index
+        //! \param setIdx index of the set in that layout (set 0 is the global bindless set)
+        //! \param set the set to bind
+        void BindResourceSet(const Pipeline& pipeline, uint32_t setIdx, const ResourceSet& set) const;
+
         //! [VK backend only function] Expects a higher level RHI manager to fill in the API specific data
         //! \param descriptorSets range of ds
         //! \param dynamicOffsets dynamic offsets if any

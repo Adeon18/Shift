@@ -7,6 +7,7 @@
 
 namespace Shift::VK {
     class ResourceSet {
+        friend VK::CommandBuffer;
     public:
         //! Init the resource set (just fills infos, the api related logic is in the RHI wrapper)
         //! \param device - device lol
@@ -46,6 +47,8 @@ namespace Shift::VK {
 
         ~ResourceSet()=default;
     private:
+        [[nodiscard]] VkDescriptorSet VK_Get() const { return m_set; }
+
         const Device* m_device;
 
         // There are needed to keep the stucts "alive before update"

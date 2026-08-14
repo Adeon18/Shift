@@ -135,9 +135,8 @@ namespace Shift {
         { InputBuffer.BindVertexBuffer(InputBufferOpDesc, firstBindPosition) } -> std::same_as<void>;
         { InputBuffer.BindVertexBuffers(InputBufferOpDescs, firstBindPosition) } -> std::same_as<void>;
         { InputBuffer.BindIndexBuffer(InputBufferOpDesc, indexSize) } -> std::same_as<void>;
-        // These will probably be per-backend specific too
-        //!{ InputBuffer.BindResourceSet(InputResourceSet, firstBindPosition) } -> std::same_as<void>;     // Dynamic offsets will be pulled out of my fucking ass
-        //!{ InputBuffer.BindResourceSets(InputResourceSets, firstBindPosition) } -> std::same_as<void>;
+        { InputBuffer.BindResourceSet(InputPipeline, firstBindPosition, InputResourceSet) } -> std::same_as<void>;
+        //!{ InputBuffer.BindResourceSets(InputPipeline, firstBindPosition, InputResourceSets) } -> std::same_as<void>; // Dynamic offsets will be pulled out of my fucking ass
         { InputBuffer.Draw(InputDrawConfig) } -> std::same_as<void>;
         { InputBuffer.DrawIndexed(InputDrawIndexedConfig) } -> std::same_as<void>;
         //! Misc

@@ -2,6 +2,7 @@
 struct VertexOutput
 {
     float4 position : SV_Position;
+    float2 uv : TEXCOORD0;
 };
 
 [shader("vertex")]
@@ -12,6 +13,7 @@ VertexOutput mainVS(uint vertexID : SV_VertexID)
 
     VertexOutput output;
     output.position = float4(positions[vertexID % 3], 0.0, 1.0);
+    output.uv = float2(0.0, 0.0);
 
     return output;
 }

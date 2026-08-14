@@ -116,7 +116,8 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
         CHECK(samplers.GetCount() == namedCount);
 
         //! ...and a state nobody registered at boot is reachable mid-run, which is why b0 is
-        //! update-after-bind: this writes a descriptor into a set command buffers already hold
+        //! update-after-bind: frames have already run by now, so this writes a descriptor into a
+        //! set that in-flight command buffers have genuinely bound
         Shift::SamplerDescriptor nearestClamp{};
         nearestClamp.minFilter = Shift::EFilterMode::Nearest;
         nearestClamp.magFilter = Shift::EFilterMode::Nearest;
@@ -254,6 +255,16 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     CHECK_MESSAGE(libRebuiltCount == 1,
                   "editing an imported Lib module rebuilt nothing: the shader's dependency list "
                   "does not reach through the import");
+    tick(5);
+
+    //! Same question for the second Lib module, asked separately because it enters through a
+    //! different import chain: only the PS imports Lib.Bindless
+    const std::string bindlessLib = Shift::Util::GetShiftShaderSrcDir() + "Lib/Bindless.slang";
+    renderer.GetShaderManager().MarkDirty(bindlessLib);
+    const uint32_t bindlessRebuiltCount = renderer.HotReloadShaders();
+    CHECK_MESSAGE(bindlessRebuiltCount == 1,
+                  "editing Lib/Bindless.slang rebuilt nothing: the pixel shader's dependency list "
+                  "does not reach through its import");
     tick(5);
 
     //! Mid-run texture upload

@@ -140,6 +140,12 @@ namespace Shift {
         //! \param pipeline The Pipeline wrapper
         void BindGraphicsPipeline(const Pipeline& pipeline) const;
 
+        //! Bind one resource set at a set index of the pipeline's layout
+        //! \param pipeline pipeline whose layout declares this set index
+        //! \param setIdx index of the set in that layout (set 0 is the global bindless set)
+        //! \param set the set to bind
+        void BindResourceSet(const Pipeline& pipeline, uint32_t setIdx, const ResourceSet& set) const;
+
         //! Write the pipeline's push-constant block.
         //! \param pipeline pipeline whose layout declares the range
         //! \param data pointer to at least size bytes
@@ -320,6 +326,11 @@ namespace Shift {
     template<ValidAPI API>
     void RHIEncoder<API>::BindGraphicsPipeline(const Pipeline &pipeline) const {
         m_boundCB->BindGraphicsPipeline(pipeline);
+    }
+
+    template<ValidAPI API>
+    void RHIEncoder<API>::BindResourceSet(const Pipeline& pipeline, uint32_t setIdx, const ResourceSet& set) const {
+        m_boundCB->BindResourceSet(pipeline, setIdx, set);
     }
 
     template<ValidAPI API>
