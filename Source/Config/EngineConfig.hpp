@@ -20,6 +20,13 @@ namespace Shift::Conf {
     static constexpr uint32_t MAX_BINDLESS_SAMPLERS = 8u;
     static constexpr uint32_t MAX_BINDLESS_SETS = 1u;
 
+    //! Capacity of vertex streams
+    //! rn: positions 24 MB + normals 24 MB + tangents 32 MB + uvs 16 MB
+    static constexpr uint32_t MAX_SCENE_VERTICES = 2'000'000u;
+    //! Index buffer, 32-bit (64 MB)
+    static constexpr uint32_t MAX_SCENE_INDICES = 16'777'216u;
+    static constexpr uint32_t MAX_SCENE_OBJECTS = 16384u;
+
     //! Max named GPU timing ranges recorded per frame. Two timestamps per range
     static constexpr uint32_t MAX_GPU_TIME_RANGES_PER_FRAME = 64u;
 }

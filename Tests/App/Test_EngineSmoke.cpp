@@ -13,6 +13,7 @@
 
 #include "ShiftEngine.hpp"
 #include "Config/EngineConfig.hpp"
+#include "Graphics/Managers/MeshManager.hpp"
 #include "Graphics/Managers/TextureManager.hpp"
 #include "Graphics/RHI/Common/Capabilities.hpp"
 #include "Graphics/Shared/GPUShared.h"
@@ -71,6 +72,11 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     float maxFrameMs = 0.0f;
     bool sawFrameZone = false;
     Shift::DebugLabelColor frameColor{};
+    //! How many frames actually recorded a scene pass. The depth attachment and the draws only
+    //! exist inside it, so this is what says whether the run exercised them at all - and whether it
+    //! exercised them on OVERLAPPING frames, which is the only way a cross-frame depth hazard could
+    //! show up in sync validation
+    uint32_t viewportPassFrames = 0;
 
     auto tick = [&](int frames) {
         for (int i = 0; i < frames; ++i) {
@@ -80,6 +86,9 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
                     sawFrameZone = true;
                     maxFrameMs = std::max(maxFrameMs, range.milliseconds);
                     frameColor = range.color;
+                }
+                if (range.name == "ViewportPass") {
+                    ++viewportPassFrames;
                 }
             }
         }
@@ -203,9 +212,106 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
         //! was built from - this is what catches a half-updated or torn write
         CHECK(MaxAbsDiff(frame->viewProj, frame->proj * frame->view) < 1e-4f);
 
-        //! The pull-model stream address reached the struct the shader reads. Zero here means the
+        //! The pull-model stream addresses reached the struct the shader reads. Zero here means the
         //! vertex shader is dereferencing a null pointer for every vertex
         CHECK_MESSAGE(frame->positionsRef != 0, "position stream address never reached the GPU struct");
+        CHECK_MESSAGE(frame->normalsRef != 0, "normal stream address never reached the GPU struct");
+        CHECK_MESSAGE(frame->tangentsRef != 0, "tangent stream address never reached the GPU struct");
+        CHECK_MESSAGE(frame->uvsRef != 0, "uv stream address never reached the GPU struct");
+
+        //! Four SEPARATE merged buffers. One address repeated would mean two streams were created
+        //! from the same handle, and every normal would read as a position
+        //! All SIX pairs, not a cycle of four: positions aliasing tangents is just as wrong as
+        //! positions aliasing normals, and a chain of neighbour comparisons misses it
+        std::vector<uint64_t> streamRefs{
+            frame->positionsRef, frame->normalsRef, frame->tangentsRef, frame->uvsRef
+        };
+        std::sort(streamRefs.begin(), streamRefs.end());
+        const bool streamsDistinct = std::unique(streamRefs.begin(), streamRefs.end()) == streamRefs.end();
+        CHECK_MESSAGE(streamsDistinct, "two SoA vertex streams resolve to the same address");
+
+        //! Each frame in flight hands the shader ITS OWN ObjectData slot - that is the whole reason
+        //! the array is a per-frame ring rather than one shared buffer
+        CHECK_MESSAGE(frame->objectBufferRef != 0, "object array address never reached the GPU struct");
+    }
+
+    {
+        const Shift::GPU::FrameConstants* slot0 = renderer.GetFrameConstants(0);
+        const Shift::GPU::FrameConstants* slot1 = renderer.GetFrameConstants(1);
+        REQUIRE(slot0 != nullptr);
+        REQUIRE(slot1 != nullptr);
+        CHECK_MESSAGE(slot0->objectBufferRef != slot1->objectBufferRef,
+                      "two frames in flight were handed the SAME ObjectData address, so one frame's "
+                      "CPU rewrite lands in an array the other is still reading");
+    }
+
+    //! The merged scene geometry, and the one number in ObjectData that the pull model cannot work
+    //! without. Keyed on the committed asset only: DamagedHelmet is a downloaded asset (R7)
+    {
+        auto& meshes = renderer.GetMeshManager();
+        const auto& instances = renderer.GetSceneInstances();
+
+        REQUIRE_MESSAGE(!instances.empty(), "the boot scene uploaded no meshes at all");
+        CHECK_MESSAGE(meshes.GetUsedVertices() > 0, "the merged vertex streams hold nothing");
+        CHECK_MESSAGE(meshes.GetUsedIndices() > 0, "the merged index buffer holds nothing");
+
+        const Shift::GPU::ObjectData* objects = renderer.GetObjectData(0);
+        REQUIRE_MESSAGE(objects != nullptr, "object ring slot 0 does not resolve");
+
+        uint32_t vertexTotal = 0;
+        for (size_t i = 0; i < instances.size(); ++i) {
+            CAPTURE(i);
+            const Shift::Graphics::Mesh* mesh = meshes.Get(instances[i].mesh);
+            REQUIRE_MESSAGE(mesh != nullptr, "a scene instance points at no mesh");
+
+            //! Every draw passes vertexOffset = 0, so THIS field is the only thing that puts a
+            //! mesh's vertices at the right place in the merged streams. A drift here renders
+            //! another mesh's geometry, or garbage
+            CHECK_MESSAGE(objects[i].vertexOffset == mesh->vertexRange.first,
+                          "ObjectData::vertexOffset does not match where the mesh actually landed");
+
+            CHECK_MESSAGE(mesh->vertexRange.count > 0, "a mesh was uploaded with no vertices");
+            CHECK_MESSAGE(mesh->indexRange.count > 0, "a mesh was uploaded with no indices");
+            CHECK_MESSAGE(!mesh->submeshes.empty(), "a mesh was uploaded with no submeshes");
+
+            //! The framing transform LoadScene applied, so a zeroed ObjectData slot is visible
+            CHECK(MaxAbs(objects[i].model) > 0.0f);
+            CHECK(objects[i].boundsSphere.w > 0.0f);
+
+            //! boundsSphere is WORLD space, so its radius must carry the instance's scale. Checking
+            //! only that it is positive passes for a radius that was never scaled at all - and an
+            //! over-large radius is invisible until P4.4's frustum cull quietly under-rejects
+            const float instanceScale = glm::length(glm::vec3(instances[i].transform[0]));
+            CHECK_MESSAGE(std::fabs(objects[i].boundsSphere.w - mesh->bounds.sphere.w * instanceScale) < 1e-3f,
+                          "the world-space bounds radius does not equal the mesh radius times the "
+                          "instance's scale");
+
+            vertexTotal += mesh->vertexRange.count;
+        }
+
+        CHECK_MESSAGE(vertexTotal == meshes.GetUsedVertices(),
+                      "the allocator has handed out a different number of vertices than the meshes "
+                      "actually hold, so a range leaked or was double-counted");
+
+        //! With more than one mesh they cannot all start at vertex 0, which is what makes
+        //! vertexOffset load-bearing rather than trivially correct. The committed skull is four
+        //! meshes, so this holds without the downloaded helmet - but it is a report rather than a
+        //! gate, since which assets are on disk is not this test's business
+        if (instances.size() > 1) {
+            const Shift::Graphics::Mesh* first = meshes.Get(instances[0].mesh);
+            const Shift::Graphics::Mesh* second = meshes.Get(instances[1].mesh);
+            REQUIRE(first != nullptr);
+            REQUIRE(second != nullptr);
+            const bool disjoint =
+                    second->vertexRange.first >= first->vertexRange.first + first->vertexRange.count;
+            CHECK_MESSAGE(second->vertexRange.first != 0u,
+                          "the second mesh also starts at vertex 0: the suballocator handed out the "
+                          "same range twice");
+            CHECK_MESSAGE(disjoint, "two meshes overlap in the merged vertex streams");
+        } else {
+            MESSAGE("the boot scene holds a single mesh, so a non-zero mesh base vertex went "
+                    "untested this run");
+        }
     }
 
     //! Projection tracks the VIEWPORT render target's aspect, not the OS window's: the scene is
@@ -240,32 +346,24 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     }
 
     //! Phase 5: shader hot-reload (watcher deliberately bypassed: MarkDirty is used)
-    //! Real recompile of the live vertex shader, in-place pipeline rebuild, retired GPU handle
-    //! released via the deferred executor once the timeline passes
-    const std::string triangleVS = Shift::Util::GetShiftShaderSrcDir() + "Debug/TriangleVS.slang";
-    renderer.GetShaderManager().MarkDirty(triangleVS);
-    const uint32_t rebuiltCount = renderer.HotReloadShaders();
-    CHECK_MESSAGE(rebuiltCount == 1,
-                  "expected exactly the triangle pipeline to rebuild after marking its VS dirty");
-    tick(10);
-
-    const std::string frameDataLib = Shift::Util::GetShiftShaderSrcDir() + "Lib/FrameData.slang";
-    renderer.GetShaderManager().MarkDirty(frameDataLib);
-    const uint32_t libRebuiltCount = renderer.HotReloadShaders();
-    CHECK_MESSAGE(libRebuiltCount == 1,
-                  "editing an imported Lib module rebuilt nothing: the shader's dependency list "
-                  "does not reach through the import");
-    tick(5);
-
-    //! Same question for the second Lib module, asked separately because it enters through a
-    //! different import chain: only the PS imports Lib.Bindless
-    const std::string bindlessLib = Shift::Util::GetShiftShaderSrcDir() + "Lib/Bindless.slang";
-    renderer.GetShaderManager().MarkDirty(bindlessLib);
-    const uint32_t bindlessRebuiltCount = renderer.HotReloadShaders();
-    CHECK_MESSAGE(bindlessRebuiltCount == 1,
-                  "editing Lib/Bindless.slang rebuilt nothing: the pixel shader's dependency list "
-                  "does not reach through its import");
-    tick(5);
+    //! Real recompile, in-place pipeline rebuild, retired GPU handle released via the deferred
+    //! executor once the timeline passes. Each Lib module is asked SEPARATELY because each enters
+    //! through a different import chain, and a dependency list reaching one says nothing about
+    //! another: ForwardVS imports FrameData + VertexPull, ForwardPS imports FrameData + Bindless
+    const char* dirtiedShaders[] = {
+        "Forward/ForwardVS.slang",
+        "Lib/FrameData.slang",
+        "Lib/Bindless.slang",
+        "Lib/VertexPull.slang",
+    };
+    for (const char* shader : dirtiedShaders) {
+        CAPTURE(shader);
+        renderer.GetShaderManager().MarkDirty(Shift::Util::GetShiftShaderSrcDir() + shader);
+        CHECK_MESSAGE(renderer.HotReloadShaders() == 1,
+                      "marking this dirty rebuilt no pipeline: the forward shaders' dependency "
+                      "lists do not reach through the import");
+        tick(5);
+    }
 
     //! Mid-run texture upload
     //! The point is that this runs on a warm engine rather than during boot: the copy goes out on
@@ -304,6 +402,13 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     //! forces a viewport pass), so a working timestamp pipeline must have produced a positive
     //! 'Frame' duration. Asserting on the running max (not the last frame) tolerates hidden-window
     //! frames that legitimately record no passes and read ~0.
+    //! The scene pass - and with it the depth attachment, the index binding and every draw - only
+    //! exists inside ViewportPass. If this only ever ran on frame 0 then the run says nothing about
+    //! the draw path, and nothing about how two OVERLAPPING frames share one depth buffer
+    CHECK_MESSAGE(viewportPassFrames > 1,
+                  "the scene pass ran on at most one frame, so this run did not exercise drawing "
+                  "or the depth attachment across frames");
+
     CHECK_MESSAGE(sawFrameZone, "no top-level 'Frame' GPU zone ever resolved");
     CHECK_MESSAGE(maxFrameMs > 0.0f,
                   "GPU 'Frame' zone never had a positive duration -- timestamps are not resolving");

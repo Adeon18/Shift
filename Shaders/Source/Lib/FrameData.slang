@@ -13,8 +13,3 @@ FrameConstants LoadFrameConstants(GPUBufferRef frameConstantsRef)
 {
     return *(FrameConstants*)frameConstantsRef;
 }
-
-float3 LoadPosition(GPUBufferRef positionsRef, uint vertexIndex)
-{
-    return ((float3*)positionsRef)[vertexIndex];
-}

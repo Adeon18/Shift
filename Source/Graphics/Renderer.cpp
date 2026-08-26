@@ -6,7 +6,9 @@
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 
 #include "Graphics/RHI/Vulkan/VKImGuiBackend.hpp"
+#include "Loaders/ModelLoader/GltfLoader.hpp"
 
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
 
 namespace Shift::Graphics {
@@ -20,6 +22,8 @@ namespace Shift::Graphics {
         m_shaderManager.Init(rbi, Shift::Util::GetShiftShaderRootDir());
         m_pipelineManager.Init(&m_renderBackend, &m_shaderManager);
         m_bufferManager.Init(&m_renderBackend);
+        CheckCritical(m_meshManager.Init(&m_renderBackend, &m_bufferManager),
+                      "Failed to create the merged scene geometry buffers!");
 
         CheckCritical(m_globalSet.Init(rbi), "Failed to create the global resource set!");
         //! Sampler manager writes to global set during init
@@ -27,6 +31,8 @@ namespace Shift::Graphics {
 
         CheckCritical(m_frameConstants.Init(m_bufferManager, "FrameConstantsRing"),
                       "Failed to create the frame constants ring!");
+        CheckCritical(m_objectData.Init(m_bufferManager, "ObjectDataRing", Conf::MAX_SCENE_OBJECTS),
+                      "Failed to create the object data ring!");
 
         RenderContext& tctx = m_renderBackend.GetTransferContext();
         RenderContextEncoder* tEncoder = tctx.CreateCommandEncoder();
@@ -37,62 +43,45 @@ namespace Shift::Graphics {
         m_textureManager = std::make_unique<Graphics::TextureManager>(m_textureLoader.get(), &m_renderBackend, &m_globalSet, tctx.CreateCommandEncoder());
 
         m_textureManager->GetOrLoadTexture(Shift::Util::GetShiftRoot() + "Assets/Textures/NB.jpg", tEncoder);
-        LoadScene();
+        CheckCritical(LoadScene(*tEncoder), "Failed to load the scene!");
 
+        {
+            PipelineDescriptor forwardDescriptor;
+            forwardDescriptor.name = "ForwardOpaque";
 
-        PipelineDescriptor pipelineDescriptor;
-        pipelineDescriptor.name = "TrianglePipeline";
-        ShaderDescriptor vsDescriptor;
-        vsDescriptor.type = EShaderType::Vertex;
-        vsDescriptor.path = Shift::Util::GetShiftShaderSrcDir() + "Debug/TriangleVS.slang";
-        vsDescriptor.entry = "mainVS";
-        ShaderDescriptor fsDescriptor;
-        fsDescriptor.type = EShaderType::Fragment;
-        fsDescriptor.path = Shift::Util::GetShiftShaderSrcDir() + "Debug/TrianglePS.slang";
-        fsDescriptor.entry = "mainPS";
+            ShaderDescriptor vsDescriptor;
+            vsDescriptor.type = EShaderType::Vertex;
+            vsDescriptor.path = Shift::Util::GetShiftShaderSrcDir() + "Forward/ForwardVS.slang";
+            vsDescriptor.entry = "mainVS";
+            ShaderDescriptor fsDescriptor;
+            fsDescriptor.type = EShaderType::Fragment;
+            fsDescriptor.path = Shift::Util::GetShiftShaderSrcDir() + "Forward/ForwardPS.slang";
+            fsDescriptor.entry = "mainPS";
 
-        pipelineDescriptor.colorBlendConfig.attachments.push_back({.format = ETextureFormat::B8G8R8A8_SRGB});
+            forwardDescriptor.colorBlendConfig.attachments.push_back({.format = VIEWPORT_COLOR_FORMAT});
 
-        pipelineDescriptor.pushConstants = PushConstantRange{
-            .offset = 0,
-            .size = static_cast<uint32_t>(sizeof(GPU::PushConstants)),
-            .stageFlags = EBindingVisibility::Vertex | EBindingVisibility::Fragment
-        };
+            forwardDescriptor.depthStencilConfig = {
+                .depthFormat = VIEWPORT_DEPTH_FORMAT,
+                .depthTestEnabled = true,
+                .depthWriteEnabled = true,
+                .depthFunction = ECompareOperation::Less
+            };
 
-        pipelineDescriptor.descriptorLayouts.resize(GlobalResourceSet::SET_INDEX + 1);
-        pipelineDescriptor.descriptorLayouts[GlobalResourceSet::SET_INDEX] = GlobalResourceSet::Layout();
+            forwardDescriptor.rasterizerStateDesc.cullMode = ECullMode::Back;
+            forwardDescriptor.rasterizerStateDesc.windingOrder = EWindingOrder::CounterClockwise;
 
-        std::array<ShaderDescriptor, 2> shaderSources{vsDescriptor, fsDescriptor};
-        m_pipeline = m_pipelineManager.CreatePipeline(pipelineDescriptor, shaderSources);
+            forwardDescriptor.pushConstants = PushConstantRange{
+                .offset = 0,
+                .size = static_cast<uint32_t>(sizeof(GPU::PushConstants)),
+                .stageFlags = EBindingVisibility::Vertex | EBindingVisibility::Fragment
+            };
 
-        uint32_t bufSize = 3 * sizeof(float) * 6;
-        BufferDescriptor bufferDescriptor;
-        bufferDescriptor.type = EBufferType::Staging;
-        bufferDescriptor.name = "Stage";
-        bufferDescriptor.size = bufSize;
-        Buffer* staging = rbi->CreateBuffer(bufferDescriptor);
+            forwardDescriptor.descriptorLayouts.resize(GlobalResourceSet::SET_INDEX + 1);
+            forwardDescriptor.descriptorLayouts[GlobalResourceSet::SET_INDEX] = GlobalResourceSet::Layout();
 
-        BufferDescriptor bufferDescriptor2;
-        bufferDescriptor2.type = EBufferType::Vertex;
-        bufferDescriptor2.name = "TrianglePositions";
-        bufferDescriptor2.size = bufSize;
-        bufferDescriptor2.isDeviceAddressable = true;
-        m_positionStream = m_bufferManager.CreateBuffer(bufferDescriptor2);
-
-        CheckCritical(m_bufferManager.Get(m_positionStream)->GetDeviceAddress() != 0,
-                      "Device-addressable buffer reported address 0 buffer device address is broken!");
-
-        std::vector<float> vertexData = {
-            0.5f,  0.5f, 0.5f,
-            -0.0f, -0.5f, 0.5f,
-            0.5f, -0.5f, 0.5f,
-            -0.5f,  0.5f, 0.5f,
-            -0.5f, -0.5f, 0.5f,
-            0.0f, -0.5f, 0.5f
-        };
-
-        staging->Fill(vertexData.data(), bufSize, 0);
-        tctx.CreateCommandEncoder()->CopyBufferToBuffer({staging, 0}, {m_bufferManager.Get(m_positionStream), 0}, bufSize);
+            std::array<ShaderDescriptor, 2> shaderSources{vsDescriptor, fsDescriptor};
+            m_forwardPipeline = m_pipelineManager.CreatePipeline(forwardDescriptor, shaderSources);
+        }
 
         {
             m_viewportSamplerIdx = m_samplerManager.GetOrCreate(
@@ -109,12 +98,14 @@ namespace Shift::Graphics {
             {
                     .width = m_window.GetWidth(),
                     .height = m_window.GetHeight(),
-                    .format = ETextureFormat::B8G8R8A8_SRGB,
+                    .format = VIEWPORT_COLOR_FORMAT,
                     .usageFlags = ETextureUsageFlags::ColorAttachment | ETextureUsageFlags::Sampled,
                     .name = "ViewportRT"
                 }
             );
 
+            m_viewportDepth = CreateViewportDepthTexture(m_window.GetWidth(), m_window.GetHeight());
+            CheckCritical(m_viewportDepth != nullptr, "Failed to create the viewport depth buffer!");
         }
         //! First frame the viewport may be hidden so we immediately transfer this
 
@@ -123,9 +114,6 @@ namespace Shift::Graphics {
 
         std::array sigPayloads{m_renderBackend.ReserveTransferSignalPayload()};
         CheckCritical(tctx.SubmitCmds({}, sigPayloads), "Failed to submit transition context!");
-        m_renderBackend.DeferExecute(sigPayloads[0].semaphore, sigPayloads[0].value, [staging]() mutable {
-            delete staging;
-        });
 
         RenderContext& gContext = m_renderBackend.GetGraphicsContext();
         gContext.BeginCmds();
@@ -142,8 +130,14 @@ namespace Shift::Graphics {
 
         m_renderBackend.WaitForGPU();
         m_textureManager->FreeStagingBuffers();
+        m_meshManager.FreeStagingBuffers();
 
         return true;
+    }
+
+    Texture* Renderer::CreateViewportDepthTexture(uint32_t width, uint32_t height) {
+        return m_renderBackend.CreateInterface()->CreateTexture(
+            TextureDescriptor::CreateDepthTextureDesc(width, height, "ViewportDepth", VIEWPORT_DEPTH_FORMAT));
     }
 
     void Renderer::RegisterViewportTexture() {
@@ -153,7 +147,52 @@ namespace Shift::Graphics {
         m_viewportTextureID = ImGuiBackend::RegisterTexture(*viewportTexture, *viewportSampler);
     }
 
-    bool Renderer::LoadScene() {
+    bool Renderer::LoadScene(RenderContextEncoder& transferEncoder) {
+        struct SceneModel {
+            std::string path;
+            glm::mat4 transform;
+        };
+
+        const std::string root = Shift::Util::GetShiftRoot();
+        const std::vector<SceneModel> sources{
+            {
+                root + "Assets/Models/DamagedHelmet/scene.gltf",
+                glm::scale(glm::translate(glm::mat4(1.0f), {-0.75f, 0.0f, -1.5f}), glm::vec3(0.3f))
+            },
+            {
+                root + "Assets/Models/HumanSkull/scene.gltf",
+                glm::scale(glm::translate(glm::mat4(1.0f), {0.75f, 0.0f, -1.5f}), glm::vec3(0.3f))
+            },
+        };
+
+        GltfLoader loader;
+        for (const SceneModel& source : sources) {
+            std::optional<ModelData> model = loader.LoadFromFile(source.path);
+            if (!model) {
+                Log(Warning, "Scene model not loaded, skipping it: {}", source.path);
+                continue;
+            }
+
+            //! Uniform scale, so the length of any basis vector of the transform IS the scale
+            const float scale = glm::length(glm::vec3(source.transform[0]));
+
+            for (const MeshData& meshData : model->meshes) {
+                const MeshHandle handle = m_meshManager.UploadMesh(meshData, transferEncoder);
+                if (!m_meshManager.IsValid(handle)) { continue; }
+                const glm::vec3 centre = glm::vec3(source.transform * glm::vec4(glm::vec3(meshData.bounds.sphere), 1.0f));
+                m_sceneInstances.push_back({
+                    .mesh = handle,
+                    .transform = source.transform,
+                    .boundsSphere = glm::vec4(centre, meshData.bounds.sphere.w * scale)
+                });
+            }
+        }
+        CheckCritical(m_sceneInstances.size() <= Conf::MAX_SCENE_OBJECTS,
+                      "The scene holds more objects than one ObjectData ring slot can carry!");
+
+        Log(Info, "Scene loaded: {} instances, {} vertices and {} indices merged",
+            m_sceneInstances.size(), m_meshManager.GetUsedVertices(), m_meshManager.GetUsedIndices());
+
         return true;
     }
 
@@ -179,8 +218,11 @@ namespace Shift::Graphics {
         const uint32_t frameSlot = m_renderBackend.GetCurrentFrame();
         GPU::FrameConstants* frameConstants = m_frameConstants.Slot(frameSlot);
         CheckCritical(frameConstants != nullptr, "Frame constants ring has no slot for this frame!");
+        GPU::ObjectData* objectData = m_objectData.Slot(frameSlot);
+        CheckCritical(objectData != nullptr, "Object data ring has no slot for this frame!");
 
-        FillFrameConstants(frameConstants, engineData);
+        FillObjectData(objectData);
+        FillFrameConstants(frameConstants, engineData, frameSlot);
 
         uint32_t imageIndex = UINT32_MAX;
         if (shouldRenderMainWindow) {
@@ -209,6 +251,7 @@ namespace Shift::Graphics {
             gEncoder->PushDebugGroup("ViewportPass", {0.30f, 0.65f, 0.35f, 1.0f}, true);
             // gContext.TransitionTexture(m_SRHI.GetSwapchain().GetSwapchainTexture(imageIndex), EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
             gEncoder->TransitionTexture(*viewportTexture, EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
+            gEncoder->TransitionTexture(*m_viewportDepth, EResourceLayout::DepthStencilAttachmentOptimal, EPipelineStageFlags::EarlyFragmentTestsBit);
 
             RenderPassDescriptor renderPass;
             renderPass.colorAttachments.push_back(
@@ -217,10 +260,14 @@ namespace Shift::Graphics {
                     .clearValue = {.color = {0.3f, 0.3f, 0.3f, 1.0f}}
                 }
             );
+            renderPass.depthAttachment = RenderPassDescriptor::RenderPassAttachmentInfo{
+                .renderTargetName = "ViewportDepth",
+                .clearValue = {.depthStencil = {1.0f, 0u}}
+            };
             renderPass.extent = {viewportTexture->GetWidth(), viewportTexture->GetHeight()};
             renderPass.enableSecondaryCommandBuffers = true;
             std::array colorTextures{viewportTexture};
-            gEncoder->BeginRenderPass(renderPass, colorTextures, std::nullopt);
+            gEncoder->BeginRenderPass(renderPass, colorTextures, m_viewportDepth);
             // Reserve a single graphics signal payload and use it both for:
             // - telling the deferred executor when it's safe to free secondaries
             // - signalling from the primary submit
@@ -230,7 +277,7 @@ namespace Shift::Graphics {
             RenderContext* sec0 = m_renderBackend.AcquireSecondaryGraphicsContext();
             RenderContext* sec1 = m_renderBackend.AcquireSecondaryGraphicsContext();
 
-            Pipeline* pipeline = m_pipelineManager.Get(m_pipeline);
+            Pipeline* pipeline = m_pipelineManager.Get(m_forwardPipeline);
 
             std::vector<ETextureFormat> colorTexturesFormats{};
             for (auto& c: pipeline->GetDescriptor().colorBlendConfig.attachments) {
@@ -238,41 +285,64 @@ namespace Shift::Graphics {
             }
 
             SecondaryBufferBeginPayload payload{
-                .colorFormats = colorTexturesFormats
-                // .depthFormat = pipeline->GetDescriptor().depthStencilConfig.depthFormat,
+                .colorFormats = colorTexturesFormats,
+                .depthFormat = pipeline->GetDescriptor().depthStencilConfig.depthFormat
                 // .stencilFormat = pipeline->GetDescriptor().depthStencilConfig.stencilFormat
             };
 
+            //! temp
+            constexpr uint32_t SECONDARY_COUNT = 2;
+            const uint32_t instanceCount = static_cast<uint32_t>(m_sceneInstances.size());
+
             if (sec0 && sec1) {
                 // Record secondaries on two threads.
-                auto record_secondary = [&](RHIContext<RHI::Vulkan>* sec) {
+                auto record_secondary = [&](RHIContext<RHI::Vulkan>* sec, uint32_t secIdx) {
                     // NOTE: AcquireSecondaryGraphicsContext already called ResetCmds() on the context.
                     CheckCritical(sec->BeginSecondaryCmds(payload), "Failed to begin secondary command buffer!");
 
                     Rect2D scissor = {{0, 0}, {viewportTexture->GetWidth(), viewportTexture->GetHeight()}};
                     Viewport viewport = {0.0f, static_cast<float>(viewportTexture->GetHeight()), static_cast<float>(viewportTexture->GetWidth()), -static_cast<float>(viewportTexture->GetHeight()), 0.0f, 1.0f};
 
-                    sec->CreateCommandEncoder()->SetScissor(scissor);
-                    sec->CreateCommandEncoder()->SetViewport(viewport);
+                    RenderContextEncoder* secEncoder = sec->CreateCommandEncoder();
 
-                    sec->CreateCommandEncoder()->BindGraphicsPipeline(*pipeline);
+                    secEncoder->SetScissor(scissor);
+                    secEncoder->SetViewport(viewport);
 
-                    sec->CreateCommandEncoder()->BindResourceSet(*pipeline, GlobalResourceSet::SET_INDEX, *m_globalSet.Get());
+                    secEncoder->BindGraphicsPipeline(*pipeline);
 
-                    const GPU::PushConstants push{
-                        .frameConstantsRef = m_frameConstants.SlotAddress(frameSlot),
-                        .firstInstance = (sec == sec0) ? 0u : 1u
-                    };
-                    sec->CreateCommandEncoder()->SetPushConstants(*pipeline, &push, static_cast<uint32_t>(sizeof(push)));
+                    secEncoder->BindResourceSet(*pipeline, GlobalResourceSet::SET_INDEX, *m_globalSet.Get());
 
-                    sec->CreateCommandEncoder()->Draw({3, 1, 0, 0});
+                    Buffer* indexBuffer = m_meshManager.GetIndexBuffer();
+                    CheckCritical(indexBuffer != nullptr, "The merged index buffer does not resolve!");
+                    secEncoder->BindIndexBuffer({indexBuffer, 0}, EIndexSize::UInt32);
+
+                    for (uint32_t i = secIdx; i < instanceCount; i += SECONDARY_COUNT) {
+                        const Mesh* mesh = m_meshManager.Get(m_sceneInstances[i].mesh);
+                        if (mesh == nullptr) { continue; }
+                        const GPU::PushConstants push{
+                            .frameConstantsRef = m_frameConstants.SlotAddress(frameSlot),
+                            .objectIndex = i
+                        };
+                        secEncoder->SetPushConstants(*pipeline, &push, static_cast<uint32_t>(sizeof(push)));
+
+                        for (const SubmeshDesc& submesh : mesh->submeshes) {
+                            secEncoder->DrawIndexed({
+                                .indexCount = submesh.indexCount,
+                                .instanceCount = 1,
+                                //! Mesh-local firstIndex plus where the mesh's indices landed
+                                .firstIndex = mesh->indexRange.first + submesh.firstIndex,
+                                .vertexOffset = 0,
+                                .firstInstance = 0
+                            });
+                        }
+                    }
 
                     CheckCritical(sec->EndCmds(), "Failed to end secondary command buffer!");
                     return true;
                 };
 
-                std::thread th0(record_secondary, sec0);
-                std::thread th1(record_secondary, sec1);
+                std::thread th0(record_secondary, sec0, 0u);
+                std::thread th1(record_secondary, sec1, 1u);
 
                 // Wait for both recording threads to finish before executing them in primary
                 th0.join();
@@ -355,7 +425,9 @@ namespace Shift::Graphics {
         m_renderBackend.FlushAllDeferredCallbacks();
 
         delete viewportTexture;
+        delete m_viewportDepth;
 
+        m_meshManager.Destroy();
         m_bufferManager.Destroy();
         m_pipelineManager.Destroy();
         m_shaderManager.Destroy();
@@ -377,24 +449,28 @@ namespace Shift::Graphics {
         m_controller->UpdateScreenSize(static_cast<float>(width), static_cast<float>(height));
 
         Texture* oldTexture = viewportTexture;
+        Texture* oldDepth = m_viewportDepth;
         void* oldID = m_viewportTextureID;
 
         viewportTexture = m_renderBackend.CreateInterface()->CreateTexture({
             .width = width,
             .height = height,
-            .format = ETextureFormat::B8G8R8A8_SRGB,
+            .format = VIEWPORT_COLOR_FORMAT,
             .usageFlags = ETextureUsageFlags::ColorAttachment | ETextureUsageFlags::Sampled,
             .name = "ViewportRT"
         });
 
+        m_viewportDepth = CreateViewportDepthTexture(width, height);
+
         RegisterViewportTexture();
 
         //! Destruction deferred to current frame + MAX FIF because prev frames might have already submitted write commands to viewport before resize
-        m_renderBackend.DeferExecuteToFrame(m_renderBackend.GetCurrentGlobalIndex() + Conf::SHIFT_MAX_FRAMES_IN_FLIGHT, [oldTexture, oldID]() mutable {
+        m_renderBackend.DeferExecuteToFrame(m_renderBackend.GetCurrentGlobalIndex() + Conf::SHIFT_MAX_FRAMES_IN_FLIGHT, [oldTexture, oldDepth, oldID]() mutable {
             if (oldID) {
                 ImGuiBackend::UnregisterTexture(oldID);
             }
             delete oldTexture;
+            delete oldDepth;
         });
     }
 
@@ -411,14 +487,41 @@ namespace Shift::Graphics {
         return true;
     }
 
-    void Renderer::FillFrameConstants(GPU::FrameConstants *frameConstantsPtr, const EngineData &engineData) {
+    void Renderer::FillFrameConstants(GPU::FrameConstants *frameConstantsPtr, const EngineData &engineData, uint32_t frameSlot) {
         frameConstantsPtr->cameraPosExposure = glm::vec4(engineData.camPosition, 1.0f);
         frameConstantsPtr->view = engineData.viewMatrix;
         frameConstantsPtr->proj = engineData.projMatrix;
         frameConstantsPtr->viewProj = engineData.projMatrix * engineData.viewMatrix;
         frameConstantsPtr->cameraDir = glm::vec4(engineData.camDirection, 0.0f);
         frameConstantsPtr->lightCount = 0u;
-        frameConstantsPtr->positionsRef = m_bufferManager.Get(m_positionStream)->GetDeviceAddress();
+        frameConstantsPtr->selectedObject = UINT32_MAX;
+        frameConstantsPtr->debugViewMode = 0u;
+
+        frameConstantsPtr->positionsRef = m_meshManager.GetStreamAddress(MeshManager::Positions);
+        frameConstantsPtr->normalsRef = m_meshManager.GetStreamAddress(MeshManager::Normals);
+        frameConstantsPtr->tangentsRef = m_meshManager.GetStreamAddress(MeshManager::Tangents);
+        frameConstantsPtr->uvsRef = m_meshManager.GetStreamAddress(MeshManager::UVs);
+
+        frameConstantsPtr->objectBufferRef = m_objectData.SlotAddress(frameSlot);
+        frameConstantsPtr->materialBufferRef = 0;
+        frameConstantsPtr->lightBufferRef = 0;
+    }
+
+    void Renderer::FillObjectData(GPU::ObjectData *objectDataPtr) {
+        const uint32_t count = std::min(static_cast<uint32_t>(m_sceneInstances.size()), m_objectData.GetElementsPerSlot());
+
+        for (uint32_t i = 0; i < count; ++i) {
+            const SceneInstance& instance = m_sceneInstances[i];
+            const Mesh* mesh = m_meshManager.Get(instance.mesh);
+            if (mesh == nullptr) { continue; }
+
+            GPU::ObjectData& object = objectDataPtr[i];
+            object.model = instance.transform;
+            object.normalMat = glm::transpose(glm::inverse(instance.transform));
+            object.boundsSphere = instance.boundsSphere;
+            object.materialIndex = 0u;
+            object.vertexOffset = mesh->vertexRange.first;
+        }
     }
 
     uint32_t Renderer::AquireImage(bool *success) {

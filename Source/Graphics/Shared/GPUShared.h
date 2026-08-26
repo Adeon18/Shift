@@ -120,8 +120,8 @@ struct LightData {
 //! The ONLY push-constant block in the engine for now, firts in all APIs - 16 b
 struct PushConstants {
     GPUBufferRef frameConstantsRef;
-    //! Manual here because DX12
-    uint firstInstance;
+    //! API agnostic firstInstance
+    uint objectIndex;
     uint _pad0;
 };
 

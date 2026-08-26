@@ -1,4 +1,6 @@
+//! This is deprecated and used for tests
 import Lib.FrameData;
+import Lib.VertexPull;
 
 struct VertexOutput
 {
@@ -11,11 +13,10 @@ VertexOutput mainVS(uint vertexID : SV_VertexID)
 {
     VertexOutput output;
     FrameConstants frame = LoadFrameConstants(pc.frameConstantsRef);
-    uint globalVtxID = vertexID + pc.firstInstance * 3; // for now
-    float3 position = LoadPosition(frame.positionsRef, globalVtxID);
+    uint globalVtxID = vertexID + pc.objectIndex * 3; // for now
+    float3 position = LoadPosition(frame, globalVtxID);
     output.position = mul(float4(position, 1.0f), frame.viewProj);
 
     output.uv = position.xy * 0.5f + 0.5f;
-    //output.position = float4(position, 1.0f);
     return output;
 }
