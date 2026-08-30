@@ -35,10 +35,10 @@ namespace {
     //! sizeof() must match the stride SPIR-V gives the struct, or an array of them walks off
     //! alignment on the very first element
     static_assert(sizeof(FrameConstants) == 296, "FrameConstants no longer matches its SPIR-V stride");
-    static_assert(sizeof(ObjectData) == 160, "ObjectData no longer matches its SPIR-V stride");
+    static_assert(sizeof(ObjectData) == 144, "ObjectData no longer matches its SPIR-V stride");
     static_assert(sizeof(MaterialData) == 64, "MaterialData no longer matches its SPIR-V stride");
     static_assert(sizeof(LightData) == 64, "LightData no longer matches its SPIR-V stride");
-    static_assert(sizeof(PushConstants) == 16, "the push block must stay at 16 bytes");
+    static_assert(sizeof(PushConstants) == 24, "the push block must stay at 24 bytes");
 
     //! offsetof (used below) is only well-defined on standard-layout types
     static_assert(std::is_standard_layout_v<FrameConstants>);
@@ -77,10 +77,10 @@ TEST_SUITE("GPUSharedLayout") {
 //! a header that silently compiles
 TEST_CASE("the shared CPU/GPU structs still match the layout the shaders were built against") {
     CHECK(sizeof(FrameConstants) == 296);
-    CHECK(sizeof(ObjectData) == 160);
+    CHECK(sizeof(ObjectData) == 144);
     CHECK(sizeof(MaterialData) == 64);
     CHECK(sizeof(LightData) == 64);
-    CHECK(sizeof(PushConstants) == 16);
+    CHECK(sizeof(PushConstants) == 24);
 }
 
 }

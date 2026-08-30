@@ -13,7 +13,9 @@
 
 #include "ShiftEngine.hpp"
 #include "Config/EngineConfig.hpp"
+#include "Graphics/DrawItem.hpp"
 #include "Graphics/Managers/MeshManager.hpp"
+#include "Graphics/RenderScene.hpp"
 #include "Graphics/Managers/TextureManager.hpp"
 #include "Graphics/RHI/Common/Capabilities.hpp"
 #include "Graphics/Shared/GPUShared.h"
@@ -40,6 +42,150 @@ namespace {
 
     float MaxAbs(const glm::mat4& matrix) {
         return MaxAbsDiff(matrix, glm::mat4(0.0f));
+    }
+
+    //! Everything RenderScene::Extract produced, checked against the meshes it came from.
+    //! A free function rather than a block inside the case so an early bail is safe: a `return`
+    //! from the case itself would skip engine.Cleanup() and tear the RHI down with work still in
+    //! flight, burying one honest failure under a wall of validation errors and a VMA abort
+    void CheckExtractedFrame(Shift::Graphics::Renderer& renderer) {
+        auto& meshes = renderer.GetMeshManager();
+        const auto& placements = renderer.GetPlacements();
+        const auto& scene = renderer.GetRenderScene();
+        const auto& objects = scene.GetObjects();
+        const auto& items = scene.GetDrawItems();
+        const Shift::Graphics::RenderSceneStats& stats = scene.GetStats();
+
+        REQUIRE_MESSAGE(!placements.empty(), "the boot scene uploaded no meshes at all");
+        CHECK_MESSAGE(meshes.GetUsedVertices() > 0, "the merged vertex streams hold nothing");
+        CHECK_MESSAGE(meshes.GetUsedIndices() > 0, "the merged index buffer holds nothing");
+
+        //! Everything below reads what Extract produced, so an unwritten Extract fails here rather
+        //! than in twenty confusing places downstream
+        const bool extractionRan = !objects.empty() && !items.empty();
+        CHECK_MESSAGE(extractionRan,
+                      "extraction produced nothing: RenderScene::Extract is not filling the object "
+                      "array or the draw list");
+        if (!extractionRan) {
+            MESSAGE("skipping the remaining extraction checks; teardown still runs cleanly");
+            return;
+        }
+
+        //! Every check below indexes one array with the other's index, so a mismatch here does not
+        //! just fail once - it turns every later comparison into a draw item checked against an
+        //! unrelated mesh. Bail on the one real failure instead of reporting a dozen fake ones
+        const bool oneObjectPerPlacement = objects.size() == placements.size();
+        CHECK_MESSAGE(oneObjectPerPlacement,
+                      "one ObjectData per placement is the whole contract; a mismatch means "
+                      "extraction skipped or duplicated one");
+        if (!oneObjectPerPlacement) { return; }
+        CHECK(stats.objects == static_cast<uint32_t>(objects.size()));
+        CHECK(stats.drawCalls == static_cast<uint32_t>(items.size()));
+        CHECK(stats.placements == static_cast<uint32_t>(placements.size()));
+
+        const Shift::GPU::ObjectData* ringObjects = renderer.GetObjectData(0);
+        REQUIRE_MESSAGE(ringObjects != nullptr, "object ring slot 0 does not resolve");
+
+        for (size_t i = 0; i < objects.size(); ++i) {
+            CAPTURE(i);
+            const Shift::Graphics::Mesh* mesh = meshes.Get(placements[i].mesh);
+            REQUIRE_MESSAGE(mesh != nullptr, "a placement points at no mesh");
+
+            CHECK_MESSAGE(mesh->vertexRange.count > 0, "a mesh was uploaded with no vertices");
+            CHECK_MESSAGE(mesh->indexRange.count > 0, "a mesh was uploaded with no indices");
+            CHECK_MESSAGE(!mesh->submeshes.empty(), "a mesh was uploaded with no submeshes");
+
+            //! The composed node transform times the framing transform, so a zeroed slot shows up
+            CHECK(MaxAbs(objects[i].model) > 0.0f);
+            CHECK(objects[i].boundsSphere.w > 0.0f);
+
+            //! boundsSphere is WORLD space, so its radius must carry the placement's scale.
+            //! Checking only that it is positive passes for a radius that was never scaled at all
+            //! - and an over-large radius stays invisible until P4.4's cull under-rejects.
+            //! Largest basis vector, not the first: a composed node transform may be non-uniform
+            const glm::mat4& xform = placements[i].transform;
+            const float placementScale = std::max({glm::length(glm::vec3(xform[0])),
+                                                   glm::length(glm::vec3(xform[1])),
+                                                   glm::length(glm::vec3(xform[2]))});
+            CHECK_MESSAGE(std::fabs(objects[i].boundsSphere.w - mesh->bounds.sphere.w * placementScale) < 1e-3f,
+                          "the world-space bounds radius does not equal the mesh radius times the "
+                          "placement's scale");
+
+            //! The extracted array is what the ring receives, byte for byte
+            CHECK(MaxAbsDiff(ringObjects[i].model, objects[i].model) == 0.0f);
+        }
+
+        uint32_t instanceTotal = 0;
+        for (const Shift::Graphics::DrawItem& item : items) {
+            REQUIRE_MESSAGE(item.objectIndex < objects.size(),
+                            "a draw item addresses an object that does not exist");
+            const Shift::Graphics::Mesh* mesh = meshes.Get(placements[item.objectIndex].mesh);
+            REQUIRE(mesh != nullptr);
+
+            //! Every draw passes vertexOffset = 0, so THIS is the only thing that puts a mesh's
+            //! vertices at the right place in the merged streams. A drift renders another mesh
+            CHECK_MESSAGE(item.meshVertexBase == mesh->vertexRange.first,
+                          "PushConstants::meshVertexBase does not match where the mesh landed");
+
+            //! firstIndex is absolute in the merged buffer: the mesh's base plus the submesh's own
+            //! offset. Missing the base and the draw reads a neighbouring mesh's triangles
+            CHECK(item.firstIndex >= mesh->indexRange.first);
+            const bool insideMesh =
+                    item.firstIndex + item.indexCount <= mesh->indexRange.first + mesh->indexRange.count;
+            CHECK_MESSAGE(insideMesh, "a draw item's index range runs past its own mesh");
+            CHECK(item.indexCount > 0u);
+            CHECK(item.instanceCount == 1u);
+            CHECK_MESSAGE(Shift::Graphics::HasPass(item.passMask, Shift::Graphics::EPassBit::Forward),
+                          "a draw item is in no pass, so nothing would ever record it");
+
+            instanceTotal += item.instanceCount;
+        }
+        CHECK(stats.instances == instanceTotal);
+
+        //! Sorted by sortKey, which is what makes P4.4's collapse a single linear scan
+        const bool sorted = std::is_sorted(items.begin(), items.end(),
+            [](const Shift::Graphics::DrawItem& a, const Shift::Graphics::DrawItem& b) {
+                return a.sortKey < b.sortKey;
+            });
+        CHECK_MESSAGE(sorted, "the draw list is not sorted by sortKey");
+
+        //! Every vertex the allocator handed out belongs to exactly one mesh. Summed over UNIQUE
+        //! meshes, not placements: several placements may share one mesh, which is the whole point
+        //! of uploading meshes once and placing them per node
+        std::vector<uint32_t> uniqueMeshSlots;
+        uint32_t vertexTotal = 0;
+        for (const auto& placement : placements) {
+            const uint32_t slot = placement.mesh.slotIdx;
+            if (std::find(uniqueMeshSlots.begin(), uniqueMeshSlots.end(), slot) != uniqueMeshSlots.end()) {
+                continue;
+            }
+            uniqueMeshSlots.push_back(slot);
+            const Shift::Graphics::Mesh* mesh = meshes.Get(placement.mesh);
+            REQUIRE(mesh != nullptr);
+            vertexTotal += mesh->vertexRange.count;
+        }
+        CHECK_MESSAGE(vertexTotal == meshes.GetUsedVertices(),
+                      "the allocator has handed out a different number of vertices than the meshes "
+                      "actually hold, so a range leaked or was double-counted");
+
+        //! With more than one mesh they cannot all start at vertex 0, which is what makes the mesh
+        //! base load-bearing rather than trivially correct. The committed skull is four meshes, so
+        //! this holds without the downloaded helmet
+        if (placements.size() > 1) {
+            const Shift::Graphics::Mesh* first = meshes.Get(placements[0].mesh);
+            const Shift::Graphics::Mesh* second = meshes.Get(placements[1].mesh);
+            REQUIRE(first != nullptr);
+            REQUIRE(second != nullptr);
+            const bool disjoint =
+                    second->vertexRange.first >= first->vertexRange.first + first->vertexRange.count;
+            CHECK_MESSAGE(second->vertexRange.first != 0u,
+                          "the second mesh also starts at vertex 0: the suballocator handed out the "
+                          "same range twice");
+            CHECK_MESSAGE(disjoint, "two meshes overlap in the merged vertex streams");
+        } else {
+            MESSAGE("the boot scene holds a single mesh, so a non-zero mesh base vertex went "
+                    "untested this run");
+        }
     }
 }
 
@@ -245,74 +391,9 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
                       "CPU rewrite lands in an array the other is still reading");
     }
 
-    //! The merged scene geometry, and the one number in ObjectData that the pull model cannot work
-    //! without. Keyed on the committed asset only: DamagedHelmet is a downloaded asset (R7)
-    {
-        auto& meshes = renderer.GetMeshManager();
-        const auto& instances = renderer.GetSceneInstances();
-
-        REQUIRE_MESSAGE(!instances.empty(), "the boot scene uploaded no meshes at all");
-        CHECK_MESSAGE(meshes.GetUsedVertices() > 0, "the merged vertex streams hold nothing");
-        CHECK_MESSAGE(meshes.GetUsedIndices() > 0, "the merged index buffer holds nothing");
-
-        const Shift::GPU::ObjectData* objects = renderer.GetObjectData(0);
-        REQUIRE_MESSAGE(objects != nullptr, "object ring slot 0 does not resolve");
-
-        uint32_t vertexTotal = 0;
-        for (size_t i = 0; i < instances.size(); ++i) {
-            CAPTURE(i);
-            const Shift::Graphics::Mesh* mesh = meshes.Get(instances[i].mesh);
-            REQUIRE_MESSAGE(mesh != nullptr, "a scene instance points at no mesh");
-
-            //! Every draw passes vertexOffset = 0, so THIS field is the only thing that puts a
-            //! mesh's vertices at the right place in the merged streams. A drift here renders
-            //! another mesh's geometry, or garbage
-            CHECK_MESSAGE(objects[i].vertexOffset == mesh->vertexRange.first,
-                          "ObjectData::vertexOffset does not match where the mesh actually landed");
-
-            CHECK_MESSAGE(mesh->vertexRange.count > 0, "a mesh was uploaded with no vertices");
-            CHECK_MESSAGE(mesh->indexRange.count > 0, "a mesh was uploaded with no indices");
-            CHECK_MESSAGE(!mesh->submeshes.empty(), "a mesh was uploaded with no submeshes");
-
-            //! The framing transform LoadScene applied, so a zeroed ObjectData slot is visible
-            CHECK(MaxAbs(objects[i].model) > 0.0f);
-            CHECK(objects[i].boundsSphere.w > 0.0f);
-
-            //! boundsSphere is WORLD space, so its radius must carry the instance's scale. Checking
-            //! only that it is positive passes for a radius that was never scaled at all - and an
-            //! over-large radius is invisible until P4.4's frustum cull quietly under-rejects
-            const float instanceScale = glm::length(glm::vec3(instances[i].transform[0]));
-            CHECK_MESSAGE(std::fabs(objects[i].boundsSphere.w - mesh->bounds.sphere.w * instanceScale) < 1e-3f,
-                          "the world-space bounds radius does not equal the mesh radius times the "
-                          "instance's scale");
-
-            vertexTotal += mesh->vertexRange.count;
-        }
-
-        CHECK_MESSAGE(vertexTotal == meshes.GetUsedVertices(),
-                      "the allocator has handed out a different number of vertices than the meshes "
-                      "actually hold, so a range leaked or was double-counted");
-
-        //! With more than one mesh they cannot all start at vertex 0, which is what makes
-        //! vertexOffset load-bearing rather than trivially correct. The committed skull is four
-        //! meshes, so this holds without the downloaded helmet - but it is a report rather than a
-        //! gate, since which assets are on disk is not this test's business
-        if (instances.size() > 1) {
-            const Shift::Graphics::Mesh* first = meshes.Get(instances[0].mesh);
-            const Shift::Graphics::Mesh* second = meshes.Get(instances[1].mesh);
-            REQUIRE(first != nullptr);
-            REQUIRE(second != nullptr);
-            const bool disjoint =
-                    second->vertexRange.first >= first->vertexRange.first + first->vertexRange.count;
-            CHECK_MESSAGE(second->vertexRange.first != 0u,
-                          "the second mesh also starts at vertex 0: the suballocator handed out the "
-                          "same range twice");
-            CHECK_MESSAGE(disjoint, "two meshes overlap in the merged vertex streams");
-        } else {
-            MESSAGE("the boot scene holds a single mesh, so a non-zero mesh base vertex went "
-                    "untested this run");
-        }
-    }
+    //! The merged scene geometry, the extracted frame, and the one number the pull model
+    //! cannot work without. Keyed on the committed asset only: DamagedHelmet is downloaded (R7)
+    CheckExtractedFrame(renderer);
 
     //! Projection tracks the VIEWPORT render target's aspect, not the OS window's: the scene is
     //! drawn into the viewport texture, and the editor is free to give it any shape

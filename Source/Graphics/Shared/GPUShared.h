@@ -64,19 +64,12 @@ struct FrameConstants {
     GPUBufferRef lightBufferRef;
 };
 
-//! One drawable instance. 160 bytes
 struct ObjectData {
     float4x4 model;
     //! Full inverse-transpose for now lolol
     float4x4 normalMat;
-    //! xyz = center, w = radius. The CPU frustum cull's only input
+    //! xyz = center, w = radius.
     float4 boundsSphere;
-
-    uint materialIndex;
-    //! This object's mesh base vertex in the merged streams, added in the VS. Lives here because D3D12 is stupid???
-    uint vertexOffset;
-    uint _pad0;
-    uint _pad1;
 };
 
 //! A material:D
@@ -117,11 +110,14 @@ struct LightData {
     float _pad1;
 };
 
-//! The ONLY push-constant block in the engine for now, firts in all APIs - 16 b
+//! The ONLY push-constant block in the engine, 24B
 struct PushConstants {
     GPUBufferRef frameConstantsRef;
     //! API agnostic firstInstance
     uint objectIndex;
+    uint materialIndex;
+    //! This mesh's base vertex in the merged streams
+    uint meshVertexBase;
     uint _pad0;
 };
 

@@ -24,6 +24,7 @@
 #include "Graphics/Managers/BufferManager.hpp"
 #include "Graphics/Managers/MeshManager.hpp"
 #include "Graphics/Managers/FrameRingBuffer.hpp"
+#include "Graphics/RenderScene.hpp"
 #include "Graphics/Shared/GPUShared.h"
 #include "Loaders/TextureLoader/StbLoader.hpp"
 
@@ -54,13 +55,6 @@ namespace Shift::Graphics {
     public:
         static constexpr ETextureFormat VIEWPORT_COLOR_FORMAT = ETextureFormat::B8G8R8A8_SRGB;
         static constexpr ETextureFormat VIEWPORT_DEPTH_FORMAT = ETextureFormat::D32_SFLOAT;
-
-        //! Temp
-        struct SceneInstance {
-            MeshHandle mesh;
-            glm::mat4 transform{1.0f};
-            glm::vec4 boundsSphere{0.0f};
-        };
 
         Renderer(ShiftWindow& window, std::shared_ptr<ctrl::FlyingCameraController> controller): m_window{window}, m_controller(controller) {
 
@@ -103,8 +97,11 @@ namespace Shift::Graphics {
 
         [[nodiscard]] MeshManager& GetMeshManager() { return m_meshManager; }
 
-        //! The instances the scene pass draws, in ObjectData order
-        [[nodiscard]] const std::vector<SceneInstance>& GetSceneInstances() const { return m_sceneInstances; }
+        //! The instabnces the scene pass draws, in ObjectData order
+        [[nodiscard]] const std::vector<MeshPlacement>& GetPlacements() const { return m_placements; }
+
+        //! object array + draw list
+        [[nodiscard]] const RenderScene& GetRenderScene() const { return m_renderScene; }
 
         //! The frame constants of one in-flight slot
         [[nodiscard]] const GPU::FrameConstants* GetFrameConstants(uint32_t frameSlot) const {
@@ -123,7 +120,9 @@ namespace Shift::Graphics {
         [[nodiscard]] bool PresentFinalImage(uint32_t imageIndex);
         void FillFrameConstants(GPU::FrameConstants* frameConstantsPtr, const EngineData& engineData, uint32_t frameSlot);
 
-        void FillObjectData(GPU::ObjectData* objectDataPtr);
+        void UploadObjectData(GPU::ObjectData* objectDataPtr);
+
+        [[nodiscard]] bool RecordDrawItems(RenderContextEncoder& encoder, uint32_t frameSlot);
 
         [[nodiscard]] Texture* CreateViewportDepthTexture(uint32_t width, uint32_t height);
 
@@ -149,7 +148,9 @@ namespace Shift::Graphics {
         //! One ObjectData array per FIF. Updated every frame
         Graphics::FrameRingBuffer<GPU::ObjectData> m_objectData;
 
-        std::vector<SceneInstance> m_sceneInstances;
+        std::vector<MeshPlacement> m_placements;
+        //! Thr renderer scvene input
+        RenderScene m_renderScene;
 
         Texture* viewportTexture = nullptr;
         Texture* m_viewportDepth = nullptr;

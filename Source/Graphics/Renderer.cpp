@@ -5,6 +5,9 @@
 #include "Renderer.hpp"
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 
+#include <algorithm>
+#include <cstring>
+
 #include "Graphics/RHI/Vulkan/VKImGuiBackend.hpp"
 #include "Loaders/ModelLoader/GltfLoader.hpp"
 
@@ -173,25 +176,50 @@ namespace Shift::Graphics {
                 continue;
             }
 
-            //! Uniform scale, so the length of any basis vector of the transform IS the scale
-            const float scale = glm::length(glm::vec3(source.transform[0]));
-
+            //! Upload every mesh once
+            std::vector<MeshHandle> meshHandles;
+            meshHandles.reserve(model->meshes.size());
             for (const MeshData& meshData : model->meshes) {
-                const MeshHandle handle = m_meshManager.UploadMesh(meshData, transferEncoder);
-                if (!m_meshManager.IsValid(handle)) { continue; }
-                const glm::vec3 centre = glm::vec3(source.transform * glm::vec4(glm::vec3(meshData.bounds.sphere), 1.0f));
-                m_sceneInstances.push_back({
-                    .mesh = handle,
-                    .transform = source.transform,
-                    .boundsSphere = glm::vec4(centre, meshData.bounds.sphere.w * scale)
+                meshHandles.push_back(m_meshManager.UploadMesh(meshData, transferEncoder));
+            }
+
+            std::vector<glm::mat4> nodeWorld(model->nodes.size(), glm::mat4(1.0f));
+            const size_t placedBefore = m_placements.size();
+            //! Resolve  the evil ass node logic and "place" a mesh.
+            for (size_t i = 0; i < model->nodes.size(); ++i) {
+                const NodeDesc& node = model->nodes[i];
+                const glm::mat4 local = glm::translate(glm::mat4(1.0f), node.translation)
+                                      * glm::mat4_cast(node.rotation)
+                                      * glm::scale(glm::mat4(1.0f), node.scale);
+                nodeWorld[i] = (node.parent == MODEL_INDEX_NONE) ? local : nodeWorld[node.parent] * local;
+
+                if (node.meshIndex == MODEL_INDEX_NONE) { continue; }
+                if (node.meshIndex >= meshHandles.size()) { continue; }
+                if (!m_meshManager.IsValid(meshHandles[node.meshIndex])) { continue; }
+
+                m_placements.push_back({
+                    .mesh = meshHandles[node.meshIndex],
+                    .transform = source.transform * nodeWorld[i],
+                    //! TODO: fill????
+                    .submeshMaterials = {}
                 });
             }
+
+            //! Fallback if no node tree
+            if (m_placements.size() == placedBefore) {
+                Log(Warning, "Model '{}' has no nodes referencing its {} meshes; placing each at the "
+                             "model transform", source.path, model->meshes.size());
+                for (const MeshHandle handle : meshHandles) {
+                    if (!m_meshManager.IsValid(handle)) { continue; }
+                    m_placements.push_back({.mesh = handle, .transform = source.transform, .submeshMaterials = {}});
+                }
+            }
         }
-        CheckCritical(m_sceneInstances.size() <= Conf::MAX_SCENE_OBJECTS,
+        CheckCritical(m_placements.size() <= Conf::MAX_SCENE_OBJECTS,
                       "The scene holds more objects than one ObjectData ring slot can carry!");
 
-        Log(Info, "Scene loaded: {} instances, {} vertices and {} indices merged",
-            m_sceneInstances.size(), m_meshManager.GetUsedVertices(), m_meshManager.GetUsedIndices());
+        Log(Info, "Scene loaded: {} placements, {} vertices and {} indices merged",
+            m_placements.size(), m_meshManager.GetUsedVertices(), m_meshManager.GetUsedIndices());
 
         return true;
     }
@@ -212,6 +240,9 @@ namespace Shift::Graphics {
         //! Pending uploads from the texture manager
         CheckCritical(m_textureManager->SubmitPendingUploads(), "Failed to submit pending texture uploads!");
 
+        //! Rebuld the draw list + objecty arr, culling, selection movement n shi will be here later
+        m_renderScene.Extract(m_placements, m_meshManager, m_forwardPipeline);
+
         //! Reclaim this frame slot
         m_renderBackend.BeginFrame();
 
@@ -221,7 +252,7 @@ namespace Shift::Graphics {
         GPU::ObjectData* objectData = m_objectData.Slot(frameSlot);
         CheckCritical(objectData != nullptr, "Object data ring has no slot for this frame!");
 
-        FillObjectData(objectData);
+        UploadObjectData(objectData);
         FillFrameConstants(frameConstants, engineData, frameSlot);
 
         uint32_t imageIndex = UINT32_MAX;
@@ -265,94 +296,22 @@ namespace Shift::Graphics {
                 .clearValue = {.depthStencil = {1.0f, 0u}}
             };
             renderPass.extent = {viewportTexture->GetWidth(), viewportTexture->GetHeight()};
-            renderPass.enableSecondaryCommandBuffers = true;
             std::array colorTextures{viewportTexture};
             gEncoder->BeginRenderPass(renderPass, colorTextures, m_viewportDepth);
-            // Reserve a single graphics signal payload and use it both for:
-            // - telling the deferred executor when it's safe to free secondaries
-            // - signalling from the primary submit
-            auto graphicsSignal = m_renderBackend.ReserveGraphicsSignalPayload();
 
-            // Acquire two secondary contexts (for current frame)
-            RenderContext* sec0 = m_renderBackend.AcquireSecondaryGraphicsContext();
-            RenderContext* sec1 = m_renderBackend.AcquireSecondaryGraphicsContext();
+            const Rect2D scissor = {{0, 0}, {viewportTexture->GetWidth(), viewportTexture->GetHeight()}};
+            const Viewport viewport = {0.0f, static_cast<float>(viewportTexture->GetHeight()),
+                                       static_cast<float>(viewportTexture->GetWidth()),
+                                       -static_cast<float>(viewportTexture->GetHeight()), 0.0f, 1.0f};
+            gEncoder->SetScissor(scissor);
+            gEncoder->SetViewport(viewport);
 
-            Pipeline* pipeline = m_pipelineManager.Get(m_forwardPipeline);
+            //! Bind global index buffer
+            Buffer* indexBuffer = m_meshManager.GetIndexBuffer();
+            CheckCritical(indexBuffer != nullptr, "The merged index buffer does not resolve!");
+            gEncoder->BindIndexBuffer({indexBuffer, 0}, EIndexSize::UInt32);
 
-            std::vector<ETextureFormat> colorTexturesFormats{};
-            for (auto& c: pipeline->GetDescriptor().colorBlendConfig.attachments) {
-                colorTexturesFormats.push_back(c.format);
-            }
-
-            SecondaryBufferBeginPayload payload{
-                .colorFormats = colorTexturesFormats,
-                .depthFormat = pipeline->GetDescriptor().depthStencilConfig.depthFormat
-                // .stencilFormat = pipeline->GetDescriptor().depthStencilConfig.stencilFormat
-            };
-
-            //! temp
-            constexpr uint32_t SECONDARY_COUNT = 2;
-            const uint32_t instanceCount = static_cast<uint32_t>(m_sceneInstances.size());
-
-            if (sec0 && sec1) {
-                // Record secondaries on two threads.
-                auto record_secondary = [&](RHIContext<RHI::Vulkan>* sec, uint32_t secIdx) {
-                    // NOTE: AcquireSecondaryGraphicsContext already called ResetCmds() on the context.
-                    CheckCritical(sec->BeginSecondaryCmds(payload), "Failed to begin secondary command buffer!");
-
-                    Rect2D scissor = {{0, 0}, {viewportTexture->GetWidth(), viewportTexture->GetHeight()}};
-                    Viewport viewport = {0.0f, static_cast<float>(viewportTexture->GetHeight()), static_cast<float>(viewportTexture->GetWidth()), -static_cast<float>(viewportTexture->GetHeight()), 0.0f, 1.0f};
-
-                    RenderContextEncoder* secEncoder = sec->CreateCommandEncoder();
-
-                    secEncoder->SetScissor(scissor);
-                    secEncoder->SetViewport(viewport);
-
-                    secEncoder->BindGraphicsPipeline(*pipeline);
-
-                    secEncoder->BindResourceSet(*pipeline, GlobalResourceSet::SET_INDEX, *m_globalSet.Get());
-
-                    Buffer* indexBuffer = m_meshManager.GetIndexBuffer();
-                    CheckCritical(indexBuffer != nullptr, "The merged index buffer does not resolve!");
-                    secEncoder->BindIndexBuffer({indexBuffer, 0}, EIndexSize::UInt32);
-
-                    for (uint32_t i = secIdx; i < instanceCount; i += SECONDARY_COUNT) {
-                        const Mesh* mesh = m_meshManager.Get(m_sceneInstances[i].mesh);
-                        if (mesh == nullptr) { continue; }
-                        const GPU::PushConstants push{
-                            .frameConstantsRef = m_frameConstants.SlotAddress(frameSlot),
-                            .objectIndex = i
-                        };
-                        secEncoder->SetPushConstants(*pipeline, &push, static_cast<uint32_t>(sizeof(push)));
-
-                        for (const SubmeshDesc& submesh : mesh->submeshes) {
-                            secEncoder->DrawIndexed({
-                                .indexCount = submesh.indexCount,
-                                .instanceCount = 1,
-                                //! Mesh-local firstIndex plus where the mesh's indices landed
-                                .firstIndex = mesh->indexRange.first + submesh.firstIndex,
-                                .vertexOffset = 0,
-                                .firstInstance = 0
-                            });
-                        }
-                    }
-
-                    CheckCritical(sec->EndCmds(), "Failed to end secondary command buffer!");
-                    return true;
-                };
-
-                std::thread th0(record_secondary, sec0, 0u);
-                std::thread th1(record_secondary, sec1, 1u);
-
-                // Wait for both recording threads to finish before executing them in primary
-                th0.join();
-                th1.join();
-
-                // Execute the secondaries from the primary. Pass same graphicsSignal so
-                // deferred executor will free them only after GPU signals it.
-                std::array<RHIContext<RHI::Vulkan>*, 2> secondariesArr{sec0, sec1};
-                m_renderBackend.ExecuteSecondaryGraphicsContexts(secondariesArr, graphicsSignal);
-            }
+            CheckCritical(RecordDrawItems(*gEncoder, frameSlot), "Failed to record the draw list!");
 
             gEncoder->EndRenderPass();
 
@@ -507,21 +466,61 @@ namespace Shift::Graphics {
         frameConstantsPtr->lightBufferRef = 0;
     }
 
-    void Renderer::FillObjectData(GPU::ObjectData *objectDataPtr) {
-        const uint32_t count = std::min(static_cast<uint32_t>(m_sceneInstances.size()), m_objectData.GetElementsPerSlot());
+    void Renderer::UploadObjectData(GPU::ObjectData *objectDataPtr) {
+        const std::vector<GPU::ObjectData>& objects = m_renderScene.GetObjects();
+        const uint32_t count = std::min(static_cast<uint32_t>(objects.size()), m_objectData.GetElementsPerSlot());
+        if (count == 0) { return; }
 
-        for (uint32_t i = 0; i < count; ++i) {
-            const SceneInstance& instance = m_sceneInstances[i];
-            const Mesh* mesh = m_meshManager.Get(instance.mesh);
-            if (mesh == nullptr) { continue; }
+        //! Extraction already built the array; this frame's slot only has to receive it. Splitting
+        //! the build from the copy is what keeps Extract free of GPU memory (spec R4)
+        std::memcpy(objectDataPtr, objects.data(), static_cast<size_t>(count) * sizeof(GPU::ObjectData));
+    }
 
-            GPU::ObjectData& object = objectDataPtr[i];
-            object.model = instance.transform;
-            object.normalMat = glm::transpose(glm::inverse(instance.transform));
-            object.boundsSphere = instance.boundsSphere;
-            object.materialIndex = 0u;
-            object.vertexOffset = mesh->vertexRange.first;
+    bool Renderer::RecordDrawItems(RenderContextEncoder& encoder, uint32_t frameSlot) {
+        const std::vector<DrawItem>& items = m_renderScene.GetDrawItems();
+        const uint64_t frameConstantsRef = m_frameConstants.SlotAddress(frameSlot);
+
+        PipelineHandle boundHandle{};
+        Pipeline* boundPipeline = nullptr;
+        bool setBound = false;
+
+        for (const DrawItem& item : items) {
+            if (!HasPass(item.passMask, EPassBit::Forward)) { continue; }
+
+            //! Pipeline handling
+            if (boundPipeline == nullptr || !(item.pipeline == boundHandle)) {
+                Pipeline* next = m_pipelineManager.Get(item.pipeline);
+                if (next == nullptr) { continue; }
+
+                boundPipeline = next;
+                boundHandle = item.pipeline;
+                encoder.BindGraphicsPipeline(*boundPipeline);
+
+                if (!setBound) {
+                    encoder.BindResourceSet(*boundPipeline, GlobalResourceSet::SET_INDEX, *m_globalSet.Get());
+                    setBound = true;
+                }
+            }
+
+            //! Push constants
+            const GPU::PushConstants push{
+                .frameConstantsRef = frameConstantsRef,
+                .objectIndex = item.objectIndex,
+                .materialIndex = item.materialIndex,
+                .meshVertexBase = item.meshVertexBase
+            };
+            encoder.SetPushConstants(*boundPipeline, &push, static_cast<uint32_t>(sizeof(push)));
+
+            encoder.DrawIndexed({
+                .indexCount = item.indexCount,
+                .instanceCount = item.instanceCount,
+                .firstIndex = item.firstIndex,
+                .vertexOffset = 0,
+                .firstInstance = 0
+            });
         }
+
+        return true;
     }
 
     uint32_t Renderer::AquireImage(bool *success) {
