@@ -4,8 +4,12 @@
 
 #include "MeshManager.hpp"
 
+#include <utility>
+
 #include "Config/EngineConfig.hpp"
 #include "Utility/Assertions.hpp"
+
+#include "MaterialManager.hpp"
 
 namespace Shift::Graphics {
     namespace {
@@ -81,7 +85,8 @@ namespace Shift::Graphics {
         return true;
     }
 
-    MeshHandle MeshManager::UploadMesh(const MeshData& meshData, RenderContextEncoder& encoder) {
+    MeshHandle MeshManager::UploadMesh(const MeshData& meshData, RenderContextEncoder& encoder,
+                                       std::span<const uint32_t> materialRemap) {
         const VertexStreams& streams = meshData.streams;
 
         const uint32_t vertexCount = streams.GetVertexCount();
@@ -156,11 +161,22 @@ namespace Shift::Graphics {
 
         m_usedStagingBuffers.emplace_back(staging);
 
+        std::vector<MeshSubmesh> submeshes;
+        submeshes.reserve(meshData.submeshes.size());
+        for (const SubmeshDesc& source : meshData.submeshes) {
+            submeshes.push_back({
+                .firstIndex = source.firstIndex,
+                .indexCount = source.indexCount,
+                .materialIndex = MaterialManager::Resolve(materialRemap, source.materialIndex),
+                .bounds = source.bounds
+            });
+        }
+
         Mesh* mesh = new Mesh{
             .name = meshData.name,
             .vertexRange = vertexRange,
             .indexRange = indexRange,
-            .submeshes = meshData.submeshes,
+            .submeshes = std::move(submeshes),
             .bounds = meshData.bounds
         };
 

@@ -23,6 +23,7 @@
 #include "Graphics/Managers/PipelineManager.hpp"
 #include "Graphics/Managers/BufferManager.hpp"
 #include "Graphics/Managers/MeshManager.hpp"
+#include "Graphics/Managers/MaterialManager.hpp"
 #include "Graphics/Managers/FrameRingBuffer.hpp"
 #include "Graphics/RenderScene.hpp"
 #include "Graphics/Shared/GPUShared.h"
@@ -97,6 +98,8 @@ namespace Shift::Graphics {
 
         [[nodiscard]] MeshManager& GetMeshManager() { return m_meshManager; }
 
+        [[nodiscard]] MaterialManager& GetMaterialManager() { return m_materialManager; }
+
         //! The instabnces the scene pass draws, in ObjectData order
         [[nodiscard]] const std::vector<MeshPlacement>& GetPlacements() const { return m_placements; }
 
@@ -112,6 +115,10 @@ namespace Shift::Graphics {
             return m_objectData.Slot(frameSlot);
         }
 
+        [[nodiscard]] const GPU::MaterialData* GetMaterialData(uint32_t frameSlot) const {
+            return m_materialData.Slot(frameSlot);
+        }
+
         //! Resolved GPU timing ranges of the most recently completed frame
         [[nodiscard]] const std::vector<GPUTimeRange>& GetLastFrameGPUTimeRanges() const { return m_renderBackend.GetLastFrameGPUTimeRanges(); }
 
@@ -121,6 +128,8 @@ namespace Shift::Graphics {
         void FillFrameConstants(GPU::FrameConstants* frameConstantsPtr, const EngineData& engineData, uint32_t frameSlot);
 
         void UploadObjectData(GPU::ObjectData* objectDataPtr);
+
+        void UploadMaterialData(GPU::MaterialData* materialDataPtr);
 
         [[nodiscard]] bool RecordDrawItems(RenderContextEncoder& encoder, uint32_t frameSlot);
 
@@ -138,6 +147,7 @@ namespace Shift::Graphics {
         Graphics::PipelineManager m_pipelineManager;
         Graphics::BufferManager m_bufferManager;
         Graphics::MeshManager m_meshManager;
+        Graphics::MaterialManager m_materialManager;
         Graphics::SamplerManager m_samplerManager;
 
         //! Bindless set b0
@@ -147,6 +157,8 @@ namespace Shift::Graphics {
         Graphics::FrameRingBuffer<GPU::FrameConstants> m_frameConstants;
         //! One ObjectData array per FIF. Updated every frame
         Graphics::FrameRingBuffer<GPU::ObjectData> m_objectData;
+        //! One MaterialData array per FIF. Pulled from MaterialManager every frame
+        Graphics::FrameRingBuffer<GPU::MaterialData> m_materialData;
 
         std::vector<MeshPlacement> m_placements;
         //! Thr renderer scvene input

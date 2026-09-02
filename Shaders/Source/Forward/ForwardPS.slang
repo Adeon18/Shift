@@ -1,5 +1,6 @@
 import Lib.FrameData;
 import Lib.Bindless;
+import Lib.MaterialFetch;
 
 struct ForwardVSOutput
 {
@@ -15,11 +16,13 @@ static const float AMBIENT = 0.03f;
 [shader("fragment")]
 float4 mainPS(ForwardVSOutput input) : SV_Target
 {
+    FrameConstants frame = LoadFrameConstants(pc.frameConstantsRef);
+    MaterialData material = LoadMaterial(frame, pc.materialIndex);
     float3 normal = normalize(input.worldNormal);
     float NoL = saturate(dot(normal, -normalize(LIGHT_DIRECTION)));
 
     //! Temp since no non-uniform index
     float3 baseColor = SampleTexture2D(0u, SAMPLER_LINEAR_REPEAT, input.uv).rgb;
 
-    return float4(baseColor * (NoL * LIGHT_COLOR + AMBIENT), 1.0f);
+    return float4(material.baseColorFactor.rgb * baseColor * (NoL * LIGHT_COLOR + AMBIENT), 1.0f);
 }

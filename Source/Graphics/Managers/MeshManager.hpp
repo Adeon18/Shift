@@ -6,6 +6,7 @@
 #define SHIFT_MESHMANAGER_HPP
 
 #include <array>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -17,14 +18,20 @@
 #include "GenerationalPool.hpp"
 
 namespace Shift::Graphics {
+    struct MeshSubmesh {
+        uint32_t firstIndex = 0;
+        uint32_t indexCount = 0;
+        //! here MI is GLOBAL!!!!!
+        uint32_t materialIndex = 0;
+        Bounds bounds;
+    };
 
     struct Mesh {
         std::string name;
         BufferRangeAllocator::Range vertexRange;
         //! Counted in 32-bit indices
         BufferRangeAllocator::Range indexRange;
-        //! indexRange.first + submesh.firstIndex
-        std::vector<SubmeshDesc> submeshes;
+        std::vector<MeshSubmesh> submeshes;
         Bounds bounds;
     };
 
@@ -45,7 +52,9 @@ namespace Shift::Graphics {
         [[nodiscard]] bool Init(RenderBackend* rhi, BufferManager* buffers);
 
         //! Grab a range for a mesh and record transfer queue comamnds
-        [[nodiscard]] MeshHandle UploadMesh(const MeshData& meshData, RenderContextEncoder& encoder);
+        //! materialRemap = local index to global index
+        [[nodiscard]] MeshHandle UploadMesh(const MeshData& meshData, RenderContextEncoder& encoder,
+                                            std::span<const uint32_t> materialRemap);
 
         [[nodiscard]] const Mesh* Get(MeshHandle handle) const { return m_pool.Get(handle); }
         [[nodiscard]] bool IsValid(MeshHandle handle) const { return m_pool.IsValid(handle); }

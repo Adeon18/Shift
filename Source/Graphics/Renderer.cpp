@@ -36,6 +36,10 @@ namespace Shift::Graphics {
                       "Failed to create the frame constants ring!");
         CheckCritical(m_objectData.Init(m_bufferManager, "ObjectDataRing", Conf::MAX_SCENE_OBJECTS),
                       "Failed to create the object data ring!");
+        CheckCritical(m_materialData.Init(m_bufferManager, "MaterialDataRing", Conf::MAX_SCENE_MATERIALS),
+                      "Failed to create the material data ring!");
+
+        CheckCritical(m_materialManager.Init(), "Failed to initialize the material manager!");
 
         RenderContext& tctx = m_renderBackend.GetTransferContext();
         RenderContextEncoder* tEncoder = tctx.CreateCommandEncoder();
@@ -176,11 +180,14 @@ namespace Shift::Graphics {
                 continue;
             }
 
+            //! Get the global remap
+            const std::vector<uint32_t> materialRemap = m_materialManager.RegisterModelMaterials(model->materials);
+
             //! Upload every mesh once
             std::vector<MeshHandle> meshHandles;
             meshHandles.reserve(model->meshes.size());
             for (const MeshData& meshData : model->meshes) {
-                meshHandles.push_back(m_meshManager.UploadMesh(meshData, transferEncoder));
+                meshHandles.push_back(m_meshManager.UploadMesh(meshData, transferEncoder, materialRemap));
             }
 
             std::vector<glm::mat4> nodeWorld(model->nodes.size(), glm::mat4(1.0f));
@@ -199,9 +206,7 @@ namespace Shift::Graphics {
 
                 m_placements.push_back({
                     .mesh = meshHandles[node.meshIndex],
-                    .transform = source.transform * nodeWorld[i],
-                    //! TODO: fill????
-                    .submeshMaterials = {}
+                    .transform = source.transform * nodeWorld[i]
                 });
             }
 
@@ -211,15 +216,16 @@ namespace Shift::Graphics {
                              "model transform", source.path, model->meshes.size());
                 for (const MeshHandle handle : meshHandles) {
                     if (!m_meshManager.IsValid(handle)) { continue; }
-                    m_placements.push_back({.mesh = handle, .transform = source.transform, .submeshMaterials = {}});
+                    m_placements.push_back({.mesh = handle, .transform = source.transform});
                 }
             }
         }
         CheckCritical(m_placements.size() <= Conf::MAX_SCENE_OBJECTS,
                       "The scene holds more objects than one ObjectData ring slot can carry!");
 
-        Log(Info, "Scene loaded: {} placements, {} vertices and {} indices merged",
-            m_placements.size(), m_meshManager.GetUsedVertices(), m_meshManager.GetUsedIndices());
+        Log(Info, "Scene loaded: {} placements, {} materials, {} vertices and {} indices merged",
+            m_placements.size(), m_materialManager.GetCount(),
+            m_meshManager.GetUsedVertices(), m_meshManager.GetUsedIndices());
 
         return true;
     }
@@ -251,8 +257,11 @@ namespace Shift::Graphics {
         CheckCritical(frameConstants != nullptr, "Frame constants ring has no slot for this frame!");
         GPU::ObjectData* objectData = m_objectData.Slot(frameSlot);
         CheckCritical(objectData != nullptr, "Object data ring has no slot for this frame!");
+        GPU::MaterialData* materialData = m_materialData.Slot(frameSlot);
+        CheckCritical(materialData != nullptr, "Material data ring has no slot for this frame!");
 
         UploadObjectData(objectData);
+        UploadMaterialData(materialData);
         FillFrameConstants(frameConstants, engineData, frameSlot);
 
         uint32_t imageIndex = UINT32_MAX;
@@ -462,7 +471,7 @@ namespace Shift::Graphics {
         frameConstantsPtr->uvsRef = m_meshManager.GetStreamAddress(MeshManager::UVs);
 
         frameConstantsPtr->objectBufferRef = m_objectData.SlotAddress(frameSlot);
-        frameConstantsPtr->materialBufferRef = 0;
+        frameConstantsPtr->materialBufferRef = m_materialData.SlotAddress(frameSlot);
         frameConstantsPtr->lightBufferRef = 0;
     }
 
@@ -470,10 +479,15 @@ namespace Shift::Graphics {
         const std::vector<GPU::ObjectData>& objects = m_renderScene.GetObjects();
         const uint32_t count = std::min(static_cast<uint32_t>(objects.size()), m_objectData.GetElementsPerSlot());
         if (count == 0) { return; }
-
-        //! Extraction already built the array; this frame's slot only has to receive it. Splitting
-        //! the build from the copy is what keeps Extract free of GPU memory (spec R4)
         std::memcpy(objectDataPtr, objects.data(), static_cast<size_t>(count) * sizeof(GPU::ObjectData));
+    }
+
+    //! Same as above - prob should make a template
+    void Renderer::UploadMaterialData(GPU::MaterialData *materialDataPtr) {
+        const std::vector<GPU::MaterialData>& materials = m_materialManager.GetMaterials();
+        const uint32_t count = std::min(static_cast<uint32_t>(materials.size()), m_materialData.GetElementsPerSlot());
+        if (count == 0) { return; }
+        std::memcpy(materialDataPtr, materials.data(), static_cast<size_t>(count) * sizeof(GPU::MaterialData));
     }
 
     bool Renderer::RecordDrawItems(RenderContextEncoder& encoder, uint32_t frameSlot) {

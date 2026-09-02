@@ -16,12 +16,10 @@
 
 namespace Shift::Graphics {
 
-    //! Kinda temp until scene container
+    //! Kinda temp until scene container.
     struct MeshPlacement {
         MeshHandle mesh;
         glm::mat4 transform{1.0f};
-        //! In submesh order
-        std::vector<uint32_t> submeshMaterials;
     };
 
     //! fro UI

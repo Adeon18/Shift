@@ -94,6 +94,7 @@ struct MaterialData {
 
 //! One light of any type. 64 bytes
 struct LightData {
+    //! TODO: just a thought, dir/point could use pos OR dir but it will break at spot lightis
     float3 position;
     //! 0 = directional, 1 = point, 2 = spot
     uint type;

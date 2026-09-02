@@ -7,6 +7,7 @@
 
 #include <cstdint>
 
+#include "Config/EngineConfig.hpp"
 #include "Graphics/Managers/PipelineManager.hpp"
 
 namespace Shift::Graphics {
@@ -54,6 +55,10 @@ namespace Shift::Graphics {
              | (static_cast<uint64_t>(submeshIndex & 0xFFFu)    << 12)
              | (static_cast<uint64_t>(materialIndex & 0xFFFu));
     }
+
+    //! Not to break the sort idx for materials at overflow
+    static_assert(Conf::MAX_SCENE_MATERIALS <= 0xFFFu + 1u,
+                  "MAX_SCENE_MATERIALS no longer fits MakeDrawSortKey's material field");
 }
 
 #endif //SHIFT_DRAWITEM_HPP

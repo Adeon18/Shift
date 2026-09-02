@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <string>
 #include <utility>
 #include <vector>
@@ -14,6 +15,7 @@
 #include "ShiftEngine.hpp"
 #include "Config/EngineConfig.hpp"
 #include "Graphics/DrawItem.hpp"
+#include "Graphics/Managers/MaterialManager.hpp"
 #include "Graphics/Managers/MeshManager.hpp"
 #include "Graphics/RenderScene.hpp"
 #include "Graphics/Managers/TextureManager.hpp"
@@ -135,6 +137,11 @@ namespace {
             CHECK_MESSAGE(insideMesh, "a draw item's index range runs past its own mesh");
             CHECK(item.indexCount > 0u);
             CHECK(item.instanceCount == 1u);
+
+            //! The index the pixel shader addresses the material ring with. Past the end it reads
+            //! whatever else is in the slot, with no descriptor for validation to bounds-check
+            CHECK_MESSAGE(item.materialIndex < renderer.GetMaterialManager().GetCount(),
+                          "a draw item addresses a material that was never registered");
             CHECK_MESSAGE(Shift::Graphics::HasPass(item.passMask, Shift::Graphics::EPassBit::Forward),
                           "a draw item is in no pass, so nothing would ever record it");
 
@@ -185,6 +192,76 @@ namespace {
         } else {
             MESSAGE("the boot scene holds a single mesh, so a non-zero mesh base vertex went "
                     "untested this run");
+        }
+    }
+
+    //! The material path end to end: MaterialManager -> this frame's ring slot -> the address the
+    //! shader reads it through. Values are checked against what the committed assets actually
+    //! declare, because every structural check here also passes for a zeroed MaterialData
+    void CheckMaterials(Shift::Graphics::Renderer& renderer) {
+        const Shift::Graphics::MaterialManager& materials = renderer.GetMaterialManager();
+        const std::vector<Shift::GPU::MaterialData>& cpuMaterials = materials.GetMaterials();
+        const std::vector<Shift::Graphics::DrawItem>& items = renderer.GetRenderScene().GetDrawItems();
+
+        const bool defaultRegistered = materials.GetCount() >= 1u;
+        CHECK_MESSAGE(defaultRegistered, "not even the default material was registered");
+        if (!defaultRegistered) { return; }
+
+        //! Both committed models carry exactly one material, and each declares it as its own
+        //! material 0. Fewer than two distinct indices means those two model-local zeroes collided
+        //! on one global slot; more means materials were registered per MESH rather than per model
+        //! (the skull alone is four meshes)
+        std::vector<uint32_t> used;
+        used.reserve(items.size());
+        for (const Shift::Graphics::DrawItem& item : items) { used.push_back(item.materialIndex); }
+        std::sort(used.begin(), used.end());
+        used.erase(std::unique(used.begin(), used.end()), used.end());
+        CHECK_MESSAGE(used.size() == 2u,
+                      "the boot scene's two models should contribute one material each");
+
+        for (const uint32_t index : used) {
+            CHECK_MESSAGE(index != Shift::Graphics::DEFAULT_MATERIAL_INDEX,
+                          "a draw fell back to the default material, so its model's material never "
+                          "reached the mesh");
+        }
+
+        //! A conversion that returns a zeroed MaterialData would leave every structural check above
+        //! green and render black. The helmet declares emissiveFactor 1,1,1 and the skull leaves it
+        //! at the glTF default, so the two together separate a real conversion from a stub
+        bool anyEmissive = false;
+        for (const Shift::GPU::MaterialData& material : cpuMaterials) {
+            CHECK_MESSAGE(glm::length(glm::vec3(material.baseColorFactor)) > 0.0f,
+                          "a material has a black base color factor, which is not what any glTF "
+                          "default or committed asset declares");
+            anyEmissive = anyEmissive || glm::length(material.emissiveFactor) > 0.0f;
+        }
+        CHECK_MESSAGE(anyEmissive,
+                      "no material carries an emissive factor, but the committed helmet declares "
+                      "emissiveFactor 1,1,1 - the MaterialDesc conversion is not reading it");
+
+        //! What the CPU array holds is what the frame's slot holds, byte for byte
+        const Shift::GPU::MaterialData* ringMaterials = renderer.GetMaterialData(0);
+        CHECK_MESSAGE(ringMaterials != nullptr, "material ring slot 0 does not resolve");
+        if (ringMaterials == nullptr) { return; }
+        CHECK_MESSAGE(std::memcmp(ringMaterials, cpuMaterials.data(),
+                                  cpuMaterials.size() * sizeof(Shift::GPU::MaterialData)) == 0,
+                      "the material ring slot does not mirror the manager's array");
+
+        //! Each frame in flight reads its OWN slot. One shared address would put a mid-frame edit
+        //! into a slot the GPU is still reading
+        const Shift::GPU::FrameConstants* first = renderer.GetFrameConstants(0);
+        CHECK_MESSAGE(first != nullptr, "frame slot 0 has no frame constants");
+        if (first == nullptr) { return; }
+        CHECK_MESSAGE(first->materialBufferRef != 0u,
+                      "FrameConstants::materialBufferRef is still null, so the shader has no "
+                      "material array to read");
+        if constexpr (Shift::Conf::SHIFT_MAX_FRAMES_IN_FLIGHT > 1) {
+            const Shift::GPU::FrameConstants* second = renderer.GetFrameConstants(1);
+            CHECK_MESSAGE(second != nullptr, "frame slot 1 has no frame constants");
+            if (second != nullptr) {
+                CHECK_MESSAGE(first->materialBufferRef != second->materialBufferRef,
+                              "two frames in flight point at the same material slot");
+            }
         }
     }
 }
@@ -394,6 +471,7 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     //! The merged scene geometry, the extracted frame, and the one number the pull model
     //! cannot work without. Keyed on the committed asset only: DamagedHelmet is downloaded (R7)
     CheckExtractedFrame(renderer);
+    CheckMaterials(renderer);
 
     //! Projection tracks the VIEWPORT render target's aspect, not the OS window's: the scene is
     //! drawn into the viewport texture, and the editor is free to give it any shape

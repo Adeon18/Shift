@@ -34,8 +34,8 @@ namespace Shift::Graphics {
             m_objects.push_back(data);
 
             for (uint32_t i = 0; i < mesh->submeshes.size(); ++i) {
-                const SubmeshDesc& sm = mesh->submeshes[i];
-                uint32_t materialIndex = (i < p.submeshMaterials.size()) ? p.submeshMaterials[i]: 0; //! default
+                const MeshSubmesh& sm = mesh->submeshes[i];
+                const uint32_t materialIndex = sm.materialIndex;
                 DrawItem dW{
                     .passMask = EPassBit::Forward | EPassBit::DepthOnly,
                     .pipeline = forwardPipeline,
