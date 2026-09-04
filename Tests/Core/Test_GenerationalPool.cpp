@@ -121,6 +121,35 @@ TEST_CASE("ForEachLive visits exactly the live slots, in slot order") {
     CHECK(visited[1] == &c);
 }
 
+TEST_CASE("ForEachLiveMeta hands over the same slots plus their mutable metadata") {
+    GenerationalPool<Resource, std::string> pool;
+    Resource a{1};
+    Resource b{2};
+
+    const auto ha = pool.Insert(&a, "a");
+    const auto hb = pool.Insert(&b, "b");
+
+    std::vector<std::string> seen;
+    pool.ForEachLiveMeta([&](uint32_t, Resource*, std::string& meta) {
+        seen.push_back(meta);
+        meta += "!";
+    });
+
+    REQUIRE(seen.size() == 2);
+    CHECK(seen[0] == "a");
+    CHECK(seen[1] == "b");
+    //! The reference is the point: the sweep is how a pipeline's stored sources are re-read
+    //! and its verdict written back on hot-reload
+    CHECK(*pool.GetMeta(ha) == "a!");
+    CHECK(*pool.GetMeta(hb) == "b!");
+
+    (void)pool.Release(hb);
+    seen.clear();
+    pool.ForEachLiveMeta([&](uint32_t, Resource*, std::string& meta) { seen.push_back(meta); });
+    REQUIRE(seen.size() == 1);
+    CHECK(seen[0] == "a!");
+}
+
 TEST_CASE("Clear invalidates every outstanding handle") {
     GenerationalPool<Resource> pool;
     Resource res{1};

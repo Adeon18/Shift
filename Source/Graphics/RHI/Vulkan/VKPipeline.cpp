@@ -10,12 +10,13 @@ namespace Shift::VK {
         InitInternal(true);
     }
 
-    void Pipeline::Rebuild(bool createLayout) {
+    void Pipeline::Rebuild(bool createLayout, std::span<const ShaderStageDesc> stages) {
         //! Retire the current GPU handle; the RHI releases it via ReleaseRetired()
         //! once the GPU is finished, then InitInternal() installs the freshly built one.
         if (m_pipeline != VK_NULL_HANDLE) {
             m_retiredHandles.push_back(m_pipeline);
         }
+        m_shaders.assign(stages.begin(), stages.end());
         InitInternal(createLayout);
     }
 

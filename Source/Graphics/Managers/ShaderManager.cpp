@@ -45,43 +45,75 @@ namespace Shift::Graphics {
 
         //! Get fallback shaders in case compilation crashes
         ShaderDescriptor fallbackDescriptor;
-        fallbackDescriptor.entry = "mainVS";
         fallbackDescriptor.path = (m_shaderSourceFolder / "Fallback" / "Fallback.slang").string();
-        fallbackDescriptor.type = EShaderType::Vertex;
 
-        GetShader(fallbackDescriptor);
-        m_fallbackShaders[EShaderType::Vertex] = GetCacheKey(fallbackDescriptor);
+        const std::pair<EShaderType, const char*> fallbackStages[] = {
+            { EShaderType::Vertex,   "mainVS" },
+            { EShaderType::Fragment, "mainPS" },
+        };
 
-        fallbackDescriptor.entry = "mainPS";
-        fallbackDescriptor.path = (m_shaderSourceFolder / "Fallback" / "Fallback.slang").string();
-        fallbackDescriptor.type = EShaderType::Fragment;
+        for (const auto& [type, entry] : fallbackStages) {
+            fallbackDescriptor.type = type;
+            fallbackDescriptor.entry = entry;
 
-        GetShader(fallbackDescriptor);
-        m_fallbackShaders[EShaderType::Fragment] = GetCacheKey(fallbackDescriptor);
-    }
-
-    Shader* ShaderManager::GetShader(const ShaderDescriptor &desc) {
-        std::string cacheKey = GetCacheKey(desc);
-
-        if (m_hashToShaderAsset.contains(cacheKey)) {
-            return m_hashToShaderAsset[cacheKey]->shader;
-        }
-
-        ShaderAsset* asset = new ShaderAsset();
-        asset->descriptor = desc;
-
-        if (LoadFromCacheAndRegister(cacheKey, asset)) {
-            return m_hashToShaderAsset[cacheKey]->shader;
-        }
-
-        if (!CompileInternalAndRegister(cacheKey, asset)) {
-            if (m_fallbackShaders.contains(asset->descriptor.type)) {
-                Log(Warning, "Using fallback shader to not crash the application! Shader was not registered so hot reloading will not work!");
-                return m_hashToShaderAsset[m_fallbackShaders[asset->descriptor.type]]->shader;
+            if (ShaderAsset* fallbackAsset = GetOrCreateAsset(fallbackDescriptor); fallbackAsset != nullptr) {
+                m_fallbackShaders[type] = fallbackAsset;
+            } else {
+                //! No fallbacks availablke in this session - most likely not a crash but that is if I wrote good code:3
+                LogError("Fallback {} shader failed to compile: {} - failures in this stage "
+                            "will have no stand-in", ShaderTypeToString(type), fallbackDescriptor.path);
             }
         }
+    }
 
-        return m_hashToShaderAsset[cacheKey]->shader;
+    Shader* ShaderManager::GetFallbackShader(EShaderType type) {
+        const auto it = m_fallbackShaders.find(type);
+        return it == m_fallbackShaders.end() ? nullptr : it->second->shader;
+    }
+
+    ShaderResolution ShaderManager::GetShader(const ShaderDescriptor &desc) {
+        const ShaderAsset* asset = GetOrCreateAsset(desc);
+        return asset ? ShaderResolution{ asset->shader, asset->isFallback } : ShaderResolution{};
+    }
+
+    ShaderManager::ShaderAsset* ShaderManager::GetOrCreateAsset(const ShaderDescriptor &desc) {
+        const std::string cacheKey = GetCacheKey(desc);
+
+        if (const auto it = m_hashToShaderAsset.find(cacheKey); it != m_hashToShaderAsset.end()) {
+            return it->second;
+        }
+
+        Core::UniquePtr<ShaderAsset> owned = Core::CreateUnique<ShaderAsset>();
+        ShaderAsset* asset = owned.get();
+        asset->descriptor = desc;
+
+        if (LoadFromCacheAndRegister(cacheKey, asset) || CompileInternalAndRegister(cacheKey, asset)) {
+            return owned.release();
+        }
+
+        //! Here we force the fallback bytecode under this shader key to have at least sopme shader
+        const auto fallbackIt = m_fallbackShaders.find(desc.type);
+        if (fallbackIt == m_fallbackShaders.end()) {
+            LogError("Shader {} failed to compile and no fallback exists for its stage", cacheKey);
+            return nullptr;
+        }
+
+        Shader* standIn = m_backend->CreateShader(fallbackIt->second->bytecode, asset->descriptor);
+        if (!standIn || !standIn->IsValid()) {
+            LogError("Could not build a fallback shader module for {}", cacheKey);
+            delete standIn;
+            return nullptr;
+        }
+
+        asset->shader = standIn;
+        asset->isFallback = true;
+        asset->bytecode.clear();
+        m_hashToShaderAsset[cacheKey] = owned.release();
+
+        UpdateDependencies(asset, { Shift::Util::NormalizePath(desc.path) });
+
+        Log(Error, "Shader {} is serving FALLBACK bytecode until it compiles", cacheKey);
+        return asset;
     }
 
     void ShaderManager::MarkDirty(const std::string& path) {
@@ -97,11 +129,16 @@ namespace Shift::Graphics {
             dirtyFiles.swap(m_dirtyFiles);
         }
 
-        std::vector<ShaderAsset*> toRecompile;
+        std::unordered_set<ShaderAsset*> toRecompile;
         for (const auto& file: dirtyFiles) {
-            for (const auto& shader: m_dependencyToShaders[file]) {
-                toRecompile.push_back(shader);
-            }
+            const auto it = m_dependencyToShaders.find(file);
+            if (it == m_dependencyToShaders.end()) { continue; }
+            toRecompile.insert(it->second.begin(), it->second.end());
+        }
+
+        //! Retry anything depending on fallback
+        for (const auto& [_, asset]: m_hashToShaderAsset) {
+            if (asset->isFallback) { toRecompile.insert(asset); }
         }
 
         std::unordered_set<Pipeline*> pipelinesToRebuild;
@@ -242,6 +279,7 @@ namespace Shift::Graphics {
             asset->bytecode = result.data;
             if (m_hashToShaderAsset.contains(key)) {
                 asset->shader->Rebuild(asset->bytecode);
+                asset->isFallback = false;
                 Log(Trace, "Hot-reload compiled shader {}", key);
             } else {
                 //! Shader has not been registered - register it!

@@ -9,16 +9,26 @@
 #include <unordered_set>
 #include <mutex>
 
+#include "Core/Memory.hpp"
 #include "Graphics/RHI/RHI.hpp"
 #include "Utility/SlangCompiler/SlangCompiler.hpp"
 
 namespace Shift::Graphics {
+    //! nullptr only when no fallback could replace the bytecode
+    struct ShaderResolution {
+        Shader* shader = nullptr;
+        bool isFallback = false;
+    };
+
     //! Owns shader compilation, caching and hot-reload bookkeeping
     class ShaderManager {
     public:
         void Init(RenderBackendInterface* backend, const std::string& shaderRootFolder);
 
-        Shader* GetShader(const ShaderDescriptor& desc);
+        ShaderResolution GetShader(const ShaderDescriptor& desc);
+
+        //! The stand-in shader for one stage
+        Shader* GetFallbackShader(EShaderType type);
 
         //! Hot reload all relevant shaders and return the list of pipelines to be reloaded and deferred freed
         [[nodiscard]] std::unordered_set<Pipeline*> HotReload();
@@ -34,11 +44,12 @@ namespace Shift::Graphics {
 
     private:
         struct ShaderAsset {
-            std::vector<uint8_t> bytecode;
+            std::vector<uint8_t> bytecode; //! Empty when isFallback
             ShaderDescriptor descriptor;
             std::unordered_set<std::string> dependencies;
             std::unordered_set<Pipeline*> subscribedPipelines;
             Shader* shader = nullptr;
+            bool isFallback = false;
         };
         static std::string GetCacheKey(const ShaderDescriptor& desc);
         bool LoadFromCacheAndRegister(const std::string& key, ShaderAsset* asset);
@@ -48,6 +59,9 @@ namespace Shift::Graphics {
     private:
         RenderBackendInterface* m_backend = nullptr;
         Util::SlangCompiler m_compiler;
+
+        //! Self explanatory lol
+        ShaderAsset* GetOrCreateAsset(const ShaderDescriptor& desc);
 
         //! Hash -> ShaderAsset
         std::unordered_map<std::string, ShaderAsset*> m_hashToShaderAsset;
@@ -62,7 +76,7 @@ namespace Shift::Graphics {
         std::filesystem::path m_shaderCacheFolder;
         std::filesystem::path m_shaderSourceFolder;
 
-        std::unordered_map<EShaderType, std::string> m_fallbackShaders;
+        std::unordered_map<EShaderType, ShaderAsset*> m_fallbackShaders;
     };
 }
 

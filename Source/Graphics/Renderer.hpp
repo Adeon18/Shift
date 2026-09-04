@@ -90,6 +90,8 @@ namespace Shift::Graphics {
 
         [[nodiscard]] ShaderManager& GetShaderManager() { return m_shaderManager; }
 
+        [[nodiscard]] PipelineManager& GetPipelineManager() { return m_pipelineManager; }
+
         [[nodiscard]] TextureManager& GetTextureManager() { return *m_textureManager; }
 
         [[nodiscard]] SamplerManager& GetSamplerManager() { return m_samplerManager; }

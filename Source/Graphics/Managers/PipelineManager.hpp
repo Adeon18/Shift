@@ -14,15 +14,15 @@
 #include "ShaderManager.hpp"
 
 namespace Shift::Graphics {
+    struct PipelineMeta {
+        std::vector<ShaderDescriptor> sources;
+        std::vector<ShaderStageDesc> assets;
+        bool isFallback = false;
+    };
 
-    using PipelineHandle = GenerationalPool<Pipeline, std::vector<ShaderStageDesc>>::Handle;
+    using PipelineHandle = GenerationalPool<Pipeline, PipelineMeta>::Handle;
 
-    //! The single authority for graphics pipelines, and the ONLY thing engine systems call to get
-    //! one, subscribes it for hot-reload, and takes ownership of every pipeline
-    //!
-    //! Future home of the engine-level PSO cache: dedup identical pipelines by a hash of
-    //! (PipelineDescriptor + shader identities), turning CreatePipeline into get-or-create. The
-    //! backend VkPipelineCache and pipeline-layout cache stay backend-internal.
+    //! The main class for getting pipelines and subscribing them to how reload. Owns every pipeline
     class PipelineManager {
     public:
         void Init(RenderBackend* rhi, ShaderManager* shaderManager);
@@ -48,12 +48,24 @@ namespace Shift::Graphics {
         //! Shutdown teardown. Precondition: GPU idle + RHI deferred queue flushed by the caller.
         void Destroy();
 
+        //! True when pipeline is using fallback shaders
+        [[nodiscard]] bool IsRunningFallback(PipelineHandle handle);
+
     private:
+        //! Ask the ShaderManager for each source's own asset. Empty if any stage has neither a
+        //! compiled shader nor a fallback to stand in for it
+        [[nodiscard]] std::vector<ShaderStageDesc> ResolveSources(std::span<const ShaderDescriptor> sources,
+                                                                  bool& outAnyFallback);
+
+        //! Manage stages
+        [[nodiscard]] std::vector<ShaderStageDesc> ResolveStages(std::span<const ShaderStageDesc> assets,
+                                                                 bool anyFallback);
+
         RenderBackend* m_rhi = nullptr;
         RenderBackendInterface* m_backend = nullptr;
         ShaderManager* m_shaderManager = nullptr;
 
-        GenerationalPool<Pipeline, std::vector<ShaderStageDesc>> m_pool;
+        GenerationalPool<Pipeline, PipelineMeta> m_pool;
     };
 }
 

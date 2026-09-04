@@ -91,6 +91,15 @@ namespace Shift::Graphics {
             }
         }
 
+        //! same as foreachlive but with slot metadata
+        template <typename Fn>
+        void ForEachLiveMeta(Fn&& fn) {
+            for (uint32_t i = 0; i < m_slots.size(); ++i) {
+                Slot& slot = m_slots[i];
+                if (slot.alive) { fn(i, slot.resource, slot.meta); }
+            }
+        }
+
         //! Reset all bookkeeping. Does NOT delete the stored T*, the owner should have DONE IT BY NOW
         void Clear() {
             m_slots.clear();

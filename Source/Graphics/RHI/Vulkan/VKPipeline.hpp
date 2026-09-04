@@ -22,9 +22,9 @@ namespace Shift::VK {
 
         [[nodiscard]] bool IsValid() const { return m_valid; }
 
-        //! For hot-reloading: builds a fresh GPU pipeline and retires the previous
-        //! one for deferred destruction (see ReleaseRetired()).
-        void Rebuild(bool createLayout);
+        //! For hot-reloading: builds a fresh GPU pipeline from the given stages and retires the
+        //! previous one for deferred destruction (ReleaseRetired()).
+        void Rebuild(bool createLayout, std::span<const ShaderStageDesc> stages);
 
         //! Releases the oldest pipeline state retired by Rebuild() (one per Rebuild).
         //! Driven by the RHI deferred executor once the GPU is done with it. RHI-level

@@ -4,7 +4,9 @@
 #include <doctest/doctest.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <string>
 #include <utility>
@@ -15,7 +17,9 @@
 #include "ShiftEngine.hpp"
 #include "Config/EngineConfig.hpp"
 #include "Graphics/DrawItem.hpp"
+#include "Graphics/Managers/GlobalResourceSet.hpp"
 #include "Graphics/Managers/MaterialManager.hpp"
+#include "Graphics/Managers/PipelineManager.hpp"
 #include "Graphics/Managers/MeshManager.hpp"
 #include "Graphics/RenderScene.hpp"
 #include "Graphics/Managers/TextureManager.hpp"
@@ -522,6 +526,57 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
                       "marking this dirty rebuilt no pipeline: the forward shaders' dependency "
                       "lists do not reach through the import");
         tick(5);
+    }
+
+    //! Phase 5.5: a pipeline with ONE uncompilable stage must come out internally consistent -
+    //! every stage falls back together, or the real PS reads varyings the fallback VS never
+    //! wrote (VUID-RuntimeSpirv-OpEntryPoint-08743). That is reported at pipeline creation, so
+    //! the probe never draws. The broken stage is a path that does not exist, so no fixture file
+    //! is needed. Runs AFTER the hot-reload loop: it leaves a fallback asset behind that every
+    //! later MarkDirty would retry
+    {
+        const uint64_t errorsBeforeProbe = Shift::GetValidationStats().errorCount;
+
+        Shift::ShaderDescriptor brokenVS;
+        brokenVS.type = Shift::EShaderType::Vertex;
+        brokenVS.path = Shift::Util::GetShiftShaderSrcDir() + "Forward/NoSuchShader.slang";
+        brokenVS.entry = "mainVS";
+
+        Shift::ShaderDescriptor realPS;
+        realPS.type = Shift::EShaderType::Fragment;
+        realPS.path = Shift::Util::GetShiftShaderSrcDir() + "Forward/ForwardPS.slang";
+        realPS.entry = "mainPS";
+
+        //! The layout comes from the descriptor, not the shaders, so it stays what a real
+        //! forward pipeline declares even though the fallback uses none of it
+        Shift::PipelineDescriptor probeDesc;
+        probeDesc.name = "FallbackProbe";
+        probeDesc.colorBlendConfig.attachments.push_back(
+                {.format = Shift::Graphics::Renderer::VIEWPORT_COLOR_FORMAT});
+        probeDesc.pushConstants = Shift::PushConstantRange{
+            .offset = 0,
+            .size = static_cast<uint32_t>(sizeof(Shift::GPU::PushConstants)),
+            .stageFlags = Shift::EBindingVisibility::Vertex | Shift::EBindingVisibility::Fragment
+        };
+        probeDesc.descriptorLayouts.resize(Shift::Graphics::GlobalResourceSet::SET_INDEX + 1);
+        probeDesc.descriptorLayouts[Shift::Graphics::GlobalResourceSet::SET_INDEX] =
+                Shift::Graphics::GlobalResourceSet::Layout();
+
+        const std::array<Shift::ShaderDescriptor, 2> probeSources{brokenVS, realPS};
+        auto& pipelines = renderer.GetPipelineManager();
+        const Shift::Graphics::PipelineHandle probe = pipelines.CreatePipeline(probeDesc, probeSources);
+
+        CHECK_MESSAGE(pipelines.Get(probe) != nullptr,
+                      "a pipeline with one uncompilable stage produced nothing at all: the "
+                      "fallback stands in for every stage, not for none of them");
+        CHECK_MESSAGE(pipelines.IsRunningFallback(probe),
+                      "the pipeline does not report itself as running on fallback shaders");
+        CHECK_MESSAGE(Shift::GetValidationStats().errorCount == errorsBeforeProbe,
+                      "creating a pipeline whose vertex stage failed produced validation errors: "
+                      "the stages were not substituted together (F-FALLBACKSTAGE)");
+
+        pipelines.DestroyPipeline(probe);
+        tick(3);
     }
 
     //! Mid-run texture upload
