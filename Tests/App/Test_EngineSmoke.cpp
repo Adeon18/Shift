@@ -268,6 +268,50 @@ namespace {
             }
         }
     }
+
+    //! A material's texture slots are the file's own bindless indices, and each
+    //! image was created in the colorspace its SLOT calls for. The second half is the
+    //! only check that separates "a texture was bound" from "the right decode was applied", and
+    //! an sRGB-decoded normal map is wrong in a way no structural assertion notices
+    void CheckMaterialTextures(Shift::Graphics::Renderer& renderer) {
+        Shift::Graphics::TextureManager& textures = renderer.GetTextureManager();
+        const std::vector<Shift::GPU::MaterialData>& materials =
+                renderer.GetMaterialManager().GetMaterials();
+        const uint32_t placeholderSlot = textures.GetPlaceholderHandle().slotIdx;
+
+        //! Slot 0 is the default material and references nothing by construction, so it is the one
+        //! entry whose slots SHOULD all be the placeholder
+        const bool haveModelMaterials = materials.size() > 1u;
+        CHECK_MESSAGE(haveModelMaterials, "only the default material exists, so nothing to texture");
+        if (!haveModelMaterials) { return; }
+
+        for (size_t i = 1; i < materials.size(); ++i) {
+            const Shift::GPU::MaterialData& material = materials[i];
+
+            //! Both committed models declare a baseColor, a normal and an occlusion/MR texture.
+            //! Landing on the placeholder means the resolver never reached the file
+            CHECK_MESSAGE(material.baseColorTex != placeholderSlot,
+                          "a model material's base color is still the placeholder slot");
+            CHECK_MESSAGE(material.normalTex != placeholderSlot,
+                          "a model material's normal map is still the placeholder slot");
+            CHECK_MESSAGE(material.ormTex != placeholderSlot,
+                          "a model material's ORM is still the placeholder slot");
+
+            //! AC4. A base color is an authored color and decodes through sRGB; a normal map and
+            //! an ORM are numbers and must not - that was the forced-SRGB bug
+            CHECK_MESSAGE(textures.GetFormatOfSlot(material.baseColorTex) == Shift::ETextureFormat::R8G8B8A8_SRGB,
+                          "a base color texture was not created sRGB");
+            CHECK_MESSAGE(textures.GetFormatOfSlot(material.normalTex) == Shift::ETextureFormat::R8G8B8A8_UNORM,
+                          "a normal map was created sRGB - the forced-SRGB bug is back");
+            CHECK_MESSAGE(textures.GetFormatOfSlot(material.ormTex) == Shift::ETextureFormat::R8G8B8A8_UNORM,
+                          "an ORM texture was created sRGB - the forced-SRGB bug is back");
+        }
+
+        //! The cache is what stops one shared image being decoded and uploaded once per reference.
+        //! Nothing was cached at all if this is zero, and the placeholder is deliberately not in it
+        CHECK_MESSAGE(textures.GetLoadedCount() > 0u,
+                      "the texture cache holds nothing, so every reference re-loaded its file");
+    }
 }
 
 TEST_SUITE("EngineSmoke [app]") {
@@ -476,6 +520,7 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     //! cannot work without. Keyed on the committed asset only: DamagedHelmet is downloaded (R7)
     CheckExtractedFrame(renderer);
     CheckMaterials(renderer);
+    CheckMaterialTextures(renderer);
 
     //! Projection tracks the VIEWPORT render target's aspect, not the OS window's: the scene is
     //! drawn into the viewport texture, and the editor is free to give it any shape
@@ -590,6 +635,30 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     //! Submit happens on the next frame, the acquire and the bindless write on that same frame
     tick(5);
     CHECK_MESSAGE(textures.IsValid(uploaded), "the mid-run texture did not survive its own upload");
+
+    //! the cache. Asking for the SAME file in the SAME colorspace must hand back
+    //! the slot already holding it rather than decoding and uploading it a second time
+    const Shift::Graphics::TextureHandle sameAgain =
+            textures.LoadTextureDeferred(Shift::Util::GetShiftRoot() + "Assets/Textures/ShiftIcon.jpg",
+                                         Shift::ETextureColorSpace::SRGB);
+    CHECK_MESSAGE(sameAgain == uploaded,
+                  "a repeated (path, colorspace) load did not hit the cache - the file was decoded "
+                  "and uploaded twice");
+
+    //! ...and the colorspace is PART of the key, not a decoration on it. The same image reached
+    //! through a normal-map slot must come back as a DIFFERENT texture in UNORM. Keying on path
+    //! alone hands the second caller the first one's format, which is silently the wrong decode
+    const Shift::Graphics::TextureHandle sameAsLinear =
+            textures.LoadTextureDeferred(Shift::Util::GetShiftRoot() + "Assets/Textures/ShiftIcon.jpg",
+                                         Shift::ETextureColorSpace::Linear);
+    tick(3);
+    CHECK_MESSAGE(sameAsLinear != uploaded,
+                  "the same image in a second colorspace reused the first one's slot - the cache "
+                  "key is missing the colorspace");
+    CHECK_MESSAGE(textures.GetFormat(sameAsLinear) == Shift::ETextureFormat::R8G8B8A8_UNORM,
+                  "a Linear-requested texture was still created sRGB");
+    CHECK_MESSAGE(textures.GetFormat(uploaded) == Shift::ETextureFormat::R8G8B8A8_SRGB,
+                  "an SRGB-requested texture was not created sRGB");
 
     //! A file that does not exist must resolve to the placeholder: a usable, always-resident slot.
     //! Not a live slot holding nullptr (the next ForEachLive sweep would dereference it) and not

@@ -125,6 +125,10 @@ namespace Shift::Graphics {
         [[nodiscard]] const std::vector<GPUTimeRange>& GetLastFrameGPUTimeRanges() const { return m_renderBackend.GetLastFrameGPUTimeRanges(); }
 
     private:
+        //! Builds a callable function per mesh to be used by mat manager to map texture to bindless index -> here temporarily until scene class
+        [[nodiscard]] TextureSlotResolver MakeTextureResolver(const std::string& baseDir,
+                                                              RenderContextEncoder& transferEncoder);
+
         [[nodiscard]] uint32_t AquireImage(bool *success);
         [[nodiscard]] bool PresentFinalImage(uint32_t imageIndex);
         void FillFrameConstants(GPU::FrameConstants* frameConstantsPtr, const EngineData& engineData, uint32_t frameSlot);

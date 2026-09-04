@@ -5,24 +5,51 @@
 
 #include <algorithm>
 #include <array>
+#include <functional>
 #include <utility>
 
 namespace Shift::Graphics {
+    namespace {
+        size_t HashCombine(size_t seed, size_t value) {
+            constexpr size_t GOLDEN = static_cast<size_t>(0x9e3779b97f4a7c15ULL);
+            return seed ^ (std::hash<size_t>()(value) + GOLDEN + (seed << 6) + (seed >> 2));
+        }
+    }
     TextureManager::TextureManager(ITextureLoader* loader, RenderBackend* rhi, GlobalResourceSet* globalSet, RenderContextEncoder* encoder)
         : m_loader(loader), m_rhi(rhi), m_backend(rhi->CreateInterface()), m_globalSet(globalSet) {
 
         //! Slot 0 is the permanently-resident placeholder, it is never released
-        m_placeholder = m_pool.Insert(LoadAndCreateTexture("PLACEHOLDER", encoder));
+        m_placeholder = m_pool.Insert(LoadAndCreateTexture("PLACEHOLDER", encoder, ETextureColorSpace::SRGB));
     }
 
-    TextureHandle TextureManager::GetOrLoadTexture(const std::string &path, RenderContextEncoder* encoder) {
-        Texture* texture = LoadAndCreateTexture(path, encoder);
+    size_t TextureManager::CacheKeyHash::operator()(const CacheKey& key) const {
+        return HashCombine(std::hash<std::string>{}(key.path), static_cast<size_t>(key.colorSpace));
+    }
 
-        //! Bugfix regarding storing nullprt in the pool
+    TextureHandle TextureManager::FindInCache(const CacheKey& key) const {
+        const auto it = m_cache.find(key);
+        return (it != m_cache.end()) ? it->second : TextureHandle{};
+    }
+
+    void TextureManager::StoreInCache(const CacheKey& key, TextureHandle handle) {
+        m_cache.insert_or_assign(key, handle);
+    }
+
+    TextureHandle TextureManager::GetOrLoadTexture(const std::string &path, RenderContextEncoder* encoder, ETextureColorSpace colorSpace) {
+        const CacheKey key{path, colorSpace};
+
+        const TextureHandle cached = FindInCache(key);
+        if (m_pool.IsValid(cached)) { return cached; }
+
+        Texture* texture = LoadAndCreateTexture(path, encoder, colorSpace);
+
+        //! Do not store the failed load in cache
         if (!texture) { return m_placeholder; }
 
         //! GPU upload happens later via UploadTexturesToGPU
-        return m_pool.Insert(texture);
+        const TextureHandle handle = m_pool.Insert(texture);
+        StoreInCache(key, handle);
+        return handle;
     }
 
     void TextureManager::UnloadTexture(const TextureHandle &handle) {
@@ -54,6 +81,19 @@ namespace Shift::Graphics {
         return m_pool.IsValid(handle);
     }
 
+    ETextureFormat TextureManager::GetFormat(const TextureHandle& handle) const {
+        const Texture* texture = m_pool.Get(handle);
+        return texture ? texture->GetFormat() : ETextureFormat::UNDEFINED;
+    }
+
+    ETextureFormat TextureManager::GetFormatOfSlot(uint32_t slotIdx) {
+        ETextureFormat found = ETextureFormat::UNDEFINED;
+        m_pool.ForEachLive([&](uint32_t liveSlot, Texture* texture) {
+            if (liveSlot == slotIdx) { found = texture->GetFormat(); }
+        });
+        return found;
+    }
+
     void TextureManager::FreeStagingBuffers() {
         m_usedStagingBuffers.clear();
     }
@@ -69,13 +109,19 @@ namespace Shift::Graphics {
         });
     }
 
-    TextureHandle TextureManager::LoadTextureDeferred(const std::string &path) {
-        std::optional<RawTextureData> rawData = LoadRawData(path);
+    TextureHandle TextureManager::LoadTextureDeferred(const std::string &path, ETextureColorSpace colorSpace) {
+        const CacheKey key{path, colorSpace};
+
+        const TextureHandle cached = FindInCache(key);
+        if (m_pool.IsValid(cached)) { return cached; }
+
+        std::optional<RawTextureData> rawData = LoadRawData(path, colorSpace);
         //! Revert to placeholder if data is bad
         if (!rawData) { return m_placeholder; }
 
         Texture* texture = CreateTextureForRaw(path, *rawData);
         const TextureHandle handle = m_pool.Insert(texture);
+        StoreInCache(key, handle);
 
         //! The slot is live from this moment on, so it must not be left describing whichever
         //! image used to occupy it. The placeholder covers until RegisterAcquired runs
@@ -150,7 +196,7 @@ namespace Shift::Graphics {
         m_pool.Clear();
     }
 
-    std::optional<RawTextureData> TextureManager::LoadRawData(const std::string &path) {
+    std::optional<RawTextureData> TextureManager::LoadRawData(const std::string &path, ETextureColorSpace colorSpace) {
         std::optional<RawTextureData> rawData;
         if (path != "PLACEHOLDER") {
             rawData = m_loader->LoadFromFile(path);
@@ -164,25 +210,9 @@ namespace Shift::Graphics {
         }
 
         if (rawData->format == ETextureFormat::UNDEFINED) {
-            //! 3 channel textures do not support optimal tiling
-            // switch (rawData->channels) {
-            //     case 1:
-            //         rawData->format = ETextureFormat::R8_SRGB;
-            //         break;
-            //     case 2:
-            //         rawData->format = ETextureFormat::R8G8_SRGB;
-            //         break;
-            //     case 3:
-            //         rawData->format = ETextureFormat::R8G8B8_SRGB;
-            //         break;
-            //     case 4:
-            //         rawData->format = ETextureFormat::R8G8B8A8_SRGB;
-            //         break;
-            //     default:
-            //         Log(Warning, "Unsupported channel count {}", rawData->channels);
-            //         return nullptr;
-            // }
-            rawData->format = ETextureFormat::R8G8B8A8_SRGB;
+            rawData->format = (colorSpace == ETextureColorSpace::SRGB)
+                                  ? ETextureFormat::R8G8B8A8_SRGB
+                                  : ETextureFormat::R8G8B8A8_UNORM;
             rawData->channels = 4;
         }
 
@@ -244,8 +274,8 @@ namespace Shift::Graphics {
         return stagingBuf;
     }
 
-    Texture* TextureManager::LoadAndCreateTexture(const std::string &path, RenderContextEncoder* encoder) {
-        std::optional<RawTextureData> rawData = LoadRawData(path);
+    Texture* TextureManager::LoadAndCreateTexture(const std::string &path, RenderContextEncoder* encoder, ETextureColorSpace colorSpace) {
+        std::optional<RawTextureData> rawData = LoadRawData(path, colorSpace);
         if (!rawData) { return nullptr; }
 
         Texture* texture = CreateTextureForRaw(path, *rawData);

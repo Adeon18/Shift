@@ -6,7 +6,10 @@
 #define SHIFT_TEXTUREMANAGER_HPP
 
 #include <memory>
+#include <string>
+#include <unordered_map>
 
+#include "Loaders/ModelLoader/IModelLoader.hpp"
 #include "Loaders/TextureLoader/ITextureLoader.hpp"
 
 #include "Graphics/RHI/RHI.hpp"
@@ -21,13 +24,34 @@ namespace Shift::Graphics {
 
     class TextureManager {
     public:
+        //! Color space is part of the cache key cuz different colot space chnages how vk image is created, and this is not a fixed argument
+        //! I may load Megamind.png as a normal map AND basecolor, yknow? (I mean i should not, but there can be cases)
+        //! Another good usecase is using non-black/white placeholder 1x1 textures in place of linear and srgb textures as it will skew the,
+        struct CacheKey {
+            std::string path;
+            ETextureColorSpace colorSpace = ETextureColorSpace::SRGB;
+
+            [[nodiscard]] bool operator==(const CacheKey& other) const = default;
+        };
+
+        struct CacheKeyHash {
+            [[nodiscard]] size_t operator()(const CacheKey& key) const;
+        };
+
         TextureManager(ITextureLoader* loader, RenderBackend* rhi, GlobalResourceSet* globalSet, RenderContextEncoder* encode);
 
-        [[nodiscard]] TextureHandle GetOrLoadTexture(const std::string& path, RenderContextEncoder* encode);
+        [[nodiscard]] TextureHandle GetOrLoadTexture(const std::string& path, RenderContextEncoder* encode,
+                                                     ETextureColorSpace colorSpace = ETextureColorSpace::SRGB);
 
         void UnloadTexture(const TextureHandle& texHandle);
 
         [[nodiscard]] bool IsValid(const TextureHandle& handle) const;
+
+        [[nodiscard]] ETextureFormat GetFormat(const TextureHandle& handle) const;
+
+        [[nodiscard]] ETextureFormat GetFormatOfSlot(uint32_t slotIdx);
+
+        [[nodiscard]] uint32_t GetLoadedCount() const { return static_cast<uint32_t>(m_cache.size()); }
 
         //! The permanently-resident 1x1 fallback at slot 0
         //! Never unloadable apart from destruction
@@ -41,7 +65,7 @@ namespace Shift::Graphics {
         ///! ================ Mid-run uploads ====================
 
         //! Book a texture slot and add the load to pending for the submit pending uploads that runs once per frame
-        [[nodiscard]] TextureHandle LoadTextureDeferred(const std::string& path);
+        [[nodiscard]] TextureHandle LoadTextureDeferred(const std::string& path, ETextureColorSpace colorSpace = ETextureColorSpace::SRGB);
 
         //! Record and submit every deferred upload queued so far on the transfer queue.
         //! No-op when nothing is pending. Must run before the frame's graphics recording begins
@@ -53,8 +77,15 @@ namespace Shift::Graphics {
 
         ~TextureManager();
     private:
-        //! Just get the Raw data from an image
-        [[nodiscard]] std::optional<RawTextureData> LoadRawData(const std::string& path);
+        //! ============ The texture cache ============
+
+        //! The handle already loaded for this key, or a invalid handle
+        [[nodiscard]] TextureHandle FindInCache(const CacheKey& key) const;
+
+        void StoreInCache(const CacheKey& key, TextureHandle handle);
+
+        //! Just get the Raw data from an image. Colorspace decides srgb or UNORM
+        [[nodiscard]] std::optional<RawTextureData> LoadRawData(const std::string& path, ETextureColorSpace colorSpace);
 
         //! Create the GPU texture object sized/formatted for this raw data. Records nothing
         [[nodiscard]] Texture* CreateTextureForRaw(const std::string& path, const RawTextureData& raw);
@@ -63,13 +94,15 @@ namespace Shift::Graphics {
         //! release half of the handoff to graphics. Returns the staging buffer
         [[nodiscard]] Buffer* RecordUploadCommands(Texture& texture, const RawTextureData& raw, RenderContextEncoder& encoder);
 
-        Texture* LoadAndCreateTexture(const std::string & path, RenderContextEncoder* encode);
+        Texture* LoadAndCreateTexture(const std::string & path, RenderContextEncoder* encode, ETextureColorSpace colorSpace);
 
         void UploadToGPU(uint32_t slotIdx, Texture * texture);
 
         void ClearTexture(uint32_t slotIdx);
 
         GenerationalPool<Texture> m_pool;
+        //! Texture + colorspace -> bindless slot that has it cached
+        std::unordered_map<CacheKey, TextureHandle, CacheKeyHash> m_cache;
         //! Free slot placeholder
         TextureHandle m_placeholder;
 

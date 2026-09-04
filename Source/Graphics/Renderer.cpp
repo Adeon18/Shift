@@ -39,8 +39,6 @@ namespace Shift::Graphics {
         CheckCritical(m_materialData.Init(m_bufferManager, "MaterialDataRing", Conf::MAX_SCENE_MATERIALS),
                       "Failed to create the material data ring!");
 
-        CheckCritical(m_materialManager.Init(), "Failed to initialize the material manager!");
-
         RenderContext& tctx = m_renderBackend.GetTransferContext();
         RenderContextEncoder* tEncoder = tctx.CreateCommandEncoder();
         tctx.BeginCmds();
@@ -50,6 +48,10 @@ namespace Shift::Graphics {
         m_textureManager = std::make_unique<Graphics::TextureManager>(m_textureLoader.get(), &m_renderBackend, &m_globalSet, tctx.CreateCommandEncoder());
 
         m_textureManager->GetOrLoadTexture(Shift::Util::GetShiftRoot() + "Assets/Textures/NB.jpg", tEncoder);
+
+        CheckCritical(m_materialManager.Init(MakeTextureResolver("", *tEncoder)),
+                      "Failed to initialize the material manager!");
+
         CheckCritical(LoadScene(*tEncoder), "Failed to load the scene!");
 
         {
@@ -164,11 +166,11 @@ namespace Shift::Graphics {
         const std::vector<SceneModel> sources{
             {
                 root + "Assets/Models/DamagedHelmet/scene.gltf",
-                glm::scale(glm::translate(glm::mat4(1.0f), {-0.75f, 0.0f, -1.5f}), glm::vec3(0.3f))
+                glm::scale(glm::translate(glm::mat4(1.0f), {-2.0f, 0.0f, -3.5f}), glm::vec3(1.0))
             },
             {
                 root + "Assets/Models/HumanSkull/scene.gltf",
-                glm::scale(glm::translate(glm::mat4(1.0f), {0.75f, 0.0f, -1.5f}), glm::vec3(0.3f))
+                glm::scale(glm::translate(glm::mat4(1.0f), {2.0f, 0.0f, -3.5f}), glm::vec3(1.0f))
             },
         };
 
@@ -180,8 +182,9 @@ namespace Shift::Graphics {
                 continue;
             }
 
-            //! Get the global remap
-            const std::vector<uint32_t> materialRemap = m_materialManager.RegisterModelMaterials(model->materials);
+            //! Get the global remap and make ressolver to index
+            const std::vector<uint32_t> materialRemap = m_materialManager.RegisterModelMaterials(
+                model->materials, MakeTextureResolver(Shift::Util::GetDirectoryFromPath(model->sourcePath), transferEncoder));
 
             //! Upload every mesh once
             std::vector<MeshHandle> meshHandles;
@@ -228,6 +231,17 @@ namespace Shift::Graphics {
             m_meshManager.GetUsedVertices(), m_meshManager.GetUsedIndices());
 
         return true;
+    }
+
+    TextureSlotResolver Renderer::MakeTextureResolver(const std::string& baseDir,
+                                                      RenderContextEncoder& transferEncoder) {
+        const uint32_t placeholderSlot = m_textureManager->GetPlaceholderHandle().slotIdx;
+        return [this, baseDir, placeholderSlot, encoder = &transferEncoder](const TextureRef& ref) {
+            //! THis is what gets triggered if there is no ORM texture in mesh for example
+            if (!ref.IsSet()) { return placeholderSlot; }
+            TextureHandle tex = m_textureManager->GetOrLoadTexture(baseDir + ref.id, encoder, ref.colorSpace);
+            return tex.slotIdx;
+        };
     }
 
     bool Renderer::RenderFrame(const Shift::Graphics::EngineData &engineData, Editor::EditorLayer* editor) {
