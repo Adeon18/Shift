@@ -295,11 +295,11 @@ namespace Shift::Graphics {
         CheckCritical(gContext.BeginCmds(), "Failed to begin the command Buffer!");
         std::vector waitPayloads = m_renderBackend.FlushPendingAcquires(gContext);
 
-        //! Register new uploads if any to GPU
-        m_textureManager->RegisterSubmittedUploads();
-
         //! Outermost timed group
         gEncoder->PushDebugGroup("Frame", {0.55f, 0.45f, 0.85f, 1.0f}, true);
+
+        //! These go for timings as these are mi-run uploads
+        m_textureManager->RegisterSubmittedUploads(gEncoder);
 
         if (shouldRenderMainViewport) {
             gEncoder->PushDebugGroup("ViewportPass", {0.30f, 0.65f, 0.35f, 1.0f}, true);

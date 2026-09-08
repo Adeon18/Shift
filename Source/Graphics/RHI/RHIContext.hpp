@@ -193,6 +193,11 @@ namespace Shift {
 
         //! Release ownership of this texture from the queue family
         void ReleaseQueueOwnership(Texture& texture, EContextType dstContext, EResourceLayout dstLayout, EPipelineStageFlags dstStage);
+
+        //! Generate mips for the whole image and transition it to final layout and final stage.
+        //! Nearest is for formats that cannot be filtered linearly, integer ones above all
+        void GenerateMips(Texture& texture, EResourceLayout finalLayout, EPipelineStageFlags finalStage,
+                          EFilterMode filter = EFilterMode::Linear);
     private:
         CommandBuffer* m_boundCB = nullptr;
     };
@@ -469,6 +474,13 @@ namespace Shift {
         EResourceLayout dstLayout, EPipelineStageFlags dstStage)
     {
         m_boundCB->ReleaseQueueOwnership(texture, ToPoolQueueType(dstContext), dstLayout, dstStage);
+    }
+
+    template<ValidAPI API>
+    void RHIEncoder<API>::GenerateMips(Texture& texture, EResourceLayout finalLayout,
+        EPipelineStageFlags finalStage, EFilterMode filter)
+    {
+        m_boundCB->GenerateMips(texture, finalLayout, finalStage, filter);
     }
 
     template<ValidAPI API>

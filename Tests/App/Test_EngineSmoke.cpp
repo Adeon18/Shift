@@ -305,7 +305,22 @@ namespace {
                           "a normal map was created sRGB - the forced-SRGB bug is back");
             CHECK_MESSAGE(textures.GetFormatOfSlot(material.ormTex) == Shift::ETextureFormat::R8G8B8A8_UNORM,
                           "an ORM texture was created sRGB - the forced-SRGB bug is back");
+
+            //! Every material image is created with a full chain, so the 2048-square helmet maps
+            //! stop aliasing at distance. Exact counts are asset-dependent and deliberately not
+            //! pinned here; the placeholder below is what pins that the number is DERIVED
+            CHECK_MESSAGE(textures.GetMipCountOfSlot(material.baseColorTex) > 1u,
+                          "a base color texture was created without a mip chain");
+            CHECK_MESSAGE(textures.GetMipCountOfSlot(material.normalTex) > 1u,
+                          "a normal map was created without a mip chain");
+            CHECK_MESSAGE(textures.GetMipCountOfSlot(material.ormTex) > 1u,
+                          "an ORM texture was created without a mip chain");
         }
+
+        //! ...and a 1x1 image has exactly one level, which is what says the count came from the
+        //! dimensions rather than from a constant
+        CHECK_MESSAGE(textures.GetMipCount(textures.GetPlaceholderHandle()) == 1u,
+                      "the 1x1 placeholder was given more than one mip level");
 
         //! The cache is what stops one shared image being decoded and uploaded once per reference.
         //! Nothing was cached at all if this is zero, and the placeholder is deliberately not in it
@@ -635,6 +650,8 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     //! Submit happens on the next frame, the acquire and the bindless write on that same frame
     tick(5);
     CHECK_MESSAGE(textures.IsValid(uploaded), "the mid-run texture did not survive its own upload");
+    CHECK_MESSAGE(textures.GetMipCount(uploaded) > 1u,
+                  "the mid-run texture was created without a mip chain");
 
     //! the cache. Asking for the SAME file in the SAME colorspace must hand back
     //! the slot already holding it rather than decoding and uploading it a second time
@@ -659,6 +676,19 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
                   "a Linear-requested texture was still created sRGB");
     CHECK_MESSAGE(textures.GetFormat(uploaded) == Shift::ETextureFormat::R8G8B8A8_SRGB,
                   "an SRGB-requested texture was not created sRGB");
+
+    //! ...and the mip count is a load ARGUMENT on the same footing as the colorspace, so it is
+    //! part of the key too. Asking for the same file with mips off must hand back a DIFFERENT
+    //! image with exactly one level, not the full-chain one already in the cache
+    const Shift::Graphics::TextureHandle sameNoMips =
+            textures.LoadTextureDeferred(Shift::Util::GetShiftRoot() + "Assets/Textures/ShiftIcon.jpg",
+                                         Shift::ETextureColorSpace::SRGB, 1u);
+    tick(3);
+    CHECK_MESSAGE(sameNoMips != uploaded,
+                  "a load asking for a different mip count reused the full-chain slot - the cache "
+                  "key is missing mipLevels");
+    CHECK_MESSAGE(textures.GetMipCount(sameNoMips) == 1u,
+                  "an explicit one-level request still built a full chain");
 
     //! A file that does not exist must resolve to the placeholder: a usable, always-resident slot.
     //! Not a live slot holding nullptr (the next ForEachLive sweep would dereference it) and not

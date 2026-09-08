@@ -14,16 +14,23 @@ namespace Shift::Graphics {
             constexpr size_t GOLDEN = static_cast<size_t>(0x9e3779b97f4a7c15ULL);
             return seed ^ (std::hash<size_t>()(value) + GOLDEN + (seed << 6) + (seed >> 2));
         }
+
+        uint32_t GetFullMipChainLength(uint32_t width, uint32_t height) {
+            uint32_t levels = 1;
+            for (uint32_t extent = std::max(width, height); extent > 1; extent >>= 1) { ++levels; }
+            return levels;
+        }
     }
     TextureManager::TextureManager(ITextureLoader* loader, RenderBackend* rhi, GlobalResourceSet* globalSet, RenderContextEncoder* encoder)
         : m_loader(loader), m_rhi(rhi), m_backend(rhi->CreateInterface()), m_globalSet(globalSet) {
 
         //! Slot 0 is the permanently-resident placeholder, it is never released
-        m_placeholder = m_pool.Insert(LoadAndCreateTexture("PLACEHOLDER", encoder, ETextureColorSpace::SRGB));
+        m_placeholder = m_pool.Insert(LoadAndCreateTexture("PLACEHOLDER", encoder, ETextureColorSpace::SRGB, FULL_MIP_CHAIN));
     }
 
     size_t TextureManager::CacheKeyHash::operator()(const CacheKey& key) const {
-        return HashCombine(std::hash<std::string>{}(key.path), static_cast<size_t>(key.colorSpace));
+        size_t hash = HashCombine(std::hash<std::string>{}(key.path), static_cast<size_t>(key.colorSpace));
+        return HashCombine(hash, static_cast<size_t>(key.mipLevels));
     }
 
     TextureHandle TextureManager::FindInCache(const CacheKey& key) const {
@@ -35,13 +42,13 @@ namespace Shift::Graphics {
         m_cache.insert_or_assign(key, handle);
     }
 
-    TextureHandle TextureManager::GetOrLoadTexture(const std::string &path, RenderContextEncoder* encoder, ETextureColorSpace colorSpace) {
-        const CacheKey key{path, colorSpace};
+    TextureHandle TextureManager::GetOrLoadTexture(const std::string &path, RenderContextEncoder* encoder, ETextureColorSpace colorSpace, uint32_t mipLevels) {
+        const CacheKey key{path, colorSpace, mipLevels};
 
         const TextureHandle cached = FindInCache(key);
         if (m_pool.IsValid(cached)) { return cached; }
 
-        Texture* texture = LoadAndCreateTexture(path, encoder, colorSpace);
+        Texture* texture = LoadAndCreateTexture(path, encoder, colorSpace, mipLevels);
 
         //! Do not store the failed load in cache
         if (!texture) { return m_placeholder; }
@@ -94,23 +101,31 @@ namespace Shift::Graphics {
         return found;
     }
 
+    uint32_t TextureManager::GetMipCount(const TextureHandle& handle) const {
+        const Texture* texture = m_pool.Get(handle);
+        return texture ? texture->GetMipCount() : 0u;
+    }
+
+    uint32_t TextureManager::GetMipCountOfSlot(uint32_t slotIdx) {
+        uint32_t found = 0u;
+        m_pool.ForEachLive([&](uint32_t liveSlot, Texture* texture) {
+            if (liveSlot == slotIdx) { found = texture->GetMipCount(); }
+        });
+        return found;
+    }
+
     void TextureManager::FreeStagingBuffers() {
         m_usedStagingBuffers.clear();
     }
 
     void TextureManager::UploadTexturesToGPU(RenderContextEncoder *encoder) {
-        //! Transition to read
-        m_pool.ForEachLive([&](uint32_t, Texture* texture) {
-            encoder->TransitionTexture(*texture, EResourceLayout::ShaderReadOnlyOptimal, EPipelineStageFlags::FragmentShaderBit);
-        });
-        //! Register to bindless array
         m_pool.ForEachLive([&](uint32_t slotIdx, Texture* texture) {
-            UploadToGPU(slotIdx, texture);
+            FinalizeUpload(encoder, slotIdx, texture);
         });
     }
 
-    TextureHandle TextureManager::LoadTextureDeferred(const std::string &path, ETextureColorSpace colorSpace) {
-        const CacheKey key{path, colorSpace};
+    TextureHandle TextureManager::LoadTextureDeferred(const std::string &path, ETextureColorSpace colorSpace, uint32_t mipLevels) {
+        const CacheKey key{path, colorSpace, mipLevels};
 
         const TextureHandle cached = FindInCache(key);
         if (m_pool.IsValid(cached)) { return cached; }
@@ -119,7 +134,7 @@ namespace Shift::Graphics {
         //! Revert to placeholder if data is bad
         if (!rawData) { return m_placeholder; }
 
-        Texture* texture = CreateTextureForRaw(path, *rawData);
+        Texture* texture = CreateTextureForRaw(path, *rawData, mipLevels);
         const TextureHandle handle = m_pool.Insert(texture);
         StoreInCache(key, handle);
 
@@ -175,7 +190,7 @@ namespace Shift::Graphics {
         return true;
     }
 
-    void TextureManager::RegisterSubmittedUploads() {
+    void TextureManager::RegisterSubmittedUploads(RenderContextEncoder* encoder) {
         if (m_pendingRegister.empty()) { return; }
 
         //! This is called after the prev frame wait
@@ -183,8 +198,7 @@ namespace Shift::Graphics {
             Texture* texture = m_pool.Get(handle);
             if (!texture) { continue; }
 
-            //! Upload actual texture for usage with descriptors
-            UploadToGPU(handle.slotIdx, texture);
+            FinalizeUpload(encoder, handle.slotIdx, texture);
         }
 
         m_pendingRegister.clear();
@@ -219,13 +233,26 @@ namespace Shift::Graphics {
         return rawData;
     }
 
-    Texture* TextureManager::CreateTextureForRaw(const std::string &path, const RawTextureData &raw) {
+    Texture* TextureManager::CreateTextureForRaw(const std::string &path, const RawTextureData &raw,uint32_t requestedMipLevels) {
+        //! TODO: [TEXTURES] a loader may deliver it pown chain and it is not handled yet
+        //! and must skip generation - the upload path copies level 0 only, so it cannot yet
+        const uint32_t maxLevels = GetFullMipChainLength(raw.width, raw.height);
+        const bool outOfContract = requestedMipLevels != FULL_MIP_CHAIN &&
+                                   (requestedMipLevels == 0 || requestedMipLevels > maxLevels);
+        if (outOfContract) {
+            Log(Warning, "{} asked for {} mip level(s) but {}x{} allows 1..{}; clamping",
+                path, requestedMipLevels, raw.width, raw.height, maxLevels);
+        }
+        const uint32_t mipLevels = (requestedMipLevels == FULL_MIP_CHAIN)
+                                       ? maxLevels
+                                       : std::clamp(requestedMipLevels, 1u, maxLevels);
+
         return m_backend->CreateTexture(TextureDescriptor::CreateTexture2DDesc(
             raw.width,
             raw.height,
             path.c_str(),
             raw.format,
-            raw.mipLevels,
+            mipLevels,
             ETextureUsageFlags::TransferSrc | ETextureUsageFlags::TransferDst | ETextureUsageFlags::Sampled,
             ETextureAspect::Color,
             raw.isCubemap
@@ -249,7 +276,7 @@ namespace Shift::Graphics {
         });
         memcpy(stagingBuf->GetMapped(), raw.data.data(), availableBytes);
 
-        //! We support no mips and overall this is fucked for now
+        //! Here we handle level 0 only as we need graphics queue to gen mips
         TextureSubresourceRange subresourceRange{};
         subresourceRange.aspect = texture.GetAspect();
         subresourceRange.baseArrayLayer = 0;
@@ -265,25 +292,29 @@ namespace Shift::Graphics {
         //! The upload runs on the transfer queue but every reader is a shader on the graphics
         //! one, so the image is handed over here rather than merely transitioned. This is the
         //! release half plus the layout change, the acquire half is recorded on the graphics
-        //! context by RHI::FlushPendingAcquires before anything samples it
-        encoder.ReleaseQueueOwnership(texture, EContextType::Graphics,
-                                      EResourceLayout::ShaderReadOnlyOptimal, EPipelineStageFlags::FragmentShaderBit);
-
-        //! TODO: [Feature]: Generate mips
+        //! context by RHI::FlushPendingAcquires before anything samples it.
+        //! TODO: [PERFORMANCE] One barrier too much becuase we co not check whether the image has only one mip to leave it as read only optimal straing up as no mips will be generated
+        encoder.ReleaseQueueOwnership(texture, EContextType::Graphics, EResourceLayout::TransferDstOptimal, EPipelineStageFlags::AllTransferBit);
 
         return stagingBuf;
     }
 
-    Texture* TextureManager::LoadAndCreateTexture(const std::string &path, RenderContextEncoder* encoder, ETextureColorSpace colorSpace) {
+    Texture* TextureManager::LoadAndCreateTexture(const std::string &path, RenderContextEncoder* encoder, ETextureColorSpace colorSpace, uint32_t mipLevels) {
         std::optional<RawTextureData> rawData = LoadRawData(path, colorSpace);
         if (!rawData) { return nullptr; }
 
-        Texture* texture = CreateTextureForRaw(path, *rawData);
+        Texture* texture = CreateTextureForRaw(path, *rawData, mipLevels);
 
         m_usedStagingBuffers.push_back(Core::UniquePtr<Buffer>(RecordUploadCommands(*texture, *rawData, *encoder)));
 
         return texture;
         //! FYI: End and submit have to be called via TextureManager::SubmitAllLoads()
+    }
+
+    void TextureManager::FinalizeUpload(RenderContextEncoder* encoder, uint32_t slotIdx, Texture* texture) {
+        //! Graphics queue only :D
+        encoder->GenerateMips(*texture, EResourceLayout::ShaderReadOnlyOptimal, EPipelineStageFlags::FragmentShaderBit);
+        UploadToGPU(slotIdx, texture);
     }
 
     void TextureManager::UploadToGPU(uint32_t slotIdx, Texture *texture) {

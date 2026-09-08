@@ -55,17 +55,18 @@ namespace Shift {
     };
 
     //! The region struct for blitting a texture (useful for mipmapping)
+    //! Both subresources name exactly ONE mip level: baseMipLevel is it, levelCount must be 1
     struct TextureBlitRegion {
         TextureSubresourceRange srcSubresource;
         Offset3D srcOffsets[2];
         TextureSubresourceRange destSubresource;
         Offset3D dstOffsets[2];
     };
-
     //! Texture Data that you pass in during the blitting process.
-    //! The blit layouts are resolved from the command buffer's tracked texture state
+    //! The blit layouts are here as well as it turned out:D
     struct TextureBlitData {
         Texture* texture;
+        EResourceLayout layout;
     };
 
     enum class EPoolQueueType {
@@ -103,6 +104,9 @@ namespace Shift {
             const Rect2D& InputScissor,
             const TextureBlitData& InputTextureBlitData,
             const TextureBlitRegion& InputBlitRegion,
+            Texture& InputTexture,
+            EResourceLayout InputLayout,
+            EPipelineStageFlags InputStage,
             std::span<BinarySemaphore*> InputBinSemaphoreSpan,
             std::span<TimelineSemaphore*> InputTimeSemaphoreSpan,
             std::span<uint64_t> InputTimeSemaphoreCounter,
@@ -143,6 +147,7 @@ namespace Shift {
         { InputBuffer.SetViewport(InputViewport) } -> std::same_as<void>;
         { InputBuffer.SetScissor(InputScissor) } -> std::same_as<void>;
         { InputBuffer.BlitTexture(InputTextureBlitData, InputTextureBlitData, InputBlitRegion, filter) } -> std::same_as<void>;
+        { InputBuffer.GenerateMips(InputTexture, InputLayout, InputStage, filter) } -> std::same_as<void>;
     };
 
     template<typename CommandPool>

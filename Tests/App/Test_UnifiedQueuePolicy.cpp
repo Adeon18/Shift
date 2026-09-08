@@ -12,7 +12,9 @@
 #include <string>
 
 #include "ShiftEngine.hpp"
+#include "Graphics/Managers/TextureManager.hpp"
 #include "Graphics/RHI/Common/Capabilities.hpp"
+#include "Utility/UtilStandard.hpp"
 
 //! Whole file, not just the family check below: queue FAMILIES are a Vulkan concept (DX12 has
 //! fixed queue types and no ownership transfer at all). Without this guard the case still
@@ -58,14 +60,26 @@ TEST_CASE("the unified queue policy boots, renders and tears down validation-cle
                     "VK_forceUnifiedQueues did not collapse the resource queue families, so the "
                     "same-family branch went untested");
 
-    //! No mid-run upload here on purpose: Renderer::Init already uploads the placeholder and
-    //! NB.jpg through ReleaseQueueOwnership on the transfer context, which under this policy
-    //! shares the graphics family — so the same-family branch has already run twice before the
-    //! first frame. Repeating it mid-run would only duplicate what the split-family smoke covers.
-    //! These frames are here to render, present and cycle the frames-in-flight slots
+    //! A mid-run upload belongs here now that the graphics queue does WORK on an uploaded image
+    //! (the mip chain) rather than only sampling it. Boot already runs the same-family branch
+    //! twice, but only through UploadTexturesToGPU; this is the deferred path, on a warm engine,
+    //! with one resource family - so FlushPendingAcquires returns an empty wait list and the
+    //! ordering rests entirely on RenderFrame's unconditional GetTransferWaitPayload wait
+    //! (Renderer.cpp, before every graphics submit) rather than on anything the handoff supplies
+    auto& textures = renderer.GetTextureManager();
+    const Shift::Graphics::TextureHandle uploaded =
+            textures.LoadTextureDeferred(Shift::Util::GetShiftRoot() + "Assets/Textures/ShiftIcon.jpg");
+    REQUIRE_MESSAGE(textures.IsValid(uploaded), "mid-run texture load did not produce a live slot");
+
+    //! These frames render, present, cycle the frames-in-flight slots, and carry the upload:
+    //! submit on the next frame, acquire + mip chain + bindless write on that same frame
     for (int i = 0; i < 10; ++i) {
         REQUIRE(engine.Tick(FIXED_DT));
     }
+
+    CHECK_MESSAGE(textures.IsValid(uploaded), "the mid-run texture did not survive its own upload");
+    CHECK_MESSAGE(textures.GetMipCount(uploaded) > 1u,
+                  "the mid-run texture was created without a mip chain");
 
     engine.Cleanup();
 

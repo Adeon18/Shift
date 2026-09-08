@@ -230,12 +230,17 @@ namespace Shift::VK {
 
         ///! ------------------- Mics Buffer Commands ------------------- !///
 
-        //! Blit the texture into the other texture
-        //! \param srcTexture source texture with sizes and extents
-        //! \param dstTexture destination texture with sizes and extents
+        //! Blit the texture into the other texture. Each side names one mip level and the layout
+        //! that level is currently in
+        //! \param srcTexture source texture + its current layout
+        //! \param dstTexture destination texture + its current layout
         //! \param blitRegion blit operation description
         //! \param filter blit filter
         void BlitTexture(const TextureBlitData& srcTexture, const TextureBlitData& dstTexture, const TextureBlitRegion& blitRegion, EFilterMode filter) const;
+
+        //! Generate mips for the shole image and transition it to final layout and final stage
+        void GenerateMips(Texture& texture, EResourceLayout finalLayout, EPipelineStageFlags finalStage,
+                          EFilterMode filter = EFilterMode::Linear);
 
         //! Set viewport, we don't support multiple
         //! \param viewport Viewport struct
@@ -308,6 +313,12 @@ namespace Shift::VK {
 
         //! Every mip and array layer of the texture
         [[nodiscard]] static VkImageSubresourceRange WholeImageRange(const Texture& texture);
+
+        //! Transition texture but for separate mip levels, UNTRACKED!!!!
+        //! TODO [FEATURE, DX12] Track the subresources and not resources
+        void VK_TransitionMipRange(const Texture& texture, uint32_t baseLevel, uint32_t levelCount,
+                                VkImageLayout oldLayout, VkImageLayout newLayout,
+                                VkPipelineStageFlags2 srcStage, VkPipelineStageFlags2 dstStage) const;
 
         //! API SPECIFIC, backend-only (friended). DO NOT USE OUTSIDE THE VK BACKEND.
         [[nodiscard]] VkCommandBuffer VK_Get() const { return m_buffer; }

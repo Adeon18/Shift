@@ -203,8 +203,8 @@ namespace Shift::VK {
 
         region.imageOffset = {dstTex.offset.x, dstTex.offset.y, dstTex.offset.z };
         region.imageExtent = {
-                dstTex.size.x, dstTex.size.y, dstTex.size.z
-        };
+            dstTex.size.x, dstTex.size.y, dstTex.size.z
+    };
 
         vkCmdCopyBufferToImage(
             m_buffer,
@@ -501,6 +501,22 @@ namespace Shift::VK {
         return subresourceRange;
     }
 
+    void CommandBuffer::VK_TransitionMipRange(const Texture& texture, uint32_t baseLevel, uint32_t levelCount,
+                                           VkImageLayout oldLayout, VkImageLayout newLayout,
+                                           VkPipelineStageFlags2 srcStage, VkPipelineStageFlags2 dstStage) const {
+        VK_TransferImageLayout(
+            texture.VK_GetImage(),
+            oldLayout, newLayout,
+            srcStage, dstStage,
+            VkImageSubresourceRange{
+                .aspectMask = Util::ShiftToVKTextureAspect(texture.GetAspect()),
+                .baseMipLevel = baseLevel,
+                .levelCount = levelCount,
+                .baseArrayLayer = 0,
+                .layerCount = texture.GetLevels()
+            });
+    }
+
     void CommandBuffer::TransitionTexture(Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags) {
         //! Barriers can only be done by a primary buffer, as secondaries run only after beginrenderpass
         //! where transitions are forbidden
@@ -607,7 +623,7 @@ namespace Shift::VK {
         VkRect2D s = VkRect2D{
             .offset = VkOffset2D{.x = scissor.offset.x, .y = scissor.offset.y},
             .extent = VkExtent2D{.width = scissor.extent.x, .height = scissor.extent.y}
-            };
+        };
         vkCmdSetScissor(m_buffer, 0, 1, &s);
     }
 
@@ -642,13 +658,13 @@ namespace Shift::VK {
             VkImageBlit blit;
             blit.srcSubresource = VkImageSubresourceLayers{
                 .aspectMask = Util::ShiftToVKTextureAspect(region.srcSubresource.aspect),
-                .mipLevel = region.srcSubresource.levelCount,
+                .mipLevel = region.srcSubresource.baseMipLevel,
                 .baseArrayLayer = region.srcSubresource.baseArrayLayer,
                 .layerCount = region.srcSubresource.layerCount
             };
             blit.dstSubresource = VkImageSubresourceLayers{
                 .aspectMask = Util::ShiftToVKTextureAspect(region.destSubresource.aspect),
-                .mipLevel = region.destSubresource.levelCount,
+                .mipLevel = region.destSubresource.baseMipLevel,
                 .baseArrayLayer = region.destSubresource.baseArrayLayer,
                 .layerCount = region.destSubresource.layerCount
             };
@@ -678,12 +694,75 @@ namespace Shift::VK {
             return blit;
         };
 
+        assert(blitRegion.srcSubresource.levelCount == 1 && "BlitTexture moves a single mip level per region");
+        assert(blitRegion.destSubresource.levelCount == 1 && "BlitTexture moves a single mip level per region");
+
         VkImageBlit blit = ShiftToVKBlitRegion(blitRegion);
 
         vkCmdBlitImage(m_buffer,
-                       srcTexture.texture->VK_GetImage(), PeekTextureState(*srcTexture.texture).layout,
-                       dstTexture.texture->VK_GetImage(), PeekTextureState(*dstTexture.texture).layout,
+                       srcTexture.texture->VK_GetImage(), Util::ShiftToVKResourceLayout(srcTexture.layout),
+                       dstTexture.texture->VK_GetImage(), Util::ShiftToVKResourceLayout(dstTexture.layout),
                        1, &blit,
                        Util::ShiftToVKFilterMode(filter));
     }
+
+    void CommandBuffer::GenerateMips(Texture& texture, EResourceLayout finalLayout,
+                                     EPipelineStageFlags finalStage, EFilterMode filter) {
+        assert(!m_isSecondary);
+        assert((texture.GetUsageFlags() & ETextureUsageFlags::TransferSrc) != ETextureUsageFlags::None &&
+               "GenerateMips blits OUT of the image, so it must carry TransferSrc usage");
+
+        const VkImageLayout vkFinalLayout = Util::ShiftToVKResourceLayout(finalLayout);
+        const VkPipelineStageFlags2 vkFinalStage = Util::ShiftToVKPipelineStageFlags2(finalStage);
+        const uint32_t levels = texture.GetMipCount();
+
+        int32_t w = static_cast<int32_t>(texture.GetWidth());
+        int32_t h = static_cast<int32_t>(texture.GetHeight());
+
+        const auto mipLayers = [&texture](uint32_t level) {
+            return TextureSubresourceRange{
+                .aspect = texture.GetAspect(),
+                .baseMipLevel = level,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = texture.GetLevels()
+            };
+        };
+
+        for (uint32_t level = 1; level < levels; ++level) {
+            VK_TransitionMipRange(texture, level - 1, 1,
+           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+           VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT, VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT);
+
+            const int32_t nextW = std::max(w >> 1, 1);
+            const int32_t nextH = std::max(h >> 1, 1);
+
+            TextureBlitRegion region{};
+            region.srcSubresource = mipLayers(level - 1);
+            region.srcOffsets[1] = Offset3D{w, h, 1};
+            region.destSubresource = mipLayers(level);
+            region.dstOffsets[1] = Offset3D{nextW, nextH, 1};
+
+            BlitTexture({&texture, EResourceLayout::TransferSrcOptimal},
+                        {&texture, EResourceLayout::TransferDstOptimal},
+                        region, filter);
+
+            w = nextW;
+            h = nextH;
+        }
+
+        //! Last level is always dst optimal while others are src as they helped gen the other mips
+        if (levels > 1) {
+            VK_TransitionMipRange(texture, 0, levels - 1,
+                               VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, vkFinalLayout,
+                               VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT, vkFinalStage);
+        }
+        VK_TransitionMipRange(texture, levels - 1, 1,
+                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, vkFinalLayout,
+                           VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT, vkFinalStage);
+
+        //! TODO: [FEATURE, DX12] Log just the texture for now, not all subresources
+        ResolveTextureState(texture) = {vkFinalLayout, vkFinalStage};
+    }
+
 } // Shift::VK
