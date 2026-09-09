@@ -240,8 +240,7 @@ namespace Shift::Graphics {
 
     TextureSlotResolver Renderer::MakeTextureResolver(const std::string& baseDir,
                                                       RenderContextEncoder& transferEncoder) {
-        const uint32_t errorSlot = m_textureManager->GetErrorHandle().slotIdx;
-        return [this, baseDir, errorSlot, encoder = &transferEncoder](const TextureRef& ref) {
+        return [this, baseDir, encoder = &transferEncoder](const TextureRef& ref) {
             if (!ref.IsSet()) { return m_textureManager->GetPlaceholderSlot(ref.placeholderKind); }
             TextureHandle tex = m_textureManager->GetOrLoadTexture(baseDir + ref.id, encoder, ref.colorSpace);
             return tex.slotIdx;

@@ -17,12 +17,10 @@ namespace Shift::Graphics {
             return seed ^ (std::hash<size_t>()(value) + GOLDEN + (seed << 6) + (seed >> 2));
         }
 
-        constexpr std::array<TextureManager::PlaceholderDesc, static_cast<size_t>(ETexturePlaceholder::Count)> PLACEHOLDERS{
-        {
-            {{255, 255, 255, 255}, ETextureColorSpace::SRGB,   "PlaceholderWhiteSRGB"},
-            {{255, 255, 255, 255}, ETextureColorSpace::Linear, "PlaceholderWhiteLinear"},
-            {{128, 128, 255, 255}, ETextureColorSpace::Linear, "PlaceholderFlatNormal"},
-            }
+        constexpr std::array PLACEHOLDERS{
+            TextureManager::PlaceholderDesc{{255, 255, 255, 255}, ETextureColorSpace::SRGB,   "PlaceholderWhiteSRGB"},
+            TextureManager::PlaceholderDesc{{255, 255, 255, 255}, ETextureColorSpace::Linear, "PlaceholderWhiteLinear"},
+            TextureManager::PlaceholderDesc{{128, 128, 255, 255}, ETextureColorSpace::Linear, "PlaceholderFlatNormal"},
         };
         static_assert(PLACEHOLDERS.size() == static_cast<size_t>(ETexturePlaceholder::Count), "every ETexturePlaceholder needs a row here, in enum order");
 
