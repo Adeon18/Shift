@@ -52,6 +52,11 @@ namespace Shift::Graphics {
             return { idx, slot.generation };
         }
 
+        [[nodiscard]] uint32_t SlotCount() const { return static_cast<uint32_t>(m_slots.size()); }
+
+        //! Whether we have an existing slot that was released or the next insert will "allocate" a new one
+        [[nodiscard]] bool HasRecycledSlot() const { return !m_freeSlots.empty(); }
+
         //! Resolve a handle to the owned resource, or nullptr if the handle is stale.
         [[nodiscard]] T* Get(Handle handle) const {
             const Slot* slot = ResolveSlot(handle);

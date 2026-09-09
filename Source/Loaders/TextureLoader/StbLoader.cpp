@@ -32,14 +32,15 @@ namespace Shift {
         return data;
     }
 
-    std::optional<RawTextureData> StbLoader::CreatePlaceholderTexture() {
+    std::optional<RawTextureData> StbLoader::Create1x1Texture(const std::array<uint8_t, 4>& rgba) {
         RawTextureData data;
         data.width = 1;
         data.height = 1;
         data.channels = 4;
         data.mipLevels = 1;
         data.data.resize(data.width * data.height * 4);
-        memcpy(data.data.data(), PLACEHOLDER_COLOR.data(), 4);
+        memcpy(data.data.data(), rgba.data(), 4);
+        data.mipOffsets.push_back(0);
         return data;
     }
 }

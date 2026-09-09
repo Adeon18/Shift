@@ -172,6 +172,11 @@ namespace Shift::Graphics {
                 root + "Assets/Models/HumanSkull/scene.gltf",
                 glm::scale(glm::translate(glm::mat4(1.0f), {2.0f, 0.0f, -3.5f}), glm::vec3(1.0f))
             },
+            // No textures, every mat slot is default
+            {
+                root + "Assets/Models/Sphere/sphere.glb",
+                glm::scale(glm::translate(glm::mat4(1.0f), {0.0f, -1.0f, -2.0f}), glm::vec3(1.0f))
+            },
         };
 
         GltfLoader loader;
@@ -235,10 +240,9 @@ namespace Shift::Graphics {
 
     TextureSlotResolver Renderer::MakeTextureResolver(const std::string& baseDir,
                                                       RenderContextEncoder& transferEncoder) {
-        const uint32_t placeholderSlot = m_textureManager->GetPlaceholderHandle().slotIdx;
-        return [this, baseDir, placeholderSlot, encoder = &transferEncoder](const TextureRef& ref) {
-            //! THis is what gets triggered if there is no ORM texture in mesh for example
-            if (!ref.IsSet()) { return placeholderSlot; }
+        const uint32_t errorSlot = m_textureManager->GetErrorHandle().slotIdx;
+        return [this, baseDir, errorSlot, encoder = &transferEncoder](const TextureRef& ref) {
+            if (!ref.IsSet()) { return m_textureManager->GetPlaceholderSlot(ref.placeholderKind); }
             TextureHandle tex = m_textureManager->GetOrLoadTexture(baseDir + ref.id, encoder, ref.colorSpace);
             return tex.slotIdx;
         };

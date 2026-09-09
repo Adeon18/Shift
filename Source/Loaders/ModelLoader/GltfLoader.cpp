@@ -66,11 +66,14 @@ namespace Shift {
         }
 
         void FillTextureRef(const fastgltf::Asset& asset, const fastgltf::Optional<fastgltf::TextureInfo>& info,
-                            ETextureColorSpace colorSpace, std::string_view slot, TextureRef* outRef) {
+                            ETextureColorSpace colorSpace, ETexturePlaceholder placeholderKind, std::string_view slot, TextureRef* outRef) {
+            //! TODO: [DESIGN] Should the placeholder be set here?
+            outRef->colorSpace = colorSpace;
+            outRef->placeholderKind = placeholderKind;
+
             if (!info.has_value()) return;
             WarnOnUnsupportedTexCoord(info.value(), slot);
             outRef->id = ResolveTextureID(asset, info.value().textureIndex);
-            outRef->colorSpace = colorSpace;
         }
 
         MaterialDesc ConvertMaterial(const fastgltf::Asset& asset, const fastgltf::Material& source) {
@@ -93,14 +96,20 @@ namespace Shift {
             material.doubleSided = source.doubleSided;
 
             //! We decide here on the color space
-            FillTextureRef(asset, pbr.baseColorTexture, ETextureColorSpace::SRGB, "base color", &material.baseColor);
-            FillTextureRef(asset, pbr.metallicRoughnessTexture, ETextureColorSpace::Linear, "ORM", &material.orm);
-            FillTextureRef(asset, source.emissiveTexture, ETextureColorSpace::SRGB, "emissive", &material.emissive);
+            FillTextureRef(asset, pbr.baseColorTexture, ETextureColorSpace::SRGB,
+                           ETexturePlaceholder::WhiteSRGB, "base color", &material.baseColor);
+            FillTextureRef(asset, pbr.metallicRoughnessTexture, ETextureColorSpace::Linear,
+                           ETexturePlaceholder::WhiteLinear, "ORM", &material.orm);
+            FillTextureRef(asset, source.emissiveTexture, ETextureColorSpace::SRGB,
+                           ETexturePlaceholder::WhiteSRGB, "emissive", &material.emissive);
+
+            //! FYI: Normal texture is a separate type in gltf
+            material.normal.colorSpace = ETextureColorSpace::Linear;
+            material.normal.placeholderKind = ETexturePlaceholder::FlatNormal;
             if (source.normalTexture.has_value()) {
                 const fastgltf::NormalTextureInfo& normalInfo = source.normalTexture.value();
                 WarnOnUnsupportedTexCoord(normalInfo, "normal");
                 material.normal.id = ResolveTextureID(asset, normalInfo.textureIndex);
-                material.normal.colorSpace = ETextureColorSpace::Linear;
                 //! We ignore scaled normal maps
                 if (normalInfo.scale != 1.0f) {
                     LogWarn("GltfLoader: material '{}' scales its normal map by {}, which is not carried",

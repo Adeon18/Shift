@@ -9,6 +9,7 @@
 #include "Utility/UtilStandard.hpp"
 
 using Shift::ETextureColorSpace;
+using Shift::ETexturePlaceholder;
 using Shift::GltfLoader;
 using Shift::MaterialDesc;
 using Shift::MeshData;
@@ -171,11 +172,26 @@ TEST_CASE("Each texture slot carries the colorspace its MEANING implies") {
     CHECK(material.normal.colorSpace == ETextureColorSpace::Linear);
     CHECK(material.orm.colorSpace == ETextureColorSpace::Linear);
 
+    //! What an EMPTY slot reads as is a property of the slot too, decided in the same place and
+    //! for the same reason. glTF: an absent texture's components are 1.0, and an absent normal
+    //! map means the geometric normal
+    CHECK(material.baseColor.placeholderKind == ETexturePlaceholder::WhiteSRGB);
+    CHECK(material.emissive.placeholderKind == ETexturePlaceholder::WhiteSRGB);
+    CHECK(material.normal.placeholderKind == ETexturePlaceholder::FlatNormal);
+    CHECK(material.orm.placeholderKind == ETexturePlaceholder::WhiteLinear);
+
     //! The second material names no textures at all, so every slot must read as unused rather
     //! than as slot 0 of something
     const MaterialDesc& untextured = model->materials[1];
     CHECK_FALSE(untextured.baseColor.IsSet());
     CHECK_FALSE(untextured.normal.IsSet());
+
+    //! ...and it is the material that actually NEEDS a placeholderKind, so the slot properties must
+    //! survive the branch that skips an absent texture rather than being set alongside the id
+    CHECK(untextured.baseColor.placeholderKind == ETexturePlaceholder::WhiteSRGB);
+    CHECK(untextured.normal.placeholderKind == ETexturePlaceholder::FlatNormal);
+    CHECK(untextured.orm.placeholderKind == ETexturePlaceholder::WhiteLinear);
+    CHECK(untextured.emissive.placeholderKind == ETexturePlaceholder::WhiteSRGB);
 }
 
 TEST_CASE("The node hierarchy is flattened parents first") {

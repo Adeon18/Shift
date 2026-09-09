@@ -23,10 +23,22 @@ namespace Shift {
         Linear
     };
 
+    //! When materials don't have textures for stuff, these are placeholders
+    enum class ETexturePlaceholder : uint8_t {
+        //! base color, emissive
+        WhiteSRGB,
+        //! ORM
+        WhiteLinear,
+        //! normal: (0,0,1) in tangent space
+        FlatNormal,
+        Count
+    };
+
     //! One material slot's texture. An empty id means the slot is unused
     struct TextureRef {
         std::string id;
         ETextureColorSpace colorSpace = ETextureColorSpace::Linear;
+        ETexturePlaceholder placeholderKind = ETexturePlaceholder::WhiteLinear;
 
         [[nodiscard]] bool IsSet() const { return !id.empty(); }
     };
@@ -102,10 +114,16 @@ namespace Shift {
         bool alphaTest = false;
         bool doubleSided = false;
 
-        TextureRef baseColor;   //! sRGB
-        TextureRef normal;      //! linear
-        TextureRef orm;         //! linear, Oclussion Roughness Matellic. When supporting non-gltf formats imma die
-        TextureRef emissive;    //! sRGB
+        //! Slot default properties are here
+        TextureRef baseColor{.colorSpace = ETextureColorSpace::SRGB,
+                             .placeholderKind = ETexturePlaceholder::WhiteSRGB};
+        TextureRef normal{.colorSpace = ETextureColorSpace::Linear,
+                          .placeholderKind = ETexturePlaceholder::FlatNormal};
+        //! Oclussion Roughness Matellic. When supporting non-gltf formats imma die
+        TextureRef orm{.colorSpace = ETextureColorSpace::Linear,
+                       .placeholderKind = ETexturePlaceholder::WhiteLinear};
+        TextureRef emissive{.colorSpace = ETextureColorSpace::SRGB,
+                            .placeholderKind = ETexturePlaceholder::WhiteSRGB};
     };
 
     //! Scene hierarchny node for now

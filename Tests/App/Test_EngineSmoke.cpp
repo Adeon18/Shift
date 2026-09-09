@@ -211,8 +211,8 @@ namespace {
         CHECK_MESSAGE(defaultRegistered, "not even the default material was registered");
         if (!defaultRegistered) { return; }
 
-        //! Both committed models carry exactly one material, and each declares it as its own
-        //! material 0. Fewer than two distinct indices means those two model-local zeroes collided
+        //! All three committed models carry exactly one material, and each declares it as its own
+        //! material 0. Fewer than three distinct indices means those model-local zeroes collided
         //! on one global slot; more means materials were registered per MESH rather than per model
         //! (the skull alone is four meshes)
         std::vector<uint32_t> used;
@@ -220,8 +220,8 @@ namespace {
         for (const Shift::Graphics::DrawItem& item : items) { used.push_back(item.materialIndex); }
         std::sort(used.begin(), used.end());
         used.erase(std::unique(used.begin(), used.end()), used.end());
-        CHECK_MESSAGE(used.size() == 2u,
-                      "the boot scene's two models should contribute one material each");
+        CHECK_MESSAGE(used.size() == 3u,
+                      "the boot scene's three models should contribute one material each");
 
         for (const uint32_t index : used) {
             CHECK_MESSAGE(index != Shift::Graphics::DEFAULT_MATERIAL_INDEX,
@@ -269,61 +269,107 @@ namespace {
         }
     }
 
-    //! A material's texture slots are the file's own bindless indices, and each
-    //! image was created in the colorspace its SLOT calls for. The second half is the
-    //! only check that separates "a texture was bound" from "the right decode was applied", and
-    //! an sRGB-decoded normal map is wrong in a way no structural assertion notices
+    //! A material's texture slots are the file's own bindless indices where the file declares one,
+    //! and the slot's own semantic DEFAULT where it does not. Landing on the placeholder means a
+    //! load genuinely failed - keeping those two answers apart is what this batch bought, and the
+    //! colorspace half is the only check that separates "a texture was bound" from "the right
+    //! decode was applied"
     void CheckMaterialTextures(Shift::Graphics::Renderer& renderer) {
         Shift::Graphics::TextureManager& textures = renderer.GetTextureManager();
         const std::vector<Shift::GPU::MaterialData>& materials =
                 renderer.GetMaterialManager().GetMaterials();
-        const uint32_t placeholderSlot = textures.GetPlaceholderHandle().slotIdx;
+        const uint32_t errorSlot = textures.GetErrorHandle().slotIdx;
 
-        //! Slot 0 is the default material and references nothing by construction, so it is the one
-        //! entry whose slots SHOULD all be the placeholder
+        const uint32_t whiteSrgb = textures.GetPlaceholderSlot(Shift::ETexturePlaceholder::WhiteSRGB);
+        const uint32_t whiteLinear = textures.GetPlaceholderSlot(Shift::ETexturePlaceholder::WhiteLinear);
+        const uint32_t flatNormal = textures.GetPlaceholderSlot(Shift::ETexturePlaceholder::FlatNormal);
+
+        //! Four distinct images. Collapsing any two of them puts "nothing was authored" and "the
+        //! load failed" back on one answer, which is the bug this closed. The two whites carry the
+        //! same bytes and differ only in FORMAT, which is exactly why they cannot be one image
+        CHECK_MESSAGE(whiteSrgb != errorSlot, "the sRGB white placeholder is the error texture");
+        CHECK_MESSAGE(whiteLinear != errorSlot, "the linear white placeholder is the error texture");
+        CHECK_MESSAGE(flatNormal != errorSlot, "the flat-normal placeholder is the error texture");
+        CHECK_MESSAGE(whiteSrgb != whiteLinear, "one image serves both the sRGB and the linear white placeholder");
+        CHECK_MESSAGE(whiteSrgb != flatNormal, "the sRGB white and flat-normal placeholders share a slot");
+        CHECK_MESSAGE(whiteLinear != flatNormal, "the linear white and flat-normal placeholders share a slot");
+
+        CHECK(textures.GetFormatOfSlot(whiteSrgb) == Shift::ETextureFormat::R8G8B8A8_SRGB);
+        CHECK(textures.GetFormatOfSlot(whiteLinear) == Shift::ETextureFormat::R8G8B8A8_UNORM);
+        CHECK(textures.GetFormatOfSlot(flatNormal) == Shift::ETextureFormat::R8G8B8A8_UNORM);
+
         const bool haveModelMaterials = materials.size() > 1u;
         CHECK_MESSAGE(haveModelMaterials, "only the default material exists, so nothing to texture");
         if (!haveModelMaterials) { return; }
 
+        //! One slot: never the failed-load marker, always its slot's colorspace, and either a 1x1
+        //! placeholder (nothing authored) or a real file image with a full chain
+        const auto checkSlot = [&](uint32_t slotIdx, const std::string& what,
+                                   Shift::ETextureFormat expectFormat, uint32_t builtinSlot) {
+            //! doctest streams the message as `builder * msg`, which binds tighter than `+` -
+            //! so a concatenated message has to be a named local, like a compound condition
+            const std::string notErrorTexture = what + " resolved to the error texture";
+            const std::string wrongSpace = what + " was created in the wrong colorspace";
+            const std::string notOnePixel = what + " placeholder is not a 1x1 image";
+            const std::string noChain = what + " file image was created without a mip chain";
+
+            CHECK_MESSAGE(slotIdx != errorSlot, notErrorTexture);
+
+            //! AC4. A base color and an emissive are authored colors and decode through sRGB; a
+            //! normal map and an ORM are numbers and must not - that was the forced-sRGB bug
+            CHECK_MESSAGE(textures.GetFormatOfSlot(slotIdx) == expectFormat, wrongSpace);
+
+            const bool isPlaceholder = slotIdx == builtinSlot;
+            if (isPlaceholder) {
+                CHECK_MESSAGE(textures.GetMipCountOfSlot(slotIdx) == 1u, notOnePixel);
+            } else {
+                //! Every material image is created with a full chain, so the 2048-square helmet
+                //! maps stop aliasing at distance. Exact counts are asset-dependent and
+                //! deliberately not pinned; the 1x1 above is what says the number is DERIVED
+                CHECK_MESSAGE(textures.GetMipCountOfSlot(slotIdx) > 1u, noChain);
+            }
+        };
+
+        //! From 0, not 1. Material 0 is the DEFAULT material, built from a bare MaterialDesc, so it
+        //! is the one entry whose slot properties come from the struct's own member initializers
+        //! rather than from the loader - and it is what any primitive naming no material draws
+        //! with, so a generic default there is a wrong answer that reaches a real draw
+        for (size_t i = 0; i < materials.size(); ++i) {
+            const Shift::GPU::MaterialData& material = materials[i];
+            const std::string tag = "material " + std::to_string(i) + "'s ";
+
+            checkSlot(material.baseColorTex, tag + "base color", Shift::ETextureFormat::R8G8B8A8_SRGB, whiteSrgb);
+            checkSlot(material.normalTex, tag + "normal map", Shift::ETextureFormat::R8G8B8A8_UNORM, flatNormal);
+            checkSlot(material.ormTex, tag + "ORM", Shift::ETextureFormat::R8G8B8A8_UNORM, whiteLinear);
+            checkSlot(material.emissiveTex, tag + "emissive", Shift::ETextureFormat::R8G8B8A8_SRGB, whiteSrgb);
+        }
+
+        //! The factor-only model (the sphere) declares no textures at all, so it is the entry that
+        //! exercises every placeholder arm at once. Before this batch all four of its slots were the
+        //! green error texture: its base color multiplied to green, its ORM read occlusion 0, and
+        //! its absent normal map tilted every surface.
+        //! Deliberately skips material 0, which satisfies this trivially - the point is to prove
+        //! the factor-only MODEL reached the scene, not that a default material exists
+        bool sawFactorOnlyMaterial = false;
         for (size_t i = 1; i < materials.size(); ++i) {
             const Shift::GPU::MaterialData& material = materials[i];
-
-            //! Both committed models declare a baseColor, a normal and an occlusion/MR texture.
-            //! Landing on the placeholder means the resolver never reached the file
-            CHECK_MESSAGE(material.baseColorTex != placeholderSlot,
-                          "a model material's base color is still the placeholder slot");
-            CHECK_MESSAGE(material.normalTex != placeholderSlot,
-                          "a model material's normal map is still the placeholder slot");
-            CHECK_MESSAGE(material.ormTex != placeholderSlot,
-                          "a model material's ORM is still the placeholder slot");
-
-            //! AC4. A base color is an authored color and decodes through sRGB; a normal map and
-            //! an ORM are numbers and must not - that was the forced-SRGB bug
-            CHECK_MESSAGE(textures.GetFormatOfSlot(material.baseColorTex) == Shift::ETextureFormat::R8G8B8A8_SRGB,
-                          "a base color texture was not created sRGB");
-            CHECK_MESSAGE(textures.GetFormatOfSlot(material.normalTex) == Shift::ETextureFormat::R8G8B8A8_UNORM,
-                          "a normal map was created sRGB - the forced-SRGB bug is back");
-            CHECK_MESSAGE(textures.GetFormatOfSlot(material.ormTex) == Shift::ETextureFormat::R8G8B8A8_UNORM,
-                          "an ORM texture was created sRGB - the forced-SRGB bug is back");
-
-            //! Every material image is created with a full chain, so the 2048-square helmet maps
-            //! stop aliasing at distance. Exact counts are asset-dependent and deliberately not
-            //! pinned here; the placeholder below is what pins that the number is DERIVED
-            CHECK_MESSAGE(textures.GetMipCountOfSlot(material.baseColorTex) > 1u,
-                          "a base color texture was created without a mip chain");
-            CHECK_MESSAGE(textures.GetMipCountOfSlot(material.normalTex) > 1u,
-                          "a normal map was created without a mip chain");
-            CHECK_MESSAGE(textures.GetMipCountOfSlot(material.ormTex) > 1u,
-                          "an ORM texture was created without a mip chain");
+            const bool allDefault = material.baseColorTex == whiteSrgb
+                                 && material.normalTex == flatNormal
+                                 && material.ormTex == whiteLinear
+                                 && material.emissiveTex == whiteSrgb;
+            if (allDefault) { sawFactorOnlyMaterial = true; }
         }
+        CHECK_MESSAGE(sawFactorOnlyMaterial,
+                      "no material resolved every slot to its placeholder - the factor-only model is "
+                      "missing from the scene, or its unset slots still land on the error texture");
 
         //! ...and a 1x1 image has exactly one level, which is what says the count came from the
         //! dimensions rather than from a constant
-        CHECK_MESSAGE(textures.GetMipCount(textures.GetPlaceholderHandle()) == 1u,
-                      "the 1x1 placeholder was given more than one mip level");
+        CHECK_MESSAGE(textures.GetMipCount(textures.GetErrorHandle()) == 1u,
+                      "the 1x1 error texture was given more than one mip level");
 
         //! The cache is what stops one shared image being decoded and uploaded once per reference.
-        //! Nothing was cached at all if this is zero, and the placeholder is deliberately not in it
+        //! Nothing was cached at all if this is zero, and the placeholders are deliberately not in it
         CHECK_MESSAGE(textures.GetLoadedCount() > 0u,
                       "the texture cache holds nothing, so every reference re-loaded its file");
     }
@@ -696,13 +742,13 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     const Shift::Graphics::TextureHandle missing =
             textures.LoadTextureDeferred(Shift::Util::GetShiftRoot() + "Assets/Textures/NoSuchTexture.png");
     CHECK_MESSAGE(textures.IsValid(missing), "a failed load handed out an unusable handle");
-    CHECK_MESSAGE(missing == textures.GetPlaceholderHandle(),
+    CHECK_MESSAGE(missing == textures.GetErrorHandle(),
                   "a failed load did not fall back to the placeholder");
 
     //! Unloading the fallback must be refused: it is shared by every slot that has no image yet,
     //! so releasing it would strand those descriptors on a deleted image
     textures.UnloadTexture(missing);
-    CHECK_MESSAGE(textures.IsValid(textures.GetPlaceholderHandle()),
+    CHECK_MESSAGE(textures.IsValid(textures.GetErrorHandle()),
                   "the placeholder was unloaded out from under every slot referencing it");
 
     //! ...and none of that wedged the pending-upload list

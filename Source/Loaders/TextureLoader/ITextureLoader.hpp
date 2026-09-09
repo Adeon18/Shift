@@ -28,10 +28,14 @@ namespace Shift {
 
     class ITextureLoader {
     public:
-        static constexpr std::array<uint8_t, 4> PLACEHOLDER_COLOR{0, 255, 0, 255};
+        //! SUPER GREEEN
+        static constexpr std::array<uint8_t, 4> ERROR_COLOR{0, 255, 0, 255};
+
         virtual ~ITextureLoader() = default;
         virtual std::optional<RawTextureData> LoadFromFile(const std::string& path) = 0;
-        virtual std::optional<RawTextureData> CreatePlaceholderTexture() = 0;
+
+        //! One rgba texel
+        virtual std::optional<RawTextureData> Create1x1Texture(const std::array<uint8_t, 4>& rgba) = 0;
     };
 }
 

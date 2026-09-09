@@ -5,6 +5,7 @@
 #ifndef SHIFT_TEXTUREMANAGER_HPP
 #define SHIFT_TEXTUREMANAGER_HPP
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -66,7 +67,20 @@ namespace Shift::Graphics {
 
         //! The permanently-resident 1x1 fallback at slot 0
         //! Never unloadable apart from destruction
-        [[nodiscard]] TextureHandle GetPlaceholderHandle() const { return m_placeholder; }
+        [[nodiscard]] TextureHandle GetErrorHandle() const { return m_errorTexture; }
+
+        //! The 1x1 placeholder image for this type
+        [[nodiscard]] uint32_t GetPlaceholderSlot(ETexturePlaceholder kind) const;
+
+        //! Whether this slot is the error texture or one of the placeholders
+        [[nodiscard]] bool IsPlaceholderSlot(uint32_t slotIdx) const;
+
+        //! One 1x1 placeholder texture
+        struct PlaceholderDesc {
+            std::array<uint8_t, 4> rgba;
+            ETextureColorSpace colorSpace;
+            const char* debugName;
+        };
 
         //! TODO [Feature] Implement a staging buffer pool so that this is not needed
         void FreeStagingBuffers();
@@ -110,6 +124,14 @@ namespace Shift::Graphics {
 
         Texture* LoadAndCreateTexture(const std::string & path, RenderContextEncoder* encode, ETextureColorSpace colorSpace, uint32_t mipLevels);
 
+        //! ============ Placeholder imnages ============
+
+        //! Create one 1x1 placeholder texture
+        [[nodiscard]] TextureHandle CreatePlaceholderTexture(const PlaceholderDesc& desc, RenderContextEncoder* encoder);
+
+        //!
+        [[nodiscard]] bool HasFreeSlots() const;
+
         //! The finalize function both for deferred and init uploads
         void FinalizeUpload(RenderContextEncoder* encoder, uint32_t slotIdx, Texture* texture);
 
@@ -120,8 +142,10 @@ namespace Shift::Graphics {
         GenerationalPool<Texture> m_pool;
         //! Texture + colorspace -> bindless slot that has it cached
         std::unordered_map<CacheKey, TextureHandle, CacheKeyHash> m_cache;
-        //! Free slot placeholder
-        TextureHandle m_placeholder;
+        //! Error texture handle
+        TextureHandle m_errorTexture;
+        //! Placeholder tetxure handles
+        std::array<TextureHandle, static_cast<size_t>(ETexturePlaceholder::Count)> m_placeholders{};
 
         ITextureLoader* m_loader;
         RenderBackend* m_rhi;

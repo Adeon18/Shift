@@ -3,6 +3,8 @@
 //
 #include "TextureManager.hpp"
 
+#include "Config/EngineConfig.hpp"
+
 #include <algorithm>
 #include <array>
 #include <functional>
@@ -15,6 +17,15 @@ namespace Shift::Graphics {
             return seed ^ (std::hash<size_t>()(value) + GOLDEN + (seed << 6) + (seed >> 2));
         }
 
+        constexpr std::array<TextureManager::PlaceholderDesc, static_cast<size_t>(ETexturePlaceholder::Count)> PLACEHOLDERS{
+        {
+            {{255, 255, 255, 255}, ETextureColorSpace::SRGB,   "PlaceholderWhiteSRGB"},
+            {{255, 255, 255, 255}, ETextureColorSpace::Linear, "PlaceholderWhiteLinear"},
+            {{128, 128, 255, 255}, ETextureColorSpace::Linear, "PlaceholderFlatNormal"},
+            }
+        };
+        static_assert(PLACEHOLDERS.size() == static_cast<size_t>(ETexturePlaceholder::Count), "every ETexturePlaceholder needs a row here, in enum order");
+
         uint32_t GetFullMipChainLength(uint32_t width, uint32_t height) {
             uint32_t levels = 1;
             for (uint32_t extent = std::max(width, height); extent > 1; extent >>= 1) { ++levels; }
@@ -24,8 +35,59 @@ namespace Shift::Graphics {
     TextureManager::TextureManager(ITextureLoader* loader, RenderBackend* rhi, GlobalResourceSet* globalSet, RenderContextEncoder* encoder)
         : m_loader(loader), m_rhi(rhi), m_backend(rhi->CreateInterface()), m_globalSet(globalSet) {
 
-        //! Slot 0 is the permanently-resident placeholder, it is never released
-        m_placeholder = m_pool.Insert(LoadAndCreateTexture("PLACEHOLDER", encoder, ETextureColorSpace::SRGB, FULL_MIP_CHAIN));
+        //! Slot 0 is the error texture
+        m_errorTexture = CreatePlaceholderTexture({ITextureLoader::ERROR_COLOR, ETextureColorSpace::SRGB, "ErrorTexture"}, encoder);
+
+        for (uint32_t i = 0; i < PLACEHOLDERS.size(); ++i) {
+            TextureHandle h = CreatePlaceholderTexture({ PLACEHOLDERS[i].rgba, PLACEHOLDERS[i].colorSpace, PLACEHOLDERS[i].debugName }, encoder);
+            if (!m_pool.IsValid(h)) {
+                Log(Warning, "Placeholder texture at index {} was not created", i);
+            } else {
+                m_placeholders[i] = h;
+            }
+        }
+
+        CheckCriticalEmptyReturn(m_pool.IsValid(m_errorTexture), "The error texture could not be created!");
+    }
+
+    TextureHandle TextureManager::CreatePlaceholderTexture(const PlaceholderDesc& desc, RenderContextEncoder* encoder) {
+        std::optional<RawTextureData> raw = m_loader->Create1x1Texture(desc.rgba);
+        if (!raw) {
+            Log(Error, "Could not build the 1x1 placeholder '{}'", desc.debugName);
+            return TextureHandle{};
+        }
+        raw->format = (desc.colorSpace == ETextureColorSpace::SRGB) ? ETextureFormat::R8G8B8A8_SRGB: ETextureFormat::R8G8B8A8_UNORM;
+        raw->channels = 4;
+
+        Texture* texture = CreateTextureForRaw(desc.debugName, *raw, FULL_MIP_CHAIN);
+        m_usedStagingBuffers.push_back(Core::UniquePtr<Buffer>(RecordUploadCommands(*texture, *raw, *encoder)));
+
+        //! These are not in cache
+        return m_pool.Insert(texture);
+    }
+
+    uint32_t TextureManager::GetPlaceholderSlot(ETexturePlaceholder kind) const {
+        if (kind >= ETexturePlaceholder::Count) { return m_errorTexture.slotIdx; }
+
+        const TextureHandle handle = m_placeholders[static_cast<size_t>(kind)];
+        if (!m_pool.IsValid(handle)) { return m_errorTexture.slotIdx; }
+        return handle.slotIdx;
+    }
+
+    bool TextureManager::IsPlaceholderSlot(uint32_t slotIdx) const {
+        if (slotIdx == m_errorTexture.slotIdx) { return true; }
+        for (const TextureHandle& handle : m_placeholders) {
+            if (handle.slotIdx == slotIdx && m_pool.IsValid(handle)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool TextureManager::HasFreeSlots() const {
+        //! reuse a recycled slot if we can
+        if (m_pool.HasRecycledSlot()) { return true; }
+        return m_pool.SlotCount() < Conf::MAX_BINDLESS_IMAGES;
     }
 
     size_t TextureManager::CacheKeyHash::operator()(const CacheKey& key) const {
@@ -48,10 +110,16 @@ namespace Shift::Graphics {
         const TextureHandle cached = FindInCache(key);
         if (m_pool.IsValid(cached)) { return cached; }
 
+        //! Overflow
+        if (!HasFreeSlots()) {
+            Log(Error, "The bindless image array is full at {} slots; '{}' falls back to the error texture", Conf::MAX_BINDLESS_IMAGES, path);
+            return m_errorTexture;
+        }
+
         Texture* texture = LoadAndCreateTexture(path, encoder, colorSpace, mipLevels);
 
         //! Do not store the failed load in cache
-        if (!texture) { return m_placeholder; }
+        if (!texture) { return m_errorTexture; }
 
         //! GPU upload happens later via UploadTexturesToGPU
         const TextureHandle handle = m_pool.Insert(texture);
@@ -63,13 +131,13 @@ namespace Shift::Graphics {
         if (!m_pool.IsValid(handle))
             return;
 
-        //! Do not delete placeholder texture on accident
-        if (handle == m_placeholder) {
+        //! Cannot unload a placeholder/error slot
+        if (IsPlaceholderSlot(handle.slotIdx)) {
             Log(Warning, "Refusing to unload the placeholder texture (slot {})", handle.slotIdx);
             return;
         }
 
-        //! Point this slot's bindless descriptor back at the placeholder before the texture goes away
+        //! Point this slot's bindless descriptor back at the error texture before the texture goes away
         ClearTexture(handle.slotIdx);
 
         //! Recycle the slot and defer the delete, the texture may still be sampled by in-flight frames, so it must NOT be
@@ -130,16 +198,21 @@ namespace Shift::Graphics {
         const TextureHandle cached = FindInCache(key);
         if (m_pool.IsValid(cached)) { return cached; }
 
+        if (!HasFreeSlots()) {
+            Log(Error, "The bindless image array is full at {} slots; '{}' falls back to the error texture", Conf::MAX_BINDLESS_IMAGES, path);
+            return m_errorTexture;
+        }
+
         std::optional<RawTextureData> rawData = LoadRawData(path, colorSpace);
-        //! Revert to placeholder if data is bad
-        if (!rawData) { return m_placeholder; }
+        //! Revert to the error texture if data is bad
+        if (!rawData) { return m_errorTexture; }
 
         Texture* texture = CreateTextureForRaw(path, *rawData, mipLevels);
         const TextureHandle handle = m_pool.Insert(texture);
         StoreInCache(key, handle);
 
         //! The slot is live from this moment on, so it must not be left describing whichever
-        //! image used to occupy it. The placeholder covers until RegisterAcquired runs
+        //! image used to occupy it. The error texture covers until RegisterAcquired runs
         ClearTexture(handle.slotIdx);
 
         m_pendingUploads.push_back(PendingUpload{handle, std::move(*rawData)});
@@ -211,12 +284,7 @@ namespace Shift::Graphics {
     }
 
     std::optional<RawTextureData> TextureManager::LoadRawData(const std::string &path, ETextureColorSpace colorSpace) {
-        std::optional<RawTextureData> rawData;
-        if (path != "PLACEHOLDER") {
-            rawData = m_loader->LoadFromFile(path);
-        } else {
-            rawData = m_loader->CreatePlaceholderTexture();
-        }
+        std::optional<RawTextureData> rawData = m_loader->LoadFromFile(path);
 
         if (!rawData) {
             Log(Warning, "Failed to load texture at {}", path);
@@ -233,7 +301,7 @@ namespace Shift::Graphics {
         return rawData;
     }
 
-    Texture* TextureManager::CreateTextureForRaw(const std::string &path, const RawTextureData &raw,uint32_t requestedMipLevels) {
+    Texture* TextureManager::CreateTextureForRaw(const std::string &path, const RawTextureData &raw, uint32_t requestedMipLevels) {
         //! TODO: [TEXTURES] a loader may deliver it pown chain and it is not handled yet
         //! and must skip generation - the upload path copies level 0 only, so it cannot yet
         const uint32_t maxLevels = GetFullMipChainLength(raw.width, raw.height);
@@ -323,7 +391,7 @@ namespace Shift::Graphics {
     }
 
     void TextureManager::ClearTexture(uint32_t slotIdx) {
-        m_globalSet->WriteImage2D(slotIdx, *m_pool.Get(m_placeholder));
+        m_globalSet->WriteImage2D(slotIdx, *m_pool.Get(m_errorTexture));
         m_globalSet->Apply();
     }
 }
