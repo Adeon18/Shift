@@ -66,8 +66,6 @@ struct FrameConstants {
 
 struct ObjectData {
     float4x4 model;
-    //! Full inverse-transpose for now lolol
-    float4x4 normalMat;
     //! xyz = center, w = radius.
     float4 boundsSphere;
 };

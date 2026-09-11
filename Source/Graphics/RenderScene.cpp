@@ -6,8 +6,6 @@
 
 #include <algorithm>
 
-#include <glm/gtc/matrix_inverse.hpp>
-
 namespace Shift::Graphics {
 
     void RenderScene::Extract(std::span<const MeshPlacement> placements,
@@ -23,7 +21,6 @@ namespace Shift::Graphics {
             GPU::ObjectData data{};
             uint32_t objectIndex = static_cast<uint32_t>(m_objects.size());
             data.model = p.transform;
-            data.normalMat = glm::inverseTranspose(p.transform);
             const glm::vec4 localSphere = mesh->bounds.sphere;
             const float radiusScale = std::max({glm::length(glm::vec3(p.transform[0])),
                                                 glm::length(glm::vec3(p.transform[1])),

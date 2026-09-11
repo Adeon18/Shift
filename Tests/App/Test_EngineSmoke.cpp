@@ -616,14 +616,16 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
 
     //! Phase 5: shader hot-reload (watcher deliberately bypassed: MarkDirty is used)
     //! Real recompile, in-place pipeline rebuild, retired GPU handle released via the deferred
-    //! executor once the timeline passes. Each Lib module is asked SEPARATELY because each enters
-    //! through a different import chain, and a dependency list reaching one says nothing about
-    //! another: ForwardVS imports FrameData + VertexPull, ForwardPS imports FrameData + Bindless
+    //! executor once the timeline passes. Each Lib module is asked SEPARATELY because a
+    //! dependency list reaching one says nothing about another - every module the forward file
+    //! imports has to be listed here, or an edit to it silently rebuilds nothing
     const char* dirtiedShaders[] = {
-        "Forward/ForwardVS.slang",
+        "Forward/Forward.slang",
         "Lib/FrameData.slang",
         "Lib/Bindless.slang",
         "Lib/VertexPull.slang",
+        "Lib/MaterialFetch.slang",
+        "Lib/BRDF.slang",
     };
     for (const char* shader : dirtiedShaders) {
         CAPTURE(shader);
@@ -650,7 +652,7 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
 
         Shift::ShaderDescriptor realPS;
         realPS.type = Shift::EShaderType::Fragment;
-        realPS.path = Shift::Util::GetShiftShaderSrcDir() + "Forward/ForwardPS.slang";
+        realPS.path = Shift::Util::GetShiftShaderSrcDir() + "Forward/Forward.slang";
         realPS.entry = "mainPS";
 
         //! The layout comes from the descriptor, not the shaders, so it stays what a real

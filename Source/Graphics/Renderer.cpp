@@ -60,11 +60,11 @@ namespace Shift::Graphics {
 
             ShaderDescriptor vsDescriptor;
             vsDescriptor.type = EShaderType::Vertex;
-            vsDescriptor.path = Shift::Util::GetShiftShaderSrcDir() + "Forward/ForwardVS.slang";
+            vsDescriptor.path = Shift::Util::GetShiftShaderSrcDir() + "Forward/Forward.slang";
             vsDescriptor.entry = "mainVS";
             ShaderDescriptor fsDescriptor;
             fsDescriptor.type = EShaderType::Fragment;
-            fsDescriptor.path = Shift::Util::GetShiftShaderSrcDir() + "Forward/ForwardPS.slang";
+            fsDescriptor.path = Shift::Util::GetShiftShaderSrcDir() + "Forward/Forward.slang";
             fsDescriptor.entry = "mainPS";
 
             forwardDescriptor.colorBlendConfig.attachments.push_back({.format = VIEWPORT_COLOR_FORMAT});

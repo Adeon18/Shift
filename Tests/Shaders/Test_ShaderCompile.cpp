@@ -25,8 +25,8 @@ namespace {
     //! Every shader the engine compiles at boot
     //! A shader that fails here fails the app, extend this whenever there is a new shader
     constexpr ShaderManifestEntry SHADER_MANIFEST[] = {
-        { "Forward/ForwardVS.slang", "mainVS", EShaderType::Vertex   },
-        { "Forward/ForwardPS.slang", "mainPS", EShaderType::Fragment },
+        { "Forward/Forward.slang",   "mainVS", EShaderType::Vertex   },
+        { "Forward/Forward.slang",   "mainPS", EShaderType::Fragment },
         { "Debug/TriangleVS.slang",  "mainVS", EShaderType::Vertex   },
         { "Debug/TrianglePS.slang",  "mainPS", EShaderType::Fragment },
         { "Fallback/Fallback.slang", "mainVS", EShaderType::Vertex   },
