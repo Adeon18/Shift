@@ -53,7 +53,15 @@ namespace Shift::Graphics {
 
         void UnloadTexture(const TextureHandle& texHandle);
 
+        //! Allocate a bindless slot for an RT
+        [[nodiscard]] TextureHandle RegisterRenderTarget(Texture* texture);
+
+        [[nodiscard]] Texture* GetTexture(const TextureHandle& handle) const;
+
         [[nodiscard]] bool IsValid(const TextureHandle& handle) const;
+
+        //! Live slots or rts + textures
+        [[nodiscard]] uint32_t GetLiveCount();
 
         [[nodiscard]] ETextureFormat GetFormat(const TextureHandle& handle) const;
 

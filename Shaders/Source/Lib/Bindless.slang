@@ -7,3 +7,8 @@ float4 SampleTexture2D(uint textureIdx, uint samplerIdx, float2 uv)
 {
     return g_Textures2D[textureIdx].Sample(g_Samplers[samplerIdx], uv);
 }
+
+float4 LoadTexture2D(uint textureIdx, int2 pixel)
+{
+    return g_Textures2D[textureIdx].Load(int3(pixel, 0));
+}

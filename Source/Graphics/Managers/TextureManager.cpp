@@ -150,8 +150,32 @@ namespace Shift::Graphics {
         }
     }
 
+    TextureHandle TextureManager::RegisterRenderTarget(Texture* texture) {
+        if (texture == nullptr) { return {}; }
+
+        if (!HasFreeSlots()) {
+            Log(Error, "The bindless image array is full at {} slots; a {}x{} render target gets no slot",
+                Conf::MAX_BINDLESS_IMAGES, texture->GetWidth(), texture->GetHeight());
+            return {};
+        }
+
+        const TextureHandle handle = m_pool.Insert(texture);
+        UploadToGPU(handle.slotIdx, texture);
+        return handle;
+    }
+
+    Texture* TextureManager::GetTexture(const TextureHandle& handle) const {
+        return m_pool.Get(handle);
+    }
+
     bool TextureManager::IsValid(const TextureHandle& handle) const {
         return m_pool.IsValid(handle);
+    }
+
+    uint32_t TextureManager::GetLiveCount() {
+        uint32_t count = 0;
+        m_pool.ForEachLive([&](uint32_t, Texture*) { ++count; });
+        return count;
     }
 
     ETextureFormat TextureManager::GetFormat(const TextureHandle& handle) const {

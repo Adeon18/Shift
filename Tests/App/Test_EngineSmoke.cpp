@@ -431,6 +431,20 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     //! Phase 1: steady warmup
     tick(30);
 
+    //! The scene renders into an HDR target and the tonemap pass writes the display target.
+    //! Both pipelines on fallback shaders would still run validation-clean, so ask directly
+    {
+        auto& pipelines = engine.GetRenderer().GetPipelineManager();
+        CHECK_MESSAGE(!pipelines.IsRunningFallback(engine.GetRenderer().GetForwardPipeline()),
+                      "the forward pipeline is running on fallback shaders");
+        CHECK_MESSAGE(!pipelines.IsRunningFallback(engine.GetRenderer().GetToneMapSystem().GetPipeline()),
+                      "the tonemap pipeline is running on fallback shaders");
+
+        auto& textures = engine.GetRenderer().GetTextureManager();
+        CHECK_MESSAGE(textures.GetFormat(engine.GetRenderer().GetViewportHDR()) == Shift::ETextureFormat::R16G16B16A16_SFLOAT,
+                      "the scene is not rendering into an RGBA16F target");
+    }
+
     //! Phase 1.5: the global sampler array is a cache, not a fixed table.
     //! Boot already registered the states shader code names by constant; what matters here is that
     //! the array behaves like a cache on both sides - identical states share a slot, and a state
@@ -509,6 +523,8 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     //! Every resize recreates the RT, re-registers the ImGui descriptor and defers the old
     //! texture's delete to the next frame: 30 in a row is a deferred-destruction soak
     auto& renderer = engine.GetRenderer();
+    //! Each resize also gives the HDR target a new bindless slot and releases the old one later
+    const uint32_t liveTexturesBeforeStorm = renderer.GetTextureManager().GetLiveCount();
     for (int i = 0; i < 30; ++i) {
         const uint32_t width = 160 + static_cast<uint32_t>((i * 97) % 800);
         const uint32_t height = 120 + static_cast<uint32_t>((i * 61) % 600);
@@ -523,6 +539,9 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
 
     renderer.ResizeViewport(800, 400);
     tick(3);
+
+    CHECK_MESSAGE(renderer.GetTextureManager().GetLiveCount() == liveTexturesBeforeStorm,
+                  "the resize storm left extra live texture slots: old HDR targets are not being released");
 
     const Shift::GPU::FrameConstants* wideFrame = renderer.GetFrameConstants(0);
     REQUIRE_MESSAGE(wideFrame != nullptr, "frame slot 0 has no frame constants");
@@ -618,21 +637,27 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     //! Real recompile, in-place pipeline rebuild, retired GPU handle released via the deferred
     //! executor once the timeline passes. Each Lib module is asked SEPARATELY because a
     //! dependency list reaching one says nothing about another - every module the forward file
-    //! imports has to be listed here, or an edit to it silently rebuilds nothing
-    const char* dirtiedShaders[] = {
-        "Forward/Forward.slang",
-        "Lib/FrameData.slang",
-        "Lib/Bindless.slang",
-        "Lib/VertexPull.slang",
-        "Lib/MaterialFetch.slang",
-        "Lib/BRDF.slang",
+    //! imports has to be listed here, or an edit to it silently rebuilds nothing.
+    //! The count is how many pipelines import the file: FrameData and Bindless reach both passes
+    struct DirtiedShader {
+        const char* path;
+        uint32_t expectedRebuilds;
     };
-    for (const char* shader : dirtiedShaders) {
-        CAPTURE(shader);
-        renderer.GetShaderManager().MarkDirty(Shift::Util::GetShiftShaderSrcDir() + shader);
-        CHECK_MESSAGE(renderer.HotReloadShaders() == 1,
-                      "marking this dirty rebuilt no pipeline: the forward shaders' dependency "
-                      "lists do not reach through the import");
+    const DirtiedShader dirtiedShaders[] = {
+        {"Forward/Forward.slang", 1},
+        {"PostProcess/Tonemap.slang", 1},
+        {"Lib/FrameData.slang", 2},
+        {"Lib/Bindless.slang", 2},
+        {"Lib/VertexPull.slang", 1},
+        {"Lib/MaterialFetch.slang", 1},
+        {"Lib/BRDF.slang", 1},
+    };
+    for (const DirtiedShader& shader : dirtiedShaders) {
+        CAPTURE(shader.path);
+        renderer.GetShaderManager().MarkDirty(Shift::Util::GetShiftShaderSrcDir() + shader.path);
+        CHECK_MESSAGE(renderer.HotReloadShaders() == shader.expectedRebuilds,
+                      "marking this dirty rebuilt the wrong number of pipelines: a dependency "
+                      "list does not reach through the import");
         tick(5);
     }
 
@@ -660,7 +685,7 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
         Shift::PipelineDescriptor probeDesc;
         probeDesc.name = "FallbackProbe";
         probeDesc.colorBlendConfig.attachments.push_back(
-                {.format = Shift::Graphics::Renderer::VIEWPORT_COLOR_FORMAT});
+                {.format = Shift::Graphics::Renderer::VIEWPORT_HDR_FORMAT});
         probeDesc.pushConstants = Shift::PushConstantRange{
             .offset = 0,
             .size = static_cast<uint32_t>(sizeof(Shift::GPU::PushConstants)),

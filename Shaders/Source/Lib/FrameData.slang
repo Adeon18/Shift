@@ -7,7 +7,6 @@
 //! keeps one struct definition serving both C++ and Slang.
 #include "GPUShared.h"
 
-[[vk::push_constant]] PushConstants pc;
 
 FrameConstants LoadFrameConstants(GPUBufferRef frameConstantsRef)
 {

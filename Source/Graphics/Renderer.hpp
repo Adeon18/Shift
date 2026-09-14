@@ -27,6 +27,7 @@
 #include "Graphics/Managers/FrameRingBuffer.hpp"
 #include "Graphics/RenderScene.hpp"
 #include "Graphics/Shared/GPUShared.h"
+#include "Graphics/Systems/ToneMapSystem.hpp"
 #include "Loaders/TextureLoader/StbLoader.hpp"
 
 namespace Shift::Graphics {
@@ -55,6 +56,7 @@ namespace Shift::Graphics {
 
     public:
         static constexpr ETextureFormat VIEWPORT_COLOR_FORMAT = ETextureFormat::B8G8R8A8_SRGB;
+        static constexpr ETextureFormat VIEWPORT_HDR_FORMAT = ETextureFormat::R16G16B16A16_SFLOAT;
         static constexpr ETextureFormat VIEWPORT_DEPTH_FORMAT = ETextureFormat::D32_SFLOAT;
 
         Renderer(ShiftWindow& window, std::shared_ptr<ctrl::FlyingCameraController> controller): m_window{window}, m_controller(controller) {
@@ -102,6 +104,12 @@ namespace Shift::Graphics {
 
         [[nodiscard]] MaterialManager& GetMaterialManager() { return m_materialManager; }
 
+        [[nodiscard]] PipelineHandle GetForwardPipeline() const { return m_forwardPipeline; }
+
+        [[nodiscard]] const ToneMapSystem& GetToneMapSystem() const { return m_toneMapSystem; }
+
+        [[nodiscard]] TextureHandle GetViewportHDR() const { return m_viewportHDR; }
+
         //! The instabnces the scene pass draws, in ObjectData order
         [[nodiscard]] const std::vector<MeshPlacement>& GetPlacements() const { return m_placements; }
 
@@ -141,6 +149,8 @@ namespace Shift::Graphics {
 
         [[nodiscard]] Texture* CreateViewportDepthTexture(uint32_t width, uint32_t height);
 
+        [[nodiscard]] Texture* CreateViewportHDRTexture(uint32_t width, uint32_t height);
+
         ShiftWindow& m_window;
         std::shared_ptr<ctrl::FlyingCameraController> m_controller;
 
@@ -170,8 +180,11 @@ namespace Shift::Graphics {
         //! Thr renderer scvene input
         RenderScene m_renderScene;
 
+        Graphics::ToneMapSystem m_toneMapSystem;
+
         Texture* viewportTexture = nullptr;
         Texture* m_viewportDepth = nullptr;
+        TextureHandle m_viewportHDR;
         //! Slot in the global sampler array
         uint32_t m_viewportSamplerIdx = 0;
         void* m_viewportTextureID = nullptr;

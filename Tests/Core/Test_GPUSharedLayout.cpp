@@ -40,6 +40,8 @@ namespace {
     static_assert(sizeof(MaterialData) == 64, "MaterialData no longer matches its SPIR-V stride");
     static_assert(sizeof(LightData) == 64, "LightData no longer matches its SPIR-V stride");
     static_assert(sizeof(PushConstants) == 24, "the push block must stay at 24 bytes");
+    //! 16 measured out of real SPIR-V (offsets 0/8/12), P4.3 3c-1
+    static_assert(sizeof(TonemapPushConstants) == 16, "the tonemap push block no longer matches its SPIR-V layout");
 
     //! offsetof (used below) is only well-defined on standard-layout types
     static_assert(std::is_standard_layout_v<FrameConstants>);
@@ -47,6 +49,7 @@ namespace {
     static_assert(std::is_standard_layout_v<MaterialData>);
     static_assert(std::is_standard_layout_v<LightData>);
     static_assert(std::is_standard_layout_v<PushConstants>);
+    static_assert(std::is_standard_layout_v<TonemapPushConstants>);
 
     //! A GPUBufferRef is the whole portability contract in one type: 64 bits, opaque, never
     //! dereferenced outside a Lib/ accessor
@@ -69,6 +72,7 @@ namespace {
     static_assert(offsetof(FrameConstants, materialBufferRef) % alignof(GPUBufferRef) == 0);
     static_assert(offsetof(FrameConstants, lightBufferRef)    % alignof(GPUBufferRef) == 0);
     static_assert(offsetof(PushConstants,  frameConstantsRef) % alignof(GPUBufferRef) == 0);
+    static_assert(offsetof(TonemapPushConstants, frameConstantsRef) % alignof(GPUBufferRef) == 0);
 }
 
 TEST_SUITE("GPUSharedLayout") {
@@ -82,6 +86,7 @@ TEST_CASE("the shared CPU/GPU structs still match the layout the shaders were bu
     CHECK(sizeof(MaterialData) == 64);
     CHECK(sizeof(LightData) == 64);
     CHECK(sizeof(PushConstants) == 24);
+    CHECK(sizeof(TonemapPushConstants) == 16);
 }
 
 }

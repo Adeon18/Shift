@@ -2,6 +2,8 @@
 import Lib.FrameData;
 import Lib.VertexPull;
 
+[[vk::push_constant]] PushConstants pc;
+
 struct VertexOutput
 {
     float4 position : SV_Position;

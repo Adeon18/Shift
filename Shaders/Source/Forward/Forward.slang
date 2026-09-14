@@ -5,6 +5,8 @@ import Lib.Bindless;
 import Lib.MaterialFetch;
 import Lib.BRDF;
 
+[[vk::push_constant]] PushConstants pc;
+
 struct ForwardData
 {
     float4 position : SV_Position;
@@ -51,7 +53,7 @@ static const float3 LIGHT_DIRECTION = float3(-0.4f, -1.0f, -0.35f);
 static const float3 LIGHT_COLOR = float3(1.0f, 0.9f, 0.95f);
 //! So it ooks better ons screen rn
 static const float LIGHT_INTENSITY = PI;
-static const float AMBIENT = 0.03f;
+static const float AMBIENT = 0.1f;
 
 [shader("fragment")]
 float4 mainPS(ForwardData input) : SV_Target

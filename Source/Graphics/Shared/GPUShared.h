@@ -109,7 +109,9 @@ struct LightData {
     float _pad1;
 };
 
-//! The ONLY push-constant block in the engine, 24B
+//! Push constants are per pass as every pipeline in the pass must share it
+
+//! The forward pass push block, 24B
 struct PushConstants {
     GPUBufferRef frameConstantsRef;
     //! API agnostic firstInstance
@@ -117,6 +119,13 @@ struct PushConstants {
     uint materialIndex;
     //! This mesh's base vertex in the merged streams
     uint meshVertexBase;
+    uint _pad0;
+};
+
+//! The tonemap pass push block: 16B
+struct TonemapPushConstants {
+    GPUBufferRef frameConstantsRef;
+    uint hdrColorTex;
     uint _pad0;
 };
 

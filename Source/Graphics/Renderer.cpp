@@ -67,7 +67,7 @@ namespace Shift::Graphics {
             fsDescriptor.path = Shift::Util::GetShiftShaderSrcDir() + "Forward/Forward.slang";
             fsDescriptor.entry = "mainPS";
 
-            forwardDescriptor.colorBlendConfig.attachments.push_back({.format = VIEWPORT_COLOR_FORMAT});
+            forwardDescriptor.colorBlendConfig.attachments.push_back({.format = VIEWPORT_HDR_FORMAT});
 
             forwardDescriptor.depthStencilConfig = {
                 .depthFormat = VIEWPORT_DEPTH_FORMAT,
@@ -91,6 +91,8 @@ namespace Shift::Graphics {
             std::array<ShaderDescriptor, 2> shaderSources{vsDescriptor, fsDescriptor};
             m_forwardPipeline = m_pipelineManager.CreatePipeline(forwardDescriptor, shaderSources);
         }
+
+        m_toneMapSystem.Init(m_pipelineManager, VIEWPORT_COLOR_FORMAT);
 
         {
             m_viewportSamplerIdx = m_samplerManager.GetOrCreate(
@@ -141,12 +143,28 @@ namespace Shift::Graphics {
         m_textureManager->FreeStagingBuffers();
         m_meshManager.FreeStagingBuffers();
 
+        //! Register after all the texture uploads, as thos way mips will not be generated
+        Texture* viewportHDR = CreateViewportHDRTexture(m_window.GetWidth(), m_window.GetHeight());
+        CheckCritical(viewportHDR != nullptr, "Failed to create the viewport HDR target!");
+        m_viewportHDR = m_textureManager->RegisterRenderTarget(viewportHDR);
+        CheckCritical(m_textureManager->IsValid(m_viewportHDR), "The viewport HDR target got no bindless slot!");
+
         return true;
     }
 
     Texture* Renderer::CreateViewportDepthTexture(uint32_t width, uint32_t height) {
         return m_renderBackend.CreateInterface()->CreateTexture(
             TextureDescriptor::CreateDepthTextureDesc(width, height, "ViewportDepth", VIEWPORT_DEPTH_FORMAT));
+    }
+
+    Texture* Renderer::CreateViewportHDRTexture(uint32_t width, uint32_t height) {
+        return m_renderBackend.CreateInterface()->CreateTexture({
+            .width = width,
+            .height = height,
+            .format = VIEWPORT_HDR_FORMAT,
+            .usageFlags = ETextureUsageFlags::ColorAttachment | ETextureUsageFlags::Sampled,
+            .name = "ViewportHDR"
+        });
     }
 
     void Renderer::RegisterViewportTexture() {
@@ -305,30 +323,33 @@ namespace Shift::Graphics {
         m_textureManager->RegisterSubmittedUploads(gEncoder);
 
         if (shouldRenderMainViewport) {
+            Texture* viewportHDR = m_textureManager->GetTexture(m_viewportHDR);
+            CheckCritical(viewportHDR != nullptr, "The viewport HDR target does not resolve!");
+
             gEncoder->PushDebugGroup("ViewportPass", {0.30f, 0.65f, 0.35f, 1.0f}, true);
             // gContext.TransitionTexture(m_SRHI.GetSwapchain().GetSwapchainTexture(imageIndex), EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
-            gEncoder->TransitionTexture(*viewportTexture, EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
+            gEncoder->TransitionTexture(*viewportHDR, EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
             gEncoder->TransitionTexture(*m_viewportDepth, EResourceLayout::DepthStencilAttachmentOptimal, EPipelineStageFlags::EarlyFragmentTestsBit);
 
             RenderPassDescriptor renderPass;
             renderPass.colorAttachments.push_back(
                 {
-                    .renderTargetName = "ViewportTexture",
-                    .clearValue = {.color = {0.3f, 0.3f, 0.3f, 1.0f}}
+                    .renderTargetName = "ViewportHDR",
+                    .clearValue = {.color = {0.1, 0.1f, 0.1f, 1.0f}}
                 }
             );
             renderPass.depthAttachment = RenderPassDescriptor::RenderPassAttachmentInfo{
                 .renderTargetName = "ViewportDepth",
                 .clearValue = {.depthStencil = {1.0f, 0u}}
             };
-            renderPass.extent = {viewportTexture->GetWidth(), viewportTexture->GetHeight()};
-            std::array colorTextures{viewportTexture};
+            renderPass.extent = {viewportHDR->GetWidth(), viewportHDR->GetHeight()};
+            std::array colorTextures{viewportHDR};
             gEncoder->BeginRenderPass(renderPass, colorTextures, m_viewportDepth);
 
-            const Rect2D scissor = {{0, 0}, {viewportTexture->GetWidth(), viewportTexture->GetHeight()}};
-            const Viewport viewport = {0.0f, static_cast<float>(viewportTexture->GetHeight()),
-                                       static_cast<float>(viewportTexture->GetWidth()),
-                                       -static_cast<float>(viewportTexture->GetHeight()), 0.0f, 1.0f};
+            const Rect2D scissor = {{0, 0}, {viewportHDR->GetWidth(), viewportHDR->GetHeight()}};
+            const Viewport viewport = {0.0f, static_cast<float>(viewportHDR->GetHeight()),
+                                       static_cast<float>(viewportHDR->GetWidth()),
+                                       -static_cast<float>(viewportHDR->GetHeight()), 0.0f, 1.0f};
             gEncoder->SetScissor(scissor);
             gEncoder->SetViewport(viewport);
 
@@ -341,8 +362,16 @@ namespace Shift::Graphics {
 
             gEncoder->EndRenderPass();
 
-            gEncoder->TransitionTexture(*viewportTexture, EResourceLayout::ShaderReadOnlyOptimal, EPipelineStageFlags::FragmentShaderBit);
+            gEncoder->TransitionTexture(*viewportHDR, EResourceLayout::ShaderReadOnlyOptimal, EPipelineStageFlags::FragmentShaderBit);
             gEncoder->PopDebugGroup();
+
+            const ToneMapInputs toneMapInputs{
+                .frameConstantsRef = m_frameConstants.SlotAddress(frameSlot),
+                .hdrColorSlot = m_viewportHDR.slotIdx,
+                .output = *viewportTexture,
+                .globalSet = *m_globalSet.Get()
+            };
+            CheckCritical(m_toneMapSystem.Record(*gEncoder, toneMapInputs), "Failed to record the tone map pass!");
         }
 
         if (shouldRenderMainWindow) {
@@ -430,12 +459,23 @@ namespace Shift::Graphics {
         if (width == 0 || height == 0) return;
         if (width == viewportTexture->GetWidth() && height == viewportTexture->GetHeight()) return;
 
+        Texture* newHDR = CreateViewportHDRTexture(width, height);
+        const TextureHandle newHDRHandle = m_textureManager->RegisterRenderTarget(newHDR);
+        if (!m_textureManager->IsValid(newHDRHandle)) {
+            Log(Error, "Viewport resize to {}x{} skipped: the HDR target got no bindless slot", width, height);
+            delete newHDR;
+            return;
+        }
+
         //! Follow the viewport and not full window
         m_controller->UpdateScreenSize(static_cast<float>(width), static_cast<float>(height));
 
         Texture* oldTexture = viewportTexture;
         Texture* oldDepth = m_viewportDepth;
+        const TextureHandle oldHDR = m_viewportHDR;
         void* oldID = m_viewportTextureID;
+
+        m_viewportHDR = newHDRHandle;
 
         viewportTexture = m_renderBackend.CreateInterface()->CreateTexture({
             .width = width,
@@ -450,12 +490,14 @@ namespace Shift::Graphics {
         RegisterViewportTexture();
 
         //! Destruction deferred to current frame + MAX FIF because prev frames might have already submitted write commands to viewport before resize
-        m_renderBackend.DeferExecuteToFrame(m_renderBackend.GetCurrentGlobalIndex() + Conf::SHIFT_MAX_FRAMES_IN_FLIGHT, [oldTexture, oldDepth, oldID]() mutable {
+        m_renderBackend.DeferExecuteToFrame(m_renderBackend.GetCurrentGlobalIndex() + Conf::SHIFT_MAX_FRAMES_IN_FLIGHT, [this, oldTexture, oldDepth, oldHDR, oldID]() mutable {
             if (oldID) {
                 ImGuiBackend::UnregisterTexture(oldID);
             }
             delete oldTexture;
             delete oldDepth;
+            //! Non owning so just unload
+            m_textureManager->UnloadTexture(oldHDR);
         });
     }
 

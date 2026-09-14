@@ -27,6 +27,8 @@ namespace {
     constexpr ShaderManifestEntry SHADER_MANIFEST[] = {
         { "Forward/Forward.slang",   "mainVS", EShaderType::Vertex   },
         { "Forward/Forward.slang",   "mainPS", EShaderType::Fragment },
+        { "PostProcess/Tonemap.slang", "mainVS", EShaderType::Vertex   },
+        { "PostProcess/Tonemap.slang", "mainPS", EShaderType::Fragment },
         { "Debug/TriangleVS.slang",  "mainVS", EShaderType::Vertex   },
         { "Debug/TrianglePS.slang",  "mainPS", EShaderType::Fragment },
         { "Fallback/Fallback.slang", "mainVS", EShaderType::Vertex   },
