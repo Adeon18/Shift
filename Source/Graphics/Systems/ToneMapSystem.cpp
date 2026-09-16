@@ -71,7 +71,8 @@ namespace Shift::Graphics {
 
         const GPU::TonemapPushConstants push{
             .frameConstantsRef = inputs.frameConstantsRef,
-            .hdrColorTex = inputs.hdrColorSlot
+            .hdrColorTex = inputs.hdrColorSlot,
+            .tonemapOperator = inputs.tonemapOperator
         };
         encoder.SetPushConstants(*pipeline, &push, static_cast<uint32_t>(sizeof(push)));
 

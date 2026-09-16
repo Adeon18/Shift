@@ -26,6 +26,7 @@
 #include "Graphics/Managers/MaterialManager.hpp"
 #include "Graphics/Managers/FrameRingBuffer.hpp"
 #include "Graphics/RenderScene.hpp"
+#include "Graphics/RendererSettings.hpp"
 #include "Graphics/Shared/GPUShared.h"
 #include "Graphics/Systems/ToneMapSystem.hpp"
 #include "Loaders/TextureLoader/StbLoader.hpp"
@@ -108,6 +109,9 @@ namespace Shift::Graphics {
 
         [[nodiscard]] const ToneMapSystem& GetToneMapSystem() const { return m_toneMapSystem; }
 
+        //! Written to by UI
+        [[nodiscard]] RendererSettings& GetSettings() { return m_settings; }
+
         [[nodiscard]] TextureHandle GetViewportHDR() const { return m_viewportHDR; }
 
         //! The instabnces the scene pass draws, in ObjectData order
@@ -139,7 +143,7 @@ namespace Shift::Graphics {
 
         [[nodiscard]] uint32_t AquireImage(bool *success);
         [[nodiscard]] bool PresentFinalImage(uint32_t imageIndex);
-        void FillFrameConstants(GPU::FrameConstants* frameConstantsPtr, const EngineData& engineData, uint32_t frameSlot);
+        void FillFrameConstants(GPU::FrameConstants* frameConstantsPtr, const EngineData& engineData, const RendererSettings& settings, uint32_t frameSlot);
 
         void UploadObjectData(GPU::ObjectData* objectDataPtr);
 
@@ -181,6 +185,8 @@ namespace Shift::Graphics {
         RenderScene m_renderScene;
 
         Graphics::ToneMapSystem m_toneMapSystem;
+
+        RendererSettings m_settings;
 
         Texture* viewportTexture = nullptr;
         Texture* m_viewportDepth = nullptr;

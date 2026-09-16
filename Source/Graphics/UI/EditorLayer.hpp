@@ -73,6 +73,7 @@ namespace Shift::Editor {
                 ImGui::DockBuilderDockWindow("Properties", dock_id_right);
                 ImGui::DockBuilderDockWindow("GPU Timing", dock_id_right);
                 ImGui::DockBuilderDockWindow("Render Stats", dock_id_right);
+                ImGui::DockBuilderDockWindow("Tonemap", dock_id_right);
 
                 //! Left
                 ImGui::DockBuilderDockWindow("Scene Hierarchy", dock_id_left);

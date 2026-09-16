@@ -6,6 +6,7 @@
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 
 #include "Graphics/RHI/Vulkan/VKImGuiBackend.hpp"
@@ -278,6 +279,9 @@ namespace Shift::Graphics {
             shouldRenderMainViewport = editor->ShouldRenderViewportPanel() || firstFrame;
         }
 
+        //! Get an unmodifieable copy
+        const RendererSettings settings = m_settings;
+
         //! Pending uploads from the texture manager
         CheckCritical(m_textureManager->SubmitPendingUploads(), "Failed to submit pending texture uploads!");
 
@@ -297,7 +301,7 @@ namespace Shift::Graphics {
 
         UploadObjectData(objectData);
         UploadMaterialData(materialData);
-        FillFrameConstants(frameConstants, engineData, frameSlot);
+        FillFrameConstants(frameConstants, engineData, settings, frameSlot);
 
         uint32_t imageIndex = UINT32_MAX;
         if (shouldRenderMainWindow) {
@@ -368,6 +372,7 @@ namespace Shift::Graphics {
             const ToneMapInputs toneMapInputs{
                 .frameConstantsRef = m_frameConstants.SlotAddress(frameSlot),
                 .hdrColorSlot = m_viewportHDR.slotIdx,
+                .tonemapOperator = settings.tonemapOperator,
                 .output = *viewportTexture,
                 .globalSet = *m_globalSet.Get()
             };
@@ -514,8 +519,9 @@ namespace Shift::Graphics {
         return true;
     }
 
-    void Renderer::FillFrameConstants(GPU::FrameConstants *frameConstantsPtr, const EngineData &engineData, uint32_t frameSlot) {
-        frameConstantsPtr->cameraPosExposure = glm::vec4(engineData.camPosition, 1.0f);
+    void Renderer::FillFrameConstants(GPU::FrameConstants *frameConstantsPtr, const EngineData &engineData, const RendererSettings& settings, uint32_t frameSlot) {
+        //! Multiply the exposure
+        frameConstantsPtr->cameraPosExposure = glm::vec4(engineData.camPosition, std::pow(2.0f, settings.exposure));
         frameConstantsPtr->view = engineData.viewMatrix;
         frameConstantsPtr->proj = engineData.projMatrix;
         frameConstantsPtr->viewProj = engineData.projMatrix * engineData.viewMatrix;

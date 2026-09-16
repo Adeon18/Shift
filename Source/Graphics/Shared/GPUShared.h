@@ -122,11 +122,20 @@ struct PushConstants {
     uint _pad0;
 };
 
+//! Tonemap operator type
+enum class ETonemapOperator : uint {
+    None = 0,
+    Reinhard = 1,
+    Uncharted = 2,
+    ACES = 3,
+    Count
+};
+
 //! The tonemap pass push block: 16B
 struct TonemapPushConstants {
     GPUBufferRef frameConstantsRef;
     uint hdrColorTex;
-    uint _pad0;
+    ETonemapOperator tonemapOperator;
 };
 
 #ifdef __cplusplus

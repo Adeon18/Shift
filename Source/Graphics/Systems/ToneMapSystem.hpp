@@ -9,11 +9,13 @@
 
 #include "Graphics/RHI/RHI.hpp"
 #include "Graphics/Managers/PipelineManager.hpp"
+#include "Graphics/Shared/GPUShared.h"
 
 namespace Shift::Graphics {
     struct ToneMapInputs {
         uint64_t frameConstantsRef = 0;
         uint32_t hdrColorSlot = UINT32_MAX;
+        GPU::ETonemapOperator tonemapOperator = GPU::ETonemapOperator::None;
         Texture& output;
         const ResourceSet& globalSet;
     };
