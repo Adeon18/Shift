@@ -20,7 +20,8 @@ namespace Shift {
         Vertex,
         Index,
         Storage,
-        Indirect
+        Indirect,
+        Readback
     };
 
     //! A buffer descriptor struct, buffer size SHOULD BE ALWAYS ALIGNED BY 16!
@@ -45,6 +46,7 @@ namespace Shift {
         { InputBuffer.Map() } -> std::same_as<void*>;
         { InputBuffer.GetMapped() } -> std::same_as<void*>;
         { InputBuffer.UnMap() } -> std::same_as<void>;
+        { InputBuffer.InvalidateForHostRead(Offset, DataSize) } -> std::same_as<void>;
         { InputBuffer.Fill(Data, DataSize, Offset) } -> std::same_as<void>;
         { CONCEPT_CONST_VAR(Buffer, InputBuffer).GetSize() } -> std::same_as<uint64_t>;
         { CONCEPT_CONST_VAR(Buffer, InputBuffer).GetName() } -> std::same_as<const char *>;

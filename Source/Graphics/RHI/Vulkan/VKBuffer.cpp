@@ -27,6 +27,9 @@ namespace Shift::VK {
             case EBufferType::Indirect:
                 flags |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
                 break;
+            case EBufferType::Readback:
+                flags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+                break;
         }
 
         return flags;
@@ -42,6 +45,11 @@ namespace Shift::VK {
                 break;
             case EBufferType::Vertex:
             case EBufferType::Index:
+                break;
+            //! Random and non-sequential as we READ dis
+            case EBufferType::Readback:
+                flags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
+                flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
                 break;
             //! TODO [FEATURE] need to test whether support for these buffers works
             case EBufferType::Storage:
@@ -114,6 +122,12 @@ namespace Shift::VK {
 
     void Buffer::UnMap() {
         vmaUnmapMemory(m_device->GetAllocator(), m_allocation);
+    }
+
+    void Buffer::InvalidateForHostRead(uint64_t offset, uint64_t size) const {
+        if ( VkCheck(vmaInvalidateAllocation(m_device->GetAllocator(), m_allocation, offset, size)) ) {
+            Log(Error, "Failed to invalidate buffer '{}' for a host read", m_desc.name);
+        }
     }
 
     Buffer::~Buffer() {

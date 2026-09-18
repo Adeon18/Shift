@@ -8,11 +8,15 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <string>
+#include <system_error>
 #include <utility>
 #include <vector>
 
 #include <glm/glm.hpp>
+#include <glm/gtc/packing.hpp>
 
 #include "ShiftEngine.hpp"
 #include "Config/EngineConfig.hpp"
@@ -22,6 +26,7 @@
 #include "Graphics/Managers/PipelineManager.hpp"
 #include "Graphics/Managers/MeshManager.hpp"
 #include "Graphics/RenderScene.hpp"
+#include "Graphics/Systems/CaptureSystem.hpp"
 #include "Graphics/Managers/TextureManager.hpp"
 #include "Graphics/RHI/Common/Capabilities.hpp"
 #include "Graphics/Shared/GPUShared.h"
@@ -443,6 +448,72 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
         auto& textures = engine.GetRenderer().GetTextureManager();
         CHECK_MESSAGE(textures.GetFormat(engine.GetRenderer().GetViewportHDR()) == Shift::ETextureFormat::R16G16B16A16_SFLOAT,
                       "the scene is not rendering into an RGBA16F target");
+    }
+
+    //! Read the rendered image back and look for shading math that went bad - a NaN or
+    //! an overflow is invisible on screen, invisible to every validation layer, and RGBA16F is the
+    //! ONLY surface in this engine that could hold one (an 8-bit target is normalized fixed point).
+    //! Two things this deliberately does NOT claim. (1) That anything was DRAWN: the scene pass
+    //! clears to 0.1 grey, so a run where every draw failed still reads back clean here - AC3's
+    //! 'non-black' half was dropped at the commit-4 gate rather than quietly satisfied by a clear
+    //! colour. (2) That a NaN would be caught: no injection reproducibly put one in the target on
+    //! this hardware, so the isfinite check below is UNDEMONSTRATED. The saturation check is the
+    //! demonstrated one - see the LARGEST_HALF comment
+    {
+        auto& capture = engine.GetRenderer().GetCaptureSystem();
+        const Shift::Graphics::CapturedImage hdr = capture.Capture(
+                engine.GetRenderer().GetCaptureTarget(Shift::Graphics::EViewportTarget::SceneHDR));
+        REQUIRE_MESSAGE(hdr.IsValid(), "the HDR scene target did not read back at all");
+        CHECK_MESSAGE(hdr.format == Shift::ETextureFormat::R16G16B16A16_SFLOAT,
+                      "the capture came back in a format that cannot represent a NaN");
+
+        //! The largest finite half, and the reason there are TWO checks here rather than one.
+        //! Measured on this machine, reproduced twice: a shader adding 1e30 to every drawn pixel
+        //! leaves 159960 components pinned at this value and ZERO non-finite ones - the
+        //! float32->float16 attachment write CLAMPS instead of yielding an Inf. So the isfinite
+        //! scan does not see an overflow at all; the saturation count is what catches it.
+        //! Headroom, also measured: the clean boot scene peaks at 221.4, ~300x below this, so a
+        //! component sitting exactly on the format's limit is pathological rather than bright
+        constexpr float LARGEST_HALF = 65504.0f;
+
+        const size_t halfCount = hdr.pixels.size() / sizeof(uint16_t);
+        size_t nonFinite = 0;
+        size_t saturated = 0;
+        for (size_t i = 0; i < halfCount; ++i) {
+            uint16_t raw = 0;
+            std::memcpy(&raw, hdr.pixels.data() + i * sizeof(uint16_t), sizeof(uint16_t));
+            const float value = glm::unpackHalf1x16(raw);
+            if (!std::isfinite(value)) { ++nonFinite; }
+            else if (std::fabs(value) >= LARGEST_HALF) { ++saturated; }
+        }
+
+        const std::string nanMessage =
+            "the HDR scene target holds " + std::to_string(nonFinite) + " non-finite components out of " +
+            std::to_string(halfCount) + " - the shading math produced a NaN or an Inf";
+        CHECK_MESSAGE(nonFinite == 0u, nanMessage);
+
+        const std::string saturationMessage =
+            "the HDR scene target holds " + std::to_string(saturated) + " components pinned at the "
+            "largest representable half - either the shading overflowed RGBA16F, or a NaN was "
+            "clamped to it on the way in";
+        CHECK_MESSAGE(saturated == 0u, saturationMessage);
+
+        //! The screenshot path end to end, on the DISPLAY target rather than the HDR one: a PNG
+        //! of an RGBA16F capture would need a tonemap the writer refuses to invent
+        const std::string shotPath = "Shift_SmokeCapture.png";
+        //! Delete first, or a file left by an earlier green run makes the on-disk check below pass
+        //! even when this run wrote nothing - which is exactly what the check exists to catch
+        std::error_code removeError;
+        std::filesystem::remove(shotPath, removeError);
+
+        const bool shotWritten = capture.CaptureAndWritePNG(
+                engine.GetRenderer().GetCaptureTarget(Shift::Graphics::EViewportTarget::DisplayColor), shotPath);
+        CHECK_MESSAGE(shotWritten,
+                      "the screenshot path failed to capture the display target or write a PNG");
+
+        std::ifstream shotFile(shotPath, std::ios::binary | std::ios::ate);
+        const bool shotLanded = shotFile.is_open() && shotFile.tellg() > 0;
+        CHECK_MESSAGE(shotLanded, "no non-empty PNG landed on disk, so the writer only claimed to work");
     }
 
     //! Phase 1.5: the global sampler array is a cache, not a fixed table.

@@ -28,10 +28,16 @@
 #include "Graphics/RenderScene.hpp"
 #include "Graphics/RendererSettings.hpp"
 #include "Graphics/Shared/GPUShared.h"
+#include "Graphics/Systems/CaptureSystem.hpp"
 #include "Graphics/Systems/ToneMapSystem.hpp"
 #include "Loaders/TextureLoader/StbLoader.hpp"
 
 namespace Shift::Graphics {
+    enum class EViewportTarget {
+        DisplayColor,
+        SceneHDR
+    };
+
     //! A struct with data that can change per-frame
     struct EngineData {
         /// Camera controller
@@ -114,6 +120,11 @@ namespace Shift::Graphics {
 
         [[nodiscard]] TextureHandle GetViewportHDR() const { return m_viewportHDR; }
 
+        //! Get target for readback
+        [[nodiscard]] CaptureTarget GetCaptureTarget(EViewportTarget which);
+
+        [[nodiscard]] CaptureSystem& GetCaptureSystem() { return m_captureSystem; }
+
         //! The instabnces the scene pass draws, in ObjectData order
         [[nodiscard]] const std::vector<MeshPlacement>& GetPlacements() const { return m_placements; }
 
@@ -185,6 +196,7 @@ namespace Shift::Graphics {
         RenderScene m_renderScene;
 
         Graphics::ToneMapSystem m_toneMapSystem;
+        Graphics::CaptureSystem m_captureSystem;
 
         RendererSettings m_settings;
 

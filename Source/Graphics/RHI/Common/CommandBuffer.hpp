@@ -132,7 +132,8 @@ namespace Shift {
         { InputBuffer.Submit(InputTimeSemaphoreSpan, InputTimeSemaphoreCounter, InputTimeSemaphoreSpan, InputTimeSemaphoreCounter, InputBinSemaphoreSpan, InputBinSemaphoreSpan) } -> std::same_as<bool>;
         { InputBuffer.CopyBufferToBuffer(InputBufferOpDesc, InputBufferOpDesc, size) } -> std::same_as<void>;
         { InputBuffer.CopyBufferToTexture(InputBufferOpDesc, InputTextureCopyDesc) } -> std::same_as<void>;
-        //{ InputBuffer.CopyTextureToBuffer(InputTextureCopyDesc, InputBufferOpDesc, size) } -> std::same_as<void>; // TODO: [FEATURE] Check
+        { InputBuffer.CopyTextureToBuffer(InputTextureCopyDesc, InputBufferOpDesc) } -> std::same_as<void>;
+        { InputBuffer.BarrierForHostRead(InputBufferOpDesc, size) } -> std::same_as<void>;
         //{ InputBuffer.CopyTextureToTexture(InputTextureCopyDesc, InputTextureCopyDesc) } -> std::same_as<void>; // TODO: [FEATURE] Check
         //! Rendering
         { InputBuffer.BindGraphicsPipeline(InputPipeline) } -> std::same_as<void>;

@@ -34,6 +34,11 @@ namespace Shift::VK {
         //! Unmap the mapped buffer
         void UnMap();
 
+        //! Invalidate the host cache over a range so that we can actually read it from VRAM
+        //! \param offset byte offset into the allocation
+        //! \param size bytes to invalidate, WHOLE_SIZE for the rest of the allocation
+        void InvalidateForHostRead(uint64_t offset = 0, uint64_t size = VK_WHOLE_SIZE) const;
+
         //! Fill buffer with data, works on MAPPED BUFFERS ONLY
         //! \tparam T data type
         //! \param data data

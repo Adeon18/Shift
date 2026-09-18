@@ -56,6 +56,8 @@ namespace Shift {
         RHIContext<API>& GetGraphicsContext() { return m_graphicsContexts[m_currentFrame]; }
         RHIContext<API>& GetComputeContext() { return m_computeContext; }
         RHIContext<API>& GetTransferContext() { return m_transferContext; }
+        //! Separate graphics context not bound by frame context requirements
+        RHIContext<API>& GetCaptureContext() { return m_captureContext; }
 
         //! Start-of-frame work for the slot about to be recorded
         void BeginFrame();
@@ -124,6 +126,8 @@ namespace Shift {
         // Single transfer/compute contexts (can be expanded to a pool)
         RHIContext<API> m_transferContext;
         RHIContext<API> m_computeContext;
+        //! Out-of-frame graphics work (capture). Never one of the m_graphicsContexts slots
+        RHIContext<API> m_captureContext;
 
         RHIDeferredExecutor m_deferredExecutor;
 
@@ -201,6 +205,9 @@ namespace Shift {
         CheckCritical(m_transferContext.Init(&m_local, EContextType::Transfer, false), "Failed to create Transfer Context!");
         m_transferContext.GetCommandBuffer().SetDebugName("TransferCB");
 
+        CheckCritical(m_captureContext.Init(&m_local, EContextType::Graphics, false), "Failed to create Capture Context!");
+        m_captureContext.GetCommandBuffer().SetDebugName("CaptureCB");
+
         uint32_t imageCount = m_local.swapchain->GetImages().size();
         m_renderFinished.clear();
         for(uint32_t i = 0; i < imageCount; i++) {
@@ -270,6 +277,7 @@ namespace Shift {
 
         m_transferContext.Destroy();
         m_computeContext.Destroy();
+        m_captureContext.Destroy();
 
         m_local.descLayoutCache.Destroy();
         m_local.descAllocator.reset();

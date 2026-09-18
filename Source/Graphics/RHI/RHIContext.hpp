@@ -120,6 +120,16 @@ namespace Shift {
         //! \param dstTex texture + size to copy + offset + subresource range
         void CopyBufferToTexture(const BufferOpDescriptor& srcBuf, const TextureCopyDescriptor& dstTex) const;
 
+        //! Copy texture to buffer
+        //! \param srcTex texture + size to copy + offset + subresource range (levelCount must be 1)
+        //! \param dstBuf buffer + offset into the buffer
+        void CopyTextureToBuffer(const TextureCopyDescriptor& srcTex, const BufferOpDescriptor& dstBuf) const;
+
+        //! Barrier for host read read
+        //! \param buffer buffer + offset into the buffer
+        //! \param size bytes the host will read
+        void BarrierForHostRead(const BufferOpDescriptor& buffer, uint64_t size) const;
+
         ///! ------------------- Rendering Buffer Commands ------------------- !///
 
         //! Bind a single vertex buffer
@@ -310,6 +320,18 @@ namespace Shift {
         const TextureCopyDescriptor &dstTex) const
     {
         m_boundCB->CopyBufferToTexture(srcBuf, dstTex);
+    }
+
+    template<ValidAPI API>
+    void RHIEncoder<API>::CopyTextureToBuffer(const TextureCopyDescriptor &srcTex,
+        const BufferOpDescriptor &dstBuf) const
+    {
+        m_boundCB->CopyTextureToBuffer(srcTex, dstBuf);
+    }
+
+    template<ValidAPI API>
+    void RHIEncoder<API>::BarrierForHostRead(const BufferOpDescriptor &buffer, uint64_t size) const {
+        m_boundCB->BarrierForHostRead(buffer, size);
     }
 
     template<ValidAPI API>

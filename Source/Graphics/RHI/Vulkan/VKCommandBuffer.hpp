@@ -161,8 +161,17 @@ namespace Shift::VK {
         //! \param srcTex texture + size to copy + offset + subresource range
         void CopyBufferToTexture(const BufferOpDescriptor& srcBuf, const TextureCopyDescriptor& dstTex) const;
 
-        // TODO: [FEATURE]
-        // void CopyTextureToBuffer(TextureCopyDescriptor srcTex, BufferOpDescriptor dstBuf, uint32_t size);
+        //! Copy one mip level of a texture into a buffer. The texture must ALREADY be in
+        //! TransferSrcOptimal
+        //! \param srcTex texture + size to copy + offset + subresource range (levelCount must be 1)
+        //! \param dstBuf buffer + offset into the buffer
+        void CopyTextureToBuffer(const TextureCopyDescriptor& srcTex, const BufferOpDescriptor& dstBuf) const;
+
+        //! Make prior device writes to this buffer available for read. For texture readback
+        //! \param buffer buffer + offset into the buffer
+        //! \param size bytes the host will read
+        void BarrierForHostRead(const BufferOpDescriptor& buffer, uint64_t size) const;
+
         // TODO: [FEATURE]
         // void CopyTextureToTexture(TextureCopyDescriptor srcTex, TextureCopyDescriptor dstTex);
 

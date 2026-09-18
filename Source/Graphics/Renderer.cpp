@@ -94,6 +94,7 @@ namespace Shift::Graphics {
         }
 
         m_toneMapSystem.Init(m_pipelineManager, VIEWPORT_COLOR_FORMAT);
+        m_captureSystem.Init(m_renderBackend);
 
         {
             m_viewportSamplerIdx = m_samplerManager.GetOrCreate(
@@ -111,7 +112,8 @@ namespace Shift::Graphics {
                     .width = m_window.GetWidth(),
                     .height = m_window.GetHeight(),
                     .format = VIEWPORT_COLOR_FORMAT,
-                    .usageFlags = ETextureUsageFlags::ColorAttachment | ETextureUsageFlags::Sampled,
+                    //! Transfersrc to make it captuerable
+                    .usageFlags = ETextureUsageFlags::ColorAttachment | ETextureUsageFlags::Sampled | ETextureUsageFlags::TransferSrc,
                     .name = "ViewportRT"
                 }
             );
@@ -163,7 +165,8 @@ namespace Shift::Graphics {
             .width = width,
             .height = height,
             .format = VIEWPORT_HDR_FORMAT,
-            .usageFlags = ETextureUsageFlags::ColorAttachment | ETextureUsageFlags::Sampled,
+            //! Capturaeble too
+            .usageFlags = ETextureUsageFlags::ColorAttachment | ETextureUsageFlags::Sampled | ETextureUsageFlags::TransferSrc,
             .name = "ViewportHDR"
         });
     }
@@ -431,6 +434,17 @@ namespace Shift::Graphics {
         return true;
     }
 
+    CaptureTarget Renderer::GetCaptureTarget(EViewportTarget which) {
+        switch (which) {
+            case EViewportTarget::DisplayColor:
+                return {viewportTexture, EResourceLayout::ShaderReadOnlyOptimal, EPipelineStageFlags::FragmentShaderBit};
+            case EViewportTarget::SceneHDR:
+                return {m_textureManager->GetTexture(m_viewportHDR), EResourceLayout::ShaderReadOnlyOptimal, EPipelineStageFlags::FragmentShaderBit};
+        }
+        Log(Error, "GetCaptureTarget: unhandled EViewportTarget {}", static_cast<uint32_t>(which));
+        return {};
+    }
+
     uint32_t Renderer::HotReloadShaders() {
         return m_pipelineManager.HotReload();
     }
@@ -486,7 +500,8 @@ namespace Shift::Graphics {
             .width = width,
             .height = height,
             .format = VIEWPORT_COLOR_FORMAT,
-            .usageFlags = ETextureUsageFlags::ColorAttachment | ETextureUsageFlags::Sampled,
+            //! Prop should put this in a separate func
+            .usageFlags = ETextureUsageFlags::ColorAttachment | ETextureUsageFlags::Sampled | ETextureUsageFlags::TransferSrc,
             .name = "ViewportRT"
         });
 

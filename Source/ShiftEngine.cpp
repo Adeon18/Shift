@@ -138,5 +138,13 @@ namespace Shift {
         if (inp::Keyboard::GetInstance().IsJustPressed(GLFW_KEY_R)) {
             m_renderer->HotReloadShaders();
         }
+
+        //! Stall gpu for a frame
+        if (inp::Keyboard::GetInstance().IsJustPressed(GLFW_KEY_F12)) {
+            const Graphics::CaptureTarget target = m_renderer->GetCaptureTarget(Graphics::EViewportTarget::DisplayColor);
+            if (!m_renderer->GetCaptureSystem().CaptureAndWritePNG(target)) {
+                LogWarn("Screenshot failed");
+            }
+        }
     }
 } // shift

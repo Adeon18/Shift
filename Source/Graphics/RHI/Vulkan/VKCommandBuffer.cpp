@@ -216,6 +216,48 @@ namespace Shift::VK {
         );
     }
 
+    void CommandBuffer::CopyTextureToBuffer(const TextureCopyDescriptor& srcTex, const BufferOpDescriptor& dstBuf) const {
+        const TextureSubresourceRange& range = srcTex.subresourceRange;
+        assert(range.levelCount == 1 && "CopyTextureToBuffer reads a single mip level per call");
+        VkBufferImageCopy region{};
+        region.bufferOffset = dstBuf.offset;
+        //! 0-s essentially make the buffer pick the size to fit image tightly
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+        region.imageSubresource.aspectMask = Util::ShiftToVKTextureAspect(range.aspect);
+        region.imageSubresource.mipLevel = range.baseMipLevel;
+        region.imageSubresource.baseArrayLayer = range.baseArrayLayer;
+        region.imageSubresource.layerCount = range.layerCount;
+        region.imageOffset = {srcTex.offset.x, srcTex.offset.y, srcTex.offset.z};
+        region.imageExtent = {srcTex.size.x, srcTex.size.y, srcTex.size.z};
+
+        vkCmdCopyImageToBuffer(
+            m_buffer,
+            srcTex.texture->VK_GetImage(),
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            dstBuf.buffer->VK_Get(),
+            1,
+            &region
+        );
+    }
+
+    void CommandBuffer::BarrierForHostRead(const BufferOpDescriptor& buffer, uint64_t size) const {
+        VkBufferMemoryBarrier2 barrier{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 };
+        barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT;
+        barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+        barrier.dstStageMask = VK_PIPELINE_STAGE_2_HOST_BIT;
+        barrier.dstAccessMask = VK_ACCESS_2_HOST_READ_BIT;
+        //! Buffers are concurrent in Shift
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.buffer = buffer.buffer->VK_Get();
+        barrier.offset = buffer.offset;
+        barrier.size = size;
+
+        std::array bufBarriers{barrier};
+        VK_SetPipelineBarrier({}, {}, bufBarriers, 0);
+    }
+
     void CommandBuffer::VK_TransferImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
                                             VkPipelineStageFlags2 srcStage, VkPipelineStageFlags2 dstStage,
                                             VkImageSubresourceRange subresourceRange) const {
