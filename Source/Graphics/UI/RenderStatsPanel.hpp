@@ -25,7 +25,6 @@ namespace Shift::Editor {
             static const Graphics::RenderSceneStats s_empty;
             const Graphics::RenderSceneStats& stats = m_provider ? m_provider() : s_empty;
 
-            ImGui::Text("Placements  %u", stats.placements);
             ImGui::Text("Objects     %u", stats.objects);
             ImGui::Separator();
             ImGui::Text("Draw calls  %u", stats.drawCalls);

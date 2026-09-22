@@ -10,13 +10,13 @@
 #include <cstring>
 
 #include "Graphics/RHI/Vulkan/VKImGuiBackend.hpp"
-#include "Loaders/ModelLoader/GltfLoader.hpp"
+#include "Scene/SceneImport.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
 
 namespace Shift::Graphics {
-    bool Renderer::Init(const std::optional<RHIRequiredFeatures>& featuresOverride) {
+    bool Renderer::Init(ShiftScene& scene, const std::optional<RHIRequiredFeatures>& featuresOverride) {
 
         const RHIRequiredFeatures requiredFeatures = featuresOverride.value_or(ShiftSelectedAPI::requiredFeatures);
         CheckCritical(m_renderBackend.Init(m_window.GetHandle(), m_window.GetWidth(), m_window.GetHeight(), "TestApp", "1.0.0", "Shift", "2.0.0", requiredFeatures), "Failed to initialize RHI!");
@@ -50,10 +50,9 @@ namespace Shift::Graphics {
 
         m_textureManager->GetOrLoadTexture(Shift::Util::GetShiftRoot() + "Assets/Textures/NB.jpg", tEncoder);
 
-        CheckCritical(m_materialManager.Init(MakeTextureResolver("", *tEncoder)),
-                      "Failed to initialize the material manager!");
+        CheckCritical(m_materialManager.Init(MakeTextureResolver(*m_textureManager, "", *tEncoder)), "Failed to initialize the material manager!");
 
-        CheckCritical(LoadScene(*tEncoder), "Failed to load the scene!");
+        CheckCritical(LoadScene(scene, {m_meshManager, m_materialManager, *m_textureManager, *tEncoder}), "Failed to load the scene!");
 
         {
             PipelineDescriptor forwardDescriptor;
@@ -178,98 +177,7 @@ namespace Shift::Graphics {
         m_viewportTextureID = ImGuiBackend::RegisterTexture(*viewportTexture, *viewportSampler);
     }
 
-    bool Renderer::LoadScene(RenderContextEncoder& transferEncoder) {
-        struct SceneModel {
-            std::string path;
-            glm::mat4 transform;
-        };
-
-        const std::string root = Shift::Util::GetShiftRoot();
-        const std::vector<SceneModel> sources{
-            {
-                root + "Assets/Models/DamagedHelmet/scene.gltf",
-                glm::scale(glm::translate(glm::mat4(1.0f), {-2.0f, 0.0f, -3.5f}), glm::vec3(1.0))
-            },
-            {
-                root + "Assets/Models/HumanSkull/scene.gltf",
-                glm::scale(glm::translate(glm::mat4(1.0f), {2.0f, 0.0f, -3.5f}), glm::vec3(1.0f))
-            },
-            // No textures, every mat slot is default
-            {
-                root + "Assets/Models/Sphere/sphere.glb",
-                glm::scale(glm::translate(glm::mat4(1.0f), {0.0f, -1.0f, -2.0f}), glm::vec3(1.0f))
-            },
-        };
-
-        GltfLoader loader;
-        for (const SceneModel& source : sources) {
-            std::optional<ModelData> model = loader.LoadFromFile(source.path);
-            if (!model) {
-                Log(Warning, "Scene model not loaded, skipping it: {}", source.path);
-                continue;
-            }
-
-            //! Get the global remap and make ressolver to index
-            const std::vector<uint32_t> materialRemap = m_materialManager.RegisterModelMaterials(
-                model->materials, MakeTextureResolver(Shift::Util::GetDirectoryFromPath(model->sourcePath), transferEncoder));
-
-            //! Upload every mesh once
-            std::vector<MeshHandle> meshHandles;
-            meshHandles.reserve(model->meshes.size());
-            for (const MeshData& meshData : model->meshes) {
-                meshHandles.push_back(m_meshManager.UploadMesh(meshData, transferEncoder, materialRemap));
-            }
-
-            std::vector<glm::mat4> nodeWorld(model->nodes.size(), glm::mat4(1.0f));
-            const size_t placedBefore = m_placements.size();
-            //! Resolve  the evil ass node logic and "place" a mesh.
-            for (size_t i = 0; i < model->nodes.size(); ++i) {
-                const NodeDesc& node = model->nodes[i];
-                const glm::mat4 local = glm::translate(glm::mat4(1.0f), node.translation)
-                                      * glm::mat4_cast(node.rotation)
-                                      * glm::scale(glm::mat4(1.0f), node.scale);
-                nodeWorld[i] = (node.parent == MODEL_INDEX_NONE) ? local : nodeWorld[node.parent] * local;
-
-                if (node.meshIndex == MODEL_INDEX_NONE) { continue; }
-                if (node.meshIndex >= meshHandles.size()) { continue; }
-                if (!m_meshManager.IsValid(meshHandles[node.meshIndex])) { continue; }
-
-                m_placements.push_back({
-                    .mesh = meshHandles[node.meshIndex],
-                    .transform = source.transform * nodeWorld[i]
-                });
-            }
-
-            //! Fallback if no node tree
-            if (m_placements.size() == placedBefore) {
-                Log(Warning, "Model '{}' has no nodes referencing its {} meshes; placing each at the "
-                             "model transform", source.path, model->meshes.size());
-                for (const MeshHandle handle : meshHandles) {
-                    if (!m_meshManager.IsValid(handle)) { continue; }
-                    m_placements.push_back({.mesh = handle, .transform = source.transform});
-                }
-            }
-        }
-        CheckCritical(m_placements.size() <= Conf::MAX_SCENE_OBJECTS,
-                      "The scene holds more objects than one ObjectData ring slot can carry!");
-
-        Log(Info, "Scene loaded: {} placements, {} materials, {} vertices and {} indices merged",
-            m_placements.size(), m_materialManager.GetCount(),
-            m_meshManager.GetUsedVertices(), m_meshManager.GetUsedIndices());
-
-        return true;
-    }
-
-    TextureSlotResolver Renderer::MakeTextureResolver(const std::string& baseDir,
-                                                      RenderContextEncoder& transferEncoder) {
-        return [this, baseDir, encoder = &transferEncoder](const TextureRef& ref) {
-            if (!ref.IsSet()) { return m_textureManager->GetPlaceholderSlot(ref.placeholderKind); }
-            TextureHandle tex = m_textureManager->GetOrLoadTexture(baseDir + ref.id, encoder, ref.colorSpace);
-            return tex.slotIdx;
-        };
-    }
-
-    bool Renderer::RenderFrame(const Shift::Graphics::EngineData &engineData, Editor::EditorLayer* editor) {
+    bool Renderer::RenderFrame(const Shift::Graphics::EngineData &engineData, const ShiftScene& scene, Editor::EditorLayer* editor) {
 
         //! The viewport may not be visible in the first frame and we need to transition the viewport texture for the imgui to render anyways
         bool firstFrame = m_renderBackend.GetCurrentGlobalIndex() == 0;
@@ -289,7 +197,7 @@ namespace Shift::Graphics {
         CheckCritical(m_textureManager->SubmitPendingUploads(), "Failed to submit pending texture uploads!");
 
         //! Rebuld the draw list + objecty arr, culling, selection movement n shi will be here later
-        m_renderScene.Extract(m_placements, m_meshManager, m_forwardPipeline);
+        m_renderScene.Extract(scene, m_meshManager, m_forwardPipeline);
 
         //! Reclaim this frame slot
         m_renderBackend.BeginFrame();

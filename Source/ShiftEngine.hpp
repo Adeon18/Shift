@@ -12,6 +12,7 @@
 #include <glm/glm.hpp>
 
 #include "Graphics/Renderer.hpp"
+#include "Scene/ShiftScene.hpp"
 
 #include "Window/ShiftWindow.hpp"
 #include "Tools/Timer/FPSTimer.hpp"
@@ -50,12 +51,15 @@ namespace Shift {
         //! Here because tests need finer control
         [[nodiscard]] Graphics::Renderer& GetRenderer() { return *m_renderer; }
         [[nodiscard]] ShiftWindow& GetWindow() { return *m_window; }
+        [[nodiscard]] const ShiftScene& GetScene() const { return m_scene; }
 
     private:
         void FillEngineData(float dt);
         void HandleInput();
 
         Graphics::EngineData m_engineData;
+
+        ShiftScene m_scene;
 
         std::unique_ptr<Graphics::Renderer> m_renderer;
 

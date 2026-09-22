@@ -26,7 +26,7 @@ namespace Shift {
         m_controller = std::make_shared<ctrl::FlyingCameraController>(80.0f, sizes, pos);
 
         m_renderer = std::make_unique<Graphics::Renderer>(*m_window, m_controller);
-        if (!m_renderer->Init(desc.featuresOverride)) { return false;}
+        if (!m_renderer->Init(m_scene, desc.featuresOverride)) { return false;}
 
         m_editorLayer.Init(*m_window, m_renderer->GetRHILocal<ShiftSelectedAPI>());
 
@@ -91,8 +91,10 @@ namespace Shift {
         HandleInput();
         m_controller->CaptureInputAndApply(dt);
 
+        m_scene.UpdateHierarchy();
+
         FillEngineData(dt);
-        if (!m_renderer->RenderFrame(m_engineData, &m_editorLayer)) {
+        if (!m_renderer->RenderFrame(m_engineData, m_scene, &m_editorLayer)) {
             return false;
         }
         inp::Keyboard::GetInstance().UpdateKeys();

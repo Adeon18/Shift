@@ -72,15 +72,12 @@ namespace Shift::Graphics {
 
         //! Init the renderer and all child elements. featuresOverride replaces the backend's
         //! default RHIRequiredFeatures for this run
-        bool Init(const std::optional<RHIRequiredFeatures>& featuresOverride = std::nullopt);
+        bool Init(ShiftScene& scene, const std::optional<RHIRequiredFeatures>& featuresOverride = std::nullopt);
 
         void RegisterViewportTexture();
 
-        // TODO: hardcoded until the Scene container
-        bool LoadScene(RenderContextEncoder& transferEncoder);
-
-        //! Render entire frame
-        bool RenderFrame(const EngineData& engineData, Editor::EditorLayer* editor);
+        //! Render entire frame. The scene is read by extraction only
+        bool RenderFrame(const EngineData& engineData, const ShiftScene& scene, Editor::EditorLayer* editor);
 
         //! Rebuild every pipeline whose shaders are marked dirty, and returns the rebuild pipeline count
         uint32_t HotReloadShaders();
@@ -125,9 +122,6 @@ namespace Shift::Graphics {
 
         [[nodiscard]] CaptureSystem& GetCaptureSystem() { return m_captureSystem; }
 
-        //! The instabnces the scene pass draws, in ObjectData order
-        [[nodiscard]] const std::vector<MeshPlacement>& GetPlacements() const { return m_placements; }
-
         //! object array + draw list
         [[nodiscard]] const RenderScene& GetRenderScene() const { return m_renderScene; }
 
@@ -148,10 +142,6 @@ namespace Shift::Graphics {
         [[nodiscard]] const std::vector<GPUTimeRange>& GetLastFrameGPUTimeRanges() const { return m_renderBackend.GetLastFrameGPUTimeRanges(); }
 
     private:
-        //! Builds a callable function per mesh to be used by mat manager to map texture to bindless index -> here temporarily until scene class
-        [[nodiscard]] TextureSlotResolver MakeTextureResolver(const std::string& baseDir,
-                                                              RenderContextEncoder& transferEncoder);
-
         [[nodiscard]] uint32_t AquireImage(bool *success);
         [[nodiscard]] bool PresentFinalImage(uint32_t imageIndex);
         void FillFrameConstants(GPU::FrameConstants* frameConstantsPtr, const EngineData& engineData, const RendererSettings& settings, uint32_t frameSlot);
@@ -191,7 +181,6 @@ namespace Shift::Graphics {
         //! One MaterialData array per FIF. Pulled from MaterialManager every frame
         Graphics::FrameRingBuffer<GPU::MaterialData> m_materialData;
 
-        std::vector<MeshPlacement> m_placements;
         //! Thr renderer scvene input
         RenderScene m_renderScene;
 

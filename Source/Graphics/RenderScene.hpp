@@ -5,7 +5,6 @@
 #ifndef SHIFT_RENDERSCENE_HPP
 #define SHIFT_RENDERSCENE_HPP
 
-#include <span>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -14,17 +13,14 @@
 #include "Graphics/Managers/MeshManager.hpp"
 #include "Graphics/Shared/GPUShared.h"
 
-namespace Shift::Graphics {
+namespace Shift {
+    class ShiftScene;
+}
 
-    //! Kinda temp until scene container.
-    struct MeshPlacement {
-        MeshHandle mesh;
-        glm::mat4 transform{1.0f};
-    };
+namespace Shift::Graphics {
 
     //! fro UI
     struct RenderSceneStats {
-        uint32_t placements = 0;
         uint32_t objects = 0;
         uint32_t drawCalls = 0;
         uint32_t instances = 0;
@@ -35,11 +31,10 @@ namespace Shift::Graphics {
     //! Manage the sorted object data and draw items for bindless as well. Later will manage the pass bits?:D
     class RenderScene {
     public:
-        void Extract(std::span<const MeshPlacement> placements,
-                     const MeshManager& meshes,
-                     PipelineHandle forwardPipeline);
+        //! The only reader of the scene
+        void Extract(const ShiftScene& scene, const MeshManager& meshes, PipelineHandle forwardPipeline);
 
-        //! One entry per placement, in placement order
+        //! One entry per node with a MeshProperty, in extraction order
         [[nodiscard]] const std::vector<GPU::ObjectData>& GetObjects() const { return m_objects; }
 
         //! Sorted by DrawItem::sortKey
