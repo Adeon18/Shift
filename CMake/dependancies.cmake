@@ -54,6 +54,13 @@ FetchContent_Declare(meshoptimizer
 # We never run `cmake --install`, so don't let a dependency add install rules to our build
 set(MESHOPT_INSTALL OFF CACHE BOOL "" FORCE)
 
+# entt
+FetchContent_Declare(entt
+        GIT_REPOSITORY https://github.com/skypjack/entt.git
+        GIT_TAG v3.16.0
+        GIT_SHALLOW ON
+        GIT_PROGRESS ON)
+
 # DocTest test framework
 set(DOCTEST_WITH_TESTS OFF CACHE BOOL "" FORCE)
 set(DOCTEST_NO_INSTALL ON CACHE BOOL "" FORCE)

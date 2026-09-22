@@ -48,6 +48,7 @@ Shift CMake system pulls all dependencies except for the Vulkan related ones (th
 - [Dear ImGui](https://github.com/ocornut/imgui.git)
 - [fastgltf](https://github.com/spnda/fastgltf.git): glTF 2.0 loading.
 - [meshoptimizer](https://github.com/zeux/meshoptimizer.git): import-time index/vertex optimization.
+- [EnTT](https://github.com/skypjack/entt.git): the scene's entity/component storage.
 - [stb_image](https://github.com/nothings/stb.git): Provided in [Vendor\local](https://github.com/Adeon18/Shift/tree/main/Vendor/local).
 - [MikkTSpace](https://github.com/mmikk/MikkTSpace): tangent generation. Also provided in [Vendor\local](https://github.com/Adeon18/Shift/tree/main/Vendor/local).
 ---

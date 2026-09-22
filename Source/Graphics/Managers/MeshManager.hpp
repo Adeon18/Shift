@@ -16,6 +16,7 @@
 #include "BufferManager.hpp"
 #include "BufferRangeAllocator.hpp"
 #include "GenerationalPool.hpp"
+#include "MeshHandle.hpp"
 
 namespace Shift::Graphics {
     struct MeshSubmesh {
@@ -34,9 +35,6 @@ namespace Shift::Graphics {
         std::vector<MeshSubmesh> submeshes;
         Bounds bounds;
     };
-
-    //! Later this will be useful (maybe not)
-    using MeshHandle = GenerationalPool<Mesh>::Handle;
 
     //! Wraps five merged buffers every scene mesh suballocates from
     class MeshManager {

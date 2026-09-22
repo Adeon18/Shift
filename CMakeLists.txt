@@ -28,6 +28,7 @@ FetchContent_MakeAvailable(spdlog)
 FetchContent_MakeAvailable(efsw)
 FetchContent_MakeAvailable(volk)
 FetchContent_MakeAvailable(doctest)
+FetchContent_MakeAvailable(entt)
 
 # ----------------------------------------------------------------------------
 # shift_core: the whole engine as a static library.
@@ -116,6 +117,7 @@ if (WIN32)
       meshoptimizer
       Slang::Slang
       efsw
+      EnTT::EnTT
   )
 
   # CRITICAL: Copy the slang runtime DLLs next to every executable that links the engine
@@ -153,5 +155,6 @@ elseif (UNIX)
         meshoptimizer
         Slang::Slang
         efsw
+        EnTT::EnTT
     )
 endif()
