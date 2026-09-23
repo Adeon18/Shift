@@ -29,7 +29,10 @@ namespace Shift::Graphics {
 
     bool MaterialManager::Init(const TextureSlotResolver& resolve) {
         m_materials.clear();
-        const uint32_t defaultIndex = RegisterMaterial(MaterialDesc{}, resolve);
+        m_names.clear();
+        MaterialDesc defaultDesc;
+        defaultDesc.name = "Default";
+        const uint32_t defaultIndex = RegisterMaterial(defaultDesc, resolve);
 
         CheckCritical(defaultIndex == DEFAULT_MATERIAL_INDEX,
                       "The default material did not land in slot 0 of the material array!");
@@ -45,6 +48,7 @@ namespace Shift::Graphics {
 
         const uint32_t index = static_cast<uint32_t>(m_materials.size());
         m_materials.push_back(MaterialDataFromDesc(desc, resolve));
+        m_names.push_back(desc.name);
         return index;
     }
 

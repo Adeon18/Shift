@@ -11,6 +11,9 @@
 namespace Shift {
     //! entt::null is the invalid node, a 0-value entity is a valid node
     using NodeID = entt::entity;
+
+    //! Not to leak entt too far
+    inline constexpr NodeID NULL_NODE{entt::null};
 }
 
 #endif //SHIFT_NODEID_HPP

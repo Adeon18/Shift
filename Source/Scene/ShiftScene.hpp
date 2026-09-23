@@ -5,10 +5,12 @@
 #ifndef SHIFT_SHIFTSCENE_HPP
 #define SHIFT_SHIFTSCENE_HPP
 
+#include <concepts>
 #include <cstdint>
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <entt/entity/registry.hpp>
@@ -36,8 +38,17 @@ namespace Shift {
         std::vector<uint32_t> materials;
     };
 
+    //! locked - imported model has hidden children
+    struct ModelLockProperty {
+        bool locked = true;
+    };
+
     //! Needed to mark transforms dirty
     struct DirtyTag {};
+
+    //! What AddProperty/EditProperty/GetProperty accept
+    template<typename T>
+    concept SceneProperty = std::same_as<T, TransformProperty> || std::same_as<T, MeshProperty> || std::same_as<T, ModelLockProperty>;
 
     class ShiftScene {
     public:
@@ -56,13 +67,32 @@ namespace Shift {
         //! The node's transform or ancestors transform if node does not have one
         [[nodiscard]] glm::mat4 GetWorld(NodeID node) const;
 
-        TransformProperty* AddTransform(NodeID node, TransformProperty transform);
-        //! The place where we write transforms
-        TransformProperty* EditTransform(NodeID node);
+        //! nullptr if the node is invalid or already has one
+        template<SceneProperty T>
+        T* AddProperty(NodeID node, T property) {
+            if (!IsValid(node) || m_registry.all_of<T>(node)) { return nullptr; }
+            T& added = m_registry.emplace<T>(node, std::move(property));
+            if constexpr (std::same_as<T, TransformProperty>) { MarkDirty(node); }
+            return &added;
+        }
 
-        MeshProperty* AddMesh(NodeID node, MeshProperty mesh);
-        //! Same but with esh
-        MeshProperty* EditMesh(NodeID node);
+        //! Edit property
+        //! Special logic to make transforms dirty
+        template<SceneProperty T>
+        T* EditProperty(NodeID node) {
+            if (!IsValid(node)) { return nullptr; }
+            T* property = m_registry.try_get<T>(node);
+            if constexpr (std::same_as<T, TransformProperty>) {
+                if (property) { MarkDirty(node); }
+            }
+            return property;
+        }
+
+        //! Get one property or nullptr if absent
+        template<SceneProperty T>
+        [[nodiscard]] const T* GetProperty(NodeID node) const {
+            return IsValid(node) ? m_registry.try_get<T>(node) : nullptr;
+        }
 
         //! For views to make a view, use and drop
         [[nodiscard]] const entt::registry& GetRegistry() const { return m_registry; }

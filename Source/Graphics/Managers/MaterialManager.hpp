@@ -7,6 +7,8 @@
 
 #include <functional>
 #include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include "Loaders/ModelLoader/IModelLoader.hpp"
@@ -49,8 +51,15 @@ namespace Shift::Graphics {
             return (index < m_materials.size()) ? &m_materials[index] : nullptr;
         }
 
+        //! Material name for the editor, empty if none
+        [[nodiscard]] std::string_view GetName(uint32_t index) const {
+            return (index < m_names.size()) ? std::string_view{m_names[index]} : std::string_view{};
+        }
+
     private:
         std::vector<GPU::MaterialData> m_materials;
+        //! Same idx as above
+        std::vector<std::string> m_names;
     };
 }
 

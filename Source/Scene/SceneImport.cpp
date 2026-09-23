@@ -51,12 +51,13 @@ namespace Shift {
             for (const Graphics::MeshSubmesh& submesh : mesh->submeshes) {
                 property.materials.push_back(submesh.materialIndex);
             }
-            return scene.AddMesh(node, std::move(property)) != nullptr;
+            return scene.AddProperty(node, std::move(property)) != nullptr;
         };
 
         //! Root model transform
         const NodeID root = scene.CreateNode(std::move(name));
-        scene.AddTransform(root, rootTransform);
+        scene.AddProperty(root, rootTransform);
+        scene.AddProperty(root, ModelLockProperty{});
 
         //! Nodes are already depth dirst sorted, parent -> children -> their children, other parent -> children and so on
         //! So in terms of scene nodes - easy to initialize, as parents always are before children
@@ -66,7 +67,7 @@ namespace Shift {
             const NodeDesc& desc = model->nodes[i];
             const NodeID parent = (desc.parent == MODEL_INDEX_NONE) ? root : nodes[desc.parent];
             nodes[i] = scene.CreateNode(desc.name, parent);
-            scene.AddTransform(nodes[i], {.translation = desc.translation, .rotation = desc.rotation, .scale = desc.scale});
+            scene.AddProperty(nodes[i], TransformProperty{.translation = desc.translation, .rotation = desc.rotation, .scale = desc.scale});
 
             if (desc.meshIndex == MODEL_INDEX_NONE || desc.meshIndex >= meshHandles.size()) { continue; }
             anyMesh = addMesh(nodes[i], meshHandles[desc.meshIndex]) || anyMesh;

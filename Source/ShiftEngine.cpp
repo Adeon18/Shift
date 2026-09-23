@@ -13,6 +13,8 @@
 #include "Graphics/UI/GPUTimingPanel.hpp"
 #include "Graphics/UI/RenderStatsPanel.hpp"
 #include "Graphics/UI/TonemapPanel.hpp"
+#include "Graphics/UI/SceneTreePanel.hpp"
+#include "Graphics/UI/NodeInspectorPanel.hpp"
 
 namespace Shift {
     bool ShiftEngine::Init(const EngineDescriptor& desc) {
@@ -37,8 +39,14 @@ namespace Shift {
         };
 
         m_editorLayer.AddPanel<Editor::ViewportPanel>(m_editorLayer.GetContext());
-        m_editorLayer.AddPanel<Editor::GenericPanel>("Properties");
-        m_editorLayer.AddPanel<Editor::GenericPanel>("Scene Hierarchy");
+        m_editorLayer.AddPanel<Editor::SceneTreePanel>(
+            m_editorLayer.GetContext(), [this]() -> const ShiftScene& { return m_scene; }
+        );
+        m_editorLayer.AddPanel<Editor::NodeInspectorPanel>(
+            m_editorLayer.GetContext(),
+            [this]() -> ShiftScene& { return m_scene; },
+            [this]() -> const Graphics::MaterialManager& { return m_renderer->GetMaterialManager(); }
+        );
         m_editorLayer.AddPanel<Editor::GenericPanel>("Content Browser");
         m_editorLayer.AddPanel<Editor::GenericPanel>("Console");
         m_editorLayer.AddPanel<Editor::GPUTimingPanel>(

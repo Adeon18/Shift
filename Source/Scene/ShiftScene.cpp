@@ -76,30 +76,6 @@ namespace Shift {
         return glm::mat4(1.0f);
     }
 
-    TransformProperty* ShiftScene::AddTransform(NodeID node, TransformProperty transform) {
-        if (!IsValid(node) || m_registry.all_of<TransformProperty>(node)) { return nullptr; }
-        TransformProperty& added = m_registry.emplace<TransformProperty>(node, transform);
-        MarkDirty(node);
-        return &added;
-    }
-
-    TransformProperty* ShiftScene::EditTransform(NodeID node) {
-        if (!IsValid(node)) { return nullptr; }
-        TransformProperty* transform = m_registry.try_get<TransformProperty>(node);
-        if (transform) { MarkDirty(node); }
-        return transform;
-    }
-
-    MeshProperty* ShiftScene::AddMesh(NodeID node, MeshProperty mesh) {
-        if (!IsValid(node) || m_registry.all_of<MeshProperty>(node)) { return nullptr; }
-        return &m_registry.emplace<MeshProperty>(node, std::move(mesh));
-    }
-
-    MeshProperty* ShiftScene::EditMesh(NodeID node) {
-        if (!IsValid(node)) { return nullptr; }
-        return m_registry.try_get<MeshProperty>(node);
-    }
-
     void ShiftScene::MarkDirty(NodeID node) {
         m_registry.emplace_or_replace<DirtyTag>(node);
     }
