@@ -32,7 +32,7 @@ namespace Shift::Editor {
             ImGui::Text("Culled      %u", stats.culled);
 
             if (stats.drawCalls == stats.instances) {
-                ImGui::TextDisabled("(no instancing yet)");
+                ImGui::TextDisabled("(no draw is instanced)");
             }
         }
 

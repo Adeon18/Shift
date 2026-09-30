@@ -136,26 +136,41 @@ namespace {
             CHECK(MaxAbsDiff(ringObjects[i].model, objects[i].model) == 0.0f);
         }
 
+        //! Every draw reaches its objects through its run in the submesh instance list
+        const std::vector<uint32_t>& list = scene.GetSubmeshInstances();
+        std::vector<bool> listCovered(list.size(), false);
         uint32_t instanceTotal = 0;
+        bool anyInstanced = false;
         for (const Shift::Graphics::DrawItem& item : items) {
-            REQUIRE_MESSAGE(item.objectIndex < objects.size(),
-                            "a draw item addresses an object that does not exist");
-            const Shift::Graphics::Mesh* mesh = meshes.Get(meshNodes[item.objectIndex].mesh);
-            REQUIRE(mesh != nullptr);
+            CHECK(item.instanceCount > 0u);
+            const bool runInList = static_cast<size_t>(item.firstSubmeshInstance) + item.instanceCount <= list.size();
+            REQUIRE_MESSAGE(runInList, "a draw's run reaches past the end of the submesh instance list");
 
-            //! Every draw passes vertexOffset = 0, so THIS is the only thing that puts a mesh's
-            //! vertices at the right place in the merged streams. A drift renders another mesh
-            CHECK_MESSAGE(item.meshVertexBase == mesh->vertexRange.first,
-                          "PushConstants::meshVertexBase does not match where the mesh landed");
+            for (uint32_t k = 0; k < item.instanceCount; ++k) {
+                const uint32_t entryIndex = item.firstSubmeshInstance + k;
+                CHECK_MESSAGE(!listCovered[entryIndex], "two draws' runs overlap in the submesh instance list");
+                listCovered[entryIndex] = true;
 
-            //! firstIndex is absolute in the merged buffer: the mesh's base plus the submesh's own
-            //! offset. Missing the base and the draw reads a neighbouring mesh's triangles
-            CHECK(item.firstIndex >= mesh->indexRange.first);
-            const bool insideMesh =
-                    item.firstIndex + item.indexCount <= mesh->indexRange.first + mesh->indexRange.count;
-            CHECK_MESSAGE(insideMesh, "a draw item's index range runs past its own mesh");
+                const uint32_t objectIndex = list[entryIndex] & Shift::GPU::SUBMESH_INSTANCE_OBJECT_MASK;
+                REQUIRE_MESSAGE(objectIndex < objects.size(),
+                                "a submesh instance entry addresses an object that does not exist");
+                const Shift::Graphics::Mesh* mesh = meshes.Get(meshNodes[objectIndex].mesh);
+                REQUIRE(mesh != nullptr);
+
+                //! Every draw passes vertexOffset = 0, so THIS is the only thing that puts a mesh's
+                //! vertices at the right place in the merged streams. Checked per instance: a run
+                //! grouping two different meshes draws one of them with the other's geometry
+                CHECK_MESSAGE(item.meshVertexBase == mesh->vertexRange.first,
+                              "PushConstants::meshVertexBase does not match where an instance's mesh landed");
+
+                //! firstIndex is absolute in the merged buffer: the mesh's base plus the submesh's own
+                //! offset. Missing the base and the draw reads a neighbouring mesh's triangles
+                CHECK(item.firstIndex >= mesh->indexRange.first);
+                const bool insideMesh =
+                        item.firstIndex + item.indexCount <= mesh->indexRange.first + mesh->indexRange.count;
+                CHECK_MESSAGE(insideMesh, "a draw item's index range runs past an instance's own mesh");
+            }
             CHECK(item.indexCount > 0u);
-            CHECK(item.instanceCount == 1u);
 
             //! The index the pixel shader addresses the material ring with. Past the end it reads
             //! whatever else is in the slot, with no descriptor for validation to bounds-check
@@ -165,8 +180,31 @@ namespace {
                           "a draw item is in no pass, so nothing would ever record it");
 
             instanceTotal += item.instanceCount;
+            anyInstanced = anyInstanced || item.instanceCount > 1u;
         }
         CHECK(stats.instances == instanceTotal);
+
+        //! The runs tile the list, so no entry is uploaded that no draw reads
+        CHECK_MESSAGE(instanceTotal == list.size(), "the submesh instance list holds entries no draw covers");
+
+        //! Nothing is culled yet, so every submesh of every mesh node is drawn exactly once
+        size_t submeshTotal = 0;
+        for (const MeshNode& meshNode : meshNodes) {
+            const Shift::Graphics::Mesh* mesh = meshes.Get(meshNode.mesh);
+            REQUIRE(mesh != nullptr);
+            submeshTotal += mesh->submeshes.size();
+        }
+        CHECK_MESSAGE(list.size() == submeshTotal,
+                      "the submesh instance list does not hold one entry per submesh of every mesh node");
+
+        //! The skull copies share their meshes, so their parts must collapse into instanced draws
+        CHECK_MESSAGE(anyInstanced, "no draw has instanceCount > 1: nodes sharing a mesh are not being instanced");
+
+        //! The extracted list is what the ring receives, entry for entry
+        const uint32_t* ringList = renderer.GetSubmeshInstances(0);
+        REQUIRE_MESSAGE(ringList != nullptr, "submesh instance ring slot 0 does not resolve");
+        const bool ringListMatches = std::equal(list.begin(), list.end(), ringList);
+        CHECK_MESSAGE(ringListMatches, "the submesh instance ring slot differs from the extracted list");
 
         //! Sorted by sortKey, which is what makes P4.4's collapse a single linear scan
         const bool sorted = std::is_sorted(items.begin(), items.end(),
@@ -667,6 +705,8 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
         //! Each frame in flight hands the shader ITS OWN ObjectData slot - that is the whole reason
         //! the array is a per-frame ring rather than one shared buffer
         CHECK_MESSAGE(frame->objectBufferRef != 0, "object array address never reached the GPU struct");
+        CHECK_MESSAGE(frame->submeshInstanceBufferRef != 0,
+                      "submesh instance list address never reached the GPU struct");
     }
 
     {
@@ -677,6 +717,8 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
         CHECK_MESSAGE(slot0->objectBufferRef != slot1->objectBufferRef,
                       "two frames in flight were handed the SAME ObjectData address, so one frame's "
                       "CPU rewrite lands in an array the other is still reading");
+        CHECK_MESSAGE(slot0->submeshInstanceBufferRef != slot1->submeshInstanceBufferRef,
+                      "two frames in flight were handed the SAME submesh instance list address");
     }
 
     //! The merged scene geometry, the extracted frame, and the one number the pull model

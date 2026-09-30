@@ -39,6 +39,8 @@ namespace Shift::Graphics {
                       "Failed to create the object data ring!");
         CheckCritical(m_materialData.Init(m_bufferManager, "MaterialDataRing", Conf::MAX_SCENE_MATERIALS),
                       "Failed to create the material data ring!");
+        CheckCritical(m_submeshInstances.Init(m_bufferManager, "SubmeshInstanceRing", Conf::MAX_SCENE_SUBMESH_INSTANCES),
+                      "Failed to create the submesh instance ring!");
 
         RenderContext& tctx = m_renderBackend.GetTransferContext();
         RenderContextEncoder* tEncoder = tctx.CreateCommandEncoder();
@@ -209,9 +211,12 @@ namespace Shift::Graphics {
         CheckCritical(objectData != nullptr, "Object data ring has no slot for this frame!");
         GPU::MaterialData* materialData = m_materialData.Slot(frameSlot);
         CheckCritical(materialData != nullptr, "Material data ring has no slot for this frame!");
+        uint32_t* submeshInstances = m_submeshInstances.Slot(frameSlot);
+        CheckCritical(submeshInstances != nullptr, "Submesh instance ring has no slot for this frame!");
 
         UploadObjectData(objectData);
         UploadMaterialData(materialData);
+        UploadSubmeshInstances(submeshInstances);
         FillFrameConstants(frameConstants, engineData, settings, frameSlot);
 
         uint32_t imageIndex = UINT32_MAX;
@@ -459,6 +464,7 @@ namespace Shift::Graphics {
         frameConstantsPtr->uvsRef = m_meshManager.GetStreamAddress(MeshManager::UVs);
 
         frameConstantsPtr->objectBufferRef = m_objectData.SlotAddress(frameSlot);
+        frameConstantsPtr->submeshInstanceBufferRef = m_submeshInstances.SlotAddress(frameSlot);
         frameConstantsPtr->materialBufferRef = m_materialData.SlotAddress(frameSlot);
         frameConstantsPtr->lightBufferRef = 0;
     }
@@ -476,6 +482,13 @@ namespace Shift::Graphics {
         const uint32_t count = std::min(static_cast<uint32_t>(materials.size()), m_materialData.GetElementsPerSlot());
         if (count == 0) { return; }
         std::memcpy(materialDataPtr, materials.data(), static_cast<size_t>(count) * sizeof(GPU::MaterialData));
+    }
+
+    void Renderer::UploadSubmeshInstances(uint32_t* submeshInstancesPtr) {
+        const std::vector<uint32_t>& entries = m_renderScene.GetSubmeshInstances();
+        const uint32_t count = std::min(static_cast<uint32_t>(entries.size()), m_submeshInstances.GetElementsPerSlot());
+        if (count == 0) { return; }
+        std::memcpy(submeshInstancesPtr, entries.data(), static_cast<size_t>(count) * sizeof(uint32_t));
     }
 
     bool Renderer::RecordDrawItems(RenderContextEncoder& encoder, uint32_t frameSlot) {
@@ -507,7 +520,7 @@ namespace Shift::Graphics {
             //! Push constants
             const GPU::PushConstants push{
                 .frameConstantsRef = frameConstantsRef,
-                .objectIndex = item.objectIndex,
+                .firstSubmeshInstance = item.firstSubmeshInstance,
                 .materialIndex = item.materialIndex,
                 .meshVertexBase = item.meshVertexBase
             };

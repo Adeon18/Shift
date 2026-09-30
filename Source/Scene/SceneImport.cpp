@@ -93,21 +93,39 @@ namespace Shift {
         };
 
         const std::string root = Util::GetShiftRoot();
+        const std::string skullPath = root + "Assets/Models/HumanSkull/scene.gltf";
         const std::vector<SceneModel> sources{
             {"DamagedHelmet", root + "Assets/Models/DamagedHelmet/scene.gltf", {.translation = {-2.0f, 0.0f, -3.5f}}},
-            {"HumanSkull", root + "Assets/Models/HumanSkull/scene.gltf", {.translation = {2.0f, 0.0f, -3.5f}}},
+            {"HumanSkull", skullPath, {.translation = {2.0f, 0.0f, -3.5f}}},
             // No textures, every mat slot is default
             {"Sphere", root + "Assets/Models/Sphere/sphere.glb", {.translation = {0.0f, -1.0f, -2.0f}}},
         };
 
+        NodeID skull{entt::null};
         for (const SceneModel& source : sources) {
-            ImportModel(scene, ctx, source.path, source.name, source.transform);
+            const NodeID model = ImportModel(scene, ctx, source.path, source.name, source.transform);
+            if (source.path == skullPath) { skull = model; }
         }
 
-        const size_t meshNodes = scene.GetRegistry().view<const MeshProperty>().size();
-        CheckCritical(meshNodes <= Conf::MAX_SCENE_OBJECTS, "The scene holds more objects than one ObjectData ring slot can carry!");
+        //! Make 10 copied skulls
+        constexpr uint32_t SKULL_COPIES = 10;
+        for (uint32_t i = 0; i < SKULL_COPIES; ++i) {
+            if (TransformProperty* transform = scene.EditProperty<TransformProperty>(scene.CopySubtree(skull))) {
+                transform->translation = {-18.0f + 4.0f * static_cast<float>(i), 0.0f, -8.0f};
+            }
+        }
 
-        Log(Info, "Scene loaded: {} mesh nodes, {} materials, {} vertices and {} indices merged", meshNodes, ctx.materials.GetCount(), ctx.meshes.GetUsedVertices(), ctx.meshes.GetUsedIndices());
+        const auto meshView = scene.GetRegistry().view<const MeshProperty>();
+        const size_t meshNodes = meshView.size();
+        CheckCritical(meshNodes <= Conf::MAX_SCENE_OBJECTS, "The scene holds more objects than one ObjectData ring slot can carry!");
+        size_t submeshInstances = 0;
+        for (const auto [node, meshProp] : meshView.each()) {
+            //! Counted the way Extract emits them, per submesh of the mesh
+            if (const Graphics::Mesh* mesh = ctx.meshes.Get(meshProp.mesh)) { submeshInstances += mesh->submeshes.size(); }
+        }
+        CheckCritical(submeshInstances <= Conf::MAX_SCENE_SUBMESH_INSTANCES, "The scene holds more submesh instances than one list ring slot can carry!");
+
+        Log(Info, "Scene loaded: {} mesh nodes, {} submesh instances, {} materials, {} vertices and {} indices merged", meshNodes, submeshInstances, ctx.materials.GetCount(), ctx.meshes.GetUsedVertices(), ctx.meshes.GetUsedIndices());
 
         return true;
     }

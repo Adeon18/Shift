@@ -138,6 +138,10 @@ namespace Shift::Graphics {
             return m_materialData.Slot(frameSlot);
         }
 
+        [[nodiscard]] const uint32_t* GetSubmeshInstances(uint32_t frameSlot) const {
+            return m_submeshInstances.Slot(frameSlot);
+        }
+
         //! Resolved GPU timing ranges of the most recently completed frame
         [[nodiscard]] const std::vector<GPUTimeRange>& GetLastFrameGPUTimeRanges() const { return m_renderBackend.GetLastFrameGPUTimeRanges(); }
 
@@ -149,6 +153,8 @@ namespace Shift::Graphics {
         void UploadObjectData(GPU::ObjectData* objectDataPtr);
 
         void UploadMaterialData(GPU::MaterialData* materialDataPtr);
+
+        void UploadSubmeshInstances(uint32_t* submeshInstancesPtr);
 
         [[nodiscard]] bool RecordDrawItems(RenderContextEncoder& encoder, uint32_t frameSlot);
 
@@ -180,6 +186,8 @@ namespace Shift::Graphics {
         Graphics::FrameRingBuffer<GPU::ObjectData> m_objectData;
         //! One MaterialData array per FIF. Pulled from MaterialManager every frame
         Graphics::FrameRingBuffer<GPU::MaterialData> m_materialData;
+        //! One submesh instance list per FIF. Rebuilt every frame
+        Graphics::FrameRingBuffer<uint32_t> m_submeshInstances;
 
         //! Thr renderer scvene input
         RenderScene m_renderScene;

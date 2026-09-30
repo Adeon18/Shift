@@ -46,9 +46,18 @@ namespace Shift {
     //! Needed to mark transforms dirty
     struct DirtyTag {};
 
+    template<typename... Ts>
+    struct PropertyList {};
+
+    //! Superior to std::is_same which u have to repeat
+    using ScenePropertyKinds = PropertyList<TransformProperty, MeshProperty, ModelLockProperty>;
+
+    template<typename T, typename... Ts>
+    constexpr bool IsPropertyKind(PropertyList<Ts...>) { return (std::same_as<T, Ts> || ...); }
+
     //! What AddProperty/EditProperty/GetProperty accept
     template<typename T>
-    concept SceneProperty = std::same_as<T, TransformProperty> || std::same_as<T, MeshProperty> || std::same_as<T, ModelLockProperty>;
+    concept SceneProperty = IsPropertyKind<T>(ScenePropertyKinds{});
 
     class ShiftScene {
     public:
@@ -56,6 +65,9 @@ namespace Shift {
         NodeID CreateNode(std::string name, NodeID parent = entt::null);
 
         bool SetParent(NodeID node, NodeID newParent);
+
+        //! Copies the part of the subtree, shared mesh handles
+        NodeID CopySubtree(NodeID source, NodeID parent = entt::null);
 
         [[nodiscard]] bool IsValid(NodeID node) const { return m_registry.valid(node); }
 
@@ -113,6 +125,14 @@ namespace Shift {
         void UpdateSubtree(NodeID node, const glm::mat4& parentWorld);
         //! Check if a node or one of its ancestors is the subtree root
         [[nodiscard]] bool IsInSubtree(NodeID node, NodeID subtreeRoot) const;
+
+        //! Some bullshiiii lets gooo
+        template<typename... Ts>
+        void CopyProperties(NodeID from, NodeID to, PropertyList<Ts...>) {
+            ([&] {
+                if (const Ts* property = m_registry.try_get<Ts>(from)) { AddProperty(to, *property); }
+            }(), ...);
+        }
 
         entt::registry m_registry;
         std::vector<NodeID> m_roots;

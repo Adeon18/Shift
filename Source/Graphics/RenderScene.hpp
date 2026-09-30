@@ -40,13 +40,21 @@ namespace Shift::Graphics {
         //! Sorted by DrawItem::sortKey
         [[nodiscard]] const std::vector<DrawItem>& GetDrawItems() const { return m_drawItems; }
 
+        //! Get the isntance index list, only low 24 bits are index, high 8 are flags
+        //! Wicked engine uses similar approach and I like it for now
+        [[nodiscard]] const std::vector<uint32_t>& GetSubmeshInstances() const { return m_submeshInstances; }
+
         [[nodiscard]] const RenderSceneStats& GetStats() const { return m_stats; }
 
     private:
         std::vector<GPU::ObjectData> m_objects;
         std::vector<DrawItem> m_drawItems;
+        std::vector<uint32_t> m_submeshInstances;
         RenderSceneStats m_stats;
     };
+
+    //! An ObjectData index has to fit
+    static_assert(Conf::MAX_SCENE_OBJECTS - 1u <= GPU::SUBMESH_INSTANCE_OBJECT_MASK, "MAX_SCENE_OBJECTS no longer fits the submesh instance entry's index bits");
 }
 
 #endif //SHIFT_RENDERSCENE_HPP

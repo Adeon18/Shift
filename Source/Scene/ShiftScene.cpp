@@ -54,6 +54,21 @@ namespace Shift {
         return true;
     }
 
+    NodeID ShiftScene::CopySubtree(NodeID source, NodeID parent) {
+        if (!IsValid(source)) { return entt::null; }
+        //! Do not circle copy
+        if (IsValid(parent) && IsInSubtree(parent, source)) { return entt::null; }
+        const NodeID copy = CreateNode(std::string{GetName(source)}, parent);
+        CopyProperties(source, copy, ScenePropertyKinds{});
+
+        //! Add children to new copy
+        const std::vector<NodeID> children = m_registry.get<NodeRecord>(source).children;
+        for (const NodeID child : children) {
+            CopySubtree(child, copy);
+        }
+        return copy;
+    }
+
     std::string_view ShiftScene::GetName(NodeID node) const {
         return IsValid(node) ? std::string_view{m_registry.get<NodeRecord>(node).name} : std::string_view{};
     }

@@ -38,8 +38,8 @@ namespace Shift::Graphics {
         //! mesh.indexRange.first + submesh.firstIndex
         uint32_t firstIndex = 0u;
         uint32_t indexCount = 0u;
-        uint32_t objectIndex = 0u;
-        //! TODO: 1 for now
+        //! First submesh instance during instanced draw
+        uint32_t firstSubmeshInstance = 0u;
         uint32_t instanceCount = 1u;
         uint32_t materialIndex = 0u;
         uint32_t meshVertexBase = 0u;

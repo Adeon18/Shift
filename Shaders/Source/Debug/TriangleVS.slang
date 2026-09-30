@@ -15,7 +15,7 @@ VertexOutput mainVS(uint vertexID : SV_VertexID)
 {
     VertexOutput output;
     FrameConstants frame = LoadFrameConstants(pc.frameConstantsRef);
-    uint globalVtxID = vertexID + pc.objectIndex * 3; // for now
+    uint globalVtxID = vertexID + pc.firstSubmeshInstance * 3; // for now
     float3 position = LoadPosition(frame, globalVtxID);
     output.position = mul(float4(position, 1.0f), frame.viewProj);
 

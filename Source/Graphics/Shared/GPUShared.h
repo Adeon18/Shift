@@ -36,6 +36,9 @@ static const uint SAMPLER_LINEAR_CLAMP   = 1;
 static const uint SAMPLER_NEAREST_REPEAT = 2;
 static const uint SAMPLER_ANISO_REPEAT   = 3;
 
+//! Sumbesh instance mask, low 24 - objdata idx, high 8 - flags
+static const uint SUBMESH_INSTANCE_OBJECT_MASK = 0x00FFFFFFu;
+
 //! Per-frame, per-view constants. Written into this frame's ring slot on the CPU and reached by
 //! the shader through the address in PushConstants
 struct FrameConstants {
@@ -60,6 +63,9 @@ struct FrameConstants {
 
     //! The per-frame scene arrays
     GPUBufferRef objectBufferRef;
+    //! This is essentially an instance buffer, but in Shift we operate on the submeshinstance level as we do not use
+    //! Default instance buffers due to bindless
+    GPUBufferRef submeshInstanceBufferRef;
     GPUBufferRef materialBufferRef;
     GPUBufferRef lightBufferRef;
 };
@@ -114,8 +120,8 @@ struct LightData {
 //! The forward pass push block, 24B
 struct PushConstants {
     GPUBufferRef frameConstantsRef;
-    //! API agnostic firstInstance
-    uint objectIndex;
+    //! Instancing submesh first sinstance
+    uint firstSubmeshInstance;
     uint materialIndex;
     //! This mesh's base vertex in the merged streams
     uint meshVertexBase;

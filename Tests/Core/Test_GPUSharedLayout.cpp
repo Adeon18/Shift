@@ -34,7 +34,7 @@ using namespace Shift::GPU;
 namespace {
     //! sizeof() must match the stride SPIR-V gives the struct, or an array of them walks off
     //! alignment on the very first element
-    static_assert(sizeof(FrameConstants) == 296, "FrameConstants no longer matches its SPIR-V stride");
+    static_assert(sizeof(FrameConstants) == 304, "FrameConstants no longer matches its SPIR-V stride");
     //! 80 re-measured out of real SPIR-V when normalMat was dropped (P4.3 3b), not derived
     static_assert(sizeof(ObjectData) == 80, "ObjectData no longer matches its SPIR-V stride");
     static_assert(sizeof(MaterialData) == 64, "MaterialData no longer matches its SPIR-V stride");
@@ -69,6 +69,7 @@ namespace {
     static_assert(offsetof(FrameConstants, tangentsRef)       % alignof(GPUBufferRef) == 0);
     static_assert(offsetof(FrameConstants, uvsRef)            % alignof(GPUBufferRef) == 0);
     static_assert(offsetof(FrameConstants, objectBufferRef)   % alignof(GPUBufferRef) == 0);
+    static_assert(offsetof(FrameConstants, submeshInstanceBufferRef) % alignof(GPUBufferRef) == 0);
     static_assert(offsetof(FrameConstants, materialBufferRef) % alignof(GPUBufferRef) == 0);
     static_assert(offsetof(FrameConstants, lightBufferRef)    % alignof(GPUBufferRef) == 0);
     static_assert(offsetof(PushConstants,  frameConstantsRef) % alignof(GPUBufferRef) == 0);
@@ -81,7 +82,7 @@ TEST_SUITE("GPUSharedLayout") {
 //! contract held. The case exists so the guard is visible in the suite listing rather than being
 //! a header that silently compiles
 TEST_CASE("the shared CPU/GPU structs still match the layout the shaders were built against") {
-    CHECK(sizeof(FrameConstants) == 296);
+    CHECK(sizeof(FrameConstants) == 304);
     CHECK(sizeof(ObjectData) == 80);
     CHECK(sizeof(MaterialData) == 64);
     CHECK(sizeof(LightData) == 64);

@@ -28,7 +28,8 @@ ForwardData mainVS(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
     float4 tangent = LoadTangent(frame, globalVertex);
     float2 uv = LoadUV(frame, globalVertex);
 
-    ObjectData object = LoadObject(frame, pc.objectIndex + instanceID);
+    const uint entry = LoadSubmeshInstanceRaw(frame, pc.firstSubmeshInstance + instanceID);
+    ObjectData object = LoadObject(frame, GetObjectIndexFromSubmeshInstance(entry));
 
     //! For normal mapping, TODO, fully understand the math
     float3 m0 = object.model[0].xyz;

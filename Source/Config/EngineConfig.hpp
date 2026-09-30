@@ -26,6 +26,8 @@ namespace Shift::Conf {
     //! Index buffer, 32-bit (64 MB)
     static constexpr uint32_t MAX_SCENE_INDICES = 16'777'216u;
     static constexpr uint32_t MAX_SCENE_OBJECTS = 16384u;
+    //! Submesh instance list size 4b*size: (256 KB)
+    static constexpr uint32_t MAX_SCENE_SUBMESH_INSTANCES = 65536u;
     static constexpr uint32_t MAX_SCENE_MATERIALS = 1024u;
 
     //! Max named GPU timing ranges recorded per frame. Two timestamps per range

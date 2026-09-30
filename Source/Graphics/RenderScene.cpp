@@ -10,13 +10,27 @@
 
 namespace Shift::Graphics {
 
+    namespace {
+        //! One submesh data needed to build draw items later
+        struct SubmeshRecord {
+            uint64_t sortKey = 0;
+            uint32_t objectIndex = 0;
+            uint32_t submeshIndex = 0;
+            uint32_t materialIndex = 0;
+            const Mesh* mesh = nullptr;
+        };
+    }
+
     void RenderScene::Extract(const ShiftScene& scene, const MeshManager& meshes, PipelineHandle forwardPipeline) {
         m_objects.clear();
         m_drawItems.clear();
+        m_submeshInstances.clear();
         m_stats = {};
 
+        std::vector<SubmeshRecord> records;
+
         const auto& registry = scene.GetRegistry();
-        registry.view<MeshProperty>().each([this, &scene, &meshes, &forwardPipeline](const auto entity, const auto& meshProp) {
+        registry.view<MeshProperty>().each([this, &scene, &meshes, &forwardPipeline, &records](const auto entity, const auto& meshProp) {
             const Mesh* mesh = meshes.Get(meshProp.mesh);
             const glm::mat4 transform = scene.GetWorld(entity);
             if (!mesh) { return; }
@@ -33,31 +47,49 @@ namespace Shift::Graphics {
             m_objects.push_back(data);
 
             for (uint32_t i = 0; i < mesh->submeshes.size(); ++i) {
-                const MeshSubmesh& sm = mesh->submeshes[i];
                 //! This could have used the material index commented out below, but since we allow material replacement
                 //! the indices will differ after the first replacement
                 // const uint32_t materialIndex = sm.materialIndex;
-                DrawItem dW{
-                    .passMask = EPassBit::Forward | EPassBit::DepthOnly,
-                    .pipeline = forwardPipeline,
-                    .firstIndex = mesh->indexRange.first + sm.firstIndex,
-                    .indexCount = sm.indexCount,
+                const uint32_t materialIndex = meshProp.materials[i];
+                records.push_back({
+                    .sortKey = MakeDrawSortKey(forwardPipeline.slotIdx, meshProp.mesh.slotIdx, i, materialIndex),
                     .objectIndex = objectIndex,
-                    .instanceCount = 1,
-                    .materialIndex = meshProp.materials[i],
-                    .meshVertexBase = mesh->vertexRange.first,
-                    .sortKey = MakeDrawSortKey(forwardPipeline.slotIdx, meshProp.mesh.slotIdx, i, meshProp.materials[i])
-                };
-                m_drawItems.push_back(dW);
+                    .submeshIndex = i,
+                    .materialIndex = materialIndex,
+                    .mesh = mesh
+                });
             }
         });
 
-        std::sort(m_drawItems.begin(), m_drawItems.end(),
-                  [](const DrawItem& lhs, const DrawItem& rhs) { return lhs.sortKey < rhs.sortKey; });
+        //! Sort by keyss
+        std::sort(records.begin(), records.end(), [](const SubmeshRecord& lhs, const SubmeshRecord& rhs) { return lhs.sortKey < rhs.sortKey; });
+
+        m_submeshInstances.reserve(records.size());
+        //! Ranged iterations, so for each record, we check how many same key recordds are there and emit one draw item for all with respective index count and shit
+        for (size_t runStart = 0, runEnd = 0; runStart < records.size(); runStart = runEnd) {
+            const SubmeshRecord& first = records[runStart];
+            while (runEnd < records.size() && records[runEnd].sortKey == first.sortKey) {
+                m_submeshInstances.push_back(records[runEnd].objectIndex);
+                ++runEnd;
+            }
+
+            const MeshSubmesh& sm = first.mesh->submeshes[first.submeshIndex];
+            m_drawItems.push_back({
+                .passMask = EPassBit::Forward | EPassBit::DepthOnly,
+                .pipeline = forwardPipeline,
+                .firstIndex = first.mesh->indexRange.first + sm.firstIndex,
+                .indexCount = sm.indexCount,
+                .firstSubmeshInstance = static_cast<uint32_t>(runStart),
+                .instanceCount = static_cast<uint32_t>(runEnd - runStart),
+                .materialIndex = first.materialIndex,
+                .meshVertexBase = first.mesh->vertexRange.first,
+                .sortKey = first.sortKey
+            });
+        }
 
         m_stats.objects = static_cast<uint32_t>(m_objects.size());
         m_stats.culled = 0;
         m_stats.drawCalls = static_cast<uint32_t>(m_drawItems.size());
-        m_stats.instances = static_cast<uint32_t>(m_drawItems.size()); // FOR NOW
+        m_stats.instances = static_cast<uint32_t>(m_submeshInstances.size());
     }
 }
