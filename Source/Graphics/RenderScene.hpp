@@ -9,6 +9,7 @@
 
 #include <glm/glm.hpp>
 
+#include "Culling.hpp"
 #include "DrawItem.hpp"
 #include "Graphics/Managers/MeshManager.hpp"
 #include "Graphics/Shared/GPUShared.h"
@@ -24,15 +25,21 @@ namespace Shift::Graphics {
         uint32_t objects = 0;
         uint32_t drawCalls = 0;
         uint32_t instances = 0;
-        //! Later I guess
+        //! Frustim culler for now
         uint32_t culled = 0;
+    };
+
+    //! Culling happens at extraction
+    struct ExtractInputs {
+        PipelineHandle forwardPipeline{};
+        Frustum frustum;
     };
 
     //! Manage the sorted object data and draw items for bindless as well. Later will manage the pass bits?:D
     class RenderScene {
     public:
         //! The only reader of the scene
-        void Extract(const ShiftScene& scene, const MeshManager& meshes, PipelineHandle forwardPipeline);
+        void Extract(const ShiftScene& scene, const MeshManager& meshes, const ExtractInputs& inputs);
 
         //! One entry per node with a MeshProperty, in extraction order
         [[nodiscard]] const std::vector<GPU::ObjectData>& GetObjects() const { return m_objects; }

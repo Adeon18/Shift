@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstring>
 
+#include "Graphics/Culling.hpp"
 #include "Graphics/RHI/Vulkan/VKImGuiBackend.hpp"
 #include "Scene/SceneImport.hpp"
 
@@ -198,8 +199,12 @@ namespace Shift::Graphics {
         //! Pending uploads from the texture manager
         CheckCritical(m_textureManager->SubmitPendingUploads(), "Failed to submit pending texture uploads!");
 
-        //! Rebuld the draw list + objecty arr, culling, selection movement n shi will be here later
-        m_renderScene.Extract(scene, m_meshManager, m_forwardPipeline);
+        //! Rebuld the draw list + objecty arr, selection movement n shi will be here later
+        const ExtractInputs extractInputs{
+            .forwardPipeline = m_forwardPipeline,
+            .frustum = MakeFrustum(engineData.projMatrix * engineData.viewMatrix)
+        };
+        m_renderScene.Extract(scene, m_meshManager, extractInputs);
 
         //! Reclaim this frame slot
         m_renderBackend.BeginFrame();

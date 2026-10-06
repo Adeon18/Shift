@@ -19,9 +19,17 @@ namespace Shift::Graphics {
             uint32_t materialIndex = 0;
             const Mesh* mesh = nullptr;
         };
+
+        //! Get world sphere from local space
+        [[nodiscard]] glm::vec4 WorldSphere(const glm::mat4& transform, const glm::vec4& localSphere) {
+            const float radiusScale = std::max({glm::length(glm::vec3(transform[0])),
+                                                glm::length(glm::vec3(transform[1])),
+                                                glm::length(glm::vec3(transform[2]))});
+            return glm::vec4(glm::vec3(transform * glm::vec4(glm::vec3(localSphere), 1.0f)), localSphere.w * radiusScale);
+        }
     }
 
-    void RenderScene::Extract(const ShiftScene& scene, const MeshManager& meshes, PipelineHandle forwardPipeline) {
+    void RenderScene::Extract(const ShiftScene& scene, const MeshManager& meshes, const ExtractInputs& inputs) {
         m_objects.clear();
         m_drawItems.clear();
         m_submeshInstances.clear();
@@ -30,29 +38,29 @@ namespace Shift::Graphics {
         std::vector<SubmeshRecord> records;
 
         const auto& registry = scene.GetRegistry();
-        registry.view<MeshProperty>().each([this, &scene, &meshes, &forwardPipeline, &records](const auto entity, const auto& meshProp) {
+        registry.view<MeshProperty>().each([this, &scene, &meshes, &inputs, &records](const auto entity, const auto& meshProp) {
             const Mesh* mesh = meshes.Get(meshProp.mesh);
             const glm::mat4 transform = scene.GetWorld(entity);
             if (!mesh) { return; }
+            //! W esubmit object data regardless, culling is controlled by isntances
             GPU::ObjectData data{};
             uint32_t objectIndex = static_cast<uint32_t>(m_objects.size());
             data.model = transform;
-            const glm::vec4 localSphere = mesh->bounds.sphere;
-            const float radiusScale = std::max({glm::length(glm::vec3(transform[0])),
-                                                glm::length(glm::vec3(transform[1])),
-                                                glm::length(glm::vec3(transform[2]))});
-            data.boundsSphere = glm::vec4(
-                glm::vec3(transform * glm::vec4(glm::vec3(localSphere), 1.0f)),
-                localSphere.w * radiusScale);
+            data.boundsSphere = WorldSphere(transform, mesh->bounds.sphere);
             m_objects.push_back(data);
 
             for (uint32_t i = 0; i < mesh->submeshes.size(); ++i) {
+                //! Per sumhesh
+                if (!IsVisible(inputs.frustum, WorldSphere(transform, mesh->submeshes[i].bounds.sphere))) {
+                    ++m_stats.culled;
+                    continue;
+                }
                 //! This could have used the material index commented out below, but since we allow material replacement
                 //! the indices will differ after the first replacement
                 // const uint32_t materialIndex = sm.materialIndex;
                 const uint32_t materialIndex = meshProp.materials[i];
                 records.push_back({
-                    .sortKey = MakeDrawSortKey(forwardPipeline.slotIdx, meshProp.mesh.slotIdx, i, materialIndex),
+                    .sortKey = MakeDrawSortKey(inputs.forwardPipeline.slotIdx, meshProp.mesh.slotIdx, i, materialIndex),
                     .objectIndex = objectIndex,
                     .submeshIndex = i,
                     .materialIndex = materialIndex,
@@ -76,7 +84,7 @@ namespace Shift::Graphics {
             const MeshSubmesh& sm = first.mesh->submeshes[first.submeshIndex];
             m_drawItems.push_back({
                 .passMask = EPassBit::Forward | EPassBit::DepthOnly,
-                .pipeline = forwardPipeline,
+                .pipeline = inputs.forwardPipeline,
                 .firstIndex = first.mesh->indexRange.first + sm.firstIndex,
                 .indexCount = sm.indexCount,
                 .firstSubmeshInstance = static_cast<uint32_t>(runStart),
@@ -88,7 +96,6 @@ namespace Shift::Graphics {
         }
 
         m_stats.objects = static_cast<uint32_t>(m_objects.size());
-        m_stats.culled = 0;
         m_stats.drawCalls = static_cast<uint32_t>(m_drawItems.size());
         m_stats.instances = static_cast<uint32_t>(m_submeshInstances.size());
     }

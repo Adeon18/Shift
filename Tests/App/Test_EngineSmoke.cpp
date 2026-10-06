@@ -187,15 +187,27 @@ namespace {
         //! The runs tile the list, so no entry is uploaded that no draw reads
         CHECK_MESSAGE(instanceTotal == list.size(), "the submesh instance list holds entries no draw covers");
 
-        //! Nothing is culled yet, so every submesh of every mesh node is drawn exactly once
+        //! Every submesh of every mesh node is either drawn exactly once or counted as culled.
+        //! This is the identity that catches a cull which loses instances or double-counts them -
+        //! a bare "culled > 0" passes just as happily when the test rejects the whole scene
         size_t submeshTotal = 0;
         for (const MeshNode& meshNode : meshNodes) {
             const Shift::Graphics::Mesh* mesh = meshes.Get(meshNode.mesh);
             REQUIRE(mesh != nullptr);
             submeshTotal += mesh->submeshes.size();
+
+            //! The cull reads these, and a zero radius culls the whole scene - which reads as a
+            //! black viewport rather than as a bounds bug. Unread by anything until P4.4b slice 2
+            for (const Shift::Graphics::MeshSubmesh& submesh : mesh->submeshes) {
+                CHECK_MESSAGE(submesh.bounds.sphere.w > 0.0f,
+                              "a submesh carries a zero-radius bounds sphere, so the frustum test "
+                              "can only ever reject it");
+            }
         }
-        CHECK_MESSAGE(list.size() == submeshTotal,
-                      "the submesh instance list does not hold one entry per submesh of every mesh node");
+        const bool everySubmeshAccountedFor = list.size() + stats.culled == submeshTotal;
+        CHECK_MESSAGE(everySubmeshAccountedFor,
+                      "drawn instances plus culled instances do not add up to every submesh of "
+                      "every mesh node");
 
         //! The skull copies share their meshes, so their parts must collapse into instanced draws
         CHECK_MESSAGE(anyInstanced, "no draw has instanceCount > 1: nodes sharing a mesh are not being instanced");
@@ -727,6 +739,9 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     CheckMaterials(renderer);
     CheckMaterialTextures(renderer);
 
+    //! Culling at the 2:1 viewport, for the comparison after the aspect flips below
+    const uint32_t culledWide = renderer.GetRenderScene().GetStats().culled;
+
     //! Projection tracks the VIEWPORT render target's aspect, not the OS window's: the scene is
     //! drawn into the viewport texture, and the editor is free to give it any shape
     renderer.ResizeViewport(400, 800);
@@ -737,6 +752,15 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     CHECK_MESSAGE(std::fabs(tallFrame->proj[0][0] - wideProjX) > 1e-3f,
                   "projection did not change when the viewport aspect flipped from 2:1 to 1:2, so "
                   "either the camera is not tracking the render target or the ring is stale");
+
+    //! The fov is VERTICAL, so 2:1 -> 1:2 narrows the horizontal half-angle (~59 deg to
+    //! ~23 deg) while leaving the vertical one alone: strictly less of the skull row at z = -8 is
+    //! in view, so strictly more of it must be rejected. Two counts off ONE scene differing only in
+    //! aspect, rather than a bare "culled > 0" that boundary luck could satisfy or break
+    const uint32_t culledTall = renderer.GetRenderScene().GetStats().culled;
+    CHECK_MESSAGE(culledTall > culledWide,
+                  "narrowing the viewport's horizontal field of view did not cull more submesh "
+                  "instances, so the cull is not reading the frame's frustum");
 
     {
         const Shift::GPU::FrameConstants* before = renderer.GetFrameConstants(0);
