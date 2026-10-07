@@ -100,7 +100,9 @@ if (WIN32)
   set(THREADS_PREFER_PTHREAD_FLAG ON)
   find_package(Threads REQUIRED)
 
+  # GLM has to be before so vk does not import it
   target_include_directories(shift_core PUBLIC
+    ${glm_SOURCE_DIR}
     ${PROJECT_SOURCE_DIR}/Source
     ${PROJECT_SOURCE_DIR}/Vendor/local
     ${Vulkan_INCLUDE_DIRS}
@@ -109,6 +111,7 @@ if (WIN32)
     )
 
   target_link_libraries(shift_core PUBLIC
+      glm::glm
       glfw
       volk
       spdlog::spdlog
@@ -142,10 +145,12 @@ if (WIN32)
 elseif (UNIX)
     message(STATUS "CREATING BUILD FOR UNIX")
     target_include_directories(shift_core PUBLIC
+      ${glm_SOURCE_DIR}
       ${PROJECT_SOURCE_DIR}/Source
       ${PROJECT_SOURCE_DIR}/Vendor/local
     )
     target_link_libraries(shift_core PUBLIC
+        glm::glm
         glfw
         volk
         imgui

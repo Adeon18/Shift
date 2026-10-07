@@ -5,6 +5,7 @@
 #ifndef SHIFT_RENDERER_HPP
 #define SHIFT_RENDERER_HPP
 
+#include <array>
 #include <optional>
 
 #include <glm/glm.hpp>
@@ -108,7 +109,9 @@ namespace Shift::Graphics {
 
         [[nodiscard]] MaterialManager& GetMaterialManager() { return m_materialManager; }
 
-        [[nodiscard]] PipelineHandle GetForwardPipeline() const { return m_forwardPipeline; }
+        [[nodiscard]] PipelineHandle GetForwardPipeline(EMaterialRasterFlags flags) const {
+            return m_forwardPipelines[static_cast<size_t>(flags)];
+        }
 
         [[nodiscard]] const ToneMapSystem& GetToneMapSystem() const { return m_toneMapSystem; }
 
@@ -165,7 +168,8 @@ namespace Shift::Graphics {
         ShiftWindow& m_window;
         std::shared_ptr<ctrl::FlyingCameraController> m_controller;
 
-        Graphics::PipelineHandle m_forwardPipeline;
+        //! TODO: This should prob be moved somewhere
+        std::array<Graphics::PipelineHandle, Graphics::MATERIAL_RASTER_COMBINATIONS> m_forwardPipelines{};
 
         RenderBackend m_renderBackend;
 

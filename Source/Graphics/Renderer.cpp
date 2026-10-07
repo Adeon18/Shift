@@ -57,9 +57,14 @@ namespace Shift::Graphics {
 
         CheckCritical(LoadScene(scene, {m_meshManager, m_materialManager, *m_textureManager, *tEncoder}), "Failed to load the scene!");
 
-        {
+        //! TODO: [ARCHITECTURE] Should this be here and be looking this way tho?
+        for (uint32_t flagIdx = 0; flagIdx < MATERIAL_RASTER_COMBINATIONS; ++flagIdx) {
+            const auto rasterFlags = static_cast<EMaterialRasterFlags>(flagIdx);
+            const bool alphaTested = Any(rasterFlags & EMaterialRasterFlags::Masked);
+            const bool doubleSided = Any(rasterFlags & EMaterialRasterFlags::DoubleSided);
+
             PipelineDescriptor forwardDescriptor;
-            forwardDescriptor.name = "ForwardOpaque";
+            forwardDescriptor.name = std::string("Forward") + (alphaTested ? "Masked" : "Opaque") + (doubleSided ? "DoubleSided" : "");
 
             ShaderDescriptor vsDescriptor;
             vsDescriptor.type = EShaderType::Vertex;
@@ -68,7 +73,7 @@ namespace Shift::Graphics {
             ShaderDescriptor fsDescriptor;
             fsDescriptor.type = EShaderType::Fragment;
             fsDescriptor.path = Shift::Util::GetShiftShaderSrcDir() + "Forward/Forward.slang";
-            fsDescriptor.entry = "mainPS";
+            fsDescriptor.entry = alphaTested ? "mainPSMasked" : "mainPS";
 
             forwardDescriptor.colorBlendConfig.attachments.push_back({.format = VIEWPORT_HDR_FORMAT});
 
@@ -79,7 +84,7 @@ namespace Shift::Graphics {
                 .depthFunction = ECompareOperation::Less
             };
 
-            forwardDescriptor.rasterizerStateDesc.cullMode = ECullMode::Back;
+            forwardDescriptor.rasterizerStateDesc.cullMode = doubleSided ? ECullMode::None : ECullMode::Back;
             forwardDescriptor.rasterizerStateDesc.windingOrder = EWindingOrder::CounterClockwise;
 
             forwardDescriptor.pushConstants = PushConstantRange{
@@ -92,7 +97,7 @@ namespace Shift::Graphics {
             forwardDescriptor.descriptorLayouts[GlobalResourceSet::SET_INDEX] = GlobalResourceSet::Layout();
 
             std::array<ShaderDescriptor, 2> shaderSources{vsDescriptor, fsDescriptor};
-            m_forwardPipeline = m_pipelineManager.CreatePipeline(forwardDescriptor, shaderSources);
+            m_forwardPipelines[flagIdx] = m_pipelineManager.CreatePipeline(forwardDescriptor, shaderSources);
         }
 
         m_toneMapSystem.Init(m_pipelineManager, VIEWPORT_COLOR_FORMAT);
@@ -201,10 +206,9 @@ namespace Shift::Graphics {
 
         //! Rebuld the draw list + objecty arr, selection movement n shi will be here later
         const ExtractInputs extractInputs{
-            .forwardPipeline = m_forwardPipeline,
             .frustum = MakeFrustum(engineData.projMatrix * engineData.viewMatrix)
         };
-        m_renderScene.Extract(scene, m_meshManager, extractInputs);
+        m_renderScene.Extract(scene, m_meshManager, m_materialManager, extractInputs);
 
         //! Reclaim this frame slot
         m_renderBackend.BeginFrame();
@@ -507,13 +511,13 @@ namespace Shift::Graphics {
         for (const DrawItem& item : items) {
             if (!HasPass(item.passMask, EPassBit::Forward)) { continue; }
 
-            //! Pipeline handling
-            if (boundPipeline == nullptr || !(item.pipeline == boundHandle)) {
-                Pipeline* next = m_pipelineManager.Get(item.pipeline);
+            const PipelineHandle wanted = m_forwardPipelines[static_cast<size_t>(item.rasterFlags)];
+            if (boundPipeline == nullptr || !(wanted == boundHandle)) {
+                Pipeline* next = m_pipelineManager.Get(wanted);
                 if (next == nullptr) { continue; }
 
                 boundPipeline = next;
-                boundHandle = item.pipeline;
+                boundHandle = wanted;
                 encoder.BindGraphicsPipeline(*boundPipeline);
 
                 if (!setBound) {

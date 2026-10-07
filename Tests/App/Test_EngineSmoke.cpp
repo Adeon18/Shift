@@ -502,8 +502,15 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     //! Both pipelines on fallback shaders would still run validation-clean, so ask directly
     {
         auto& pipelines = engine.GetRenderer().GetPipelineManager();
-        CHECK_MESSAGE(!pipelines.IsRunningFallback(engine.GetRenderer().GetForwardPipeline()),
-                      "the forward pipeline is running on fallback shaders");
+        //! Every raster flag combination, not just the one the boot scene draws with: an
+        //! alpha-masked variant nobody instantiates is a Slang generic that never gets lowered,
+        //! so this is the only thing that compiles the masked specialization until Sponza arrives
+        for (uint32_t flagIdx = 0; flagIdx < Shift::Graphics::MATERIAL_RASTER_COMBINATIONS; ++flagIdx) {
+            CAPTURE(flagIdx);
+            const auto rasterFlags = static_cast<Shift::Graphics::EMaterialRasterFlags>(flagIdx);
+            CHECK_MESSAGE(!pipelines.IsRunningFallback(engine.GetRenderer().GetForwardPipeline(rasterFlags)),
+                          "a forward raster flag combination is running on fallback shaders");
+        }
         CHECK_MESSAGE(!pipelines.IsRunningFallback(engine.GetRenderer().GetToneMapSystem().GetPipeline()),
                       "the tonemap pipeline is running on fallback shaders");
 
@@ -787,19 +794,23 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     //! executor once the timeline passes. Each Lib module is asked SEPARATELY because a
     //! dependency list reaching one says nothing about another - every module the forward file
     //! imports has to be listed here, or an edit to it silently rebuilds nothing.
-    //! The count is how many pipelines import the file: FrameData and Bindless reach both passes
+    //! The count is how many pipelines import the file: FrameData and Bindless reach both passes.
+    //! The forward pass is one pipeline PER RASTER FLAG COMBINATION since P4.4b slice 3, and all
+    //! of them import the same file, so the count is derived rather than typed - a new flag must
+    //! not need this table edited. The count itself is pinned by the fallback loop above
+    constexpr uint32_t FORWARD_PIPELINES = Shift::Graphics::MATERIAL_RASTER_COMBINATIONS;
     struct DirtiedShader {
         const char* path;
         uint32_t expectedRebuilds;
     };
     const DirtiedShader dirtiedShaders[] = {
-        {"Forward/Forward.slang", 1},
+        {"Forward/Forward.slang", FORWARD_PIPELINES},
         {"PostProcess/Tonemap.slang", 1},
-        {"Lib/FrameData.slang", 2},
-        {"Lib/Bindless.slang", 2},
-        {"Lib/VertexPull.slang", 1},
-        {"Lib/MaterialFetch.slang", 1},
-        {"Lib/BRDF.slang", 1},
+        {"Lib/FrameData.slang", FORWARD_PIPELINES + 1},
+        {"Lib/Bindless.slang", FORWARD_PIPELINES + 1},
+        {"Lib/VertexPull.slang", FORWARD_PIPELINES},
+        {"Lib/MaterialFetch.slang", FORWARD_PIPELINES},
+        {"Lib/BRDF.slang", FORWARD_PIPELINES},
     };
     for (const DirtiedShader& shader : dirtiedShaders) {
         CAPTURE(shader.path);

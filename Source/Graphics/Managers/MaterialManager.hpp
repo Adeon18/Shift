@@ -12,12 +12,30 @@
 #include <vector>
 
 #include "Loaders/ModelLoader/IModelLoader.hpp"
+#include "Utility/EnumFlags.hpp"
 
 #include "Graphics/Shared/GPUShared.h"
 
 namespace Shift::Graphics {
 
     inline constexpr uint32_t DEFAULT_MATERIAL_INDEX = 0u;
+
+    //! This can work with any pipeline for geo
+    enum class EMaterialRasterFlags : uint32_t {
+        None        = 0,
+        Masked      = 1u << 0,
+        DoubleSided = 1u << 1,
+    };
+
+    DEFINE_ENUM_CLASS_BITWISE_OPERATORS(EMaterialRasterFlags)
+
+    inline constexpr EMaterialRasterFlags MATERIAL_RASTER_ALL = EMaterialRasterFlags::Masked | EMaterialRasterFlags::DoubleSided;
+    inline constexpr uint32_t MATERIAL_RASTER_COMBINATIONS = static_cast<uint32_t>(MATERIAL_RASTER_ALL) + 1u;
+
+    [[nodiscard]] constexpr EMaterialRasterFlags MakeMaterialRasterFlags(bool alphaTest, bool doubleSided) {
+        return (alphaTest   ? EMaterialRasterFlags::Masked      : EMaterialRasterFlags::None)
+             | (doubleSided ? EMaterialRasterFlags::DoubleSided : EMaterialRasterFlags::None);
+    }
 
     //! Ressolves texture handle to a bindless array index
     using TextureSlotResolver = std::function<uint32_t(const TextureRef&)>;
@@ -56,10 +74,15 @@ namespace Shift::Graphics {
             return (index < m_names.size()) ? std::string_view{m_names[index]} : std::string_view{};
         }
 
+        [[nodiscard]] EMaterialRasterFlags GetRasterFlags(uint32_t index) const {
+            return (index < m_rasterFlags.size()) ? m_rasterFlags[index] : EMaterialRasterFlags::None;
+        }
+
     private:
         std::vector<GPU::MaterialData> m_materials;
         //! Same idx as above
         std::vector<std::string> m_names;
+        std::vector<EMaterialRasterFlags> m_rasterFlags;
     };
 }
 

@@ -56,13 +56,32 @@ static const float3 LIGHT_COLOR = float3(1.0f, 0.9f, 0.95f);
 static const float LIGHT_INTENSITY = PI;
 static const float AMBIENT = 0.1f;
 
-[shader("fragment")]
-float4 mainPS(ForwardData input) : SV_Target
+//! We can actually have one shader support discard without ruining earlyZ for the opaque shader via generics
+interface IAlphaMode
+{
+    void Test(float alpha, float cutoff);
+};
+
+struct AlphaOpaque : IAlphaMode
+{
+    void Test(float alpha, float cutoff) {}
+};
+
+struct AlphaMasked : IAlphaMode
+{
+    void Test(float alpha, float cutoff) { clip(alpha - cutoff); }
+};
+
+float4 ShadeForward<TAlphaMode : IAlphaMode>(ForwardData input, bool isFrontFace)
 {
     FrameConstants frame = LoadFrameConstants(pc.frameConstantsRef);
     MaterialData material = LoadMaterial(frame, pc.materialIndex);
 
-    float3 baseColor = material.baseColorFactor.rgb * SampleTexture2D(material.baseColorTex, SAMPLER_ANISO_REPEAT, input.uv).rgb;
+    float4 baseColorSample = material.baseColorFactor * SampleTexture2D(material.baseColorTex, SAMPLER_ANISO_REPEAT, input.uv);
+
+    TAlphaMode alphaMode;
+    alphaMode.Test(baseColorSample.a, material.alphaCutoff);
+    float3 baseColor = baseColorSample.rgb;
 
     //! glTF packs occlusion in R, roughness in G and metallic in B
     float3 orm = SampleTexture2D(material.ormTex, SAMPLER_ANISO_REPEAT, input.uv).rgb;
@@ -81,6 +100,9 @@ float4 mainPS(ForwardData input) : SV_Target
     float3 tangentNormal = SampleTexture2D(material.normalTex, SAMPLER_ANISO_REPEAT, input.uv).rgb * 2.0f - 1.0f;
     float3 normal = normalize(tangentNormal.x * T + tangentNormal.y * B + tangentNormal.z * geometricNormal);
 
+    //! 2 sided geo has reversed normals, reverse them back if we rasterize a face pointing in the same dir as camera
+    if (!isFrontFace) { normal = -normal; }
+
     float3 viewDir = normalize(frame.cameraPosExposure.xyz - input.worldPos);
     SurfaceParams surface = MakeSurfaceParams(normal, viewDir, baseColor, metallic, perceptualRoughness);
 
@@ -96,4 +118,17 @@ float4 mainPS(ForwardData input) : SV_Target
     color += emissive;
 
     return float4(color, 1.0f);
+}
+
+//! Opaque and masked shaders using simple generics
+[shader("fragment")]
+float4 mainPS(ForwardData input, bool isFrontFace : SV_IsFrontFace) : SV_Target
+{
+    return ShadeForward<AlphaOpaque>(input, isFrontFace);
+}
+
+[shader("fragment")]
+float4 mainPSMasked(ForwardData input, bool isFrontFace : SV_IsFrontFace) : SV_Target
+{
+    return ShadeForward<AlphaMasked>(input, isFrontFace);
 }

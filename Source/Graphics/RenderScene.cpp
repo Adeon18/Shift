@@ -17,6 +17,7 @@ namespace Shift::Graphics {
             uint32_t objectIndex = 0;
             uint32_t submeshIndex = 0;
             uint32_t materialIndex = 0;
+            EMaterialRasterFlags rasterFlags = EMaterialRasterFlags::None;
             const Mesh* mesh = nullptr;
         };
 
@@ -29,7 +30,7 @@ namespace Shift::Graphics {
         }
     }
 
-    void RenderScene::Extract(const ShiftScene& scene, const MeshManager& meshes, const ExtractInputs& inputs) {
+    void RenderScene::Extract(const ShiftScene& scene, const MeshManager& meshes, const MaterialManager& materials, const ExtractInputs& inputs) {
         m_objects.clear();
         m_drawItems.clear();
         m_submeshInstances.clear();
@@ -38,7 +39,7 @@ namespace Shift::Graphics {
         std::vector<SubmeshRecord> records;
 
         const auto& registry = scene.GetRegistry();
-        registry.view<MeshProperty>().each([this, &scene, &meshes, &inputs, &records](const auto entity, const auto& meshProp) {
+        registry.view<MeshProperty>().each([this, &scene, &meshes, &materials, &inputs, &records](const auto entity, const auto& meshProp) {
             const Mesh* mesh = meshes.Get(meshProp.mesh);
             const glm::mat4 transform = scene.GetWorld(entity);
             if (!mesh) { return; }
@@ -59,11 +60,14 @@ namespace Shift::Graphics {
                 //! the indices will differ after the first replacement
                 // const uint32_t materialIndex = sm.materialIndex;
                 const uint32_t materialIndex = meshProp.materials[i];
+                //! The material decides the raster state
+                const EMaterialRasterFlags rasterFlags = materials.GetRasterFlags(materialIndex);
                 records.push_back({
-                    .sortKey = MakeDrawSortKey(inputs.forwardPipeline.slotIdx, meshProp.mesh.slotIdx, i, materialIndex),
+                    .sortKey = MakeDrawSortKey(static_cast<uint32_t>(rasterFlags), meshProp.mesh.slotIdx, i, materialIndex),
                     .objectIndex = objectIndex,
                     .submeshIndex = i,
                     .materialIndex = materialIndex,
+                    .rasterFlags = rasterFlags,
                     .mesh = mesh
                 });
             }
@@ -84,7 +88,7 @@ namespace Shift::Graphics {
             const MeshSubmesh& sm = first.mesh->submeshes[first.submeshIndex];
             m_drawItems.push_back({
                 .passMask = EPassBit::Forward | EPassBit::DepthOnly,
-                .pipeline = inputs.forwardPipeline,
+                .rasterFlags = first.rasterFlags,
                 .firstIndex = first.mesh->indexRange.first + sm.firstIndex,
                 .indexCount = sm.indexCount,
                 .firstSubmeshInstance = static_cast<uint32_t>(runStart),

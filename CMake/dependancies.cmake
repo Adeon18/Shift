@@ -14,6 +14,8 @@ FetchContent_Declare(glfw
         FIND_PACKAGE_ARGS 3.3.8)
 
 set(GLM_TEST_MODE ON CACHE BOOL "" FORCE)
+# Don't build as we need to preserve glm force defines
+set(GLM_BUILD_LIBRARY OFF CACHE BOOL "" FORCE)
 # Math
 FetchContent_Declare(glm
         GIT_REPOSITORY https://github.com/g-truc/glm.git

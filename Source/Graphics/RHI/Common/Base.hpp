@@ -7,6 +7,8 @@
 
 #include <type_traits>
 
+#include "Utility/EnumFlags.hpp"
+
 namespace Shift {
     //! 1:1 with Vulkan
     enum class ECompareOperation : uint8_t {
@@ -77,44 +79,5 @@ namespace Shift {
 
 //! Ensure the variable you are working with in the concept will be const
 #define CONCEPT_CONST_VAR(TempArg, TempVar) static_cast<const TempArg&>(TempVar)
-
-//! Define bitwise operators for an enum class, allowing usage as bitmasks.
-//! Taken from https://voithos.io/articles/enum-class-bitmasks/
-#define DEFINE_ENUM_CLASS_BITWISE_OPERATORS(Enum)                                  \
-    inline constexpr Enum operator|(Enum lhs, Enum rhs) {                          \
-        using T = std::underlying_type_t<Enum>;                                    \
-        return static_cast<Enum>(static_cast<T>(lhs) | static_cast<T>(rhs));       \
-    }                                                                              \
-    inline constexpr Enum operator&(Enum lhs, Enum rhs) {                          \
-        using T = std::underlying_type_t<Enum>;                                    \
-        return static_cast<Enum>(static_cast<T>(lhs) & static_cast<T>(rhs));       \
-    }                                                                              \
-    inline constexpr Enum operator^(Enum lhs, Enum rhs) {                          \
-        using T = std::underlying_type_t<Enum>;                                    \
-        return static_cast<Enum>(static_cast<T>(lhs) ^ static_cast<T>(rhs));       \
-    }                                                                              \
-    inline constexpr Enum operator~(Enum e) {                                      \
-        using T = std::underlying_type_t<Enum>;                                    \
-        return static_cast<Enum>(~static_cast<T>(e));                              \
-    }                                                                              \
-    inline Enum& operator|=(Enum& lhs, Enum rhs) {                                 \
-        using T = std::underlying_type_t<Enum>;                                    \
-        lhs = static_cast<Enum>(static_cast<T>(lhs) | static_cast<T>(rhs));        \
-        return lhs;                                                                \
-    }                                                                              \
-    inline Enum& operator&=(Enum& lhs, Enum rhs) {                                 \
-        using T = std::underlying_type_t<Enum>;                                    \
-        lhs = static_cast<Enum>(static_cast<T>(lhs) & static_cast<T>(rhs));        \
-        return lhs;                                                                \
-    }                                                                              \
-    inline Enum& operator^=(Enum& lhs, Enum rhs) {                                 \
-        using T = std::underlying_type_t<Enum>;                                    \
-        lhs = static_cast<Enum>(static_cast<T>(lhs) ^ static_cast<T>(rhs));        \
-        return lhs;                                                                \
-    }                                                                              \
-    inline constexpr bool Any(Enum e) {                                            \
-        using T = std::underlying_type_t<Enum>;                                    \
-        return static_cast<T>(e) != 0;                                             \
-    }
 
 #endif //SHIFT_BASE_HPP

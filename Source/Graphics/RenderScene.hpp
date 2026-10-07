@@ -11,6 +11,7 @@
 
 #include "Culling.hpp"
 #include "DrawItem.hpp"
+#include "Graphics/Managers/MaterialManager.hpp"
 #include "Graphics/Managers/MeshManager.hpp"
 #include "Graphics/Shared/GPUShared.h"
 
@@ -31,7 +32,6 @@ namespace Shift::Graphics {
 
     //! Culling happens at extraction
     struct ExtractInputs {
-        PipelineHandle forwardPipeline{};
         Frustum frustum;
     };
 
@@ -39,7 +39,7 @@ namespace Shift::Graphics {
     class RenderScene {
     public:
         //! The only reader of the scene
-        void Extract(const ShiftScene& scene, const MeshManager& meshes, const ExtractInputs& inputs);
+        void Extract(const ShiftScene& scene, const MeshManager& meshes, const MaterialManager& materials, const ExtractInputs& inputs);
 
         //! One entry per node with a MeshProperty, in extraction order
         [[nodiscard]] const std::vector<GPU::ObjectData>& GetObjects() const { return m_objects; }

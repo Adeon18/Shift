@@ -30,6 +30,7 @@ namespace Shift::Graphics {
     bool MaterialManager::Init(const TextureSlotResolver& resolve) {
         m_materials.clear();
         m_names.clear();
+        m_rasterFlags.clear();
         MaterialDesc defaultDesc;
         defaultDesc.name = "Default";
         const uint32_t defaultIndex = RegisterMaterial(defaultDesc, resolve);
@@ -49,6 +50,7 @@ namespace Shift::Graphics {
         const uint32_t index = static_cast<uint32_t>(m_materials.size());
         m_materials.push_back(MaterialDataFromDesc(desc, resolve));
         m_names.push_back(desc.name);
+        m_rasterFlags.push_back(MakeMaterialRasterFlags(desc.alphaTest, desc.doubleSided));
         return index;
     }
 

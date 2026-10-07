@@ -8,7 +8,7 @@
 #include <cstdint>
 
 #include "Config/EngineConfig.hpp"
-#include "Graphics/Managers/PipelineManager.hpp"
+#include "Graphics/Managers/MaterialManager.hpp"
 
 namespace Shift::Graphics {
     enum class EPassBit : uint32_t {
@@ -34,7 +34,8 @@ namespace Shift::Graphics {
     struct DrawItem {
         uint32_t passMask = 0u;
 
-        PipelineHandle pipeline{};
+        //! Which variat material needs, 2 sided, alpha, etc
+        EMaterialRasterFlags rasterFlags = EMaterialRasterFlags::None;
         //! mesh.indexRange.first + submesh.firstIndex
         uint32_t firstIndex = 0u;
         uint32_t indexCount = 0u;
@@ -48,9 +49,9 @@ namespace Shift::Graphics {
     };
 
     //! More expensive chnages to more significant bits
-    [[nodiscard]] constexpr uint64_t MakeDrawSortKey(uint32_t pipelineSlot, uint32_t meshSlot,
+    [[nodiscard]] constexpr uint64_t MakeDrawSortKey(uint32_t rasterFlags, uint32_t meshSlot,
                                                      uint32_t submeshIndex, uint32_t materialIndex) {
-        return (static_cast<uint64_t>(pipelineSlot & 0xFFFFu)   << 48)
+        return (static_cast<uint64_t>(rasterFlags  & 0xFFFFu)   << 48)
              | (static_cast<uint64_t>(meshSlot     & 0xFFFFFFu) << 24)
              | (static_cast<uint64_t>(submeshIndex & 0xFFFu)    << 12)
              | (static_cast<uint64_t>(materialIndex & 0xFFFu));
