@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <span>
 #include <system_error>
 #include <utility>
 #include <vector>
@@ -266,6 +267,54 @@ namespace {
         }
     }
 
+    //! The selection highlight: ONE box per selected root, covering that root's whole subtree.
+    //! Checked by CONTAINMENT rather than by recomputing the box - an independent re-fold of the 8
+    //! corners would be a line-for-line copy of the implementation, testing it against itself.
+    //! Gathering centres and testing membership is a different computation off the same inputs
+    void CheckSelectionBoxes(Shift::Graphics::Renderer& renderer, const Shift::ShiftScene& shiftScene,
+                             Shift::NodeID selected) {
+        const std::vector<Shift::Graphics::SelectionBox>& boxes = renderer.GetSelectionBoxSystem().GetBoxes();
+
+        std::vector<glm::vec3> meshCentres;
+        std::vector<Shift::NodeID> stack{selected};
+        while (!stack.empty()) {
+            const Shift::NodeID node = stack.back();
+            stack.pop_back();
+            if (const Shift::MeshProperty* meshProperty = shiftScene.GetProperty<Shift::MeshProperty>(node)) {
+                if (const Shift::Graphics::Mesh* mesh = renderer.GetMeshManager().Get(meshProperty->mesh)) {
+                    const glm::vec4 localCentre{glm::vec3(mesh->bounds.sphere), 1.0f};
+                    meshCentres.push_back(glm::vec3(shiftScene.GetWorld(node) * localCentre));
+                }
+            }
+            for (const Shift::NodeID child : shiftScene.GetChildren(node)) { stack.push_back(child); }
+        }
+
+        //! A root with no mesh under it gets no box at all rather than a degenerate one
+        if (meshCentres.empty()) {
+            CHECK_MESSAGE(boxes.empty(), "a selected node with no mesh under it still produced a box");
+            return;
+        }
+
+        const bool oneBox = boxes.size() == 1;
+        CHECK_MESSAGE(oneBox, "one selected root must produce exactly one box: the subtree is unioned, "
+                              "not boxed per mesh node");
+        if (!oneBox) { return; }
+
+        const Shift::Graphics::SelectionBox& box = boxes[0];
+        //! An inverted or zero box draws nothing, which on screen reads as "selection is broken"
+        const bool ordered = box.max.x >= box.min.x && box.max.y >= box.min.y && box.max.z >= box.min.z;
+        CHECK_MESSAGE(ordered, "a selection box came out inverted");
+        const glm::vec3 extent = box.max - box.min;
+        const bool hasSize = extent.x > 0.0f || extent.y > 0.0f || extent.z > 0.0f;
+        CHECK_MESSAGE(hasSize, "a selection box has zero size on every axis, so it would draw nothing");
+
+        for (const glm::vec3& centre : meshCentres) {
+            const bool inside = glm::all(glm::greaterThanEqual(centre, box.min))
+                             && glm::all(glm::lessThanEqual(centre, box.max));
+            CHECK_MESSAGE(inside, "a mesh in the selected subtree sits outside the selection box");
+        }
+    }
+
     //! The material path end to end: MaterialManager -> this frame's ring slot -> the address the
     //! shader reads it through. Values are checked against what the committed assets actually
     //! declare, because every structural check here also passes for a zeroed MaterialData
@@ -513,6 +562,10 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
         }
         CHECK_MESSAGE(!pipelines.IsRunningFallback(engine.GetRenderer().GetToneMapSystem().GetPipeline()),
                       "the tonemap pipeline is running on fallback shaders");
+        //! The box pass draws nothing until something is selected and samples nothing when it does, so
+        //! a fallback substitution here is invisible to validation AND to the hot-reload row below
+        CHECK_MESSAGE(!pipelines.IsRunningFallback(engine.GetRenderer().GetSelectionBoxSystem().GetPipeline()),
+                      "the selection box pipeline is running on fallback shaders");
 
         auto& textures = engine.GetRenderer().GetTextureManager();
         CHECK_MESSAGE(textures.GetFormat(engine.GetRenderer().GetViewportHDR()) == Shift::ETextureFormat::R16G16B16A16_SFLOAT,
@@ -746,6 +799,32 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     CheckMaterials(renderer);
     CheckMaterialTextures(renderer);
 
+    //! the selection highlight. Walked over EVERY root rather than a chosen one,
+    //! which also covers the outer skull copies that leave this 2:1 view entirely (slice 2 measured
+    //! 8 culled instances here) - a box must not depend on visibility, and it cannot, because the
+    //! extractor never sees culling. Moving it back inside RenderScene::Extract would break this
+    {
+        Shift::Editor::EditorContext& editorContext = engine.GetEditor().GetContext();
+
+        editorContext.selectedNode = Shift::NULL_NODE;
+        tick(2);
+        CHECK_MESSAGE(renderer.GetSelectionBoxSystem().GetBoxes().empty(),
+                      "nothing is selected but a selection box was still extracted");
+
+        const std::span<const Shift::NodeID> roots = engine.GetScene().GetRoots();
+        REQUIRE_MESSAGE(!roots.empty(), "the boot scene has no roots, so selection went untested");
+        for (const Shift::NodeID root : roots) {
+            CAPTURE(static_cast<uint32_t>(root));
+            editorContext.selectedNode = root;
+            tick(2);
+            CheckSelectionBoxes(renderer, engine.GetScene(), root);
+        }
+
+        //! Leave nothing selected so the phases below see the scene they expect
+        editorContext.selectedNode = Shift::NULL_NODE;
+        tick(2);
+    }
+
     //! Culling at the 2:1 viewport, for the comparison after the aspect flips below
     const uint32_t culledWide = renderer.GetRenderScene().GetStats().culled;
 
@@ -794,7 +873,9 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     //! executor once the timeline passes. Each Lib module is asked SEPARATELY because a
     //! dependency list reaching one says nothing about another - every module the forward file
     //! imports has to be listed here, or an edit to it silently rebuilds nothing.
-    //! The count is how many pipelines import the file: FrameData and Bindless reach both passes.
+    //! The count is how many pipelines import the file. FrameData reaches all THREE passes (forward,
+    //! tonemap and the P4.4b 3b selection box); Bindless reaches the first two, since the box pass
+    //! samples nothing.
     //! The forward pass is one pipeline PER RASTER FLAG COMBINATION since P4.4b slice 3, and all
     //! of them import the same file, so the count is derived rather than typed - a new flag must
     //! not need this table edited. The count itself is pinned by the fallback loop above
@@ -806,7 +887,8 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     const DirtiedShader dirtiedShaders[] = {
         {"Forward/Forward.slang", FORWARD_PIPELINES},
         {"PostProcess/Tonemap.slang", 1},
-        {"Lib/FrameData.slang", FORWARD_PIPELINES + 1},
+        {"Editor/SelectionBox.slang", 1},
+        {"Lib/FrameData.slang", FORWARD_PIPELINES + 2},
         {"Lib/Bindless.slang", FORWARD_PIPELINES + 1},
         {"Lib/VertexPull.slang", FORWARD_PIPELINES},
         {"Lib/MaterialFetch.slang", FORWARD_PIPELINES},

@@ -42,6 +42,9 @@ namespace {
     static_assert(sizeof(PushConstants) == 24, "the push block must stay at 24 bytes");
     //! 16 measured out of real SPIR-V (offsets 0/8/12), P4.3 3c-1
     static_assert(sizeof(TonemapPushConstants) == 16, "the tonemap push block no longer matches its SPIR-V layout");
+    //! 56 = ref + three float4s, well under the 128 B every Vulkan implementation must offer (P4.4b 3b)
+    static_assert(sizeof(SelectionBoxPushConstants) == 56, "the selection box push block no longer matches its SPIR-V layout");
+    static_assert(sizeof(SelectionBoxPushConstants) <= 128, "the selection box push block exceeds the guaranteed maxPushConstantsSize");
 
     //! offsetof (used below) is only well-defined on standard-layout types
     static_assert(std::is_standard_layout_v<FrameConstants>);

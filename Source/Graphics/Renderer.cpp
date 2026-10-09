@@ -12,6 +12,7 @@
 #include "Graphics/Culling.hpp"
 #include "Graphics/RHI/Vulkan/VKImGuiBackend.hpp"
 #include "Scene/SceneImport.hpp"
+#include "Scene/ShiftScene.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
@@ -101,6 +102,7 @@ namespace Shift::Graphics {
         }
 
         m_toneMapSystem.Init(m_pipelineManager, VIEWPORT_COLOR_FORMAT);
+        m_selectionBoxSystem.Init(m_pipelineManager, VIEWPORT_COLOR_FORMAT);
         m_captureSystem.Init(m_renderBackend);
 
         {
@@ -210,6 +212,10 @@ namespace Shift::Graphics {
         };
         m_renderScene.Extract(scene, m_meshManager, m_materialManager, extractInputs);
 
+        //! Temp selection handling
+        const std::array<NodeID, 1> selection{editor ? editor->GetContext().selectedNode : NULL_NODE};
+        m_selectionBoxSystem.Extract(scene, m_meshManager, selection);
+
         //! Reclaim this frame slot
         m_renderBackend.BeginFrame();
 
@@ -302,6 +308,14 @@ namespace Shift::Graphics {
                 .globalSet = *m_globalSet.Get()
             };
             CheckCritical(m_toneMapSystem.Record(*gEncoder, toneMapInputs), "Failed to record the tone map pass!");
+
+            const SelectionBoxInputs selectionInputs{
+                .frameConstantsRef = m_frameConstants.SlotAddress(frameSlot),
+                .color = settings.selectionColor,
+                .bracketFraction = settings.selectionBracketFraction,
+                .output = *viewportTexture
+            };
+            CheckCritical(m_selectionBoxSystem.Record(*gEncoder, selectionInputs), "Failed to record the selection box pass!");
         }
 
         if (shouldRenderMainWindow) {
@@ -464,7 +478,6 @@ namespace Shift::Graphics {
         frameConstantsPtr->viewProj = engineData.projMatrix * engineData.viewMatrix;
         frameConstantsPtr->cameraDir = glm::vec4(engineData.camDirection, 0.0f);
         frameConstantsPtr->lightCount = 0u;
-        frameConstantsPtr->selectedObject = UINT32_MAX;
         frameConstantsPtr->debugViewMode = 0u;
 
         frameConstantsPtr->positionsRef = m_meshManager.GetStreamAddress(MeshManager::Positions);

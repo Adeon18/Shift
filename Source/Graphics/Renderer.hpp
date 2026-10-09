@@ -30,6 +30,7 @@
 #include "Graphics/RendererSettings.hpp"
 #include "Graphics/Shared/GPUShared.h"
 #include "Graphics/Systems/CaptureSystem.hpp"
+#include "Graphics/Systems/SelectionBoxSystem.hpp"
 #include "Graphics/Systems/ToneMapSystem.hpp"
 #include "Loaders/TextureLoader/StbLoader.hpp"
 
@@ -115,6 +116,8 @@ namespace Shift::Graphics {
 
         [[nodiscard]] const ToneMapSystem& GetToneMapSystem() const { return m_toneMapSystem; }
 
+        [[nodiscard]] const SelectionBoxSystem& GetSelectionBoxSystem() const { return m_selectionBoxSystem; }
+
         //! Written to by UI
         [[nodiscard]] RendererSettings& GetSettings() { return m_settings; }
 
@@ -197,6 +200,7 @@ namespace Shift::Graphics {
         RenderScene m_renderScene;
 
         Graphics::ToneMapSystem m_toneMapSystem;
+        Graphics::SelectionBoxSystem m_selectionBoxSystem;
         Graphics::CaptureSystem m_captureSystem;
 
         RendererSettings m_settings;

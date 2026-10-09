@@ -39,6 +39,9 @@ static const uint SAMPLER_ANISO_REPEAT   = 3;
 //! Sumbesh instance mask, low 24 - objdata idx, high 8 - flags
 static const uint SUBMESH_INSTANCE_OBJECT_MASK = 0x00FFFFFFu;
 
+//! We have a silly corner per corner box
+static const uint SELECTION_BOX_VERTEX_COUNT = 48;
+
 //! Per-frame, per-view constants. Written into this frame's ring slot on the CPU and reached by
 //! the shader through the address in PushConstants
 struct FrameConstants {
@@ -50,10 +53,9 @@ struct FrameConstants {
     float4 cameraDir; //! w-unused
 
     uint lightCount;
-    //! UINT32_MAX means "nothing selected"
-    uint selectedObject;
     uint debugViewMode;
     uint _pad0;
+    uint _pad1;
 
     //! The SoA vertex streams. All are indexed by the same global vertex index
     GPUBufferRef positionsRef;
@@ -142,6 +144,16 @@ struct TonemapPushConstants {
     GPUBufferRef frameConstantsRef;
     uint hdrColorTex;
     ETonemapOperator tonemapOperator;
+};
+
+//! SelectionBox push constant block
+struct SelectionBoxPushConstants {
+    GPUBufferRef frameConstantsRef;
+    //! xyz = world-space min, w = bracket length as a fraction of each edge (0.5 is the full box)
+    float4 boxMinFraction;
+    //! xyz = world-space max, w unused
+    float4 boxMaxPad;
+    float4 color;
 };
 
 #ifdef __cplusplus

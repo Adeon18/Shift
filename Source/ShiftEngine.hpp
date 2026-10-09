@@ -52,6 +52,7 @@ namespace Shift {
         [[nodiscard]] Graphics::Renderer& GetRenderer() { return *m_renderer; }
         [[nodiscard]] ShiftWindow& GetWindow() { return *m_window; }
         [[nodiscard]] const ShiftScene& GetScene() const { return m_scene; }
+        [[nodiscard]] Editor::EditorLayer& GetEditor() { return m_editorLayer; }
 
     private:
         void FillEngineData(float dt);
