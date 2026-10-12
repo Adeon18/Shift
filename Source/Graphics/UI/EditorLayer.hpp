@@ -81,6 +81,7 @@ namespace Shift::Editor {
                 //! Bottom
                 ImGui::DockBuilderDockWindow("Content Browser", dock_id_bottom);
                 ImGui::DockBuilderDockWindow("Console", dock_id_bottom);
+                ImGui::DockBuilderDockWindow("Materials", dock_id_bottom);
 
                 ImGui::DockBuilderFinish(dockspaceID);
             }

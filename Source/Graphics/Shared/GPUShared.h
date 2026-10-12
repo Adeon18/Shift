@@ -93,7 +93,6 @@ struct MaterialData {
 
     float metallicFactor;
     float roughnessFactor;
-    //! bit0 = alpha test
     uint flags;
     uint _pad0;
 };

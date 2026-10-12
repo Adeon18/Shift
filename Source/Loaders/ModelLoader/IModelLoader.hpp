@@ -110,7 +110,7 @@ namespace Shift {
         float roughnessFactor = 1.0f;
         float alphaCutoff = 0.5f;
 
-        //! MaterialData::flags bit0: selects the alpha-test pipeline variant
+        //! They become EMaterialRasterFlags
         bool alphaTest = false;
         bool doubleSided = false;
 

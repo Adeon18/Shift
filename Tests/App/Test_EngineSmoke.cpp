@@ -24,6 +24,8 @@
 #include "Graphics/DrawItem.hpp"
 #include "Graphics/Managers/GlobalResourceSet.hpp"
 #include "Graphics/Managers/MaterialManager.hpp"
+//! For CollectSubtreeMaterials, the ImGui-free half of the Materials panel's selection filter
+#include "Graphics/UI/MaterialsPanel.hpp"
 #include "Graphics/Managers/PipelineManager.hpp"
 #include "Graphics/Managers/MeshManager.hpp"
 #include "Graphics/RenderScene.hpp"
@@ -798,6 +800,78 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     CheckExtractedFrame(renderer, engine.GetScene());
     CheckMaterials(renderer);
     CheckMaterialTextures(renderer);
+
+    //! The editor's material write path, end to end. The pointer is re-fetched rather than held
+    //! across a tick - nothing registers a material mid-run today, but the array reallocates the
+    //! day something does. The flag half is what could not be checked before: slice 3a proved the
+    //! masked module CONTAINS the discard, this is the first time a draw is recorded with it
+    {
+        const std::vector<Shift::Graphics::DrawItem>& drawn = renderer.GetRenderScene().GetDrawItems();
+        REQUIRE_MESSAGE(!drawn.empty(), "no draws were extracted, so the material edit has no subject");
+
+        const uint32_t edited = drawn.front().materialIndex;
+        Shift::Graphics::MaterialManager& materials = renderer.GetMaterialManager();
+        Shift::GPU::MaterialData* edit = materials.EditMaterial(edited);
+        REQUIRE_MESSAGE(edit != nullptr, "a draw named a material the manager does not have");
+
+        const Shift::GPU::MaterialData before = *edit;
+        const Shift::Graphics::EMaterialRasterFlags flagsBefore = materials.GetRasterFlags(edited);
+        constexpr float EDITED_ROUGHNESS = 0.125f;
+
+        edit->roughnessFactor = EDITED_ROUGHNESS;
+        materials.SetRasterFlags(edited, flagsBefore | Shift::Graphics::EMaterialRasterFlags::Masked);
+        tick(2);
+
+        const Shift::GPU::MaterialData* ring = renderer.GetMaterialData(0);
+        REQUIRE_MESSAGE(ring != nullptr, "material ring slot 0 does not resolve");
+        CHECK_MESSAGE(ring[edited].roughnessFactor == EDITED_ROUGHNESS,
+                      "a material edit never reached the frame ring, so the editor is writing a copy");
+
+        bool drawnMasked = false;
+        for (const Shift::Graphics::DrawItem& item : renderer.GetRenderScene().GetDrawItems()) {
+            if (item.materialIndex != edited) { continue; }
+            drawnMasked = drawnMasked
+                       || Shift::Graphics::Any(item.rasterFlags & Shift::Graphics::EMaterialRasterFlags::Masked);
+        }
+        CHECK_MESSAGE(drawnMasked, "a material's raster flags changed but its draws kept the old "
+                                   "variant, so extraction is not re-reading them");
+
+        Shift::GPU::MaterialData* restore = materials.EditMaterial(edited);
+        REQUIRE_MESSAGE(restore != nullptr, "the edited material went missing mid-test");
+        *restore = before;
+        materials.SetRasterFlags(edited, flagsBefore);
+        tick(2);
+    }
+
+    //! The Materials panel's "Selection only" filter, checked a DIFFERENT way than it computes:
+    //! the union over every root must equal the flat set over every mesh node. A descent that
+    //! stopped at the root, or walked up instead of down, cannot satisfy that
+    {
+        const Shift::ShiftScene& shiftScene = engine.GetScene();
+
+        std::vector<uint32_t> fromRoots;
+        for (const Shift::NodeID root : shiftScene.GetRoots()) {
+            const std::vector<uint32_t> used = Shift::Editor::CollectSubtreeMaterials(shiftScene, root);
+            fromRoots.insert(fromRoots.end(), used.begin(), used.end());
+        }
+        std::sort(fromRoots.begin(), fromRoots.end());
+        fromRoots.erase(std::unique(fromRoots.begin(), fromRoots.end()), fromRoots.end());
+
+        std::vector<uint32_t> fromNodes;
+        const auto meshView = shiftScene.GetRegistry().view<const Shift::MeshProperty>();
+        for (const auto node : meshView) {
+            const std::vector<uint32_t>& assigned = meshView.get<const Shift::MeshProperty>(node).materials;
+            fromNodes.insert(fromNodes.end(), assigned.begin(), assigned.end());
+        }
+        std::sort(fromNodes.begin(), fromNodes.end());
+        fromNodes.erase(std::unique(fromNodes.begin(), fromNodes.end()), fromNodes.end());
+
+        CHECK_MESSAGE(fromRoots == fromNodes,
+                      "descending the roots does not reach every mesh node's materials, so the "
+                      "Materials panel's selection filter would hide some of them");
+        CHECK_MESSAGE(Shift::Editor::CollectSubtreeMaterials(shiftScene, Shift::NULL_NODE).empty(),
+                      "the selection filter invented materials for an invalid node");
+    }
 
     //! the selection highlight. Walked over EVERY root rather than a chosen one,
     //! which also covers the outer skull copies that leave this 2:1 view entirely (slice 2 measured

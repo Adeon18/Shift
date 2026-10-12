@@ -20,8 +20,7 @@ namespace Shift::Graphics {
             .ormTex = resolve(desc.orm),
             .emissiveTex = resolve(desc.emissive),
             .metallicFactor = desc.metallicFactor,
-            .roughnessFactor = desc.roughnessFactor,
-            .flags = desc.alphaTest //! For now
+            .roughnessFactor = desc.roughnessFactor
         };
 
         return material;

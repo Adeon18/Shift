@@ -15,6 +15,7 @@
 #include "Graphics/UI/TonemapPanel.hpp"
 #include "Graphics/UI/SceneTreePanel.hpp"
 #include "Graphics/UI/NodeInspectorPanel.hpp"
+#include "Graphics/UI/MaterialsPanel.hpp"
 
 namespace Shift {
     bool ShiftEngine::Init(const EngineDescriptor& desc) {
@@ -46,6 +47,11 @@ namespace Shift {
             m_editorLayer.GetContext(),
             [this]() -> ShiftScene& { return m_scene; },
             [this]() -> const Graphics::MaterialManager& { return m_renderer->GetMaterialManager(); }
+        );
+        m_editorLayer.AddPanel<Editor::MaterialsPanel>(
+            m_editorLayer.GetContext(),
+            [this]() -> Graphics::MaterialManager& { return m_renderer->GetMaterialManager(); },
+            [this]() -> const ShiftScene& { return m_scene; }
         );
         m_editorLayer.AddPanel<Editor::GenericPanel>("Content Browser");
         m_editorLayer.AddPanel<Editor::GenericPanel>("Console");

@@ -78,6 +78,14 @@ namespace Shift::Graphics {
             return (index < m_rasterFlags.size()) ? m_rasterFlags[index] : EMaterialRasterFlags::None;
         }
 
+        [[nodiscard]] GPU::MaterialData* EditMaterial(uint32_t index) {
+            return (index < m_materials.size()) ? &m_materials[index] : nullptr;
+        }
+
+        void SetRasterFlags(uint32_t index, EMaterialRasterFlags flags) {
+            if (index < m_rasterFlags.size()) { m_rasterFlags[index] = flags; }
+        }
+
     private:
         std::vector<GPU::MaterialData> m_materials;
         //! Same idx as above
