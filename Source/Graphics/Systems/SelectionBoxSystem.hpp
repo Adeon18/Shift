@@ -13,6 +13,7 @@
 #include "Graphics/RHI/RHI.hpp"
 #include "Graphics/Managers/PipelineManager.hpp"
 #include "Graphics/Shared/GPUShared.h"
+#include "Graphics/ScenePicker.hpp"
 #include "Scene/NodeID.hpp"
 
 namespace Shift {
@@ -21,12 +22,7 @@ namespace Shift {
 
 namespace Shift::Graphics {
     class MeshManager;
-
-    //! One world-space AABB. Axis aligned is what lets the shader skip a model matrix entirely
-    struct SelectionBox {
-        glm::vec3 min{0.0f};
-        glm::vec3 max{0.0f};
-    };
+    using SelectionBox = WorldAABB;
 
     struct SelectionBoxInputs {
         uint64_t frameConstantsRef = 0;

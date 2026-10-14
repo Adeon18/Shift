@@ -5,6 +5,7 @@
 #ifndef SHIFT_EDITORCONTEXT_H
 #define SHIFT_EDITORCONTEXT_H
 
+#include <cstdint>
 #include <memory>
 #include <functional>
 
@@ -12,12 +13,22 @@
 
 namespace Shift::Editor {
 
+    enum class EGizmoOperation : uint32_t {
+        Translate = 0,
+        Rotate,
+        Scale,
+        Universal
+    };
+
     //! Context to be shared between UI panels
     struct EditorContext {
         void* EngineOutputTextureID = nullptr;
         std::function<void(uint32_t w, uint32_t h)> OnViewportResize;
-        //! Set by the tree panel, read by the inspector
+        //! Pick node by ndc coords, x right y up
+        std::function<NodeID(float ndcX, float ndcY)> PickNodeAt;
+        //! Set by the tree panel or by a viewport click, read by the inspector
         NodeID selectedNode = NULL_NODE;
+        EGizmoOperation gizmoOperation = EGizmoOperation::Translate;
     };
 }
 

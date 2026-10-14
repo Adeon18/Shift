@@ -37,7 +37,10 @@ FetchContent_MakeAvailable(entt)
 file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/Source/*.cpp)
 list(REMOVE_ITEM SOURCES ${PROJECT_SOURCE_DIR}/Source/AppDefault.cpp)
 
-set(VENDORED_SOURCES ${PROJECT_SOURCE_DIR}/Vendor/local/mikktspace.c)
+set(VENDORED_SOURCES
+        ${PROJECT_SOURCE_DIR}/Vendor/local/mikktspace.c
+        ${PROJECT_SOURCE_DIR}/Vendor/local/ImGuizmo.cpp
+)
 
 add_library(shift_core STATIC ${SOURCES} ${VENDORED_SOURCES})
 target_compile_features(shift_core PUBLIC cxx_std_20)
@@ -104,6 +107,7 @@ if (WIN32)
   target_include_directories(shift_core PUBLIC
     ${glm_SOURCE_DIR}
     ${PROJECT_SOURCE_DIR}/Source
+    ${PROJECT_SOURCE_DIR}/Source/Graphics/UI/imgui # for gizmo, and nice overall
     ${PROJECT_SOURCE_DIR}/Vendor/local
     ${Vulkan_INCLUDE_DIRS}
     ${GLFW_INCLUDE_DIRS}
@@ -147,6 +151,7 @@ elseif (UNIX)
     target_include_directories(shift_core PUBLIC
       ${glm_SOURCE_DIR}
       ${PROJECT_SOURCE_DIR}/Source
+      ${PROJECT_SOURCE_DIR}/Source/Graphics/UI/imgui
       ${PROJECT_SOURCE_DIR}/Vendor/local
     )
     target_link_libraries(shift_core PUBLIC

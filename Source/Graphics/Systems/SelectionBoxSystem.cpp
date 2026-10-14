@@ -15,45 +15,12 @@
 
 namespace Shift::Graphics {
 
-    namespace {
-        void ExpandWorldAABB(const glm::mat4& transform, const Bounds& bounds, glm::vec3& lo, glm::vec3& hi) {
-            for (uint32_t i = 0; i < 8; ++i) {
-                const glm::vec3 corner{
-                    (i & 1u) ? bounds.max.x : bounds.min.x,
-                    (i & 2u) ? bounds.max.y : bounds.min.y,
-                    (i & 4u) ? bounds.max.z : bounds.min.z
-                };
-                const glm::vec3 world = glm::vec3(transform * glm::vec4(corner, 1.0f));
-                lo = glm::min(lo, world);
-                hi = glm::max(hi, world);
-            }
-        }
-
-        //! Overdesigned just in cases lol
-        void AccumulateSubtree(const ShiftScene& scene, const MeshManager& meshes, NodeID node, glm::vec3& lo, glm::vec3& hi, bool& anyMesh) {
-            if (const MeshProperty* meshProperty = scene.GetProperty<MeshProperty>(node)) {
-                if (const Mesh* mesh = meshes.Get(meshProperty->mesh)) {
-                    ExpandWorldAABB(scene.GetWorld(node), mesh->bounds, lo, hi);
-                    anyMesh = true;
-                }
-            }
-            for (const NodeID child : scene.GetChildren(node)) {
-                AccumulateSubtree(scene, meshes, child, lo, hi, anyMesh);
-            }
-        }
-    }
-
     void SelectionBoxSystem::Extract(const ShiftScene& scene, const MeshManager& meshes, std::span<const NodeID> selection) {
         m_boxes.clear();
         for (const NodeID root : selection) {
-            if (!scene.IsValid(root)) { continue; }
-
-            glm::vec3 lo{std::numeric_limits<float>::max()};
-            glm::vec3 hi{std::numeric_limits<float>::lowest()};
-            bool anyMesh = false;
-            AccumulateSubtree(scene, meshes, root, lo, hi, anyMesh);
-
-            if (anyMesh) { m_boxes.push_back({lo, hi}); }
+            if (const std::optional<WorldAABB> box = SubtreeWorldAABB(scene, meshes, root)) {
+                m_boxes.push_back(*box);
+            }
         }
     }
 

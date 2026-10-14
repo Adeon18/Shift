@@ -11,6 +11,8 @@
 #include "EditorContext.hpp"
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
+//! Needs imgui but does not include it
+#include "ImGuizmo.h"
 #include "ImGuiPlatformGLFW.hpp"
 #include "Utility/Logging/LogMacros.hpp"
 
@@ -43,6 +45,8 @@ namespace Shift::Editor {
             ImGuiBackend::BeginFrame();
             ImGuiPlatform::NewFrame();
             ImGui::NewFrame();
+
+            ImGuizmo::BeginFrame();
 
             //! Create the invisible DockSpace covering the whole window
             ImGuiID dockspaceID = ImGui::DockSpaceOverViewport(ImGui::GetMainViewport()->ID, ImGui::GetMainViewport());

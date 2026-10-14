@@ -17,6 +17,8 @@
 #include "Graphics/UI/NodeInspectorPanel.hpp"
 #include "Graphics/UI/MaterialsPanel.hpp"
 
+#include "Graphics/ScenePicker.hpp"
+
 namespace Shift {
     bool ShiftEngine::Init(const EngineDescriptor& desc) {
         spdlog::set_level(spdlog::level::trace);
@@ -39,7 +41,18 @@ namespace Shift {
             m_renderer->ResizeViewport(w, h);
         };
 
-        m_editorLayer.AddPanel<Editor::ViewportPanel>(m_editorLayer.GetContext());
+        ctx.PickNodeAt = [this](float ndcX, float ndcY) -> NodeID {
+            const glm::mat4 viewProj = m_controller->GetCamera().GetProjectionMatrix() * m_controller->GetCamera().GetViewMatrix();
+            const Graphics::Ray ray = Graphics::MakeViewportRay(viewProj, ndcX, ndcY);
+            return Graphics::PickNode(m_scene, m_renderer->GetMeshManager(), ray);
+        };
+
+        m_editorLayer.AddPanel<Editor::ViewportPanel>(
+            m_editorLayer.GetContext(),
+            [this]() -> ShiftScene& { return m_scene; },
+            [this]() -> const glm::mat4& { return m_controller->GetCamera().GetViewMatrix(); },
+            [this]() -> const glm::mat4& { return m_controller->GetCamera().GetProjectionMatrix(); }
+        );
         m_editorLayer.AddPanel<Editor::SceneTreePanel>(
             m_editorLayer.GetContext(), [this]() -> const ShiftScene& { return m_scene; }
         );
@@ -151,7 +164,9 @@ namespace Shift {
             m_window->SetCaptureCursor(false);
         }
 
-        if (inp::Keyboard::GetInstance().IsJustPressed(GLFW_KEY_R)) {
+        const bool ctrlHeld = inp::Keyboard::GetInstance().IsPressed(GLFW_KEY_LEFT_CONTROL) ||
+                              inp::Keyboard::GetInstance().IsPressed(GLFW_KEY_RIGHT_CONTROL);
+        if (ctrlHeld && inp::Keyboard::GetInstance().IsJustPressed(GLFW_KEY_R)) {
             m_renderer->HotReloadShaders();
         }
 
