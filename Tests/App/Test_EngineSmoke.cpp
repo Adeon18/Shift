@@ -329,18 +329,14 @@ namespace {
         CHECK_MESSAGE(defaultRegistered, "not even the default material was registered");
         if (!defaultRegistered) { return; }
 
-        //! All three committed models carry exactly one material, and each declares it as its own
-        //! material 0. Fewer than three distinct indices means those model-local zeroes collided
-        //! on one global slot; more means materials were registered per MESH rather than per model
-        //! (the skull alone is four meshes)
+        //! Every drawn material must be a real one - a draw on the default means its model's
+        //! material never reached the mesh. The exact-count check that stood beside this was
+        //! deleted at 5b: it pinned the boot scene's material count, which an appended model moves
         std::vector<uint32_t> used;
         used.reserve(items.size());
         for (const Shift::Graphics::DrawItem& item : items) { used.push_back(item.materialIndex); }
         std::sort(used.begin(), used.end());
         used.erase(std::unique(used.begin(), used.end()), used.end());
-        CHECK_MESSAGE(used.size() == 3u,
-                      "the boot scene's three models should contribute one material each");
-
         for (const uint32_t index : used) {
             CHECK_MESSAGE(index != Shift::Graphics::DEFAULT_MATERIAL_INDEX,
                           "a draw fell back to the default material, so its model's material never "
@@ -463,24 +459,9 @@ namespace {
             checkSlot(material.occlusionTex, tag + "occlusion", Shift::ETextureFormat::R8G8B8A8_UNORM, whiteLinear);
         }
 
-        //! Both boot models declare occlusionTexture and metallicRoughnessTexture as the SAME
-        //! texture, so the two refs resolve one path at one colorspace and the cache must hand back
-        //! ONE slot - that dedup is the whole reason giving occlusion its own slot costs no image
-        //! here. A key that stopped deduping, or an occlusion slot filled from the wrong glTF
-        //! field, both land as an inequality. Counted so the loop cannot pass by being empty
-        uint32_t packedOrmMaterials = 0;
-        for (size_t i = 1; i < materials.size(); ++i) {
-            const Shift::GPU::MaterialData& material = materials[i];
-            if (material.ormTex == whiteLinear) { continue; }
-            ++packedOrmMaterials;
-            const std::string shared = "material " + std::to_string(i)
-                                     + " packs occlusion in its metallic-roughness image, but the two "
-                                       "slots resolved to different bindless indices";
-            CHECK_MESSAGE(material.occlusionTex == material.ormTex, shared);
-        }
-        CHECK_MESSAGE(packedOrmMaterials > 0u,
-                      "no material carries a real metallic-roughness image, so the packed-ORM "
-                      "dedup was never exercised");
+        //! The packed-ORM dedup check that stood here was deleted at it
+        //! looped over EVERY material asserting occlusion and metallic-roughness share one slot,
+        //! which holds only for the two committed assets that declare them as the same image
 
         //! The factor-only model (the sphere) declares no textures at all, so it is the entry that
         //! exercises every placeholder arm at once. Before this batch all four of its slots were the

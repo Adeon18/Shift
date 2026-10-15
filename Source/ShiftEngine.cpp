@@ -26,9 +26,14 @@ namespace Shift {
         Util::FileWatcher::Get().Init();
         m_window = std::make_unique<Shift::ShiftWindow>(desc.width, desc.height, desc.windowName, desc.windowVisible);
 
-        const glm::vec3 pos = glm::vec3(0.0f, 0.0f, 1.0f);
+        //! Eye height at the +x end of Sponza's courtyard. y = 0 would be INSIDE its ground slab
+        //! (which spans -0.03 to 0.05), and the courtyard is curtained along both long sides, so
+        //! the props line up along x and the camera yaws +90 degrees to look down it
+        const glm::vec3 pos = glm::vec3(6.5f, 1.5f, -0.5f);
         std::pair<uint32_t, uint32_t> sizes{m_window->GetWidth(), m_window->GetHeight()};
         m_controller = std::make_shared<ctrl::FlyingCameraController>(80.0f, sizes, pos);
+        //! Radians, and +pi/2 about Y turns the default -Z front onto -X (EulerCamera::UpdateViewMatrix)
+        m_controller->GetCamera().AddRotation({0.0f, 1.5707963f, 0.0f});
 
         m_renderer = std::make_unique<Graphics::Renderer>(*m_window, m_controller);
         if (!m_renderer->Init(m_scene, desc.featuresOverride)) { return false;}

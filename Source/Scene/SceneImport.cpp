@@ -97,11 +97,29 @@ namespace Shift {
 
         const std::string root = Util::GetShiftRoot();
         const std::string skullPath = root + "Assets/Models/HumanSkull/scene.gltf";
+
+        //! Temp test scene
+        constexpr float FLOOR_Y = 0.05f;
+        constexpr float SKULL_SCALE = 0.3f;
+        constexpr float HELMET_SCALE = 0.7f;
+        constexpr float SPHERE_SCALE = 0.5f;
+        constexpr uint32_t SKULL_COUNT = 10;
+
+        const auto skullSlot = [&](uint32_t index) {
+            const float x = 1.5f + 0.8f * (static_cast<float>(index % 5) - 2.0f);
+            const float z = -0.85f + 0.7f * static_cast<float>(index / 5);
+            return TransformProperty{.translation = {x, FLOOR_Y + SKULL_SCALE, z}, .scale = glm::vec3{SKULL_SCALE}};
+        };
+
         const std::vector<SceneModel> sources{
-            {"DamagedHelmet", root + "Assets/Models/DamagedHelmet/scene.gltf", {.translation = {-2.0f, 0.0f, -3.5f}}},
-            {"HumanSkull", skullPath, {.translation = {2.0f, 0.0f, -3.5f}}},
+            {"DamagedHelmet", root + "Assets/Models/DamagedHelmet/scene.gltf",
+             {.translation = {-1.3f, FLOOR_Y + 0.9f * HELMET_SCALE, -0.5f}, .scale = glm::vec3{HELMET_SCALE}}},
+            {"HumanSkull", skullPath, skullSlot(0)},
             // No textures, every mat slot is default
-            {"Sphere", root + "Assets/Models/Sphere/sphere.glb", {.translation = {0.0f, -1.0f, -2.0f}}},
+            {"Sphere", root + "Assets/Models/Sphere/sphere.glb",
+             {.translation = {-3.5f, FLOOR_Y + SPHERE_SCALE, 0.3f}, .scale = glm::vec3{SPHERE_SCALE}}},
+            //! TODO: LOCAL, remmove
+            {"Sponza", "C:/Users/ade0n/Pictures/3DModels/Sponza/glTF/Sponza.gltf", {}},
         };
 
         NodeID skull{entt::null};
@@ -110,11 +128,11 @@ namespace Shift {
             if (source.path == skullPath) { skull = model; }
         }
 
-        //! Make 10 copied skulls
-        constexpr uint32_t SKULL_COPIES = 10;
-        for (uint32_t i = 0; i < SKULL_COPIES; ++i) {
+        for (uint32_t i = 1; i < SKULL_COUNT; ++i) {
             if (TransformProperty* transform = scene.EditProperty<TransformProperty>(scene.CopySubtree(skull))) {
-                transform->translation = {-18.0f + 4.0f * static_cast<float>(i), 0.0f, -8.0f};
+                const TransformProperty slot = skullSlot(i);
+                transform->translation = slot.translation;
+                transform->scale = slot.scale;
             }
         }
 
