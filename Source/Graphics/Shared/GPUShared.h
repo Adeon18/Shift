@@ -93,7 +93,8 @@ struct MaterialData {
 
     float metallicFactor;
     float roughnessFactor;
-    uint flags;
+    //! May be the same as orm, may be not
+    uint occlusionTex;
     uint _pad0;
 };
 

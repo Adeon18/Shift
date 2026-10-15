@@ -17,7 +17,10 @@
 namespace Shift {
     Graphics::TextureSlotResolver MakeTextureResolver(Graphics::TextureManager& textures, const std::string& baseDir, RenderContextEncoder& transferEncoder) {
         return [&textures, baseDir, encoder = &transferEncoder](const TextureRef& ref) {
-            if (!ref.IsSet()) { return textures.GetPlaceholderSlot(ref.placeholderKind); }
+            //! Either we failed to load thge texture, or there was no texture and we use a placeholder
+            if (!ref.IsSet()) {
+                return ref.declared ? textures.GetErrorHandle().slotIdx : textures.GetPlaceholderSlot(ref.placeholderKind);
+            }
             const Graphics::TextureHandle tex = textures.GetOrLoadTexture(baseDir + ref.id, encoder, ref.colorSpace);
             return tex.slotIdx;
         };

@@ -460,7 +460,27 @@ namespace {
             checkSlot(material.normalTex, tag + "normal map", Shift::ETextureFormat::R8G8B8A8_UNORM, flatNormal);
             checkSlot(material.ormTex, tag + "ORM", Shift::ETextureFormat::R8G8B8A8_UNORM, whiteLinear);
             checkSlot(material.emissiveTex, tag + "emissive", Shift::ETextureFormat::R8G8B8A8_SRGB, whiteSrgb);
+            checkSlot(material.occlusionTex, tag + "occlusion", Shift::ETextureFormat::R8G8B8A8_UNORM, whiteLinear);
         }
+
+        //! Both boot models declare occlusionTexture and metallicRoughnessTexture as the SAME
+        //! texture, so the two refs resolve one path at one colorspace and the cache must hand back
+        //! ONE slot - that dedup is the whole reason giving occlusion its own slot costs no image
+        //! here. A key that stopped deduping, or an occlusion slot filled from the wrong glTF
+        //! field, both land as an inequality. Counted so the loop cannot pass by being empty
+        uint32_t packedOrmMaterials = 0;
+        for (size_t i = 1; i < materials.size(); ++i) {
+            const Shift::GPU::MaterialData& material = materials[i];
+            if (material.ormTex == whiteLinear) { continue; }
+            ++packedOrmMaterials;
+            const std::string shared = "material " + std::to_string(i)
+                                     + " packs occlusion in its metallic-roughness image, but the two "
+                                       "slots resolved to different bindless indices";
+            CHECK_MESSAGE(material.occlusionTex == material.ormTex, shared);
+        }
+        CHECK_MESSAGE(packedOrmMaterials > 0u,
+                      "no material carries a real metallic-roughness image, so the packed-ORM "
+                      "dedup was never exercised");
 
         //! The factor-only model (the sphere) declares no textures at all, so it is the entry that
         //! exercises every placeholder arm at once. Before this batch all four of its slots were the
@@ -474,7 +494,8 @@ namespace {
             const bool allDefault = material.baseColorTex == whiteSrgb
                                  && material.normalTex == flatNormal
                                  && material.ormTex == whiteLinear
-                                 && material.emissiveTex == whiteSrgb;
+                                 && material.emissiveTex == whiteSrgb
+                                 && material.occlusionTex == whiteLinear;
             if (allDefault) { sawFactorOnlyMaterial = true; }
         }
         CHECK_MESSAGE(sawFactorOnlyMaterial,

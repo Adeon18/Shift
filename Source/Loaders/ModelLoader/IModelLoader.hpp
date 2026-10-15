@@ -39,6 +39,8 @@ namespace Shift {
         std::string id;
         ETextureColorSpace colorSpace = ETextureColorSpace::Linear;
         ETexturePlaceholder placeholderKind = ETexturePlaceholder::WhiteLinear;
+        //! Here to check whether there is no texture and we should use placeholder, or there is a texture but we did not import it well
+        bool declared = false;
 
         [[nodiscard]] bool IsSet() const { return !id.empty(); }
     };
@@ -122,6 +124,9 @@ namespace Shift {
         //! Oclussion Roughness Matellic. When supporting non-gltf formats imma die
         TextureRef orm{.colorSpace = ETextureColorSpace::Linear,
                        .placeholderKind = ETexturePlaceholder::WhiteLinear};
+        //! glTF gives occlusion its own slot and a packed asset names the same image in both
+        TextureRef occlusion{.colorSpace = ETextureColorSpace::Linear,
+                             .placeholderKind = ETexturePlaceholder::WhiteLinear};
         TextureRef emissive{.colorSpace = ETextureColorSpace::SRGB,
                             .placeholderKind = ETexturePlaceholder::WhiteSRGB};
     };

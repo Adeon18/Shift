@@ -73,6 +73,7 @@ namespace Shift {
 
             if (!info.has_value()) return;
             WarnOnUnsupportedTexCoord(info.value(), slot);
+            outRef->declared = true;
             outRef->id = ResolveTextureID(asset, info.value().textureIndex);
         }
 
@@ -109,6 +110,7 @@ namespace Shift {
             if (source.normalTexture.has_value()) {
                 const fastgltf::NormalTextureInfo& normalInfo = source.normalTexture.value();
                 WarnOnUnsupportedTexCoord(normalInfo, "normal");
+                material.normal.declared = true;
                 material.normal.id = ResolveTextureID(asset, normalInfo.textureIndex);
                 //! We ignore scaled normal maps
                 if (normalInfo.scale != 1.0f) {
@@ -117,14 +119,17 @@ namespace Shift {
                 }
             }
 
-            //! If no ORM texture -> lose AO and keep Metallic Roighness as they come in same texture anyway
+            //! Occlusion is a separate gltf type
+            material.occlusion.colorSpace = ETextureColorSpace::Linear;
+            material.occlusion.placeholderKind = ETexturePlaceholder::WhiteLinear;
             if (source.occlusionTexture.has_value()) {
-                const size_t occlusionIndex = source.occlusionTexture.value().textureIndex;
-                const bool packedTogether = pbr.metallicRoughnessTexture.has_value()
-                    && pbr.metallicRoughnessTexture.value().textureIndex == occlusionIndex;
-                if (!packedTogether) {
-                    LogWarn("GltfLoader: material '{}' has a separate occlusion texture; only the "
-                            "metallic-roughness image fills the ORM slot", material.name);
+                const fastgltf::OcclusionTextureInfo& occlusionInfo = source.occlusionTexture.value();
+                WarnOnUnsupportedTexCoord(occlusionInfo, "occlusion");
+                material.occlusion.declared = true;
+                material.occlusion.id = ResolveTextureID(asset, occlusionInfo.textureIndex);
+                //! TODO: [FEATURE]: Occlusion strength????
+                if (occlusionInfo.strength != 1.0f) {
+                    LogWarn("GltfLoader: material '{}' scales its occlusion by {}, which is not carried", material.name, static_cast<float>(occlusionInfo.strength));
                 }
             }
 

@@ -83,9 +83,10 @@ float4 ShadeForward<TAlphaMode : IAlphaMode>(ForwardData input, bool isFrontFace
     alphaMode.Test(baseColorSample.a, material.alphaCutoff);
     float3 baseColor = baseColorSample.rgb;
 
-    //! glTF packs occlusion in R, roughness in G and metallic in B
+    //! Occlusion tex in gltf may differ or may be in the orm, this code handles both cases, either occlusionTex == ormTex,
+    //! or they are different. No perf lost and 2 cases covered
+    float occlusion = SampleTexture2D(material.occlusionTex, SAMPLER_ANISO_REPEAT, input.uv).r;
     float3 orm = SampleTexture2D(material.ormTex, SAMPLER_ANISO_REPEAT, input.uv).rgb;
-    float occlusion = orm.r;
     float perceptualRoughness = material.roughnessFactor * orm.g;
     float metallic = material.metallicFactor * orm.b;
 

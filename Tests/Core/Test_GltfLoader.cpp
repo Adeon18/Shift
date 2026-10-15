@@ -180,6 +180,18 @@ TEST_CASE("Each texture slot carries the colorspace its MEANING implies") {
     CHECK(material.normal.placeholderKind == ETexturePlaceholder::FlatNormal);
     CHECK(material.orm.placeholderKind == ETexturePlaceholder::WhiteLinear);
 
+    //! Box names no occlusionTexture, so that slot is UNSET - which since G1 is a different answer
+    //! from "declared and unresolvable", and only the four it DOES name are declared
+    CHECK_FALSE(material.occlusion.IsSet());
+    CHECK_FALSE(material.occlusion.declared);
+    CHECK(material.occlusion.colorSpace == ETextureColorSpace::Linear);
+    CHECK(material.occlusion.placeholderKind == ETexturePlaceholder::WhiteLinear);
+
+    CHECK(material.baseColor.declared);
+    CHECK(material.normal.declared);
+    CHECK(material.orm.declared);
+    CHECK(material.emissive.declared);
+
     //! The second material names no textures at all, so every slot must read as unused rather
     //! than as slot 0 of something
     const MaterialDesc& untextured = model->materials[1];
@@ -192,6 +204,15 @@ TEST_CASE("Each texture slot carries the colorspace its MEANING implies") {
     CHECK(untextured.normal.placeholderKind == ETexturePlaceholder::FlatNormal);
     CHECK(untextured.orm.placeholderKind == ETexturePlaceholder::WhiteLinear);
     CHECK(untextured.emissive.placeholderKind == ETexturePlaceholder::WhiteSRGB);
+    CHECK(untextured.occlusion.placeholderKind == ETexturePlaceholder::WhiteLinear);
+
+    //! ...and nothing it left absent may read as declared, or every untextured material would
+    //! resolve its slots to the green error texture
+    CHECK_FALSE(untextured.baseColor.declared);
+    CHECK_FALSE(untextured.normal.declared);
+    CHECK_FALSE(untextured.orm.declared);
+    CHECK_FALSE(untextured.emissive.declared);
+    CHECK_FALSE(untextured.occlusion.declared);
 }
 
 TEST_CASE("The node hierarchy is flattened parents first") {
@@ -234,6 +255,35 @@ TEST_CASE("Authored tangents are passed through, not regenerated") {
         CHECK(glm::dot(tangent, streams.normals[i]) == doctest::Approx(0.0f).epsilon(1e-3));
         CHECK(streams.tangents[i].w == doctest::Approx(-1.0f));
     }
+}
+
+//! G1. A GLB keeps its images in the binary chunk, which the texture pipeline does not read, so
+//! every slot this file NAMES comes back declared with no id. Keeping that apart from "nothing was
+//! authored" is the whole point: an unreadable asset must not render as a plausible default.
+//! DamagedHelmet.glb is committed and is NOT in the boot scene, so it is the free fixture for it -
+//! and it is also the one committed asset naming occlusion and metallic-roughness as two images
+TEST_CASE("A declared texture the loader cannot resolve is not the same as an absent one") {
+    GltfLoader loader;
+    const std::optional<ModelData> model =
+        loader.LoadFromFile(Shift::Util::GetShiftRoot() + "Assets/Models/DamagedHelmet/DamagedHelmet.glb");
+
+    REQUIRE(model.has_value());
+    REQUIRE(model->materials.size() == 1);
+    const MaterialDesc& material = model->materials[0];
+
+    //! All five named: base color, metallic-roughness, emissive, occlusion, normal
+    CHECK(material.baseColor.declared);
+    CHECK(material.orm.declared);
+    CHECK(material.emissive.declared);
+    CHECK(material.occlusion.declared);
+    CHECK(material.normal.declared);
+
+    //! ...and not one of them resolvable, since all five images are embedded bufferViews
+    CHECK_FALSE(material.baseColor.IsSet());
+    CHECK_FALSE(material.orm.IsSet());
+    CHECK_FALSE(material.emissive.IsSet());
+    CHECK_FALSE(material.occlusion.IsSet());
+    CHECK_FALSE(material.normal.IsSet());
 }
 
 TEST_CASE("A file that is not there fails quietly") {
