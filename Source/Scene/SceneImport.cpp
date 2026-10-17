@@ -8,6 +8,8 @@
 #include <utility>
 #include <vector>
 
+#include <glm/gtc/quaternion.hpp>
+
 #include "Config/EngineConfig.hpp"
 #include "Loaders/ModelLoader/GltfLoader.hpp"
 #include "Utility/Assertions.hpp"
@@ -136,6 +138,33 @@ namespace Shift {
             }
         }
 
+        //! Test Light setup
+        constexpr float SUN_LUX = 20000.0f;
+        constexpr float LAMP_CANDELA = 3000.0f;
+        constexpr float SPOT_CANDELA = 8000.0f;
+
+        //! Light is aimed along the -Z axis
+        const auto aim = [](float pitchDegrees, float yawDegrees) {
+            return glm::angleAxis(glm::radians(yawDegrees), glm::vec3{0.0f, 1.0f, 0.0f})
+                 * glm::angleAxis(glm::radians(pitchDegrees), glm::vec3{1.0f, 0.0f, 0.0f});
+        };
+
+        const auto addLight = [&scene](std::string name, const TransformProperty& transform, const LightProperty& light) {
+            const NodeID node = scene.CreateNode(std::move(name));
+            scene.AddProperty(node, transform);
+            scene.AddProperty(node, light);
+        };
+
+        addLight("Sun", {.rotation = aim(-60.0f, 90.0f)},
+                 {.type = GPU::ELightType::Directional, .color = {1.0f, 0.95f, 0.9f}, .intensity = SUN_LUX});
+        addLight("LampNear", {.translation = {3.0f, 2.0f, -0.5f}},
+                 {.type = GPU::ELightType::Point, .color = {1.0f, 0.85f, 0.6f}, .intensity = LAMP_CANDELA, .range = 8.0f});
+        addLight("LampFar", {.translation = {-2.5f, 2.0f, -0.3f}},
+                 {.type = GPU::ELightType::Point, .color = {1.0f, 0.85f, 0.6f}, .intensity = LAMP_CANDELA, .range = 8.0f});
+        addLight("Spotlight", {.translation = {0.5f, 3.5f, -0.5f}, .rotation = aim(-90.0f, 0.0f)},
+                 {.type = GPU::ELightType::Spot, .color = {0.9f, 0.95f, 1.0f}, .intensity = SPOT_CANDELA, .range = 12.0f,
+                  .innerAngle = glm::radians(18.0f), .outerAngle = glm::radians(28.0f)});
+
         const auto meshView = scene.GetRegistry().view<const MeshProperty>();
         const size_t meshNodes = meshView.size();
         CheckCritical(meshNodes <= Conf::MAX_SCENE_OBJECTS, "The scene holds more objects than one ObjectData ring slot can carry!");
@@ -146,7 +175,10 @@ namespace Shift {
         }
         CheckCritical(submeshInstances <= Conf::MAX_SCENE_SUBMESH_INSTANCES, "The scene holds more submesh instances than one list ring slot can carry!");
 
-        Log(Info, "Scene loaded: {} mesh nodes, {} submesh instances, {} materials, {} vertices and {} indices merged", meshNodes, submeshInstances, ctx.materials.GetCount(), ctx.meshes.GetUsedVertices(), ctx.meshes.GetUsedIndices());
+        const size_t lightNodes = scene.GetRegistry().view<const LightProperty>().size();
+        CheckCritical(lightNodes <= Conf::MAX_SCENE_LIGHTS, "The scene holds more lights than one LightData ring slot can carry!");
+
+        Log(Info, "Scene loaded: {} mesh nodes, {} submesh instances, {} materials, {} lights, {} vertices and {} indices merged", meshNodes, submeshInstances, ctx.materials.GetCount(), lightNodes, ctx.meshes.GetUsedVertices(), ctx.meshes.GetUsedIndices());
 
         return true;
     }

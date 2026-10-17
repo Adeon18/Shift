@@ -28,6 +28,7 @@
 #include "Graphics/UI/MaterialsPanel.hpp"
 #include "Graphics/Managers/PipelineManager.hpp"
 #include "Graphics/Managers/MeshManager.hpp"
+#include "Graphics/ScenePicker.hpp"
 #include "Graphics/RenderScene.hpp"
 #include "Graphics/Systems/CaptureSystem.hpp"
 #include "Graphics/Managers/TextureManager.hpp"
@@ -266,6 +267,34 @@ namespace {
         } else {
             MESSAGE("the boot scene holds a single mesh, so a non-zero mesh base vertex went "
                     "untested this run");
+        }
+
+        //! Lights are their own walk with no culling, so one LightData per LightProperty node exactly
+        const std::vector<Shift::GPU::LightData>& lights = scene.GetLights();
+        const auto lightView = shiftScene.GetRegistry().view<const Shift::LightProperty>();
+        CHECK_MESSAGE(lights.size() == lightView.size(),
+                      "extraction produced a different number of lights than the scene carries");
+        CHECK(stats.lights == static_cast<uint32_t>(lights.size()));
+
+        //! The shader loops to lightCount over lightBufferRef, so both halves have to arrive
+        const Shift::GPU::FrameConstants* frameConstants = renderer.GetFrameConstants(0);
+        REQUIRE_MESSAGE(frameConstants != nullptr, "frame constants ring slot 0 does not resolve");
+        CHECK_MESSAGE(frameConstants->lightBufferRef != 0u,
+                      "the light buffer address never reached the shader, so no light is readable");
+        CHECK_MESSAGE(frameConstants->lightCount == static_cast<uint32_t>(lights.size()),
+                      "the shader's light count disagrees with what the ring was filled with");
+
+        for (const Shift::GPU::LightData& light : lights) {
+            //! A direction off a degenerate basis is NaN, and NaN shading reaches every pixel, not one
+            const bool directionNormalized = std::abs(glm::length(light.direction) - 1.0f) < 1e-3f;
+            CHECK_MESSAGE(directionNormalized, "a light's world direction is not unit length");
+
+            if (light.type != Shift::GPU::ELightType::Spot) { continue; }
+            //! Cosine decreases with angle, so the inner cone's is the LARGER value. What this
+            //! catches is an INVERTED pair - extraction's clamp is what keeps them apart, and the
+            //! boot cones are nowhere near degenerate, so removing that clamp would NOT turn this red
+            const bool coneUsable = light.spotAngles.x - light.spotAngles.y > 0.0f;
+            CHECK_MESSAGE(coneUsable, "a spot light's cone cosines are inverted or equal, so its falloff divides by <= 0");
         }
     }
 
@@ -886,6 +915,36 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
         tick(2);
         CHECK_MESSAGE(renderer.GetSelectionBoxSystem().GetBoxes().empty(),
                       "nothing is selected but a selection box was still extracted");
+
+        {
+            const Shift::ShiftScene& pickScene = engine.GetScene();
+            auto& pickMeshes = renderer.GetMeshManager();
+            const glm::vec3 eye{6.5f, 1.5f, -0.5f};
+            for (const Shift::NodeID pickRoot : pickScene.GetRoots()) {
+                const std::optional<Shift::Graphics::WorldAABB> aim =
+                    Shift::Graphics::SubtreeWorldAABB(pickScene, pickMeshes, pickRoot);
+                if (!aim.has_value()) { continue; }
+                const glm::vec3 target = (aim->min + aim->max) * 0.5f;
+                const float aimDistance = glm::length(target - eye);
+                if (aimDistance < 0.001f) { continue; }
+
+                const Shift::Graphics::Ray pickRay{eye, glm::normalize(target - eye)};
+                const Shift::NodeID hitNode = Shift::Graphics::PickNode(pickScene, pickMeshes, pickRay);
+                const std::optional<Shift::Graphics::WorldAABB> hitBox =
+                    Shift::Graphics::SubtreeWorldAABB(pickScene, pickMeshes, hitNode);
+
+                const bool differentRoot = hitNode != pickRoot;
+                const bool swallowsMin = hitBox.has_value() ? glm::all(glm::lessThanEqual(hitBox->min, aim->min)) : false;
+                const bool swallowsMax = hitBox.has_value() ? glm::all(glm::greaterThanEqual(hitBox->max, aim->max)) : false;
+                const bool swallowsAim = differentRoot ? (swallowsMin ? swallowsMax : false) : false;
+
+                const std::string pickMessage =
+                    "a ray from the boot camera at the centre of '" + std::string(pickScene.GetName(pickRoot)) +
+                    "' picked '" + std::string(pickScene.GetName(hitNode)) + "', whose box ENCLOSES the aimed one - "
+                    "a loose submesh box is mostly air, so its entry distance beats whatever stands inside it";
+                CHECK_MESSAGE(!swallowsAim, pickMessage);
+            }
+        }
 
         const std::span<const Shift::NodeID> roots = engine.GetScene().GetRoots();
         REQUIRE_MESSAGE(!roots.empty(), "the boot scene has no roots, so selection went untested");

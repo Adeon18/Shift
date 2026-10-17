@@ -28,6 +28,7 @@ namespace Shift::Graphics {
         uint32_t instances = 0;
         //! Frustim culler for now
         uint32_t culled = 0;
+        uint32_t lights = 0;
     };
 
     //! Culling happens at extraction
@@ -47,6 +48,8 @@ namespace Shift::Graphics {
         //! Sorted by DrawItem::sortKey
         [[nodiscard]] const std::vector<DrawItem>& GetDrawItems() const { return m_drawItems; }
 
+        [[nodiscard]] const std::vector<GPU::LightData>& GetLights() const { return m_lights; }
+
         //! Get the isntance index list, only low 24 bits are index, high 8 are flags
         //! Wicked engine uses similar approach and I like it for now
         [[nodiscard]] const std::vector<uint32_t>& GetSubmeshInstances() const { return m_submeshInstances; }
@@ -57,6 +60,7 @@ namespace Shift::Graphics {
         std::vector<GPU::ObjectData> m_objects;
         std::vector<DrawItem> m_drawItems;
         std::vector<uint32_t> m_submeshInstances;
+        std::vector<GPU::LightData> m_lights;
         RenderSceneStats m_stats;
     };
 

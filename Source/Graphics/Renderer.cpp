@@ -43,6 +43,7 @@ namespace Shift::Graphics {
                       "Failed to create the material data ring!");
         CheckCritical(m_submeshInstances.Init(m_bufferManager, "SubmeshInstanceRing", Conf::MAX_SCENE_SUBMESH_INSTANCES),
                       "Failed to create the submesh instance ring!");
+        CheckCritical(m_lightData.Init(m_bufferManager, "LightDataRing", Conf::MAX_SCENE_LIGHTS), "Failed to create the light data ring!");
 
         RenderContext& tctx = m_renderBackend.GetTransferContext();
         RenderContextEncoder* tEncoder = tctx.CreateCommandEncoder();
@@ -228,10 +229,13 @@ namespace Shift::Graphics {
         CheckCritical(materialData != nullptr, "Material data ring has no slot for this frame!");
         uint32_t* submeshInstances = m_submeshInstances.Slot(frameSlot);
         CheckCritical(submeshInstances != nullptr, "Submesh instance ring has no slot for this frame!");
+        GPU::LightData* lightData = m_lightData.Slot(frameSlot);
+        CheckCritical(lightData != nullptr, "Light data ring has no slot for this frame!");
 
         UploadObjectData(objectData);
         UploadMaterialData(materialData);
         UploadSubmeshInstances(submeshInstances);
+        UploadLightData(lightData);
         FillFrameConstants(frameConstants, engineData, settings, frameSlot);
 
         uint32_t imageIndex = UINT32_MAX;
@@ -477,7 +481,7 @@ namespace Shift::Graphics {
         frameConstantsPtr->proj = engineData.projMatrix;
         frameConstantsPtr->viewProj = engineData.projMatrix * engineData.viewMatrix;
         frameConstantsPtr->cameraDir = glm::vec4(engineData.camDirection, 0.0f);
-        frameConstantsPtr->lightCount = 0u;
+        frameConstantsPtr->lightCount = std::min(static_cast<uint32_t>(m_renderScene.GetLights().size()), m_lightData.GetElementsPerSlot());
         frameConstantsPtr->debugViewMode = 0u;
 
         frameConstantsPtr->positionsRef = m_meshManager.GetStreamAddress(MeshManager::Positions);
@@ -488,7 +492,7 @@ namespace Shift::Graphics {
         frameConstantsPtr->objectBufferRef = m_objectData.SlotAddress(frameSlot);
         frameConstantsPtr->submeshInstanceBufferRef = m_submeshInstances.SlotAddress(frameSlot);
         frameConstantsPtr->materialBufferRef = m_materialData.SlotAddress(frameSlot);
-        frameConstantsPtr->lightBufferRef = 0;
+        frameConstantsPtr->lightBufferRef = m_lightData.SlotAddress(frameSlot);
     }
 
     void Renderer::UploadObjectData(GPU::ObjectData *objectDataPtr) {
@@ -498,7 +502,7 @@ namespace Shift::Graphics {
         std::memcpy(objectDataPtr, objects.data(), static_cast<size_t>(count) * sizeof(GPU::ObjectData));
     }
 
-    //! Same as above - prob should make a template
+    //! TODO [REFACTOR]: Same as above - prob should make a template
     void Renderer::UploadMaterialData(GPU::MaterialData *materialDataPtr) {
         const std::vector<GPU::MaterialData>& materials = m_materialManager.GetMaterials();
         const uint32_t count = std::min(static_cast<uint32_t>(materials.size()), m_materialData.GetElementsPerSlot());
@@ -511,6 +515,13 @@ namespace Shift::Graphics {
         const uint32_t count = std::min(static_cast<uint32_t>(entries.size()), m_submeshInstances.GetElementsPerSlot());
         if (count == 0) { return; }
         std::memcpy(submeshInstancesPtr, entries.data(), static_cast<size_t>(count) * sizeof(uint32_t));
+    }
+
+    void Renderer::UploadLightData(GPU::LightData* lightDataPtr) {
+        const std::vector<GPU::LightData>& lights = m_renderScene.GetLights();
+        const uint32_t count = std::min(static_cast<uint32_t>(lights.size()), m_lightData.GetElementsPerSlot());
+        if (count == 0) { return; }
+        std::memcpy(lightDataPtr, lights.data(), static_cast<size_t>(count) * sizeof(GPU::LightData));
     }
 
     bool Renderer::RecordDrawItems(RenderContextEncoder& encoder, uint32_t frameSlot) {

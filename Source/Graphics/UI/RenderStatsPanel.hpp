@@ -30,6 +30,7 @@ namespace Shift::Editor {
             ImGui::Text("Draw calls  %u", stats.drawCalls);
             ImGui::Text("Instances   %u", stats.instances);
             ImGui::Text("Culled      %u", stats.culled);
+            ImGui::Text("Lights      %u", stats.lights);
 
             if (stats.drawCalls == stats.instances) {
                 ImGui::TextDisabled("(no draw is instanced)");

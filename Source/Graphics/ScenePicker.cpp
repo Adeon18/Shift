@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <vector>
 
 #include "Graphics/Managers/MeshManager.hpp"
 #include "Scene/ShiftScene.hpp"
@@ -48,7 +49,7 @@ namespace Shift::Graphics {
 
         //! Regular ray box intersection
         //! TODO [REFACTOR]: Move this to some separate file
-        bool RayHitsAABB(const Ray& ray, const WorldAABB& box, float& tNear) {
+        bool RayHitsAABB(const Ray& ray, const WorldAABB& box, float& tNear, float& tFar) {
             float tMin = 0.0f;
             float tMax = std::numeric_limits<float>::max();
 
@@ -68,6 +69,7 @@ namespace Shift::Graphics {
             }
 
             tNear = tMin;
+            tFar = tMax;
             return true;
         }
 
@@ -76,9 +78,14 @@ namespace Shift::Graphics {
         }
 
         //! This is here to avoid picking the aabb if we are inside it so one big object does not ruin our piicking
+        struct PickSpan {
+            NodeID node = NULL_NODE;
+            float tNear = 0.0f;
+            float tFar = 0.0f;
+        };
+
         struct PickHits {
-            NodeID entered = NULL_NODE;
-            float enteredT = std::numeric_limits<float>::max();
+            std::vector<PickSpan> entered;
             NodeID enclosing = NULL_NODE;
         };
 
@@ -94,12 +101,10 @@ namespace Shift::Graphics {
                             continue;
                         }
 
-                        float t = 0.0f;
-                        if (!RayHitsAABB(ray, box, t)) { continue; }
-                        if (t < hits.enteredT) {
-                            hits.enteredT = t;
-                            hits.entered = node;
-                        }
+                        float tNear = 0.0f;
+                        float tFar = 0.0f;
+                        if (!RayHitsAABB(ray, box, tNear, tFar)) { continue; }
+                        hits.entered.push_back({node, tNear, tFar});
                     }
                 }
             }
@@ -154,6 +159,38 @@ namespace Shift::Graphics {
             TestSubtree(scene, meshes, ray, root, hits);
         }
 
-        return SelectableAncestor(scene, (hits.entered != NULL_NODE) ? hits.entered : hits.enclosing);
+        //! Some straight bullshiii
+        NodeID nearest = NULL_NODE;
+        float nearestT = std::numeric_limits<float>::max();
+        NodeID nearestContainer = NULL_NODE;
+        float nearestContainerT = std::numeric_limits<float>::max();
+
+        for (const PickSpan& span : hits.entered) {
+            bool contains = false;
+            for (const PickSpan& other : hits.entered) {
+                if (other.node == span.node) { continue; }
+                const bool nested = other.tNear > span.tNear && other.tFar < span.tFar;
+                if (nested) {
+                    contains = true;
+                    break;
+                }
+            }
+
+            if (contains) {
+                if (span.tNear < nearestContainerT) {
+                    nearestContainerT = span.tNear;
+                    nearestContainer = span.node;
+                }
+            } else if (span.tNear < nearestT) {
+                nearestT = span.tNear;
+                nearest = span.node;
+            }
+        }
+
+        NodeID hit = nearest;
+        if (hit == NULL_NODE) { hit = nearestContainer; }
+        if (hit == NULL_NODE) { hit = hits.enclosing; }
+
+        return SelectableAncestor(scene, hit);
     }
 }

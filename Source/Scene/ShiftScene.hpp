@@ -18,6 +18,7 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include "Graphics/Managers/MeshHandle.hpp"
+#include "Graphics/Shared/GPUShared.h"
 
 #include "NodeID.hpp"
 
@@ -38,6 +39,18 @@ namespace Shift {
         std::vector<uint32_t> materials;
     };
 
+    //! Pos and dir come from world transform
+    struct LightProperty {
+        GPU::ELightType type = GPU::ELightType::Point;
+        glm::vec3 color{1.0f};
+        //! Candela for point/spot, lux for directional
+        float intensity = 1.0f;
+        float range = 10.0f;
+        //! Radians
+        float innerAngle = 0.35f;
+        float outerAngle = 0.52f;
+    };
+
     //! locked - imported model has hidden children
     struct ModelLockProperty {
         bool locked = true;
@@ -50,7 +63,7 @@ namespace Shift {
     struct PropertyList {};
 
     //! Superior to std::is_same which u have to repeat
-    using ScenePropertyKinds = PropertyList<TransformProperty, MeshProperty, ModelLockProperty>;
+    using ScenePropertyKinds = PropertyList<TransformProperty, MeshProperty, ModelLockProperty, LightProperty>;
 
     template<typename T, typename... Ts>
     constexpr bool IsPropertyKind(PropertyList<Ts...>) { return (std::same_as<T, Ts> || ...); }

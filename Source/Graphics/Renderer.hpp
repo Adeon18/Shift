@@ -162,6 +162,8 @@ namespace Shift::Graphics {
 
         void UploadSubmeshInstances(uint32_t* submeshInstancesPtr);
 
+        void UploadLightData(GPU::LightData* lightDataPtr);
+
         [[nodiscard]] bool RecordDrawItems(RenderContextEncoder& encoder, uint32_t frameSlot);
 
         [[nodiscard]] Texture* CreateViewportDepthTexture(uint32_t width, uint32_t height);
@@ -195,6 +197,8 @@ namespace Shift::Graphics {
         Graphics::FrameRingBuffer<GPU::MaterialData> m_materialData;
         //! One submesh instance list per FIF. Rebuilt every frame
         Graphics::FrameRingBuffer<uint32_t> m_submeshInstances;
+        //! One LightData array per FIF. Rebuilt every frame
+        Graphics::FrameRingBuffer<GPU::LightData> m_lightData;
 
         //! Thr renderer scvene input
         RenderScene m_renderScene;

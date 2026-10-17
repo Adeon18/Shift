@@ -98,17 +98,26 @@ struct MaterialData {
     uint _pad0;
 };
 
+enum class ELightType : uint {
+    Directional = 0,
+    Point = 1,
+    Spot = 2,
+    Count
+};
+
 //! One light of any type. 64 bytes
 struct LightData {
     //! TODO: just a thought, dir/point could use pos OR dir but it will break at spot lightis
     float3 position;
-    //! 0 = directional, 1 = point, 2 = spot
-    uint type;
+    ELightType type;
 
+    //! The node local -Z
     float3 direction;
+    //! Spot and Point
     float range;
 
     float3 color;
+    //! Candela for point/spot, lux for directional
     float intensity;
 
     //! x = inner cosine, y = outer cosine

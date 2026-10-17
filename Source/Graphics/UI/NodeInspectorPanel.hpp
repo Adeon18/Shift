@@ -5,6 +5,9 @@
 #ifndef SHIFT_NODEINSPECTORPANEL_HPP
 #define SHIFT_NODEINSPECTORPANEL_HPP
 
+#include <algorithm>
+#include <cfloat>
+#include <cmath>
 #include <functional>
 #include <string>
 
@@ -44,6 +47,7 @@ namespace Shift::Editor {
             DrawModelLock(scene, node);
             DrawTransform(scene, node);
             DrawMesh(scene, node, m_materialsProvider());
+            DrawLight(scene, node);
         }
 
     private:
@@ -108,6 +112,73 @@ namespace Shift::Editor {
             }
         }
 
+        void DrawLight(ShiftScene& scene, NodeID node) {
+            const LightProperty* light = scene.GetProperty<LightProperty>(node);
+            if (!light) { return; }
+
+            ImGui::SeparatorText("Light");
+
+            static const char* TYPE_NAMES[] = {"Directional", "Point", "Spot"};
+            int type = static_cast<int>(light->type);
+            if (ImGui::Combo("Type", &type, TYPE_NAMES, IM_ARRAYSIZE(TYPE_NAMES))) {
+                if (LightProperty* edit = scene.EditProperty<LightProperty>(node)) { edit->type = static_cast<GPU::ELightType>(type); }
+            }
+
+            const bool isDirectional = light->type == GPU::ELightType::Directional;
+            const bool isSpot = light->type == GPU::ELightType::Spot;
+
+            glm::vec3 color = light->color;
+            if (ImGui::ColorEdit3("Color", &color.x)) {
+                if (LightProperty* edit = scene.EditProperty<LightProperty>(node)) { edit->color = color; }
+            }
+
+            const bool useLumens = m_useLumens && !isDirectional;
+            const float powerFactor = LumensPerCandela(light->type);
+            float intensity = useLumens ? light->intensity * powerFactor : light->intensity;
+            const char* intensityLabel = isDirectional ? "Intensity (lx)" : (useLumens ? "Intensity (lm)" : "Intensity (cd)");
+            const float intensitySpeed = std::max(0.01f, std::abs(intensity) * 0.01f);
+            if (ImGui::DragFloat(intensityLabel, &intensity, intensitySpeed, 0.0f, FLT_MAX, "%.2f")) {
+                if (LightProperty* edit = scene.EditProperty<LightProperty>(node)) {
+                    edit->intensity = useLumens ? intensity / powerFactor : intensity;
+                }
+            }
+
+            ImGui::BeginDisabled(isDirectional);
+            ImGui::Checkbox("use Lumens", &m_useLumens);
+            ImGui::EndDisabled();
+            if (isDirectional) {
+                ImGui::SameLine();
+                ImGui::TextDisabled("(point/spot only)");
+            }
+
+            //! Range
+            if (!isDirectional) {
+                float range = light->range;
+                if (ImGui::DragFloat("Range", &range, 0.1f, 0.01f, FLT_MAX, "%.2f")) {
+                    if (LightProperty* edit = scene.EditProperty<LightProperty>(node)) { edit->range = range; }
+                }
+            }
+
+            //! Spot deg
+            if (isSpot) {
+                float innerDegrees = glm::degrees(light->innerAngle);
+                if (ImGui::DragFloat("Inner angle", &innerDegrees, 0.5f, 0.0f, 90.0f, "%.1f deg")) {
+                    if (LightProperty* edit = scene.EditProperty<LightProperty>(node)) { edit->innerAngle = glm::radians(innerDegrees); }
+                }
+                float outerDegrees = glm::degrees(light->outerAngle);
+                if (ImGui::DragFloat("Outer angle", &outerDegrees, 0.5f, 0.0f, 90.0f, "%.1f deg")) {
+                    if (LightProperty* edit = scene.EditProperty<LightProperty>(node)) { edit->outerAngle = glm::radians(outerDegrees); }
+                }
+            }
+        }
+
+        //! TODO [CONSPECT]: Candela is lumens per steradiam, where steredian is the 3D solig angle
+        //! lm = cd * sr => sr = lm/cd. 4Pi is the whole sphere
+        static float LumensPerCandela(GPU::ELightType type) {
+            constexpr float PI = glm::pi<float>();
+            return type == GPU::ELightType::Spot ? PI : 4.0f * PI;
+        }
+
         //! Keep labels uniquee - needed for ID
         static std::string MaterialLabel(const Graphics::MaterialManager& materials, uint32_t index) {
             const std::string_view name = materials.GetName(index);
@@ -125,6 +196,9 @@ namespace Shift::Editor {
         EditorContext& m_context;
         SceneProvider m_sceneProvider;
         MaterialsProvider m_materialsProvider;
+
+        //! Whether we want to use lumens for this light
+        bool m_useLumens = false;
 
         //! For syncing quat rot and regular rot
         NodeID m_eulerNode = NULL_NODE;

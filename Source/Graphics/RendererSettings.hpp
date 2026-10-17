@@ -12,9 +12,11 @@
 namespace Shift::Graphics {
     //! Global Rendere settings to fuck around with
     struct RendererSettings {
-        GPU::ETonemapOperator tonemapOperator = GPU::ETonemapOperator::None;
+        static constexpr float DEFAULT_EXPOSURE = -13.0f;
+
+        GPU::ETonemapOperator tonemapOperator = GPU::ETonemapOperator::ACES;
         //! Exposure poer actually 2^EV
-        float exposure = 0.0f;
+        float exposure = DEFAULT_EXPOSURE;
         //! How thin are the selection brackets
         float selectionBracketFraction = 0.2f;
         //! Linear - post hdr

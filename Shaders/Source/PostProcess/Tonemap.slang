@@ -88,10 +88,7 @@ TonemapData mainVS(uint vertexID : SV_VertexID)
 [shader("fragment")]
 float4 mainPS(TonemapData input) : SV_Target
 {
-    FrameConstants frame = LoadFrameConstants(pc.frameConstantsRef);
-
-    float3 hdr = LoadTexture2D(pc.hdrColorTex, int2(input.position.xy)).rgb;
-    float3 exposed = hdr * frame.cameraPosExposure.w;
+    float3 exposed = LoadTexture2D(pc.hdrColorTex, int2(input.position.xy)).rgb;
 
     return float4(ApplyTonemap(exposed, pc.tonemapOperator), 1.0f);
 }

@@ -4,6 +4,8 @@ import Lib.VertexPull;
 import Lib.Bindless;
 import Lib.MaterialFetch;
 import Lib.BRDF;
+import Lib.Lighting;
+import Lib.Exposure;
 
 [[vk::push_constant]] PushConstants pc;
 
@@ -49,12 +51,10 @@ ForwardData mainVS(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
     return output;
 }
 
-//! One hardcoded directional light
-static const float3 LIGHT_DIRECTION = float3(-0.4f, -1.0f, -0.35f);
-static const float3 LIGHT_COLOR = float3(1.0f, 0.9f, 0.95f);
-//! So it ooks better ons screen rn
-static const float LIGHT_INTENSITY = PI;
-static const float AMBIENT = 0.1f;
+//! Small trick for better ambient
+static const float AMBIENT_INTENSITY = 2000.0f;
+static const float3 AMBIENT_SKY = float3(0.45f, 0.58f, 0.80f);
+static const float3 AMBIENT_GROUND = float3(0.38f, 0.32f, 0.26f);
 
 //! We can actually have one shader support discard without ruining earlyZ for the opaque shader via generics
 interface IAlphaMode
@@ -107,18 +107,23 @@ float4 ShadeForward<TAlphaMode : IAlphaMode>(ForwardData input, bool isFrontFace
     float3 viewDir = normalize(frame.cameraPosExposure.xyz - input.worldPos);
     SurfaceParams surface = MakeSurfaceParams(normal, viewDir, baseColor, metallic, perceptualRoughness);
 
-    float3 lightDir = -normalize(LIGHT_DIRECTION);
-    float NoL = saturate(dot(surface.normal, lightDir));
-
     ActiveBRDF brdf;
-    BRDFResult direct = brdf.Evaluate(surface, lightDir);
+    float3 color = float3(0.0f, 0.0f, 0.0f);
+    for (uint i = 0; i < frame.lightCount; ++i)
+    {
+        LightSample lightSample = SampleLight(frame, i, input.worldPos);
+        float NoL = saturate(dot(surface.normal, lightSample.L));
+        if (NoL <= 0.0f) { continue; }
 
-    float3 color = (direct.diffuse + direct.specular) * NoL * LIGHT_COLOR * LIGHT_INTENSITY;
+        BRDFResult shaded = brdf.Evaluate(surface, lightSample.L);
+        color += (shaded.diffuse + shaded.specular) * lightSample.irradiance * NoL;
+    }
 
-    color += AMBIENT * (surface.diffuseColor * occlusion + surface.f0);
+    float3 ambient = lerp(AMBIENT_GROUND, AMBIENT_SKY, surface.normal.y * 0.5f + 0.5f) * (AMBIENT_INTENSITY / PI);
+    color += ambient * (surface.diffuseColor * occlusion + surface.f0);
     color += emissive;
 
-    return float4(color, 1.0f);
+    return float4(PreExpose(color, frame), 1.0f);
 }
 
 //! Opaque and masked shaders using simple generics

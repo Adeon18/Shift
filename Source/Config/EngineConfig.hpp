@@ -13,8 +13,6 @@ namespace Shift::Conf {
 namespace Shift::Conf {
     static constexpr uint32_t MAX_SECONDARY_CONTEXTS = 6;
 
-    static constexpr uint32_t DIRECTIONAL_LIGHT_MAX_COUNT = 2;
-    static constexpr uint32_t POINT_LIGHT_MAX_COUNT = 6;
     static constexpr uint32_t SHIFT_MAX_FRAMES_IN_FLIGHT = 2;
     static constexpr uint32_t MAX_BINDLESS_IMAGES = 8192u;
     static constexpr uint32_t MAX_BINDLESS_SAMPLERS = 8u;
@@ -29,6 +27,8 @@ namespace Shift::Conf {
     //! Submesh instance list size 4b*size: (256 KB)
     static constexpr uint32_t MAX_SCENE_SUBMESH_INSTANCES = 65536u;
     static constexpr uint32_t MAX_SCENE_MATERIALS = 1024u;
+    //! LightData is 64B
+    static constexpr uint32_t MAX_SCENE_LIGHTS = 256u;
 
     //! Max named GPU timing ranges recorded per frame. Two timestamps per range
     static constexpr uint32_t MAX_GPU_TIME_RANGES_PER_FRAME = 64u;

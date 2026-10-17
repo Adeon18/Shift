@@ -31,9 +31,10 @@ namespace Shift::Editor {
                 settings.tonemapOperator = static_cast<GPU::ETonemapOperator>(current);
             }
 
-            ImGui::SliderFloat("Exposure (2^EV)", &settings.exposure, -8.0f, 8.0f, "%.2f");
+            //! Photometric lights require deeper negative values
+            ImGui::SliderFloat("Exposure (2^EV)", &settings.exposure, -20.0f, 8.0f, "%.2f");
             if (ImGui::Button("Reset exposure")) {
-                settings.exposure = 0.0f;
+                settings.exposure = Graphics::RendererSettings::DEFAULT_EXPOSURE;
             }
         }
 

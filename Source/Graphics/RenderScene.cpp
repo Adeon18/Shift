@@ -5,6 +5,9 @@
 #include "RenderScene.hpp"
 
 #include <algorithm>
+#include <cmath>
+
+#include <glm/gtc/constants.hpp>
 
 #include "Scene/ShiftScene.hpp"
 
@@ -21,6 +24,9 @@ namespace Shift::Graphics {
             const Mesh* mesh = nullptr;
         };
 
+        constexpr float MIN_CONE_COS_DELTA = 1e-4f;
+        constexpr float MIN_LIGHT_RANGE = 1e-3f;
+
         //! Get world sphere from local space
         [[nodiscard]] glm::vec4 WorldSphere(const glm::mat4& transform, const glm::vec4& localSphere) {
             const float radiusScale = std::max({glm::length(glm::vec3(transform[0])),
@@ -34,11 +40,38 @@ namespace Shift::Graphics {
         m_objects.clear();
         m_drawItems.clear();
         m_submeshInstances.clear();
+        m_lights.clear();
         m_stats = {};
 
         std::vector<SubmeshRecord> records;
 
         const auto& registry = scene.GetRegistry();
+
+        //! TODO: [OPTIMIZATION] Something something light culling
+        registry.view<LightProperty>().each([this, &scene](const auto entity, const LightProperty& lightProp) {
+            const glm::mat4 world = scene.GetWorld(entity);
+            const float outerAngle = glm::clamp(lightProp.outerAngle, 0.0f, glm::half_pi<float>());
+            const float innerAngle = glm::clamp(lightProp.innerAngle, 0.0f, outerAngle);
+            const float cosOuter = std::cos(outerAngle);
+            const float cosInner = std::max(std::cos(innerAngle), cosOuter + MIN_CONE_COS_DELTA);
+
+            //! == -Z
+            const glm::vec3 forward = -glm::vec3(world[2]);
+            const float forwardLength = glm::length(forward);
+
+            GPU::LightData light{};
+            light.position = glm::vec3(world[3]);
+            light.type = lightProp.type;
+            light.direction = forwardLength > 1e-6f ? forward / forwardLength : glm::vec3{0.0f, 0.0f, -1.0f};
+            light.range = std::max(lightProp.range, MIN_LIGHT_RANGE);
+            light.color = lightProp.color;
+            light.intensity = lightProp.intensity;
+            light.spotAngles = glm::vec2(cosInner, cosOuter);
+            m_lights.push_back(light);
+        });
+        m_stats.lights = static_cast<uint32_t>(m_lights.size());
+
+
         registry.view<MeshProperty>().each([this, &scene, &meshes, &materials, &inputs, &records](const auto entity, const auto& meshProp) {
             const Mesh* mesh = meshes.Get(meshProp.mesh);
             const glm::mat4 transform = scene.GetWorld(entity);
