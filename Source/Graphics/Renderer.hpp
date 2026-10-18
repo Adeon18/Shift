@@ -30,6 +30,7 @@
 #include "Graphics/RendererSettings.hpp"
 #include "Graphics/Shared/GPUShared.h"
 #include "Graphics/Systems/CaptureSystem.hpp"
+#include "Graphics/Systems/LightIconSystem.hpp"
 #include "Graphics/Systems/SelectionBoxSystem.hpp"
 #include "Graphics/Systems/ToneMapSystem.hpp"
 #include "Loaders/TextureLoader/StbLoader.hpp"
@@ -114,9 +115,15 @@ namespace Shift::Graphics {
             return m_forwardPipelines[static_cast<size_t>(flags)];
         }
 
+        [[nodiscard]] PipelineHandle GetForwardDebugPipeline(EMaterialRasterFlags flags) const {
+            return m_forwardDebugPipelines[static_cast<size_t>(flags)];
+        }
+
         [[nodiscard]] const ToneMapSystem& GetToneMapSystem() const { return m_toneMapSystem; }
 
         [[nodiscard]] const SelectionBoxSystem& GetSelectionBoxSystem() const { return m_selectionBoxSystem; }
+
+        [[nodiscard]] const LightIconSystem& GetLightIconSystem() const { return m_lightIconSystem; }
 
         //! Written to by UI
         [[nodiscard]] RendererSettings& GetSettings() { return m_settings; }
@@ -164,7 +171,9 @@ namespace Shift::Graphics {
 
         void UploadLightData(GPU::LightData* lightDataPtr);
 
-        [[nodiscard]] bool RecordDrawItems(RenderContextEncoder& encoder, uint32_t frameSlot);
+        [[nodiscard]] bool RecordDrawItems(RenderContextEncoder& encoder, uint32_t frameSlot, GPU::EDebugViewMode debugViewMode);
+
+        [[nodiscard]] PipelineHandle CreateForwardPipeline(EMaterialRasterFlags rasterFlags, bool debugView);
 
         [[nodiscard]] Texture* CreateViewportDepthTexture(uint32_t width, uint32_t height);
 
@@ -175,6 +184,7 @@ namespace Shift::Graphics {
 
         //! TODO: This should prob be moved somewhere
         std::array<Graphics::PipelineHandle, Graphics::MATERIAL_RASTER_COMBINATIONS> m_forwardPipelines{};
+        std::array<Graphics::PipelineHandle, Graphics::MATERIAL_RASTER_COMBINATIONS> m_forwardDebugPipelines{};
 
         RenderBackend m_renderBackend;
 
@@ -205,6 +215,7 @@ namespace Shift::Graphics {
 
         Graphics::ToneMapSystem m_toneMapSystem;
         Graphics::SelectionBoxSystem m_selectionBoxSystem;
+        Graphics::LightIconSystem m_lightIconSystem;
         Graphics::CaptureSystem m_captureSystem;
 
         RendererSettings m_settings;

@@ -17,6 +17,10 @@ namespace Shift::Graphics {
         GPU::ETonemapOperator tonemapOperator = GPU::ETonemapOperator::ACES;
         //! Exposure poer actually 2^EV
         float exposure = DEFAULT_EXPOSURE;
+        //! Debug Draw
+        GPU::EDebugViewMode debugViewMode = GPU::EDebugViewMode::Lit;
+        bool showLightIcons = true;
+        float lightIconPixelSize = 20.0f;
         //! How thin are the selection brackets
         float selectionBracketFraction = 0.2f;
         //! Linear - post hdr

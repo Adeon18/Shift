@@ -42,6 +42,18 @@ static const uint SUBMESH_INSTANCE_OBJECT_MASK = 0x00FFFFFFu;
 //! We have a silly corner per corner box
 static const uint SELECTION_BOX_VERTEX_COUNT = 48;
 
+enum class EDebugViewMode : uint {
+    Lit = 0,
+    Albedo = 1,
+    Normal = 2,
+    Roughness = 3,
+    Metallic = 4,
+    Occlusion = 5,
+    UV = 6,
+    Mip = 7,
+    Count
+};
+
 //! Per-frame, per-view constants. Written into this frame's ring slot on the CPU and reached by
 //! the shader through the address in PushConstants
 struct FrameConstants {
@@ -53,7 +65,7 @@ struct FrameConstants {
     float4 cameraDir; //! w-unused
 
     uint lightCount;
-    uint debugViewMode;
+    EDebugViewMode debugViewMode;
     uint _pad0;
     uint _pad1;
 
@@ -153,6 +165,13 @@ struct TonemapPushConstants {
     GPUBufferRef frameConstantsRef;
     uint hdrColorTex;
     ETonemapOperator tonemapOperator;
+};
+
+//! The light icon overlay push block: 16B
+struct LightIconPushConstants {
+    GPUBufferRef frameConstantsRef;
+    //! Half the icon's size in NDC units, so the quad keeps a constant size in pixels
+    float2 iconHalfSizeNDC;
 };
 
 //! SelectionBox push constant block

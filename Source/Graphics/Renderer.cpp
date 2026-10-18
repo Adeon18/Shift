@@ -18,6 +18,51 @@
 #include <glm/gtx/string_cast.hpp>
 
 namespace Shift::Graphics {
+    PipelineHandle Renderer::CreateForwardPipeline(EMaterialRasterFlags rasterFlags, bool debugView) {
+        const bool alphaTested = Any(rasterFlags & EMaterialRasterFlags::Masked);
+        const bool doubleSided = Any(rasterFlags & EMaterialRasterFlags::DoubleSided);
+
+        PipelineDescriptor forwardDescriptor;
+        forwardDescriptor.name = std::string("Forward") + (debugView ? "Debug" : "") + (alphaTested ? "Masked" : "Opaque") + (doubleSided ? "DoubleSided" : "");
+
+        ShaderDescriptor vsDescriptor;
+        vsDescriptor.type = EShaderType::Vertex;
+        vsDescriptor.path = Shift::Util::GetShiftShaderSrcDir() + "Forward/Forward.slang";
+        vsDescriptor.entry = "mainVS";
+        ShaderDescriptor fsDescriptor;
+        fsDescriptor.type = EShaderType::Fragment;
+        fsDescriptor.path = Shift::Util::GetShiftShaderSrcDir() + "Forward/Forward.slang";
+        if (debugView) {
+            fsDescriptor.entry = alphaTested ? "mainPSDebugMasked" : "mainPSDebug";
+        } else {
+            fsDescriptor.entry = alphaTested ? "mainPSMasked" : "mainPS";
+        }
+
+        forwardDescriptor.colorBlendConfig.attachments.push_back({.format = VIEWPORT_HDR_FORMAT});
+
+        forwardDescriptor.depthStencilConfig = {
+            .depthFormat = VIEWPORT_DEPTH_FORMAT,
+            .depthTestEnabled = true,
+            .depthWriteEnabled = true,
+            .depthFunction = ECompareOperation::Less
+        };
+
+        forwardDescriptor.rasterizerStateDesc.cullMode = doubleSided ? ECullMode::None : ECullMode::Back;
+        forwardDescriptor.rasterizerStateDesc.windingOrder = EWindingOrder::CounterClockwise;
+
+        forwardDescriptor.pushConstants = PushConstantRange{
+            .offset = 0,
+            .size = static_cast<uint32_t>(sizeof(GPU::PushConstants)),
+            .stageFlags = EBindingVisibility::Vertex | EBindingVisibility::Fragment
+        };
+
+        forwardDescriptor.descriptorLayouts.resize(GlobalResourceSet::SET_INDEX + 1);
+        forwardDescriptor.descriptorLayouts[GlobalResourceSet::SET_INDEX] = GlobalResourceSet::Layout();
+
+        std::array<ShaderDescriptor, 2> shaderSources{vsDescriptor, fsDescriptor};
+        return m_pipelineManager.CreatePipeline(forwardDescriptor, shaderSources);
+    }
+
     bool Renderer::Init(ShiftScene& scene, const std::optional<RHIRequiredFeatures>& featuresOverride) {
 
         const RHIRequiredFeatures requiredFeatures = featuresOverride.value_or(ShiftSelectedAPI::requiredFeatures);
@@ -62,48 +107,13 @@ namespace Shift::Graphics {
         //! TODO: [ARCHITECTURE] Should this be here and be looking this way tho?
         for (uint32_t flagIdx = 0; flagIdx < MATERIAL_RASTER_COMBINATIONS; ++flagIdx) {
             const auto rasterFlags = static_cast<EMaterialRasterFlags>(flagIdx);
-            const bool alphaTested = Any(rasterFlags & EMaterialRasterFlags::Masked);
-            const bool doubleSided = Any(rasterFlags & EMaterialRasterFlags::DoubleSided);
-
-            PipelineDescriptor forwardDescriptor;
-            forwardDescriptor.name = std::string("Forward") + (alphaTested ? "Masked" : "Opaque") + (doubleSided ? "DoubleSided" : "");
-
-            ShaderDescriptor vsDescriptor;
-            vsDescriptor.type = EShaderType::Vertex;
-            vsDescriptor.path = Shift::Util::GetShiftShaderSrcDir() + "Forward/Forward.slang";
-            vsDescriptor.entry = "mainVS";
-            ShaderDescriptor fsDescriptor;
-            fsDescriptor.type = EShaderType::Fragment;
-            fsDescriptor.path = Shift::Util::GetShiftShaderSrcDir() + "Forward/Forward.slang";
-            fsDescriptor.entry = alphaTested ? "mainPSMasked" : "mainPS";
-
-            forwardDescriptor.colorBlendConfig.attachments.push_back({.format = VIEWPORT_HDR_FORMAT});
-
-            forwardDescriptor.depthStencilConfig = {
-                .depthFormat = VIEWPORT_DEPTH_FORMAT,
-                .depthTestEnabled = true,
-                .depthWriteEnabled = true,
-                .depthFunction = ECompareOperation::Less
-            };
-
-            forwardDescriptor.rasterizerStateDesc.cullMode = doubleSided ? ECullMode::None : ECullMode::Back;
-            forwardDescriptor.rasterizerStateDesc.windingOrder = EWindingOrder::CounterClockwise;
-
-            forwardDescriptor.pushConstants = PushConstantRange{
-                .offset = 0,
-                .size = static_cast<uint32_t>(sizeof(GPU::PushConstants)),
-                .stageFlags = EBindingVisibility::Vertex | EBindingVisibility::Fragment
-            };
-
-            forwardDescriptor.descriptorLayouts.resize(GlobalResourceSet::SET_INDEX + 1);
-            forwardDescriptor.descriptorLayouts[GlobalResourceSet::SET_INDEX] = GlobalResourceSet::Layout();
-
-            std::array<ShaderDescriptor, 2> shaderSources{vsDescriptor, fsDescriptor};
-            m_forwardPipelines[flagIdx] = m_pipelineManager.CreatePipeline(forwardDescriptor, shaderSources);
+            m_forwardPipelines[flagIdx] = CreateForwardPipeline(rasterFlags, false);
+            m_forwardDebugPipelines[flagIdx] = CreateForwardPipeline(rasterFlags, true);
         }
 
         m_toneMapSystem.Init(m_pipelineManager, VIEWPORT_COLOR_FORMAT);
         m_selectionBoxSystem.Init(m_pipelineManager, VIEWPORT_COLOR_FORMAT);
+        m_lightIconSystem.Init(m_pipelineManager, VIEWPORT_COLOR_FORMAT);
         m_captureSystem.Init(m_renderBackend);
 
         {
@@ -297,7 +307,7 @@ namespace Shift::Graphics {
             CheckCritical(indexBuffer != nullptr, "The merged index buffer does not resolve!");
             gEncoder->BindIndexBuffer({indexBuffer, 0}, EIndexSize::UInt32);
 
-            CheckCritical(RecordDrawItems(*gEncoder, frameSlot), "Failed to record the draw list!");
+            CheckCritical(RecordDrawItems(*gEncoder, frameSlot, settings.debugViewMode), "Failed to record the draw list!");
 
             gEncoder->EndRenderPass();
 
@@ -307,7 +317,7 @@ namespace Shift::Graphics {
             const ToneMapInputs toneMapInputs{
                 .frameConstantsRef = m_frameConstants.SlotAddress(frameSlot),
                 .hdrColorSlot = m_viewportHDR.slotIdx,
-                .tonemapOperator = settings.tonemapOperator,
+                .tonemapOperator = settings.debugViewMode == GPU::EDebugViewMode::Lit ? settings.tonemapOperator : GPU::ETonemapOperator::None,
                 .output = *viewportTexture,
                 .globalSet = *m_globalSet.Get()
             };
@@ -320,6 +330,17 @@ namespace Shift::Graphics {
                 .output = *viewportTexture
             };
             CheckCritical(m_selectionBoxSystem.Record(*gEncoder, selectionInputs), "Failed to record the selection box pass!");
+
+            if (settings.showLightIcons) {
+                const GPU::FrameConstants* slotConstants = m_frameConstants.Slot(frameSlot);
+                const LightIconInputs lightIconInputs{
+                    .frameConstantsRef = m_frameConstants.SlotAddress(frameSlot),
+                    .lightCount = slotConstants != nullptr ? slotConstants->lightCount : 0u,
+                    .iconPixelSize = settings.lightIconPixelSize,
+                    .output = *viewportTexture
+                };
+                CheckCritical(m_lightIconSystem.Record(*gEncoder, lightIconInputs), "Failed to record the light icon pass!");
+            }
         }
 
         if (shouldRenderMainWindow) {
@@ -482,7 +503,7 @@ namespace Shift::Graphics {
         frameConstantsPtr->viewProj = engineData.projMatrix * engineData.viewMatrix;
         frameConstantsPtr->cameraDir = glm::vec4(engineData.camDirection, 0.0f);
         frameConstantsPtr->lightCount = std::min(static_cast<uint32_t>(m_renderScene.GetLights().size()), m_lightData.GetElementsPerSlot());
-        frameConstantsPtr->debugViewMode = 0u;
+        frameConstantsPtr->debugViewMode = settings.debugViewMode;
 
         frameConstantsPtr->positionsRef = m_meshManager.GetStreamAddress(MeshManager::Positions);
         frameConstantsPtr->normalsRef = m_meshManager.GetStreamAddress(MeshManager::Normals);
@@ -524,9 +545,10 @@ namespace Shift::Graphics {
         std::memcpy(lightDataPtr, lights.data(), static_cast<size_t>(count) * sizeof(GPU::LightData));
     }
 
-    bool Renderer::RecordDrawItems(RenderContextEncoder& encoder, uint32_t frameSlot) {
+    bool Renderer::RecordDrawItems(RenderContextEncoder& encoder, uint32_t frameSlot, GPU::EDebugViewMode debugViewMode) {
         const std::vector<DrawItem>& items = m_renderScene.GetDrawItems();
         const uint64_t frameConstantsRef = m_frameConstants.SlotAddress(frameSlot);
+        const bool debugView = debugViewMode != GPU::EDebugViewMode::Lit;
 
         PipelineHandle boundHandle{};
         Pipeline* boundPipeline = nullptr;
@@ -535,7 +557,7 @@ namespace Shift::Graphics {
         for (const DrawItem& item : items) {
             if (!HasPass(item.passMask, EPassBit::Forward)) { continue; }
 
-            const PipelineHandle wanted = m_forwardPipelines[static_cast<size_t>(item.rasterFlags)];
+            const PipelineHandle wanted = debugView ? m_forwardDebugPipelines[static_cast<size_t>(item.rasterFlags)] : m_forwardPipelines[static_cast<size_t>(item.rasterFlags)];
             if (boundPipeline == nullptr || !(wanted == boundHandle)) {
                 Pipeline* next = m_pipelineManager.Get(wanted);
                 if (next == nullptr) { continue; }

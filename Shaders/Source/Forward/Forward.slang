@@ -6,6 +6,8 @@ import Lib.MaterialFetch;
 import Lib.BRDF;
 import Lib.Lighting;
 import Lib.Exposure;
+import Lib.SurfaceInput;
+import Lib.DebugView;
 
 [[vk::push_constant]] PushConstants pc;
 
@@ -77,35 +79,14 @@ float4 ShadeForward<TAlphaMode : IAlphaMode>(ForwardData input, bool isFrontFace
     FrameConstants frame = LoadFrameConstants(pc.frameConstantsRef);
     MaterialData material = LoadMaterial(frame, pc.materialIndex);
 
-    float4 baseColorSample = material.baseColorFactor * SampleTexture2D(material.baseColorTex, SAMPLER_ANISO_REPEAT, input.uv);
+    SurfaceInput surfaceInput = UnpackSurface(material, input.uv, input.worldNormal, input.worldTangent, isFrontFace);
 
+    //! We waste above samples if we discard, but ideally this should not be a big of an issue as discard masks lanes anyway
     TAlphaMode alphaMode;
-    alphaMode.Test(baseColorSample.a, material.alphaCutoff);
-    float3 baseColor = baseColorSample.rgb;
-
-    //! Occlusion tex in gltf may differ or may be in the orm, this code handles both cases, either occlusionTex == ormTex,
-    //! or they are different. No perf lost and 2 cases covered
-    float occlusion = SampleTexture2D(material.occlusionTex, SAMPLER_ANISO_REPEAT, input.uv).r;
-    float3 orm = SampleTexture2D(material.ormTex, SAMPLER_ANISO_REPEAT, input.uv).rgb;
-    float perceptualRoughness = material.roughnessFactor * orm.g;
-    float metallic = material.metallicFactor * orm.b;
-
-    float3 emissive = material.emissiveFactor * SampleTexture2D(material.emissiveTex, SAMPLER_ANISO_REPEAT, input.uv).rgb;
-
-    float3 geometricNormal = normalize(input.worldNormal);
-
-    //! Gram-Smidt + normal mapping
-    float3 T = input.worldTangent.xyz;
-    T = normalize(T - geometricNormal * dot(geometricNormal, T));
-    float3 B = cross(geometricNormal, T) * input.worldTangent.w;
-    float3 tangentNormal = SampleTexture2D(material.normalTex, SAMPLER_ANISO_REPEAT, input.uv).rgb * 2.0f - 1.0f;
-    float3 normal = normalize(tangentNormal.x * T + tangentNormal.y * B + tangentNormal.z * geometricNormal);
-
-    //! 2 sided geo has reversed normals, reverse them back if we rasterize a face pointing in the same dir as camera
-    if (!isFrontFace) { normal = -normal; }
+    alphaMode.Test(surfaceInput.alpha, material.alphaCutoff);
 
     float3 viewDir = normalize(frame.cameraPosExposure.xyz - input.worldPos);
-    SurfaceParams surface = MakeSurfaceParams(normal, viewDir, baseColor, metallic, perceptualRoughness);
+    SurfaceParams surface = MakeSurfaceParams(surfaceInput.normal, viewDir, surfaceInput.baseColor, surfaceInput.metallic, surfaceInput.perceptualRoughness);
 
     ActiveBRDF brdf;
     float3 color = float3(0.0f, 0.0f, 0.0f);
@@ -120,10 +101,27 @@ float4 ShadeForward<TAlphaMode : IAlphaMode>(ForwardData input, bool isFrontFace
     }
 
     float3 ambient = lerp(AMBIENT_GROUND, AMBIENT_SKY, surface.normal.y * 0.5f + 0.5f) * (AMBIENT_INTENSITY / PI);
-    color += ambient * (surface.diffuseColor * occlusion + surface.f0);
-    color += emissive;
+    color += ambient * (surface.diffuseColor * surfaceInput.occlusion + surface.f0);
+    color += surfaceInput.emissive;
 
     return float4(PreExpose(color, frame), 1.0f);
+}
+
+//! Debug shader
+float4 ShadeDebug<TAlphaMode : IAlphaMode>(ForwardData input, bool isFrontFace)
+{
+    FrameConstants frame = LoadFrameConstants(pc.frameConstantsRef);
+    MaterialData material = LoadMaterial(frame, pc.materialIndex);
+
+    float mipLevel = ComputeMipLevel(material.baseColorTex, SAMPLER_ANISO_REPEAT, input.uv);
+
+    SurfaceInput surfaceInput = UnpackSurface(material, input.uv, input.worldNormal, input.worldTangent, isFrontFace);
+    surfaceInput.mipLevel = mipLevel;
+
+    TAlphaMode alphaMode;
+    alphaMode.Test(surfaceInput.alpha, material.alphaCutoff);
+
+    return float4(DebugShade(frame.debugViewMode, surfaceInput), 1.0f);
 }
 
 //! Opaque and masked shaders using simple generics
@@ -137,4 +135,17 @@ float4 mainPS(ForwardData input, bool isFrontFace : SV_IsFrontFace) : SV_Target
 float4 mainPSMasked(ForwardData input, bool isFrontFace : SV_IsFrontFace) : SV_Target
 {
     return ShadeForward<AlphaMasked>(input, isFrontFace);
+}
+
+//! Debug
+[shader("fragment")]
+float4 mainPSDebug(ForwardData input, bool isFrontFace : SV_IsFrontFace) : SV_Target
+{
+    return ShadeDebug<AlphaOpaque>(input, isFrontFace);
+}
+
+[shader("fragment")]
+float4 mainPSDebugMasked(ForwardData input, bool isFrontFace : SV_IsFrontFace) : SV_Target
+{
+    return ShadeDebug<AlphaMasked>(input, isFrontFace);
 }

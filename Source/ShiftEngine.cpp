@@ -12,7 +12,7 @@
 #include "Graphics/UI/GenericPanel.hpp"
 #include "Graphics/UI/GPUTimingPanel.hpp"
 #include "Graphics/UI/RenderStatsPanel.hpp"
-#include "Graphics/UI/TonemapPanel.hpp"
+#include "Graphics/UI/RenderPanel.hpp"
 #include "Graphics/UI/SceneTreePanel.hpp"
 #include "Graphics/UI/NodeInspectorPanel.hpp"
 #include "Graphics/UI/MaterialsPanel.hpp"
@@ -79,7 +79,7 @@ namespace Shift {
         m_editorLayer.AddPanel<Editor::RenderStatsPanel>(
             [this]() -> const Graphics::RenderSceneStats& { return m_renderer->GetRenderScene().GetStats(); }
         );
-        m_editorLayer.AddPanel<Editor::TonemapPanel>(
+        m_editorLayer.AddPanel<Editor::RenderPanel>(
             [this]() -> Graphics::RendererSettings& { return m_renderer->GetSettings(); }
         );
 

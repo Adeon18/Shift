@@ -592,6 +592,10 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
             const auto rasterFlags = static_cast<Shift::Graphics::EMaterialRasterFlags>(flagIdx);
             CHECK_MESSAGE(!pipelines.IsRunningFallback(engine.GetRenderer().GetForwardPipeline(rasterFlags)),
                           "a forward raster flag combination is running on fallback shaders");
+            //! Same reasoning for the debug table: ShadeDebug<AlphaMasked> and DebugShade are only
+            //! lowered to SPIR-V because something instantiates them, and nothing else does
+            CHECK_MESSAGE(!pipelines.IsRunningFallback(engine.GetRenderer().GetForwardDebugPipeline(rasterFlags)),
+                          "a forward DEBUG raster flag combination is running on fallback shaders");
         }
         CHECK_MESSAGE(!pipelines.IsRunningFallback(engine.GetRenderer().GetToneMapSystem().GetPipeline()),
                       "the tonemap pipeline is running on fallback shaders");
@@ -599,6 +603,9 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
         //! a fallback substitution here is invisible to validation AND to the hot-reload row below
         CHECK_MESSAGE(!pipelines.IsRunningFallback(engine.GetRenderer().GetSelectionBoxSystem().GetPipeline()),
                       "the selection box pipeline is running on fallback shaders");
+        //! Same blindness: the icon pass samples nothing, so a fallback here is invisible to validation
+        CHECK_MESSAGE(!pipelines.IsRunningFallback(engine.GetRenderer().GetLightIconSystem().GetPipeline()),
+                      "the light icon pipeline is running on fallback shaders");
 
         auto& textures = engine.GetRenderer().GetTextureManager();
         CHECK_MESSAGE(textures.GetFormat(engine.GetRenderer().GetViewportHDR()) == Shift::ETextureFormat::R16G16B16A16_SFLOAT,
@@ -669,6 +676,54 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
         std::ifstream shotFile(shotPath, std::ios::binary | std::ios::ate);
         const bool shotLanded = shotFile.is_open() && shotFile.tellg() > 0;
         CHECK_MESSAGE(shotLanded, "no non-empty PNG landed on disk, so the writer only claimed to work");
+    }
+
+    //! Phase 1.4: the debug views and the light icon overlay must each CHANGE the picture.
+    //! Both are invisible to validation - a debug pipeline that never got bound, or an overlay pass
+    //! that drew nothing, renders a perfectly legal frame - so the display target is the only
+    //! witness. The restore at the end is also a determinism check: same scene, same camera, same
+    //! fixed dt, so the lit image must come back byte for byte (P4.5 5.2)
+    {
+        auto& capture = engine.GetRenderer().GetCaptureSystem();
+        auto& settings = engine.GetRenderer().GetSettings();
+
+        const auto displayPixels = [&]() {
+            const Shift::Graphics::CapturedImage shot = capture.Capture(
+                    engine.GetRenderer().GetCaptureTarget(Shift::Graphics::EViewportTarget::DisplayColor));
+            REQUIRE_MESSAGE(shot.IsValid(), "the display target did not read back");
+            return shot.pixels;
+        };
+
+        const auto lit = displayPixels();
+
+        settings.debugViewMode = Shift::GPU::EDebugViewMode::Albedo;
+        tick(2);
+        const auto albedo = displayPixels();
+        CHECK_MESSAGE(albedo != lit,
+                      "the albedo debug view renders the lit image, so the debug pipeline table is never bound");
+
+        settings.debugViewMode = Shift::GPU::EDebugViewMode::Normal;
+        tick(2);
+        CHECK_MESSAGE(displayPixels() != albedo,
+                      "two debug views produce the same image, so debugViewMode is not reaching the shader");
+
+        //! Restore the view FIRST and on its own: changing the mode and the icon toggle in one step
+        //! would let a broken debug->lit restore be reported as a broken icon pass
+        settings.debugViewMode = Shift::GPU::EDebugViewMode::Lit;
+        tick(2);
+        const auto litAgain = displayPixels();
+        CHECK_MESSAGE(litAgain == lit,
+                      "the lit image did not come back after the debug views, so a debug mode left state behind");
+
+        settings.showLightIcons = false;
+        tick(2);
+        CHECK_MESSAGE(displayPixels() != litAgain,
+                      "turning the light icons off changed nothing, so the overlay never drew");
+
+        settings.showLightIcons = true;
+        tick(2);
+        CHECK_MESSAGE(displayPixels() == lit,
+                      "the lit image did not come back once the icons were restored");
     }
 
     //! Phase 1.5: the global sampler array is a cache, not a fixed table.
@@ -1008,13 +1063,15 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     //! executor once the timeline passes. Each Lib module is asked SEPARATELY because a
     //! dependency list reaching one says nothing about another - every module the forward file
     //! imports has to be listed here, or an edit to it silently rebuilds nothing.
-    //! The count is how many pipelines import the file. FrameData reaches all THREE passes (forward,
-    //! tonemap and the P4.4b 3b selection box); Bindless reaches the first two, since the box pass
-    //! samples nothing.
-    //! The forward pass is one pipeline PER RASTER FLAG COMBINATION since P4.4b slice 3, and all
-    //! of them import the same file, so the count is derived rather than typed - a new flag must
-    //! not need this table edited. The count itself is pinned by the fallback loop above
-    constexpr uint32_t FORWARD_PIPELINES = Shift::Graphics::MATERIAL_RASTER_COMBINATIONS;
+    //! The count is how many pipelines import the file. FrameData reaches all FOUR passes (forward,
+    //! tonemap, the P4.4b 3b selection box and the P4.5 5.2 light icons); Bindless reaches forward
+    //! and tonemap, since neither overlay samples anything.
+    //! The forward pass is one pipeline PER RASTER FLAG COMBINATION since P4.4b slice 3, and since
+    //! 5.2 every combination exists TWICE - lit and debug-view - out of the same file, so a module
+    //! the forward file imports reaches 2x the combination count. Both halves are derived rather
+    //! than typed: a new raster flag or a third pixel variant must not need this table edited. The
+    //! counts themselves are pinned by the fallback loop above
+    constexpr uint32_t FORWARD_PIPELINES = Shift::Graphics::MATERIAL_RASTER_COMBINATIONS * 2;
     struct DirtiedShader {
         const char* path;
         uint32_t expectedRebuilds;
@@ -1023,11 +1080,21 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
         {"Forward/Forward.slang", FORWARD_PIPELINES},
         {"PostProcess/Tonemap.slang", 1},
         {"Editor/SelectionBox.slang", 1},
-        {"Lib/FrameData.slang", FORWARD_PIPELINES + 2},
+        {"Editor/LightIcon.slang", 1},
+        {"Lib/FrameData.slang", FORWARD_PIPELINES + 3},
         {"Lib/Bindless.slang", FORWARD_PIPELINES + 1},
         {"Lib/VertexPull.slang", FORWARD_PIPELINES},
         {"Lib/MaterialFetch.slang", FORWARD_PIPELINES},
         {"Lib/BRDF.slang", FORWARD_PIPELINES},
+        {"Lib/Lighting.slang", FORWARD_PIPELINES},
+        {"Lib/Exposure.slang", FORWARD_PIPELINES},
+        //! The 5.2 pair. SurfaceInput is imported by the lit entries too, so an edit to the shared
+        //! unpack had better reach them - that reach is the whole reason the debug views can be
+        //! trusted to show what shading sees
+        {"Lib/SurfaceInput.slang", FORWARD_PIPELINES},
+        {"Lib/DebugView.slang", FORWARD_PIPELINES},
+        //! Reached THROUGH Lib.Lighting by the forward file, and directly by the icon pass
+        {"Lib/LightFetch.slang", FORWARD_PIPELINES + 1},
     };
     for (const DirtiedShader& shader : dirtiedShaders) {
         CAPTURE(shader.path);
