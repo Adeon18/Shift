@@ -30,7 +30,7 @@ float3 DebugShade(EDebugViewMode mode, SurfaceInput surface)
     case EDebugViewMode::UV:
         return float3(frac(surface.uv), 0.0f);
     case EDebugViewMode::Mip:
-        return lerp(MIP_RAMP[surface.mipLevel % MIP_RAMP_COUNT], MIP_RAMP[(surface.mipLevel + 1) % MIP_RAMP_COUNT], frac(surface.mipLevel));
+        return lerp(MIP_RAMP[uint(surface.mipLevel) % MIP_RAMP_COUNT], MIP_RAMP[(uint(surface.mipLevel) + 1) % MIP_RAMP_COUNT], frac(surface.mipLevel));
     default:
         return float3(1.0f, 0.0f, 1.0f);
     }

@@ -23,6 +23,14 @@ namespace Shift::Graphics::Util {
         DX12_DXIL
     };
 
+    static constexpr std::string ShaderTargetToString(EShaderTarget target) {
+        switch (target) {
+            case EShaderTarget::Vulkan_SPIRV: return "Vulkan_SPIRV";
+            case EShaderTarget::DX12_DXIL: return "DX12_DXIL";
+            default: return "Undefined";
+        }
+    }
+
     struct ShaderCompileResult {
         std::vector<uint8_t> data;
         std::vector<std::string> dependencies;

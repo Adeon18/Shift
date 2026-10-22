@@ -13,7 +13,12 @@ namespace Shift::Graphics {
     void ShaderManager::Init(RenderBackendInterface* backend, const std::string &shaderRootFolder) {
         m_backend = backend;
         m_shaderRootFolder = shaderRootFolder;
-        m_shaderCacheFolder = std::filesystem::path(shaderRootFolder).parent_path() / "Build";
+
+#ifdef SHIFT_VULKAN_BACKEND
+        m_shaderTarget = Util::EShaderTarget::Vulkan_SPIRV;
+#endif
+
+        m_shaderCacheFolder = std::filesystem::path(shaderRootFolder).parent_path() / "Build" / Util::ShaderTargetToString(m_shaderTarget);
         if (!std::filesystem::exists(m_shaderCacheFolder)) {
             std::filesystem::create_directories(m_shaderCacheFolder);
         }
@@ -25,9 +30,7 @@ namespace Shift::Graphics {
             Shift::Util::GetShiftGPUSharedDir(),
         };
 
-#ifdef SHIFT_VULKAN_BACKEND
-        m_compiler.Init(includePaths, Util::EShaderTarget::Vulkan_SPIRV);
-#endif
+        m_compiler.Init(includePaths, m_shaderTarget);
 
 
         auto& watcher = Shift::Util::FileWatcher::Get();

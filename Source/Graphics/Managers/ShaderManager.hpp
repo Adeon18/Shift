@@ -59,6 +59,7 @@ namespace Shift::Graphics {
     private:
         RenderBackendInterface* m_backend = nullptr;
         Util::SlangCompiler m_compiler;
+        Util::EShaderTarget m_shaderTarget = Util::EShaderTarget::Undefined;
 
         //! Self explanatory lol
         ShaderAsset* GetOrCreateAsset(const ShaderDescriptor& desc);
