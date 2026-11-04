@@ -38,12 +38,27 @@ namespace Shift::VK {
 
         void InitInternal(bool createLayout);
 
+        //! Only gp-related init (IA, Blend, etc)
+        void InitGraphicsPipeline(std::span<VkPipelineShaderStageCreateInfo> shaderStages);
+
+        //! Only compute-related init
+        void InitComputePipeline(std::span<VkPipelineShaderStageCreateInfo> shaderStages);
+
+        //! Derived from the stage list
+        [[nodiscard]] bool IsCompute() const;
+
         //! API SPECIFIC, DO NOT USE UNLESS NESSESARY IN RHI SPECIFIC CODE (backend-only, friended)
         //! \return VkPipeline
         [[nodiscard]] VkPipeline VK_Get() const { return m_pipeline; }
         //! API SPECIFIC, DO NOT USE UNLESS NESSESARY IN RHI SPECIFIC CODE (backend-only, friended)
         //! \return VkPipelineLayout
         [[nodiscard]] VkPipelineLayout VK_GetLayout() const { return m_layout; }
+        //! API SPECIFIC, DO NOT USE UNLESS NESSESARY IN RHI SPECIFIC CODE (backend-only, friended)
+        //! The bind point this pipeline was built for
+        //! \return VkPipelineBindPoint
+        [[nodiscard]] VkPipelineBindPoint VK_GetBindPoint() const {
+            return IsCompute() ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS;
+        }
 
         const Device* m_device = nullptr;
 

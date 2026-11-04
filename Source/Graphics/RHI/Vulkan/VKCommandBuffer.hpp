@@ -172,6 +172,13 @@ namespace Shift::VK {
         //! \param size bytes the host will read
         void BarrierForHostRead(const BufferOpDescriptor& buffer, uint64_t size) const;
 
+        //! Record a sync2 buffer memory barrier
+        //! \param buffer buffer + offset into the buffer
+        //! \param size bytes covered by the dependency
+        //! \param dependency the four scopes to order
+        void BufferBarrier(const BufferOpDescriptor& buffer, uint64_t size, const MemoryDependency& dependency) const;
+
+
         // TODO: [FEATURE]
         // void CopyTextureToTexture(TextureCopyDescriptor srcTex, TextureCopyDescriptor dstTex);
 
@@ -210,11 +217,22 @@ namespace Shift::VK {
         void SetPushConstants(const Pipeline& pipeline, const void* data, uint32_t size, uint32_t offset) const;
 
         //! Bind one resource set at a set index of the pipeline's layout.
-        //! Graphics bind point only as there is no compute pipeline type to take yet
+        //! The bind point is DERIVED from the pipeline, never assumed: a set bound at the
+        //! graphics bind point is invisible to a dispatch.
         //! \param pipeline pipeline whose layout declares this set index
         //! \param setIdx index of the set in that layout (set 0 is the global bindless set)
         //! \param set the set to bind
         void BindResourceSet(const Pipeline& pipeline, uint32_t setIdx, const ResourceSet& set) const;
+
+        ///! ------------------- Compute Commands ------------------- !///
+
+        //! Bind the compute pipeline
+        //! \param pipeline The Pipeline wrapper
+        void BindComputePipeline(const Pipeline& pipeline) const;
+
+        //! Dispatch compute work
+        //! \param dispatchConf thread group counts
+        void Dispatch(const DispatchConfig& dispatchConf) const;
 
         //! [VK backend only function] Expects a higher level RHI manager to fill in the API specific data
         //! \param descriptorSets range of ds

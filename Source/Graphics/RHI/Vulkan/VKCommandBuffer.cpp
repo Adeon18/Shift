@@ -671,7 +671,32 @@ namespace Shift::VK {
 
     void CommandBuffer::BindResourceSet(const Pipeline& pipeline, uint32_t setIdx, const ResourceSet& set) const {
         std::array descriptorSets{set.VK_Get()};
-        VK_BindDescriptorSets(descriptorSets, {}, pipeline.VK_GetLayout(), VK_PIPELINE_BIND_POINT_GRAPHICS, setIdx);
+        VK_BindDescriptorSets(descriptorSets, {}, pipeline.VK_GetLayout(), pipeline.VK_GetBindPoint(), setIdx);
+    }
+
+    void CommandBuffer::BindComputePipeline(const Pipeline& pipeline) const {
+        vkCmdBindPipeline(m_buffer, VkPipelineBindPoint::VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.VK_Get());
+    }
+
+    void CommandBuffer::Dispatch(const DispatchConfig& dispatchConf) const {
+        vkCmdDispatch(m_buffer, dispatchConf.groupCountX, dispatchConf.groupCountY, dispatchConf.groupCountZ);
+    }
+
+    void CommandBuffer::BufferBarrier(const BufferOpDescriptor& buffer, uint64_t size, const MemoryDependency& dependency) const {
+        VkBufferMemoryBarrier2 barrier{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 };
+        barrier.srcStageMask = Util::ShiftToVKPipelineStageFlags2(dependency.srcStage);
+        barrier.srcAccessMask = Util::ShiftToVKAccessFlags2(dependency.srcAccess);
+        barrier.dstStageMask = Util::ShiftToVKPipelineStageFlags2(dependency.dstStage);
+        barrier.dstAccessMask = Util::ShiftToVKAccessFlags2(dependency.dstAccess);
+        //! Buffers are concurrent and no I am not negotiating
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.buffer = buffer.buffer->VK_Get();
+        barrier.offset = buffer.offset;
+        barrier.size = size;
+
+        std::array bufBarriers{barrier};
+        VK_SetPipelineBarrier({}, {}, bufBarriers, 0);
     }
 
     void CommandBuffer::VK_BindDescriptorSets(const std::span<VkDescriptorSet> descriptorSets,

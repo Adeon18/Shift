@@ -545,6 +545,15 @@ namespace Shift::VK {
         return pipeline;
     }
 
+    VkPipeline Device::CreateComputePipeline(const VkComputePipelineCreateInfo &info) const {
+        VkPipeline pipeline;
+        if ( VkCheck(vkCreateComputePipelines(m_device, VK_NULL_HANDLE, 1, &info, nullptr, &pipeline)) ) {
+            Log(Error, "Failed to create compute VkPipeline!");
+            return VK_NULL_HANDLE;
+        }
+        return pipeline;
+    }
+
     void Device::DestroyPipeline(VkPipeline pipeline) const {
         vkDestroyPipeline(m_device, pipeline, nullptr);
     }

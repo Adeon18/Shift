@@ -56,6 +56,35 @@ namespace Shift {
     };
     DEFINE_ENUM_CLASS_BITWISE_OPERATORS(EPipelineStageFlags);
 
+    //! 1:1 with VkAccessFlagBits2, present in d3d12 as well in diff form
+    enum class EAccessFlags : uint64_t
+    {
+        NoneBit                          = 0,
+        IndirectCommandReadBit           = 1ull << 0,
+        IndexReadBit                     = 1ull << 1,
+        VertexAttributeReadBit           = 1ull << 2,
+        UniformReadBit                   = 1ull << 3,
+        InputAttachmentReadBit           = 1ull << 4,
+        ShaderReadBit                    = 1ull << 5,
+        ShaderWriteBit                   = 1ull << 6,
+        ColorAttachmentReadBit           = 1ull << 7,
+        ColorAttachmentWriteBit          = 1ull << 8,
+        DepthStencilAttachmentReadBit    = 1ull << 9,
+        DepthStencilAttachmentWriteBit   = 1ull << 10,
+        TransferReadBit                  = 1ull << 11,
+        TransferWriteBit                 = 1ull << 12,
+        HostReadBit                      = 1ull << 13,
+        HostWriteBit                     = 1ull << 14,
+        MemoryReadBit                    = 1ull << 15,
+        MemoryWriteBit                   = 1ull << 16,
+
+        //! sync-2
+        ShaderSampledReadBit             = 1ull << 32,
+        ShaderStorageReadBit             = 1ull << 33,
+        ShaderStorageWriteBit            = 1ull << 34
+    };
+    DEFINE_ENUM_CLASS_BITWISE_OPERATORS(EAccessFlags);
+
     //! Shift Texture Formats
     //! Note: 1:1 with Vulkan, and yes, I just copied them:D So licence is the Vulkan licence:D
     enum class ETextureFormat {

@@ -37,6 +37,10 @@ namespace Shift::VK {
         m_device->DestroyPipelineLayout(m_layout);
     }
 
+    bool Pipeline::IsCompute() const {
+        return m_shaders.size() == 1 && m_shaders.front().type == EShaderType::Compute;
+    }
+
     void Pipeline::InitInternal(bool createLayout) {
         //! Shaders
         std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
@@ -45,6 +49,59 @@ namespace Shift::VK {
             shaderStages.push_back(shader.handle->VK_GetStageInfo());
         }
 
+        //! Pipeline Layout
+        VkPushConstantRange pushRange{};
+        if (m_desc.pushConstants) {
+            pushRange.stageFlags = Util::ShiftToVKBindingVisibility(m_desc.pushConstants->stageFlags);
+            pushRange.offset = m_desc.pushConstants->offset;
+            pushRange.size = m_desc.pushConstants->size;
+        }
+
+        VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+        pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(m_descLayouts.size());
+        pipelineLayoutInfo.pSetLayouts = m_descLayouts.data();
+        pipelineLayoutInfo.pushConstantRangeCount = m_desc.pushConstants ? 1u : 0u;
+        pipelineLayoutInfo.pPushConstantRanges = m_desc.pushConstants ? &pushRange : nullptr;
+
+        if (createLayout) {
+            m_layout = m_device->CreatePipelineLayout(pipelineLayoutInfo);
+            if ( !(VkNullCheck(m_layout)) ) {
+                m_valid = false;
+                return;
+            }
+        }
+
+        if (IsCompute()) {
+            InitComputePipeline(shaderStages);
+        } else {
+            InitGraphicsPipeline(shaderStages);
+        }
+
+        m_valid = VkNullCheck(m_pipeline);
+
+        if (m_valid) {
+            //! Re-applied on every Rebuild
+            Util::SetDebugName(m_device->Get(), VK_OBJECT_TYPE_PIPELINE, reinterpret_cast<uint64_t>(m_pipeline), m_desc.name.c_str());
+            if (createLayout) {
+                Util::SetDebugName(m_device->Get(), VK_OBJECT_TYPE_PIPELINE_LAYOUT, reinterpret_cast<uint64_t>(m_layout), (m_desc.name + "_layout").c_str());
+            }
+        }
+    }
+
+    void Pipeline::InitComputePipeline(std::span<VkPipelineShaderStageCreateInfo> shaderStages) {
+        //! Ostap note: holy, this is comically short compared to the graphics
+        VkComputePipelineCreateInfo pipelineInfo{};
+        pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+        pipelineInfo.stage = shaderStages.front();
+        pipelineInfo.layout = m_layout;
+        pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+        pipelineInfo.basePipelineIndex = -1;
+
+        m_pipeline = m_device->CreateComputePipeline(pipelineInfo);
+    }
+
+    void Pipeline::InitGraphicsPipeline(std::span<VkPipelineShaderStageCreateInfo> shaderStages) {
         //! Input assembly
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo{};
         inputAssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -100,29 +157,6 @@ namespace Shift::VK {
                                                       Util::ShiftToVKTextureFormat(m_desc.depthStencilConfig.stencilFormat)
                                                   );
 
-        //! Pipeline Layout
-        VkPushConstantRange pushRange{};
-        if (m_desc.pushConstants) {
-            pushRange.stageFlags = Util::ShiftToVKBindingVisibility(m_desc.pushConstants->stageFlags);
-            pushRange.offset = m_desc.pushConstants->offset;
-            pushRange.size = m_desc.pushConstants->size;
-        }
-
-        VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-        pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(m_descLayouts.size());
-        pipelineLayoutInfo.pSetLayouts = m_descLayouts.data();
-        pipelineLayoutInfo.pushConstantRangeCount = m_desc.pushConstants ? 1u : 0u;
-        pipelineLayoutInfo.pPushConstantRanges = m_desc.pushConstants ? &pushRange : nullptr;
-
-        if (createLayout) {
-            m_layout = m_device->CreatePipelineLayout(pipelineLayoutInfo);
-            if ( !(VkNullCheck(m_layout)) ) {
-                m_valid = false;
-                return;
-            }
-        }
-
         //! Pipeline itself
         VkGraphicsPipelineCreateInfo pipelineInfo{};
         pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -147,15 +181,5 @@ namespace Shift::VK {
         pipelineInfo.basePipelineIndex = -1; // Optional
 
         m_pipeline = m_device->CreateGraphicsPipeline(pipelineInfo);
-
-        m_valid = VkNullCheck(m_pipeline);
-
-        if (m_valid) {
-            //! Re-applied on every Rebuild
-            Util::SetDebugName(m_device->Get(), VK_OBJECT_TYPE_PIPELINE, reinterpret_cast<uint64_t>(m_pipeline), m_desc.name.c_str());
-            if (createLayout) {
-                Util::SetDebugName(m_device->Get(), VK_OBJECT_TYPE_PIPELINE_LAYOUT, reinterpret_cast<uint64_t>(m_layout), (m_desc.name + "_layout").c_str());
-            }
-        }
     }
 } // shift

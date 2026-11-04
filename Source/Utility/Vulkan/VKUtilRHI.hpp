@@ -150,6 +150,11 @@ namespace Shift::VK::Util {
     //! \return The corresponding VkShaderStageFlags
     VkShaderStageFlagBits ShiftToVKShaderType(EShaderType type);
 
+    //! Create VkAccessFlags2 from EAccessFlags
+    //! \param flags The access flags enum value to convert
+    //! \return The corresponding VkAccessFlags2
+    VkAccessFlags2 ShiftToVKAccessFlags2(EAccessFlags flags);
+
     //! Convert a VertexConfig structure to a Vulkan vertex input state create info structure
     //! \param config The vertex configuration descriptor to convert
     //! \return The corresponding VkPipelineVertexInputStateCreateInfo structure

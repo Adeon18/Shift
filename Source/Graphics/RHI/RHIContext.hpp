@@ -169,6 +169,21 @@ namespace Shift {
         //! \param drawConf draw configuration
         void Draw(const DrawConfig& drawConf) const;
 
+        ///! ------------------- Compute Commands ------------------- !///
+        //! Bind the compute pipeline
+        //! \param pipeline The Pipeline wrapper
+        void BindComputePipeline(const Pipeline& pipeline) const;
+
+        //! Dispatch compute work
+        //! \param dispatchConf thread group counts
+        void Dispatch(const DispatchConfig& dispatchConf) const;
+
+        //! Self explanatory, tracks nothing
+        //! \param buffer buffer + offset into the buffer
+        //! \param size bytes covered by the dependency
+        //! \param dependency the four scopes to order
+        void BufferBarrier(const BufferOpDescriptor& buffer, uint64_t size, const MemoryDependency& dependency) const;
+
         ///! ------------------- Mics Buffer Commands ------------------- !///
 
         //! Blit the texture into the other texture
@@ -373,6 +388,21 @@ namespace Shift {
     template<ValidAPI API>
     void RHIEncoder<API>::Draw(const DrawConfig &drawConf) const {
         m_boundCB->Draw(drawConf);
+    }
+
+    template<ValidAPI API>
+    void RHIEncoder<API>::BindComputePipeline(const Pipeline &pipeline) const {
+        m_boundCB->BindComputePipeline(pipeline);
+    }
+
+    template<ValidAPI API>
+    void RHIEncoder<API>::Dispatch(const DispatchConfig &dispatchConf) const {
+        m_boundCB->Dispatch(dispatchConf);
+    }
+
+    template<ValidAPI API>
+    void RHIEncoder<API>::BufferBarrier(const BufferOpDescriptor& buffer, uint64_t size, const MemoryDependency& dependency) const {
+        m_boundCB->BufferBarrier(buffer, size, dependency);
     }
 
     template<ValidAPI API>

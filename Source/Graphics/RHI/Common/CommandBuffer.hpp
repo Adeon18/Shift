@@ -33,6 +33,36 @@ namespace Shift {
         uint32_t firstInstance = 0;
     };
 
+    struct DispatchConfig {
+        uint32_t groupCountX = 1;
+        uint32_t groupCountY = 1;
+        uint32_t groupCountZ = 1;
+
+        //! TODO: [FEATURE] this shoudl dissapear with reflection
+        [[nodiscard]] static constexpr DispatchConfig CoveringThreads(
+            uint32_t threadsX, uint32_t threadsY, uint32_t threadsZ,
+            uint32_t groupSizeX, uint32_t groupSizeY, uint32_t groupSizeZ)
+        {
+            const auto divideRoundUp = [](uint32_t value, uint32_t divisor) -> uint32_t {
+                return divisor == 0u ? 0u : (value + divisor - 1u) / divisor;
+            };
+            return DispatchConfig{
+                divideRoundUp(threadsX, groupSizeX),
+                divideRoundUp(threadsY, groupSizeY),
+                divideRoundUp(threadsZ, groupSizeZ)
+            };
+        }
+    };
+
+    //! Every base barrier
+    //! TODO: [FEATURE] do layouts go here?
+    struct MemoryDependency {
+        EPipelineStageFlags srcStage = EPipelineStageFlags::NoneBit;
+        EAccessFlags        srcAccess = EAccessFlags::NoneBit;
+        EPipelineStageFlags dstStage = EPipelineStageFlags::NoneBit;
+        EAccessFlags        dstAccess = EAccessFlags::NoneBit;
+    };
+
     //! Buffer data for a copy operation (based on Vulkan)
     struct BufferOpDescriptor {
         Buffer* buffer;
@@ -100,6 +130,8 @@ namespace Shift {
             const ResourceSet& InputResourceSet,
             const DrawConfig& InputDrawConfig,
             const DrawIndexedConfig& InputDrawIndexedConfig,
+            const DispatchConfig& InputDispatchConfig,
+            const MemoryDependency& InputMemoryDependency,
             const Viewport& InputViewport,
             const Rect2D& InputScissor,
             const TextureBlitData& InputTextureBlitData,
@@ -134,6 +166,7 @@ namespace Shift {
         { InputBuffer.CopyBufferToTexture(InputBufferOpDesc, InputTextureCopyDesc) } -> std::same_as<void>;
         { InputBuffer.CopyTextureToBuffer(InputTextureCopyDesc, InputBufferOpDesc) } -> std::same_as<void>;
         { InputBuffer.BarrierForHostRead(InputBufferOpDesc, size) } -> std::same_as<void>;
+        { InputBuffer.BufferBarrier(InputBufferOpDesc, size, InputMemoryDependency) } -> std::same_as<void>;
         //{ InputBuffer.CopyTextureToTexture(InputTextureCopyDesc, InputTextureCopyDesc) } -> std::same_as<void>; // TODO: [FEATURE] Check
         //! Rendering
         { InputBuffer.BindGraphicsPipeline(InputPipeline) } -> std::same_as<void>;
@@ -144,6 +177,9 @@ namespace Shift {
         //!{ InputBuffer.BindResourceSets(InputPipeline, firstBindPosition, InputResourceSets) } -> std::same_as<void>; // Dynamic offsets will be pulled out of my fucking ass
         { InputBuffer.Draw(InputDrawConfig) } -> std::same_as<void>;
         { InputBuffer.DrawIndexed(InputDrawIndexedConfig) } -> std::same_as<void>;
+        //! Compute
+        { InputBuffer.BindComputePipeline(InputPipeline) } -> std::same_as<void>;
+        { InputBuffer.Dispatch(InputDispatchConfig) } -> std::same_as<void>;
         //! Misc
         { InputBuffer.SetViewport(InputViewport) } -> std::same_as<void>;
         { InputBuffer.SetScissor(InputScissor) } -> std::same_as<void>;

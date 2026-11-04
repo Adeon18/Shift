@@ -176,6 +176,10 @@ namespace Shift::VK::Util {
         return static_cast<VkShaderStageFlagBits>(type);
     }
 
+    VkAccessFlags2 ShiftToVKAccessFlags2(EAccessFlags flags) {
+        return static_cast<VkAccessFlags2>(static_cast<uint64_t>(flags));
+    }
+
     //! TODO: [OPTIMIZATION] THis is a bit stupid as it creates a bind and attr descs every time we bind a pipeline. It is not much but it is still redundant
     VkPipelineVertexInputStateCreateInfo ShiftToVKVertexConfig(const PipelineDescriptor::VertexConfig& config,  std::vector<VkVertexInputBindingDescription>* bindDesc, std::vector<VkVertexInputAttributeDescription>* attDesc) {
         VkPipelineVertexInputStateCreateInfo outInfo{};

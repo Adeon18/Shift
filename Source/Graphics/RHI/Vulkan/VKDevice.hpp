@@ -91,6 +91,10 @@ namespace Shift::VK {
         //! \param info VkGraphicsPipelineCreateInfo
         //! \return VK_NULL_HANDLE if creation failed, else VkPipeline
         [[nodiscard]] VkPipeline CreateGraphicsPipeline(const VkGraphicsPipelineCreateInfo& info) const;
+        //! Create a compute VkPipeline. Destroyed by the same DestroyPipeline as a graphics one.
+        //! \param info VkComputePipelineCreateInfo
+        //! \return VK_NULL_HANDLE if creation failed, else VkPipeline
+        [[nodiscard]] VkPipeline CreateComputePipeline(const VkComputePipelineCreateInfo& info) const;
         //! Destroy a VkPipeline
         //! \param pool VkPipeline to destroy
         void DestroyPipeline(VkPipeline pipeline) const;
