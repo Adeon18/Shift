@@ -31,9 +31,16 @@ namespace Shift::Editor {
                 settings.tonemapOperator = static_cast<GPU::ETonemapOperator>(currentOperator);
             }
 
-            ImGui::SliderFloat("Exposure (2^EV)", &settings.exposure, -20.0f, 8.0f, "%.2f");
-            if (ImGui::Button("Reset exposure")) {
-                settings.exposure = Graphics::RendererSettings::DEFAULT_EXPOSURE;
+            ImGui::Checkbox("Auto exposure", &settings.autoExposureEnabled);
+            if (settings.autoExposureEnabled) {
+                ImGui::SliderFloat("Adaptation speed", &settings.autoExposureAdaptationSpeed, 0.1f, 10.0f, "%.2f");
+                ImGui::SliderFloat("Min exposure (2^EV)", &settings.autoExposureMinEV, -20.0f, settings.autoExposureMaxEV, "%.2f");
+                ImGui::SliderFloat("Max exposure (2^EV)", &settings.autoExposureMaxEV, settings.autoExposureMinEV, 8.0f, "%.2f");
+            } else {
+                ImGui::SliderFloat("Exposure (2^EV)", &settings.exposure, -20.0f, 8.0f, "%.2f");
+                if (ImGui::Button("Reset exposure")) {
+                    settings.exposure = Graphics::RendererSettings::DEFAULT_EXPOSURE;
+                }
             }
 
             ImGui::SeparatorText("Debug view");

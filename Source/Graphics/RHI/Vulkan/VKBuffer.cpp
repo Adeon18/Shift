@@ -23,6 +23,9 @@ namespace Shift::VK {
             //! TODO [FEATURE] need to test whether support for these buffers works
             case EBufferType::Storage:
                 flags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+                //! DX12 and Metal should have this for storage as default
+                flags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+                flags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
                 break;
             case EBufferType::Indirect:
                 flags |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;

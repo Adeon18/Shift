@@ -1,9 +1,9 @@
 //! Light fetching logic
 //! TODO: A small-ass file, should it be a file?
 import Lib.FrameData;
+import Lib.BufferAccess;
 
 LightData LoadLight(FrameConstants frame, uint lightIndex)
 {
-    LightData light = ((LightData*)frame.lightBufferRef)[lightIndex];
-    return light;
+    return LoadAt<LightData>(frame.lightBufferRef, lightIndex);
 }

@@ -185,6 +185,11 @@ namespace Shift::VK {
         vkCmdCopyBuffer(m_buffer, srcBuf.buffer->VK_Get(), dstBuf.buffer->VK_Get(), 1, &copyRegion);
     }
 
+    void CommandBuffer::FillBuffer(const BufferOpDescriptor& dstBuf, uint64_t size, uint32_t value) const {
+        assert(dstBuf.offset % 4 == 0 && size % 4 == 0 && "FillBuffer writes whole 32-bit words");
+        vkCmdFillBuffer(m_buffer, dstBuf.buffer->VK_Get(), dstBuf.offset, size, value);
+    }
+
     void CommandBuffer::CopyBufferToTexture(const BufferOpDescriptor& srcBuf, const TextureCopyDescriptor& dstTex) const {
         const TextureSubresourceRange& range = dstTex.subresourceRange;
 
@@ -239,23 +244,6 @@ namespace Shift::VK {
             1,
             &region
         );
-    }
-
-    void CommandBuffer::BarrierForHostRead(const BufferOpDescriptor& buffer, uint64_t size) const {
-        VkBufferMemoryBarrier2 barrier{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 };
-        barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT;
-        barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-        barrier.dstStageMask = VK_PIPELINE_STAGE_2_HOST_BIT;
-        barrier.dstAccessMask = VK_ACCESS_2_HOST_READ_BIT;
-        //! Buffers are concurrent in Shift
-        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.buffer = buffer.buffer->VK_Get();
-        barrier.offset = buffer.offset;
-        barrier.size = size;
-
-        std::array bufBarriers{barrier};
-        VK_SetPipelineBarrier({}, {}, bufBarriers, 0);
     }
 
     void CommandBuffer::VK_TransferImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,

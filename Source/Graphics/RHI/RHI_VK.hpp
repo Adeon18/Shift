@@ -8,11 +8,7 @@
 //! Vulkan specializations of RenderHardwareInterface<RHI::Vulkan> members whose bodies must
 //! touch native VK types (descriptor-set-layout construction, device wait-idle, present fence).
 //!
-//! This header is included at the END of RHI.hpp under SHIFT_VULKAN_BACKEND, so the full
-//! RenderHardwareInterface template is already visible here. Keeping these bodies out of
-//! RHI.hpp proper is the point of F-VKBLOCK: the agnostic RHI stays Vk*-free, and per
-//! [temp.expl.spec]/6 the specializations are declared before any odr-use in every TU
-//! (all consumers include RHI.hpp, which pulls this header before the use site).
+//! This header is included at the END of RHI.hpp under SHIFT_VULKAN_BACKEND
 
 #include "Utility/Vulkan/VKUtilRHI.hpp"
 

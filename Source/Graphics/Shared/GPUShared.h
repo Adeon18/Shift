@@ -42,6 +42,13 @@ static const uint SUBMESH_INSTANCE_OBJECT_MASK = 0x00FFFFFFu;
 //! We have a silly corner per corner box
 static const uint SELECTION_BOX_VERTEX_COUNT = 48;
 
+//! TODO: [ARCHITECTURE]: Should thie be here?
+static const uint AUTO_EXPOSURE_GROUP_DIM = 16;
+static const uint AUTO_EXPOSURE_HISTOGRAM_BINS = 256;
+//! Such units since we are photometric here
+static const float AUTO_EXPOSURE_MIN_LOG2_LUM = -6.0;
+static const float AUTO_EXPOSURE_LOG2_LUM_RANGE = 24.0;
+
 enum class EDebugViewMode : uint {
     Lit = 0,
     Albedo = 1,
@@ -66,7 +73,8 @@ struct FrameConstants {
 
     uint lightCount;
     EDebugViewMode debugViewMode;
-    uint _pad0;
+    //! 0 = PreExpose uses cameraPosExposure.w, else the auto-exposure buffer
+    uint autoExposureEnabled;
     uint _pad1;
 
     //! The SoA vertex streams. All are indexed by the same global vertex index
@@ -82,6 +90,8 @@ struct FrameConstants {
     GPUBufferRef submeshInstanceBufferRef;
     GPUBufferRef materialBufferRef;
     GPUBufferRef lightBufferRef;
+    //! One float, written by the auto-exposure reduce
+    GPUBufferRef exposureRef;
 };
 
 struct ObjectData {
@@ -182,6 +192,30 @@ struct SelectionBoxPushConstants {
     //! xyz = world-space max, w unused
     float4 boxMaxPad;
     float4 color;
+};
+
+//! Auto-exposure Build Pass push block
+struct HistogramBuildPushConstants {
+    //! AUTO_EXPOSURE_HISTOGRAM_BINS uints
+    GPUBufferRef histogramRef;
+    //! One float, the exposure multiplier frame N applied
+    GPUBufferRef exposureRef;
+    uint hdrColorTex;
+    uint _pad0;
+};
+
+//! Auto-exposure reduce pass push block
+struct HistogramReducePushConstants {
+    GPUBufferRef histogramRef;
+    GPUBufferRef exposureRef;
+    uint pixelCount;
+    float deltaTime;
+    //! Tardif's tau
+    float adaptationSpeed;
+    //! The EV clamp
+    float minExposure;
+    float maxExposure;
+    uint _pad0;
 };
 
 #ifdef __cplusplus

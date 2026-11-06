@@ -148,6 +148,7 @@ namespace Shift {
             const SecondaryBufferBeginPayload& secondaryBufferBeginPayload,
             uint32_t firstBindPosition,
             uint32_t size,
+            uint32_t fillValue,
             EFilterMode filter,
             EIndexSize indexSize
     ) {
@@ -165,8 +166,8 @@ namespace Shift {
         { InputBuffer.CopyBufferToBuffer(InputBufferOpDesc, InputBufferOpDesc, size) } -> std::same_as<void>;
         { InputBuffer.CopyBufferToTexture(InputBufferOpDesc, InputTextureCopyDesc) } -> std::same_as<void>;
         { InputBuffer.CopyTextureToBuffer(InputTextureCopyDesc, InputBufferOpDesc) } -> std::same_as<void>;
-        { InputBuffer.BarrierForHostRead(InputBufferOpDesc, size) } -> std::same_as<void>;
         { InputBuffer.BufferBarrier(InputBufferOpDesc, size, InputMemoryDependency) } -> std::same_as<void>;
+        { InputBuffer.FillBuffer(InputBufferOpDesc, size, fillValue) } -> std::same_as<void>;
         //{ InputBuffer.CopyTextureToTexture(InputTextureCopyDesc, InputTextureCopyDesc) } -> std::same_as<void>; // TODO: [FEATURE] Check
         //! Rendering
         { InputBuffer.BindGraphicsPipeline(InputPipeline) } -> std::same_as<void>;

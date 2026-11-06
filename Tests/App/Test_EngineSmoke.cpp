@@ -597,7 +597,7 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
             CHECK_MESSAGE(!pipelines.IsRunningFallback(engine.GetRenderer().GetForwardDebugPipeline(rasterFlags)),
                           "a forward DEBUG raster flag combination is running on fallback shaders");
         }
-        CHECK_MESSAGE(!pipelines.IsRunningFallback(engine.GetRenderer().GetToneMapSystem().GetPipeline()),
+        CHECK_MESSAGE(!pipelines.IsRunningFallback(engine.GetRenderer().GetPostProcessSystem().GetToneMapSystem().GetPipeline()),
                       "the tonemap pipeline is running on fallback shaders");
         //! The box pass draws nothing until something is selected and samples nothing when it does, so
         //! a fallback substitution here is invisible to validation AND to the hot-reload row below
@@ -606,6 +606,13 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
         //! Same blindness: the icon pass samples nothing, so a fallback here is invisible to validation
         CHECK_MESSAGE(!pipelines.IsRunningFallback(engine.GetRenderer().GetLightIconSystem().GetPipeline()),
                       "the light icon pipeline is running on fallback shaders");
+        //! a fallback compute entry writes nothing, so a broken pass is a frozen exposure and
+        //! nothing else - invisible to validation and to the picture
+        auto& autoExposure = engine.GetRenderer().GetPostProcessSystem().GetAutoExposureSystem();
+        CHECK_MESSAGE(!pipelines.IsRunningFallback(autoExposure.GetBuildPipeline()),
+                      "the auto-exposure build pipeline is running on the fallback compute shader");
+        CHECK_MESSAGE(!pipelines.IsRunningFallback(autoExposure.GetReducePipeline()),
+                      "the auto-exposure reduce pipeline is running on the fallback compute shader");
 
         auto& textures = engine.GetRenderer().GetTextureManager();
         CHECK_MESSAGE(textures.GetFormat(engine.GetRenderer().GetViewportHDR()) == Shift::ETextureFormat::R16G16B16A16_SFLOAT,
@@ -694,6 +701,10 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
             return shot.pixels;
         };
 
+        //! Manual exposure for this phase: auto-exposure adapts every frame, so the lit image is not
+        //! byte-stable across ticks, which is what the restore checks below compare
+        settings.autoExposureEnabled = false;
+        tick(2);
         const auto lit = displayPixels();
 
         settings.debugViewMode = Shift::GPU::EDebugViewMode::Albedo;
@@ -724,6 +735,48 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
         tick(2);
         CHECK_MESSAGE(displayPixels() == lit,
                       "the lit image did not come back once the icons were restored");
+
+        settings.autoExposureEnabled = true;
+        tick(2);
+    }
+
+    //! the auto-exposure passes demonstrably ran. Nothing consumes the exposure yet, so
+    //! the picture cannot tell a working pass from a dead one - only a readback can (spec AC4; AC8 dropped, see the zero-on-consume check)
+    {
+        auto& capture = engine.GetRenderer().GetCaptureSystem();
+        auto& autoExposure = engine.GetRenderer().GetPostProcessSystem().GetAutoExposureSystem();
+        const auto& settings = engine.GetRenderer().GetSettings();
+
+        //! the reduce wrote a real value - finite, inside the clamp, and moved off the boot seed
+        const std::vector<uint8_t> exposureBytes = capture.CaptureBuffer(autoExposure.GetExposureCaptureTarget());
+        REQUIRE_MESSAGE(exposureBytes.size() == sizeof(float), "the exposure buffer did not read back");
+        float exposure = 0.0f;
+        std::memcpy(&exposure, exposureBytes.data(), sizeof(float));
+        CAPTURE(exposure);
+
+        CHECK_MESSAGE(std::isfinite(exposure), "the adapted exposure is not finite, and NaN never leaves the filter");
+        const float exposureEV = std::log2(exposure);
+        CAPTURE(exposureEV);
+        //! Slack for the float round trip through log2
+        const bool aboveMin = exposureEV >= settings.autoExposureMinEV - 1e-3f;
+        const bool belowMax = exposureEV <= settings.autoExposureMaxEV + 1e-3f;
+        CHECK_MESSAGE(aboveMin, "the adapted exposure is below the configured EV window");
+        CHECK_MESSAGE(belowMax, "the adapted exposure is above the configured EV window");
+        CHECK_MESSAGE(exposure != std::exp2(Shift::Graphics::RendererSettings::DEFAULT_EXPOSURE),
+                      "the exposure still holds its boot seed, so the reduce pass never wrote it");
+
+        //! Zero-on-consume: after a whole lit frame the reduce has cleared every bin, so a non-zero
+        //! bin means it skipped the clear and the next frame tallies on top of this one. The exact
+        //! per-frame tally (sum == pixel count) is NOT checked: nothing survives the frame to read
+        const std::vector<uint8_t> histogramBytes = capture.CaptureBuffer(autoExposure.GetHistogramCaptureTarget());
+        REQUIRE_MESSAGE(histogramBytes.size() == Shift::GPU::AUTO_EXPOSURE_HISTOGRAM_BINS * sizeof(uint32_t),
+                        "the histogram did not read back");
+        std::vector<uint32_t> bins(Shift::GPU::AUTO_EXPOSURE_HISTOGRAM_BINS);
+        std::memcpy(bins.data(), histogramBytes.data(), histogramBytes.size());
+        uint64_t leftover = 0;
+        for (const uint32_t count : bins) { leftover += count; }
+        CAPTURE(leftover);
+        CHECK_MESSAGE(leftover == 0u, "the histogram survived the frame: the reduce pass did not zero it on consume");
     }
 
     //! Phase 1.5: the global sampler array is a cache, not a fixed table.
@@ -1063,9 +1116,11 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
     //! executor once the timeline passes. Each Lib module is asked SEPARATELY because a
     //! dependency list reaching one says nothing about another - every module the forward file
     //! imports has to be listed here, or an edit to it silently rebuilds nothing.
-    //! The count is how many pipelines import the file. FrameData reaches all FOUR passes (forward,
-    //! tonemap, the P4.4b 3b selection box and the P4.5 5.2 light icons); Bindless reaches forward
-    //! and tonemap, since neither overlay samples anything.
+    //! The count is how many pipelines import the file. FrameData reaches every pass (forward,
+    //! tonemap, the P4.4b 3b selection box, the P4.5 5.2 light icons, and both auto-exposure compute
+    //! pipelines); Bindless reaches forward, tonemap and both auto-exposure pipelines - their file
+    //! imports it once for the build pass, so the reduce pass rebuilds with it - since neither
+    //! overlay samples anything.
     //! The forward pass is one pipeline PER RASTER FLAG COMBINATION since P4.4b slice 3, and since
     //! 5.2 every combination exists TWICE - lit and debug-view - out of the same file, so a module
     //! the forward file imports reaches 2x the combination count. Both halves are derived rather
@@ -1081,8 +1136,13 @@ TEST_CASE("the engine survives a scripted frame storm validation-clean") {
         {"PostProcess/Tonemap.slang", 1},
         {"Editor/SelectionBox.slang", 1},
         {"Editor/LightIcon.slang", 1},
-        {"Lib/FrameData.slang", FORWARD_PIPELINES + 3},
-        {"Lib/Bindless.slang", FORWARD_PIPELINES + 1},
+        //! Two compute pipelines out of one file - and a rebuild that came back as a GRAPHICS
+        //! pipeline would fail creation here, which is what spec R4 is about
+        {"PostProcess/AutoExposure.slang", 2},
+        {"Lib/FrameData.slang", FORWARD_PIPELINES + 5},
+        //! Imported by FrameData, so it reaches exactly what FrameData reaches
+        {"Lib/BufferAccess.slang", FORWARD_PIPELINES + 5},
+        {"Lib/Bindless.slang", FORWARD_PIPELINES + 3},
         {"Lib/VertexPull.slang", FORWARD_PIPELINES},
         {"Lib/MaterialFetch.slang", FORWARD_PIPELINES},
         {"Lib/BRDF.slang", FORWARD_PIPELINES},

@@ -115,6 +115,12 @@ namespace Shift {
         //! \param size size to copy
         void CopyBufferToBuffer(const BufferOpDescriptor& srcBuf, const BufferOpDescriptor& dstBuf, uint32_t size) const;
 
+        //! Fill a buffer range with a repeated 32-bit value, no staging buffer. A transfer write
+        //! \param dstBuf buffer + offset into the buffer, offset a multiple of 4
+        //! \param size bytes to fill, a multiple of 4
+        //! \param value the 32-bit pattern, e.g. std::bit_cast<uint32_t>(1.0f)
+        void FillBuffer(const BufferOpDescriptor& dstBuf, uint64_t size, uint32_t value) const;
+
         //! Copy buffer data to a texture
         //! \param srcBuf buffer + offset into the buffer
         //! \param dstTex texture + size to copy + offset + subresource range
@@ -124,11 +130,6 @@ namespace Shift {
         //! \param srcTex texture + size to copy + offset + subresource range (levelCount must be 1)
         //! \param dstBuf buffer + offset into the buffer
         void CopyTextureToBuffer(const TextureCopyDescriptor& srcTex, const BufferOpDescriptor& dstBuf) const;
-
-        //! Barrier for host read read
-        //! \param buffer buffer + offset into the buffer
-        //! \param size bytes the host will read
-        void BarrierForHostRead(const BufferOpDescriptor& buffer, uint64_t size) const;
 
         ///! ------------------- Rendering Buffer Commands ------------------- !///
 
@@ -331,6 +332,11 @@ namespace Shift {
     }
 
     template<ValidAPI API>
+    void RHIEncoder<API>::FillBuffer(const BufferOpDescriptor& dstBuf, uint64_t size, uint32_t value) const {
+        m_boundCB->FillBuffer(dstBuf, size, value);
+    }
+
+    template<ValidAPI API>
     void RHIEncoder<API>::CopyBufferToTexture(const BufferOpDescriptor &srcBuf,
         const TextureCopyDescriptor &dstTex) const
     {
@@ -342,11 +348,6 @@ namespace Shift {
         const BufferOpDescriptor &dstBuf) const
     {
         m_boundCB->CopyTextureToBuffer(srcTex, dstBuf);
-    }
-
-    template<ValidAPI API>
-    void RHIEncoder<API>::BarrierForHostRead(const BufferOpDescriptor &buffer, uint64_t size) const {
-        m_boundCB->BarrierForHostRead(buffer, size);
     }
 
     template<ValidAPI API>

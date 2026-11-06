@@ -31,8 +31,8 @@
 #include "Graphics/Shared/GPUShared.h"
 #include "Graphics/Systems/CaptureSystem.hpp"
 #include "Graphics/Systems/LightIconSystem.hpp"
+#include "Graphics/Systems/PostProcessSystem.hpp"
 #include "Graphics/Systems/SelectionBoxSystem.hpp"
-#include "Graphics/Systems/ToneMapSystem.hpp"
 #include "Loaders/TextureLoader/StbLoader.hpp"
 
 namespace Shift::Graphics {
@@ -119,11 +119,11 @@ namespace Shift::Graphics {
             return m_forwardDebugPipelines[static_cast<size_t>(flags)];
         }
 
-        [[nodiscard]] const ToneMapSystem& GetToneMapSystem() const { return m_toneMapSystem; }
-
         [[nodiscard]] const SelectionBoxSystem& GetSelectionBoxSystem() const { return m_selectionBoxSystem; }
 
         [[nodiscard]] const LightIconSystem& GetLightIconSystem() const { return m_lightIconSystem; }
+
+        [[nodiscard]] PostProcessSystem& GetPostProcessSystem() { return m_postProcessSystem; }
 
         //! Written to by UI
         [[nodiscard]] RendererSettings& GetSettings() { return m_settings; }
@@ -213,7 +213,7 @@ namespace Shift::Graphics {
         //! Thr renderer scvene input
         RenderScene m_renderScene;
 
-        Graphics::ToneMapSystem m_toneMapSystem;
+        Graphics::PostProcessSystem m_postProcessSystem;
         Graphics::SelectionBoxSystem m_selectionBoxSystem;
         Graphics::LightIconSystem m_lightIconSystem;
         Graphics::CaptureSystem m_captureSystem;

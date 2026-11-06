@@ -53,6 +53,7 @@ namespace Shift::Graphics {
         const std::pair<EShaderType, const char*> fallbackStages[] = {
             { EShaderType::Vertex,   "mainVS" },
             { EShaderType::Fragment, "mainPS" },
+            { EShaderType::Compute,  "mainCS" },
         };
 
         for (const auto& [type, entry] : fallbackStages) {

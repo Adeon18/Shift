@@ -59,20 +59,18 @@ namespace Shift::Graphics {
         }
 
         const uint64_t byteSize = static_cast<uint64_t>(width) * height * bytesPerPixel;
-        //! BufferDescriptor asks for a 16-aligned size
-        const uint64_t allocSize = (byteSize + 15ull) & ~15ull;
 
         //! Wait for other commands
         m_backend->WaitForGPU();
 
         BufferDescriptor readbackDesc;
-        readbackDesc.size = allocSize;
+        readbackDesc.size = byteSize;
         readbackDesc.name = "CaptureReadback";
         readbackDesc.type = EBufferType::Readback;
 
         Buffer* readback = m_backend->CreateInterface()->CreateBuffer(readbackDesc);
         if (!readback || !readback->IsValid()) {
-            Log(Error, "CaptureSystem: failed to create a {} byte readback buffer", allocSize);
+            Log(Error, "CaptureSystem: failed to create a {} byte readback buffer", byteSize);
             delete readback;
             return out;
         }
@@ -104,7 +102,12 @@ namespace Shift::Graphics {
         const BufferOpDescriptor destination{readback, 0u};
 
         encoder->CopyTextureToBuffer(source, destination);
-        encoder->BarrierForHostRead(destination, byteSize);
+        encoder->BufferBarrier(destination, byteSize, {
+            .srcStage = EPipelineStageFlags::CopyBit,
+            .srcAccess = EAccessFlags::TransferWriteBit,
+            .dstStage = EPipelineStageFlags::HostBit,
+            .dstAccess = EAccessFlags::HostReadBit
+        });
         encoder->TransitionTexture(texture, target.finalLayout, target.finalStage);
 
         if (!gContext.EndCmds()) {
@@ -123,7 +126,7 @@ namespace Shift::Graphics {
 
         m_backend->WaitForGPU();
         //! Make writes visible
-        readback->InvalidateForHostRead(0, allocSize);
+        readback->InvalidateForHostRead(0, byteSize);
 
         const void* mapped = readback->GetMapped();
         if (mapped == nullptr) {
@@ -192,5 +195,77 @@ namespace Shift::Graphics {
             outPath = "Shift_" + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(stamp).count()) + ".png";
         }
         return WritePNG(captured, outPath);
+    }
+
+    std::vector<uint8_t> CaptureSystem::CaptureBuffer(const BufferCaptureTarget& target) const {
+        if (!m_backend || !target.buffer || target.size == 0) {
+            Log(Error, "CaptureSystem: buffer capture asked for before Init, or with no buffer");
+            return {};
+        }
+
+
+        m_backend->WaitForGPU();
+
+        BufferDescriptor readbackDesc;
+        readbackDesc.size = target.size;
+        readbackDesc.name = "BufferCaptureReadback";
+        readbackDesc.type = EBufferType::Readback;
+
+        const Core::UniquePtr<Buffer> readback(m_backend->CreateInterface()->CreateBuffer(readbackDesc));
+        if (!readback || !readback->IsValid()) {
+            Log(Error, "CaptureSystem: failed to create a {} byte readback buffer", target.size);
+            return {};
+        }
+
+        RenderContext& gContext = m_backend->GetCaptureContext();
+        RenderContextEncoder* encoder = gContext.CreateCommandEncoder();
+
+        gContext.ResetCmds();
+        if (!gContext.BeginCmds()) {
+            Log(Error, "CaptureSystem: failed to begin the capture command buffer");
+            return {};
+        }
+
+        const BufferOpDescriptor source{target.buffer, 0u};
+        const BufferOpDescriptor destination{readback.get(), 0u};
+
+        //! A host wait is not enough and we need to make the writes visible
+        encoder->BufferBarrier(source, target.size, {
+            .srcStage = target.lastWriteStage,
+            .srcAccess = target.lastWriteAccess,
+            .dstStage = EPipelineStageFlags::CopyBit,
+            .dstAccess = EAccessFlags::TransferReadBit
+        });
+        encoder->CopyBufferToBuffer(source, destination, static_cast<uint32_t>(target.size));
+        encoder->BufferBarrier(destination, target.size, {
+            .srcStage = EPipelineStageFlags::CopyBit,
+            .srcAccess = EAccessFlags::TransferWriteBit,
+            .dstStage = EPipelineStageFlags::HostBit,
+            .dstAccess = EAccessFlags::HostReadBit
+        });
+
+        if (!gContext.EndCmds()) {
+            Log(Error, "CaptureSystem: failed to end the capture command buffer");
+            return {};
+        }
+
+        std::array sigPayloads{m_backend->ReserveGraphicsSignalPayload()};
+        if (!gContext.SubmitCmds({}, sigPayloads)) {
+            Log(Error, "CaptureSystem: failed to submit the capture command buffer");
+            return {};
+        }
+
+        m_backend->WaitForGPU();
+        readback->InvalidateForHostRead(0, target.size);
+
+        const void* mapped = readback->GetMapped();
+        if (mapped == nullptr) {
+            Log(Error, "CaptureSystem: the readback buffer came back unmapped");
+            return {};
+        }
+
+        std::vector<uint8_t> out(static_cast<size_t>(target.size));
+        std::memcpy(out.data(), mapped, out.size());
+        return out;
     }
 }

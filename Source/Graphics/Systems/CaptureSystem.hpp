@@ -29,6 +29,13 @@ namespace Shift::Graphics {
         [[nodiscard]] bool IsValid() const { return width > 0 && height > 0 && !pixels.empty(); }
     };
 
+    struct BufferCaptureTarget {
+        Buffer* buffer = nullptr;
+        uint64_t size = 0;
+        EPipelineStageFlags lastWriteStage = EPipelineStageFlags::NoneBit;
+        EAccessFlags lastWriteAccess = EAccessFlags::NoneBit;
+    };
+
     //! Reads a texture back to the CPU and writes it out
     class CaptureSystem {
     public:
@@ -43,6 +50,9 @@ namespace Shift::Graphics {
 
         //! Capture and write in one call. Empty path writes into current dir
         [[nodiscard]] bool CaptureAndWritePNG(const CaptureTarget& target, const std::string& path = "") const;
+
+        //! Stall the GPU and copy a buffer's first 'size' bytes back. Empty otherwise
+        [[nodiscard]] std::vector<uint8_t> CaptureBuffer(const BufferCaptureTarget& target) const;
 
     private:
         RenderBackend* m_backend = nullptr;

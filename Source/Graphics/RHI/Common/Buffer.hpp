@@ -24,7 +24,7 @@ namespace Shift {
         Readback
     };
 
-    //! A buffer descriptor struct, buffer size SHOULD BE ALWAYS ALIGNED BY 16!
+    //! A buffer descriptor struct. Size is the real byte count
     struct BufferDescriptor {
         uint64_t size = 0u;
         //! Owned string on purpose

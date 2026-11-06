@@ -22,3 +22,10 @@ float4 mainPS() : SV_Target
 {
     return float4(0.75, 0.25, 0.75, 1.0);
 }
+
+//! Writes nothing
+[shader("compute")]
+[numthreads(1, 1, 1)]
+void mainCS()
+{
+}

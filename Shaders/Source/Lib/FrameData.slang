@@ -6,9 +6,10 @@
 //! Lib/ modules are also the only shaders allowed to #include the shared header - that is what
 //! keeps one struct definition serving both C++ and Slang.
 #include "GPUShared.h"
+import Lib.BufferAccess;
 
 
 FrameConstants LoadFrameConstants(GPUBufferRef frameConstantsRef)
 {
-    return *(FrameConstants*)frameConstantsRef;
+    return Load<FrameConstants>(frameConstantsRef);
 }

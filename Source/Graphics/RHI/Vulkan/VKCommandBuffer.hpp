@@ -156,6 +156,9 @@ namespace Shift::VK {
         //! \param size size to copy
         void CopyBufferToBuffer(const BufferOpDescriptor& srcBuf, const BufferOpDescriptor& dstBuf, uint32_t size) const;
 
+        //! vkCmdFillBuffer: offset and size multiples of 4, dst needs TRANSFER_DST
+        void FillBuffer(const BufferOpDescriptor& dstBuf, uint64_t size, uint32_t value) const;
+
         //! Copy buffer data to a texture
         //! \param srcBuf buffer + offset into the buffer
         //! \param srcTex texture + size to copy + offset + subresource range
@@ -166,11 +169,6 @@ namespace Shift::VK {
         //! \param srcTex texture + size to copy + offset + subresource range (levelCount must be 1)
         //! \param dstBuf buffer + offset into the buffer
         void CopyTextureToBuffer(const TextureCopyDescriptor& srcTex, const BufferOpDescriptor& dstBuf) const;
-
-        //! Make prior device writes to this buffer available for read. For texture readback
-        //! \param buffer buffer + offset into the buffer
-        //! \param size bytes the host will read
-        void BarrierForHostRead(const BufferOpDescriptor& buffer, uint64_t size) const;
 
         //! Record a sync2 buffer memory barrier
         //! \param buffer buffer + offset into the buffer

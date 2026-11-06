@@ -111,7 +111,7 @@ namespace Shift::Graphics {
             m_forwardDebugPipelines[flagIdx] = CreateForwardPipeline(rasterFlags, true);
         }
 
-        m_toneMapSystem.Init(m_pipelineManager, VIEWPORT_COLOR_FORMAT);
+        CheckCritical(m_postProcessSystem.Init(m_pipelineManager, m_bufferManager, *tEncoder, VIEWPORT_COLOR_FORMAT), "Failed to initialize the post-process chain!");
         m_selectionBoxSystem.Init(m_pipelineManager, VIEWPORT_COLOR_FORMAT);
         m_lightIconSystem.Init(m_pipelineManager, VIEWPORT_COLOR_FORMAT);
         m_captureSystem.Init(m_renderBackend);
@@ -311,17 +311,19 @@ namespace Shift::Graphics {
 
             gEncoder->EndRenderPass();
 
-            gEncoder->TransitionTexture(*viewportHDR, EResourceLayout::ShaderReadOnlyOptimal, EPipelineStageFlags::FragmentShaderBit);
             gEncoder->PopDebugGroup();
 
-            const ToneMapInputs toneMapInputs{
+            //! This transitions the HDR target
+            const PostProcessInputs postInputs{
                 .frameConstantsRef = m_frameConstants.SlotAddress(frameSlot),
+                .hdrColor = *viewportHDR,
                 .hdrColorSlot = m_viewportHDR.slotIdx,
-                .tonemapOperator = settings.debugViewMode == GPU::EDebugViewMode::Lit ? settings.tonemapOperator : GPU::ETonemapOperator::None,
+                .deltaTime = engineData.dt,
+                .settings = settings,
                 .output = *viewportTexture,
                 .globalSet = *m_globalSet.Get()
             };
-            CheckCritical(m_toneMapSystem.Record(*gEncoder, toneMapInputs), "Failed to record the tone map pass!");
+            CheckCritical(m_postProcessSystem.Record(*gEncoder, postInputs), "Failed to record the post-process chain!");
 
             const SelectionBoxInputs selectionInputs{
                 .frameConstantsRef = m_frameConstants.SlotAddress(frameSlot),
@@ -504,6 +506,8 @@ namespace Shift::Graphics {
         frameConstantsPtr->cameraDir = glm::vec4(engineData.camDirection, 0.0f);
         frameConstantsPtr->lightCount = std::min(static_cast<uint32_t>(m_renderScene.GetLights().size()), m_lightData.GetElementsPerSlot());
         frameConstantsPtr->debugViewMode = settings.debugViewMode;
+        frameConstantsPtr->autoExposureEnabled = settings.autoExposureEnabled ? 1u : 0u;
+        frameConstantsPtr->exposureRef = m_postProcessSystem.GetAutoExposureSystem().GetExposureRef();
 
         frameConstantsPtr->positionsRef = m_meshManager.GetStreamAddress(MeshManager::Positions);
         frameConstantsPtr->normalsRef = m_meshManager.GetStreamAddress(MeshManager::Normals);

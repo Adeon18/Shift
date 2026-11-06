@@ -34,7 +34,7 @@ using namespace Shift::GPU;
 namespace {
     //! sizeof() must match the stride SPIR-V gives the struct, or an array of them walks off
     //! alignment on the very first element
-    static_assert(sizeof(FrameConstants) == 304, "FrameConstants no longer matches its SPIR-V stride");
+    static_assert(sizeof(FrameConstants) == 312, "FrameConstants no longer matches its SPIR-V stride");
     //! 80 re-measured out of real SPIR-V when normalMat was dropped (P4.3 3b), not derived
     static_assert(sizeof(ObjectData) == 80, "ObjectData no longer matches its SPIR-V stride");
     static_assert(sizeof(MaterialData) == 64, "MaterialData no longer matches its SPIR-V stride");
@@ -44,9 +44,12 @@ namespace {
     static_assert(sizeof(TonemapPushConstants) == 16, "the tonemap push block no longer matches its SPIR-V layout");
     //! 16 = ref + one float2, the icon's half-size in NDC (P4.5 5.2)
     static_assert(sizeof(LightIconPushConstants) == 16, "the light icon push block no longer matches its SPIR-V layout");
-    //! 56 = ref + three float4s, well under the 128 B every Vulkan implementation must offer (P4.4b 3b)
+    //! 56 = ref + three float4s, well under the 128 B every Vulkan implementation must offer
     static_assert(sizeof(SelectionBoxPushConstants) == 56, "the selection box push block no longer matches its SPIR-V layout");
     static_assert(sizeof(SelectionBoxPushConstants) <= 128, "the selection box push block exceeds the guaranteed maxPushConstantsSize");
+    //! Measured out of the compute entries' SPIR-V: last member at 28 / 36, 4 B each (compute slice, 2026-11-04)
+    static_assert(sizeof(HistogramBuildPushConstants) == 24, "the histogram build push block no longer matches its SPIR-V layout");
+    static_assert(sizeof(HistogramReducePushConstants) == 40, "the histogram reduce push block no longer matches its SPIR-V layout");
 
     //! offsetof (used below) is only well-defined on standard-layout types
     static_assert(std::is_standard_layout_v<FrameConstants>);
@@ -56,6 +59,8 @@ namespace {
     static_assert(std::is_standard_layout_v<PushConstants>);
     static_assert(std::is_standard_layout_v<TonemapPushConstants>);
     static_assert(std::is_standard_layout_v<LightIconPushConstants>);
+    static_assert(std::is_standard_layout_v<HistogramBuildPushConstants>);
+    static_assert(std::is_standard_layout_v<HistogramReducePushConstants>);
 
     //! A GPUBufferRef is the whole portability contract in one type: 64 bits, opaque, never
     //! dereferenced outside a Lib/ accessor
@@ -78,9 +83,15 @@ namespace {
     static_assert(offsetof(FrameConstants, submeshInstanceBufferRef) % alignof(GPUBufferRef) == 0);
     static_assert(offsetof(FrameConstants, materialBufferRef) % alignof(GPUBufferRef) == 0);
     static_assert(offsetof(FrameConstants, lightBufferRef)    % alignof(GPUBufferRef) == 0);
+    static_assert(offsetof(FrameConstants, exposureRef)       % alignof(GPUBufferRef) == 0);
     static_assert(offsetof(PushConstants,  frameConstantsRef) % alignof(GPUBufferRef) == 0);
     static_assert(offsetof(TonemapPushConstants, frameConstantsRef) % alignof(GPUBufferRef) == 0);
     static_assert(offsetof(LightIconPushConstants, frameConstantsRef) % alignof(GPUBufferRef) == 0);
+    static_assert(offsetof(HistogramBuildPushConstants, exposureRef) == 8);
+    static_assert(offsetof(HistogramBuildPushConstants, hdrColorTex) == 16);
+    static_assert(offsetof(HistogramReducePushConstants, exposureRef) == 8);
+    static_assert(offsetof(HistogramReducePushConstants, pixelCount) == 16);
+    static_assert(offsetof(HistogramReducePushConstants, maxExposure) == 32);
 
     //! A mode is a uint on both sides: FrameConstants carries it as EDebugViewMode, and a wider
     //! underlying type would re-space every ref below it (P4.5 5.2)
@@ -93,13 +104,15 @@ TEST_SUITE("GPUSharedLayout") {
 //! contract held. The case exists so the guard is visible in the suite listing rather than being
 //! a header that silently compiles
 TEST_CASE("the shared CPU/GPU structs still match the layout the shaders were built against") {
-    CHECK(sizeof(FrameConstants) == 304);
+    CHECK(sizeof(FrameConstants) == 312);
     CHECK(sizeof(ObjectData) == 80);
     CHECK(sizeof(MaterialData) == 64);
     CHECK(sizeof(LightData) == 64);
     CHECK(sizeof(PushConstants) == 24);
     CHECK(sizeof(TonemapPushConstants) == 16);
     CHECK(sizeof(LightIconPushConstants) == 16);
+    CHECK(sizeof(HistogramBuildPushConstants) == 24);
+    CHECK(sizeof(HistogramReducePushConstants) == 40);
 }
 
 }

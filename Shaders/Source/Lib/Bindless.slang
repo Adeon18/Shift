@@ -17,3 +17,12 @@ float4 LoadTexture2D(uint textureIdx, int2 pixel)
 {
     return g_Textures2D[textureIdx].Load(int3(pixel, 0));
 }
+
+//! Mip 0's size in texels
+uint2 GetTexture2DSize(uint textureIdx)
+{
+    uint width;
+    uint height;
+    g_Textures2D[textureIdx].GetDimensions(width, height);
+    return uint2(width, height);
+}

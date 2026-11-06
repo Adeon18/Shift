@@ -17,6 +17,12 @@ namespace Shift::Graphics {
         GPU::ETonemapOperator tonemapOperator = GPU::ETonemapOperator::ACES;
         //! Exposure poer actually 2^EV
         float exposure = DEFAULT_EXPOSURE;
+        //! Taken from Tardiff
+        bool autoExposureEnabled = true;
+        float autoExposureAdaptationSpeed = 1.1f;
+        //! Based on Shift possible scene brightness
+        float autoExposureMinEV = -16.0f;
+        float autoExposureMaxEV = -4.0f;
         //! Debug Draw
         GPU::EDebugViewMode debugViewMode = GPU::EDebugViewMode::Lit;
         bool showLightIcons = true;
