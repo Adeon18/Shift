@@ -382,7 +382,7 @@ namespace Shift::Graphics {
         //! The upload runs on the transfer queue but every reader is a shader on the graphics
         //! one, so the image is handed over here rather than merely transitioned. This is the
         //! release half plus the layout change, the acquire half is recorded on the graphics
-        //! context by RHI::FlushPendingAcquires before anything samples it.
+        //! context by RHIContext::FlushPendingAcquires before anything samples it.
         //! TODO: [PERFORMANCE] One barrier too much becuase we co not check whether the image has only one mip to leave it as read only optimal straing up as no mips will be generated
         encoder.ReleaseQueueOwnership(texture, EContextType::Graphics, EResourceLayout::TransferDstOptimal, EPipelineStageFlags::AllTransferBit);
 

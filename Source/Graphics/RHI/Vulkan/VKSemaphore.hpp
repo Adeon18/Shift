@@ -3,20 +3,22 @@
 
 #include "VKDevice.hpp"
 #include "Graphics/RHI/Common/Semaphore.hpp"
+#include "Graphics/RHI/Common/Sync.hpp"
 #include "Utility/Vulkan/VKDebugUtils.hpp"
 
 namespace Shift::VK {
-    //! The stage mask every binary-semaphore wait blocks at submit (sync1 pWaitDstStageMask).
-    //! THis was seen duing the sync testing. Essentially when we aquire our swapchain image its latest
-    //! stage is bottom of the pipe, and that does not make sence when we submit, as we should wait for
-    //! color writes to be finished for the image that we want to show, rather then for the prev frame's bottom of the pipe bit
-    //! So when UI stage transitions the texture with bottom of the pipe stage flags (or any pass that runs last can do that), we actually wait on color writes and do not do bott-of-pipe -> bot-of-pipe!
-    //! And yes, it worked this way before lol, because the display usually finishes reading the img before the GPU can transition cuz hw is fast (and we did not run sync validation)
-    //! I found a cool explanation: semaphore = "when" stage mask = "who waits for that 'when'"
-    inline constexpr VkPipelineStageFlags2 BINARY_WAIT_DST_STAGES = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-
     class BinarySemaphore {
     public:
+        //! The stage mask every binary-semaphore wait blocks at submit (sync1 pWaitDstStageMask).
+        //! THis was seen duing the sync testing. Essentially when we aquire our swapchain image its latest
+        //! stage is bottom of the pipe, and that does not make sence when we submit, as we should wait for
+        //! color writes to be finished for the image that we want to show, rather then for the prev frame's bottom of the pipe bit
+        //! So when UI stage transitions the texture with bottom of the pipe stage flags (or any pass that runs last can do that), we actually wait on color writes and do not do bott-of-pipe -> bot-of-pipe!
+        //! And yes, it worked this way before lol, because the display usually finishes reading the img before the GPU can transition cuz hw is fast (and we did not run sync validation)
+        //! I found a cool explanation: semaphore = "when" stage mask = "who waits for that 'when'"
+        //! Agnostic because RHI fills the acquired swapchain image's tracked stage with it, but will this be neede for DX12 and MTL???
+        static constexpr EPipelineStageFlags WAIT_STAGE = EPipelineStageFlags::ColorAttachmentOutputBit;
+
         //! Initialize a VKSemaphore
         //! \param device The device wrapper ptr
         //! \return false if failed to initialize

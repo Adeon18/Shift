@@ -28,6 +28,7 @@ namespace Shift {
         { InputSwapchain.GetViewport() } -> std::same_as<Viewport>;
         { InputSwapchain.GetFormat() } -> std::same_as<ETextureFormat>;
         { InputSwapchain.GetScissor() } -> std::same_as<Rect2D>;
+        { InputSwapchain.GetSwapchainTexture(imageIdx) } -> std::same_as<Texture&>;
         { InputSwapchain.Get() };
     };
 } // Shift

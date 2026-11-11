@@ -73,10 +73,6 @@ namespace Shift {
 
         ///! ------------------- Queue ownership handoffs (F-QFOT) ------------------- !///
 
-        //! Call after BeginCmd to get all the acquire data for this CB for new textures
-        [[nodiscard]] std::vector<SubmitTimelinePayload>
-        FlushPendingAcquires(RHIContext<API>& ctx) { return m_local.FlushPendingAcquiresIntoCB(ctx.GetCommandBuffer()); }
-
         //! Drop the handoff for a certain texture if we are freeeing it
         void CancelPendingAcquires(Texture* texture) { m_local.CancelPendingAcquires(texture); }
 
@@ -315,7 +311,12 @@ namespace Shift {
 
     template<ValidAPI API>
     uint32_t RenderHardwareInterface<API>::SwapchainAquireImage(bool *wasChanged) {
-        return m_local.swapchain->AquireNextImage(*m_imageAvailable[m_currentFrame], wasChanged);
+        const uint32_t imageIdx = m_local.swapchain->AquireNextImage(*m_imageAvailable[m_currentFrame], wasChanged);
+        if (imageIdx != UINT32_MAX) {
+            //! Wait on color attachment output rather than last frame's bottom of the pipe
+            ResourceStateTracker<API>::OnSwapchainAcquire(m_local.swapchain->GetSwapchainTexture(imageIdx), BinarySemaphore::WAIT_STAGE);
+        }
+        return imageIdx;
     }
 
     template<ValidAPI API>

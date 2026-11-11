@@ -38,16 +38,6 @@ namespace Shift::VK {
     };
     ASSERT_INTERFACE(ICommandPool, CommandPool);
 
-    //! A data struct that transfers information about the resource state for syncing queue ownership handoff
-    struct QueueOwnershipHandoff {
-        Texture* texture = nullptr;
-        uint32_t srcFamily = 0;
-        uint32_t dstFamily = 0;
-        VkImageLayout oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        VkImageLayout newLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        VkPipelineStageFlags2 dstStage = VK_PIPELINE_STAGE_2_NONE;
-    };
-
     class CommandBuffer {
         friend VK::ImGuiBackend;
     public:
@@ -69,7 +59,7 @@ namespace Shift::VK {
         //! NOTE on const-ness: methods that mutate the CPU-side recording state are
         //! non const, methods that only append to the GPU command stream stay const.
 
-        //! Begin command buffer. Drops the per-recording texture-state table
+        //! Begin command buffer
         //! \return true if successful, false otherwise
         [[nodiscard]] bool Begin();
 
@@ -79,7 +69,7 @@ namespace Shift::VK {
         //! \return true if successful, false otherwise
         [[nodiscard]] bool End() const;
 
-        //! Reset the entire buffer (same as ResetFence for now). Drops the per-recording texture-state table
+        //! Reset the entire buffer (same as ResetFence for now)
         void Reset();
 
         void SetDebugName(const char* name) const;
@@ -100,38 +90,41 @@ namespace Shift::VK {
         [[nodiscard]] std::vector<GPUTimeRange> CollectTimeRanges();
 
         //! Begin dynamic rendering. Builds the VkRenderingInfo from the agnostic descriptor +
-        //! attachment textures
-        void BeginRenderPass(const RenderPassDescriptor& desc, std::span<Texture*> colorTextures, std::optional<Texture*> depthTexture) const;
+        //! attachment textures + the layout each attachment is in at this point of the recording
+        void BeginRenderPass(const RenderPassDescriptor& desc,
+            std::span<Texture*> colorTextures, std::span<const EResourceLayout> colorLayouts,
+            std::optional<Texture*> depthTexture, EResourceLayout depthLayout) const;
 
         //! End dynamic rendering.
         void EndRenderPass() const;
 
-        //! Record an image-layout transition. Source layout/stage come from this command buffer's
-        //! per-recording view of the texture (seeded from its last-submitted state on first touch)
-        //! the texture itself is only updated when this command buffer is submitted
+        //! Record one image barrier, everything explicit. Tracks nothing.
         //! Secondary CBs are draw only so this is a primary CB only call
-        //! Oh and nothing happens if new and old layouts are the same
-        void TransitionTexture(Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags);
+        void TextureBarrier(const Texture& texture, const MemoryDependency& dependency,
+            EResourceLayout oldLayout, EResourceLayout newLayout,
+            const TextureSubresourceRange& range) const;
 
         [[nodiscard]] EPoolQueueType GetPoolType() const { return m_poolType; }
 
-        //! Release the ownership of the resource from the current queue
-        //! Just a texture transition if queue families are the same
-        //! Otherwise does the release half, and logs the dst aquire half so RHI could poll it in a global buffer
-        //! and other queues could do acquire barriers from this logged data
-        void ReleaseQueueOwnership(Texture& texture, EPoolQueueType dstQueue, EResourceLayout dstLayout, EPipelineStageFlags dstStage);
+        //! False when this queue and dstQueue share a family, as then we just need a regular barrier
+        [[nodiscard]] bool NeedsOwnershipTransfer(EPoolQueueType dstQueue) const;
+
+        //! Record the release half from the given current state, and log the dst acquire half so RHI could
+        //! poll it in a global buffer and other queues could do acquire barriers from this logged data.
+        //! Only for different families, see NeedsOwnershipTransfer
+        void ReleaseQueueOwnership(Texture& texture, EResourceLayout oldLayout, EPipelineStageFlags oldStage,
+                                   EPoolQueueType dstQueue, EResourceLayout dstLayout, EPipelineStageFlags dstStage);
 
         //! Record the acquire half from the data that ReleaseQueueOwnership logged on the other queue
-        void AcquireQueueOwnership(const QueueOwnershipHandoff& handoff);
+        void AcquireQueueOwnership(const QueueOwnershipHandoffPayload& handoff);
 
         //! Take the queue ownership transfer handoffs for this recording.
         //! Take and not Get because we are doing std::move
-        [[nodiscard]] std::vector<QueueOwnershipHandoff> TakeRecordedHandoffs();
+        [[nodiscard]] std::vector<QueueOwnershipHandoffPayload> TakeRecordedHandoffs();
 
         void ExecuteSecondaryBuffers(std::span<CommandBuffer*> secondaryBuffs) const;
 
-        //! Submit the recording. On success, commits the per-recording texture states back to the
-        //! textures
+        //! Submit the recording
         [[nodiscard]] bool Submit(
             std::span<TimelineSemaphore*> waitSems,
             std::span<uint64_t> waitVals,
@@ -291,59 +284,16 @@ namespace Shift::VK {
         void VK_SetPipelineBarrierImage(VkImageMemoryBarrier2 imgBarrier,
                                         VkDependencyFlags flags) const;
 
-        //! [VK backend only function] Transition the image layout (sync2). Access masks are derived from the layouts.
-        //! \param image
-        //! \param oldLayout
-        //! \param newLayout
-        //! \param srcStage sync2 source stage mask
-        //! \param dstStage sync2 destination stage mask
-        //! \param subresourceRange
-        void VK_TransferImageLayout(
-                VkImage image,
-                VkImageLayout oldLayout,
-                VkImageLayout newLayout,
-                VkPipelineStageFlags2 srcStage,
-                VkPipelineStageFlags2 dstStage,
-                VkImageSubresourceRange subresourceRange) const;
-
-        //! [VK backend only function] Transition the image layout simpler version (sync2)
-        //! \param image
-        //! \param oldLayout
-        //! \param newLayout
-        //! \param srcStage sync2 source stage mask
-        //! \param dstStage sync2 destination stage mask
-        //! \param isDepth
-        void VK_TransferImageLayout(
-                VkImage image,
-                VkImageLayout oldLayout,
-                VkImageLayout newLayout,
-                VkPipelineStageFlags2 srcStage,
-                VkPipelineStageFlags2 dstStage,
-                bool isDepth = false) const;
-
         ~CommandBuffer();
     private:
-        //! CPU-side view of a texture's (layout, stage) local to the current recording
-        //! Struct tracks last texture transition state, as the texture itself only tracks last succesfully submitted satate
-        struct TextureTrackedState {
-            VkImageLayout layout;
-            VkPipelineStageFlags2 stage;
-        };
-
-        //! Find a texture not-submitted state, or create one from the last submitted state if present
-        TextureTrackedState& ResolveTextureState(Texture& texture);
-        //! Read the effective state at this point of the recording, local not submitted one if exists, else
-        //! last submitted one that is stored in the texture
-        [[nodiscard]] TextureTrackedState PeekTextureState(const Texture& texture) const;
-
         //! Every mip and array layer of the texture
         [[nodiscard]] static VkImageSubresourceRange WholeImageRange(const Texture& texture);
 
         //! Transition texture but for separate mip levels, UNTRACKED!!!!
         //! TODO [FEATURE, DX12] Track the subresources and not resources
-        void VK_TransitionMipRange(const Texture& texture, uint32_t baseLevel, uint32_t levelCount,
-                                VkImageLayout oldLayout, VkImageLayout newLayout,
-                                VkPipelineStageFlags2 srcStage, VkPipelineStageFlags2 dstStage) const;
+        void TransitionMipRange(const Texture& texture, uint32_t baseLevel, uint32_t levelCount,
+                                EResourceLayout oldLayout, EResourceLayout newLayout,
+                                EPipelineStageFlags srcStage, EPipelineStageFlags dstStage) const;
 
         //! API SPECIFIC, backend-only (friended). DO NOT USE OUTSIDE THE VK BACKEND.
         [[nodiscard]] VkCommandBuffer VK_Get() const { return m_buffer; }
@@ -352,11 +302,8 @@ namespace Shift::VK {
 
         VkCommandBuffer m_buffer = VK_NULL_HANDLE;
 
-        //! This is gonna be up to 10 textures the most so vector is chill, trust me
-        std::vector<std::pair<Texture*, TextureTrackedState>> m_textureStates;
-
         //! Queue ownership handoffs
-        std::vector<QueueOwnershipHandoff> m_recordedHandoffs;
+        std::vector<QueueOwnershipHandoffPayload> m_recordedHandoffs;
 
         //! GPU timing - VK-based ofc
         GPUProfiler m_profiler;

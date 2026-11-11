@@ -54,15 +54,6 @@ namespace Shift {
         }
     };
 
-    //! Every base barrier
-    //! TODO: [FEATURE] do layouts go here?
-    struct MemoryDependency {
-        EPipelineStageFlags srcStage = EPipelineStageFlags::NoneBit;
-        EAccessFlags        srcAccess = EAccessFlags::NoneBit;
-        EPipelineStageFlags dstStage = EPipelineStageFlags::NoneBit;
-        EAccessFlags        dstAccess = EAccessFlags::NoneBit;
-    };
-
     //! Buffer data for a copy operation (based on Vulkan)
     struct BufferOpDescriptor {
         Buffer* buffer;
@@ -105,6 +96,17 @@ namespace Shift {
         Compute,
     };
 
+    //! A released texture waiting for its acquire half on dstQueue.
+    //! The backend maps queues to whatever it needs ( I guess this is vk only but whatever lol)
+    struct QueueOwnershipHandoffPayload {
+        Texture* texture = nullptr;
+        EPoolQueueType srcQueue = EPoolQueueType::Graphics;
+        EPoolQueueType dstQueue = EPoolQueueType::Graphics;
+        EResourceLayout oldLayout = EResourceLayout::Undefined;
+        EResourceLayout newLayout = EResourceLayout::Undefined;
+        EPipelineStageFlags dstStage = EPipelineStageFlags::NoneBit;
+    };
+
     enum class ECommandBufferType {
         Default,
         Flight
@@ -137,6 +139,9 @@ namespace Shift {
             const TextureBlitData& InputTextureBlitData,
             const TextureBlitRegion& InputBlitRegion,
             Texture& InputTexture,
+            const TextureSubresourceRange& InputSubresourceRange,
+            const QueueOwnershipHandoffPayload& InputHandoff,
+            EPoolQueueType InputQueueType,
             EResourceLayout InputLayout,
             EPipelineStageFlags InputStage,
             std::span<BinarySemaphore*> InputBinSemaphoreSpan,
@@ -186,6 +191,11 @@ namespace Shift {
         { InputBuffer.SetScissor(InputScissor) } -> std::same_as<void>;
         { InputBuffer.BlitTexture(InputTextureBlitData, InputTextureBlitData, InputBlitRegion, filter) } -> std::same_as<void>;
         { InputBuffer.GenerateMips(InputTexture, InputLayout, InputStage, filter) } -> std::same_as<void>;
+        //! Barriers
+        { InputBuffer.TextureBarrier(InputTexture, InputMemoryDependency, InputLayout, InputLayout, InputSubresourceRange) } -> std::same_as<void>;
+        { CONCEPT_CONST_VAR(CommandBuffer, InputBuffer).NeedsOwnershipTransfer(InputQueueType) } -> std::same_as<bool>;
+        { InputBuffer.ReleaseQueueOwnership(InputTexture, InputLayout, InputStage, InputQueueType, InputLayout, InputStage) } -> std::same_as<void>;
+        { InputBuffer.AcquireQueueOwnership(InputHandoff) } -> std::same_as<void>;
     };
 
     template<typename CommandPool>

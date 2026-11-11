@@ -94,15 +94,7 @@ namespace Shift::VK::Util {
     // TODO: Only basic args for now
     VkPipelineDepthStencilStateCreateInfo CreateDepthStencilStateInfo();
 
-    //! Accesses a layout based on the source (already-happened) side of a barrier.
-    //! Unknown -> NONE
-    VkAccessFlags2 LayoutToSrcAccessMask2(VkImageLayout layout);
-
-    //! Accesses a layout based on the destination (about-to-happen) side of a barrier.
-    //! Unknown -> NONE
-    VkAccessFlags2 LayoutToDstAccessMask2(VkImageLayout layout);
-
-    //! Build a sync2 image barrier, deriving both access masks from the layout pair.
+    //! Build a sync2 image barrier - fully explicit
     //!
     //! Queue-family ownership transfer uses this function
     //! \param srcQueueFamily releasing family, or VK_QUEUE_FAMILY_IGNORED
@@ -112,7 +104,9 @@ namespace Shift::VK::Util {
             VkImageLayout oldLayout,
             VkImageLayout newLayout,
             VkPipelineStageFlags2 srcStage,
+            VkAccessFlags2 srcAccess,
             VkPipelineStageFlags2 dstStage,
+            VkAccessFlags2 dstAccess,
             uint32_t srcQueueFamily,
             uint32_t dstQueueFamily,
             VkImageSubresourceRange subresourceRange);

@@ -63,7 +63,7 @@ TEST_CASE("the unified queue policy boots, renders and tears down validation-cle
     //! A mid-run upload belongs here now that the graphics queue does WORK on an uploaded image
     //! (the mip chain) rather than only sampling it. Boot already runs the same-family branch
     //! twice, but only through UploadTexturesToGPU; this is the deferred path, on a warm engine,
-    //! with one resource family - so FlushPendingAcquires returns an empty wait list and the
+    //! with one resource family - so FlushPendingAcquires stores no waits and the
     //! ordering rests entirely on RenderFrame's unconditional GetTransferWaitPayload wait
     //! (Renderer.cpp, before every graphics submit) rather than on anything the handoff supplies
     auto& textures = renderer.GetTextureManager();

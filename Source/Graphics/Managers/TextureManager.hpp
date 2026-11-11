@@ -107,7 +107,7 @@ namespace Shift::Graphics {
         [[nodiscard]] bool SubmitPendingUploads();
 
         //! Point the bindless slots of the last submitted uploads at their real images.
-        //! Must run after RHI::FlushPendingAcquires as we switch queues (potentially I guess)
+        //! Must run after RHIContext::FlushPendingAcquires as we switch queues (potentially I guess)
         //! Muips are also built here!
         void RegisterSubmittedUploads(RenderContextEncoder* encoder);
 

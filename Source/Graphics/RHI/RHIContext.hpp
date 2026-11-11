@@ -80,6 +80,8 @@ namespace Shift {
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 #endif
 
+#include "ResourceStateTracker.hpp"
+
 
 namespace Shift {
 
@@ -99,7 +101,7 @@ namespace Shift {
     class RHIEncoder {
     public:
         RHIEncoder() = default;
-        explicit RHIEncoder(CommandBuffer* cmd): m_boundCB{cmd} {}
+        RHIEncoder(CommandBuffer* cmd, ResourceStateTracker<API>* tracker): m_boundCB{cmd}, m_tracker{tracker} {}
         RHIEncoder(const RHIEncoder&) = default;
         RHIEncoder& operator=(const RHIEncoder&) = default;
 
@@ -226,6 +228,7 @@ namespace Shift {
                           EFilterMode filter = EFilterMode::Linear);
     private:
         CommandBuffer* m_boundCB = nullptr;
+        ResourceStateTracker<API>* m_tracker = nullptr;
     };
 
     template<ValidAPI API>
@@ -239,32 +242,38 @@ namespace Shift {
 
         [[nodiscard]] CommandBuffer& GetCommandBuffer() {return *m_cmdBuffer;}
 
-        [[nodiscard]] bool BeginCmds() const;
+        [[nodiscard]] bool BeginCmds();
 
-        [[nodiscard]] bool BeginSecondaryCmds(const SecondaryBufferBeginPayload& payload) const;
+        [[nodiscard]] bool BeginSecondaryCmds(const SecondaryBufferBeginPayload& payload);
 
         [[nodiscard]] bool EndCmds() const;
 
-        void ResetCmds() const;
+        void ResetCmds();
 
         [[nodiscard]] RHIEncoder<API>* CreateCommandEncoder() { return &m_encoder; }
 
         //! The value is other wait or submit depending on the context
         using SubmitTimelinePayload = Shift::SubmitTimelinePayload;
 
-        [[nodiscard]] bool SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads, std::span<SubmitTimelinePayload> sigSemPayloads) const;
+        //! Also waits on every timeline point FlushPendingAcquires stored for this recording
+        [[nodiscard]] bool SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads, std::span<SubmitTimelinePayload> sigSemPayloads);
 
-        [[nodiscard]] bool SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads, std::span<SubmitTimelinePayload> sigSemPayloads, std::span<BinarySemaphore*> waitBinSems, std::span<BinarySemaphore*> sigBinSems) const;
+        [[nodiscard]] bool SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads, std::span<SubmitTimelinePayload> sigSemPayloads, std::span<BinarySemaphore*> waitBinSems, std::span<BinarySemaphore*> sigBinSems);
+
+        //! Call after BeginCmds, before using any handed-off texture from another queue as ut records the acquire half of every
+        //! pending handoff addressed to this context's queue. This recording's submit waits their release
+        void FlushPendingAcquires();
 
         void ExecuteSecondaryGraphicsContexts(std::span<CommandBuffer*> secondaryBuffs) const;
 
     private:
-
         EPoolQueueType GetQueueType(EContextType type);
-
 
         RHILocal<API>* m_local = nullptr;
         RHIEncoder<API> m_encoder;
+        Core::UniquePtr<ResourceStateTracker<API>> m_tracker;
+        //! Stored release payloads from FlushPending acquires
+        std::vector<SubmitTimelinePayload> m_acquireWaits;
         Core::UniquePtr<CommandBuffer> m_cmdBuffer;
         Core::UniquePtr<CommandPool> m_cmdPool;
         EContextType m_type = EContextType::Graphics;
@@ -284,7 +293,8 @@ namespace Shift {
         m_cmdBuffer = Core::CreateUnique<CommandBuffer>(m_local->device.get(), m_local->instance.get(), *m_cmdPool, m_isSecondary);
         CheckCritical(m_cmdBuffer->IsValid(), "Failed to init command buffer!");
 
-        m_encoder = RHIEncoder<RHI::Vulkan>{m_cmdBuffer.get()};
+        m_tracker = Core::CreateUnique<ResourceStateTracker<RHI::Vulkan>>();
+        m_encoder = RHIEncoder<RHI::Vulkan>{m_cmdBuffer.get(), m_tracker.get()};
 
         return true;
     }
@@ -294,17 +304,22 @@ namespace Shift {
         //! Destroy the command buffer (and with it the GPU-zone query pool it owns) here
         m_cmdBuffer.reset();
         m_cmdPool.reset();
+        m_tracker.reset();
     }
 
     template<ValidAPI API>
-    bool RHIContext<API>::BeginCmds() const {
+    bool RHIContext<API>::BeginCmds() {
         assert(!m_isSecondary);
+        m_tracker->Clear();
+        m_acquireWaits.clear();
         return m_cmdBuffer->Begin();
     }
 
     template<ValidAPI API>
-    bool RHIContext<API>::BeginSecondaryCmds(const SecondaryBufferBeginPayload &payload) const {
+    bool RHIContext<API>::BeginSecondaryCmds(const SecondaryBufferBeginPayload &payload) {
         assert(m_isSecondary);
+        m_tracker->Clear();
+        m_acquireWaits.clear();
         return m_cmdBuffer->BeginSecondary(payload);
     }
 
@@ -314,7 +329,9 @@ namespace Shift {
     }
 
     template<ValidAPI API>
-    void RHIContext<API>::ResetCmds() const {
+    void RHIContext<API>::ResetCmds() {
+        m_tracker->Clear();
+        m_acquireWaits.clear();
         m_cmdPool->Reset();
     }
 
@@ -449,8 +466,7 @@ namespace Shift {
     }
 
     template<ValidAPI API>
-    bool RHIContext<API>::SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads,
-        std::span<SubmitTimelinePayload> sigSemPayloads) const
+    bool RHIContext<API>::SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads, std::span<SubmitTimelinePayload> sigSemPayloads)
     {
         return SubmitCmds(waitSemPayloads, sigSemPayloads, {}, {});
     }
@@ -458,24 +474,26 @@ namespace Shift {
     template<ValidAPI API>
     bool RHIContext<API>::SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads,
         std::span<SubmitTimelinePayload> sigSemPayloads, std::span<BinarySemaphore*> waitBinSems,
-        std::span<BinarySemaphore*> sigBinSems) const
+        std::span<BinarySemaphore*> sigBinSems)
     {
         assert(!m_isSecondary);
 
         //! If we have repeating semaphores -> collapse them into one
         std::vector<TimelineSemaphore*> waitSems;
         std::vector<uint64_t> waitVals;
-
-        for (auto& p: waitSemPayloads) {
+        auto addWait = [&](const SubmitTimelinePayload& p) {
             const auto existing = std::ranges::find(waitSems, p.semaphore);
             if (existing != waitSems.end()) {
                 uint64_t& val = waitVals[std::distance(waitSems.begin(), existing)];
                 val = std::max(val, p.value);
-                continue;
+                return;
             }
             waitSems.push_back(p.semaphore);
             waitVals.push_back(p.value);
-        }
+        };
+
+        for (const auto& p: waitSemPayloads) { addWait(p); }
+        for (const auto& p: m_acquireWaits) { addWait(p); }
 
         std::vector<TimelineSemaphore*> sigSems;
         std::vector<uint64_t> sigVals;
@@ -487,6 +505,9 @@ namespace Shift {
         if (!m_cmdBuffer->Submit(waitSems, waitVals, sigSems, sigVals, waitBinSems, sigBinSems)) {
             return false;
         }
+
+        //! Only succesfull submit reaches this, texture's state has been updated
+        m_tracker->CommitSubmitted();
 
         //! We take the pending handoffs only on the succesful submit
         auto handoffs = m_cmdBuffer->TakeRecordedHandoffs();
@@ -504,6 +525,17 @@ namespace Shift {
     }
 
     template<ValidAPI API>
+    void RHIContext<API>::FlushPendingAcquires() {
+        assert(!m_isSecondary);
+        for (const auto& pending : m_local->TakePendingAcquires(m_cmdBuffer->GetPoolType())) {
+            m_cmdBuffer->AcquireQueueOwnership(pending.handoff);
+            m_tracker->SetState(*pending.handoff.texture, pending.handoff.newLayout, pending.handoff.dstStage);
+            //! Store acquire waits to add them to submit so the user does not have to do that shit
+            m_acquireWaits.push_back(SubmitTimelinePayload{pending.releaseSemaphore, pending.releaseValue});
+        }
+    }
+
+    template<ValidAPI API>
     void RHIContext<API>::ExecuteSecondaryGraphicsContexts(std::span<CommandBuffer *> secondaryBuffs) const {
         m_cmdBuffer->ExecuteSecondaryBuffers(secondaryBuffs);
     }
@@ -512,21 +544,38 @@ namespace Shift {
 
     template<ValidAPI API>
     void RHIEncoder<API>::BeginRenderPass(const RenderPassDescriptor& desc, std::span<Texture*> colorTextures, std::optional<Texture*> depthTexture) {
-        m_boundCB->BeginRenderPass(desc, colorTextures, depthTexture);
+        //! The attachment layouts are whatever this recording transitioned them to
+        std::vector<EResourceLayout> colorLayouts;
+        colorLayouts.reserve(colorTextures.size());
+        for (const Texture* colorTexture : colorTextures) {
+            colorLayouts.push_back(m_tracker->GetLayout(*colorTexture));
+        }
+        const EResourceLayout depthLayout = depthTexture.has_value() ? m_tracker->GetLayout(**depthTexture) : EResourceLayout::Undefined;
+
+        m_boundCB->BeginRenderPass(desc, colorTextures, colorLayouts, depthTexture, depthLayout);
     }
 
     template<ValidAPI API>
     void RHIEncoder<API>::TransitionTexture(Texture& texture, EResourceLayout newLayout,
         EPipelineStageFlags newStageFlags)
     {
-        m_boundCB->TransitionTexture(texture, newLayout, newStageFlags);
+        m_tracker->TransitionTexture(*m_boundCB, texture, newLayout, newStageFlags);
     }
 
     template<ValidAPI API>
     void RHIEncoder<API>::ReleaseQueueOwnership(Texture& texture, EContextType dstContext,
         EResourceLayout dstLayout, EPipelineStageFlags dstStage)
     {
-        m_boundCB->ReleaseQueueOwnership(texture, ToPoolQueueType(dstContext), dstLayout, dstStage);
+        const EPoolQueueType dstQueue = ToPoolQueueType(dstContext);
+        //! Ignore same fanily stuff
+        if (!m_boundCB->NeedsOwnershipTransfer(dstQueue)) {
+            m_tracker->TransitionTexture(*m_boundCB, texture, dstLayout, dstStage);
+            return;
+        }
+
+        m_boundCB->ReleaseQueueOwnership(texture, m_tracker->GetLayout(texture), m_tracker->GetStage(texture), dstQueue, dstLayout, dstStage);
+        //! The rest of this recording should see the release state so that is what this call does
+        m_tracker->SetState(texture, dstLayout, EPipelineStageFlags::NoneBit);
     }
 
     template<ValidAPI API>
@@ -534,6 +583,8 @@ namespace Shift {
         EPipelineStageFlags finalStage, EFilterMode filter)
     {
         m_boundCB->GenerateMips(texture, finalLayout, finalStage, filter);
+        //! TODO: [FEATURE, DX12] Log just the texture for now, not all subresources
+        m_tracker->SetState(texture, finalLayout, finalStage);
     }
 
     template<ValidAPI API>

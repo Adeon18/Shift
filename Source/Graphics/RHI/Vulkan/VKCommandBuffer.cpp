@@ -60,7 +60,6 @@ namespace Shift::VK {
     }
 
     void CommandBuffer::Reset() {
-        m_textureStates.clear();
         m_debugGroupTimed.clear();
         //! Handoffs go to 1 recording
         m_recordedHandoffs.clear();
@@ -114,7 +113,6 @@ namespace Shift::VK {
     bool CommandBuffer::Begin() {
         assert(!m_isSecondary);
 
-        m_textureStates.clear();
         m_debugGroupTimed.clear();
         //! Handoffs go to 1 recording
         m_recordedHandoffs.clear();
@@ -134,8 +132,6 @@ namespace Shift::VK {
     bool CommandBuffer::BeginSecondary(const SecondaryBufferBeginPayload &payload) {
         assert(m_isSecondary);
 
-        //! Secondaries never record but this is just in case
-        m_textureStates.clear();
         m_debugGroupTimed.clear();
         //! Handoffs go to 1 recording
         m_recordedHandoffs.clear();
@@ -246,31 +242,6 @@ namespace Shift::VK {
         );
     }
 
-    void CommandBuffer::VK_TransferImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
-                                            VkPipelineStageFlags2 srcStage, VkPipelineStageFlags2 dstStage,
-                                            VkImageSubresourceRange subresourceRange) const {
-        //! Same-queue barrier: no ownership changes hands, so both families are IGNORED
-        VK_SetPipelineBarrierImage(
-            Util::CreateImageMemoryBarrier2(
-                image, oldLayout, newLayout, srcStage, dstStage,
-                VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
-                subresourceRange),
-            0);
-    }
-
-    void CommandBuffer::VK_TransferImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout,
-                                            VkPipelineStageFlags2 srcStage, VkPipelineStageFlags2 dstStage, bool isDepth) const {
-
-        VkImageSubresourceRange subresourceRange{};
-        subresourceRange.aspectMask = (isDepth) ? VK_IMAGE_ASPECT_DEPTH_BIT: VK_IMAGE_ASPECT_COLOR_BIT;
-        subresourceRange.baseMipLevel = 0;
-        subresourceRange.levelCount = 1;
-        subresourceRange.baseArrayLayer = 0;
-        subresourceRange.layerCount = 1;
-
-        VK_TransferImageLayout(image, oldLayout, newLayout, srcStage, dstStage, subresourceRange);
-    }
-
     void CommandBuffer::VK_SetPipelineBarrier(
         std::span<VkImageMemoryBarrier2> imgSpan,
         std::span<VkMemoryBarrier2> memSpan,
@@ -346,8 +317,8 @@ namespace Shift::VK {
 
         for (auto& sem: waitBinSems) {
             waitSemsVk.push_back(sem->Get());
-            //! Shared chain point with Swapchain::AquireNextImage's tracked-stage seeding
-            waitStages.push_back(static_cast<VkPipelineStageFlags>(BINARY_WAIT_DST_STAGES));
+            //! Shared chain point with RHI's swapchain-acquire tracked-stage seeding
+            waitStages.push_back(static_cast<VkPipelineStageFlags>(Util::ShiftToVKPipelineStageFlags2(BinarySemaphore::WAIT_STAGE)));
         }
 
         for (auto& sem: waitTimeSems) {
@@ -391,12 +362,6 @@ namespace Shift::VK {
             Log(Error, "Failed to submit to queue! Code: {}", res);
             return false;
         }
-
-        //! Submit was succesfull, so we record the latest texture's submitted state into them
-        for (auto& [texture, state] : m_textureStates) {
-            texture->VK_CommitSubmittedState(state.layout, state.stage);
-        }
-        m_textureStates.clear();
 
         return true;
     }
@@ -454,8 +419,11 @@ namespace Shift::VK {
                            range->offset + offset, size, data);
     }
 
-    void CommandBuffer::BeginRenderPass(const RenderPassDescriptor& desc, std::span<Texture*> colorTextures, std::optional<Texture*> depthTexture) const {
+    void CommandBuffer::BeginRenderPass(const RenderPassDescriptor& desc,
+            std::span<Texture*> colorTextures, std::span<const EResourceLayout> colorLayouts,
+            std::optional<Texture*> depthTexture, EResourceLayout depthLayout) const {
         assert(desc.colorAttachments.size() == colorTextures.size());
+        assert(colorLayouts.size() == colorTextures.size());
         assert(desc.depthAttachment.has_value() == depthTexture.has_value());
 
         std::vector<VkRenderingAttachmentInfo> colorInfo;
@@ -466,7 +434,7 @@ namespace Shift::VK {
             //! The attachment layout is whatever this recording has transitioned the texture to (not the submitted one!!!!!!!)
             colorInfo.push_back(Util::CreateRenderingAttachmentInfo(
                     colTex->VK_GetView(),
-                    PeekTextureState(*colTex).layout,
+                    Util::ShiftToVKResourceLayout(colorLayouts[i]),
                     Util::ShiftToVKClearColor(att.clearValue),
                     Util::ShiftToVKAttachmentLoadOperation(att.loadOperation),
                     Util::ShiftToVKAttachmentStoreOperation(att.storeOperation)
@@ -478,7 +446,7 @@ namespace Shift::VK {
             const RenderPassDescriptor::RenderPassAttachmentInfo& att = desc.depthAttachment.value();
             depthInfo = Util::CreateRenderingAttachmentInfo(
                     (*depthTexture)->VK_GetView(),
-                    PeekTextureState(**depthTexture).layout,
+                    Util::ShiftToVKResourceLayout(depthLayout),
                     Util::ShiftToVKClearDepthStencil(att.clearValue),
                     Util::ShiftToVKAttachmentLoadOperation(att.loadOperation),
                     Util::ShiftToVKAttachmentStoreOperation(att.storeOperation)
@@ -503,22 +471,6 @@ namespace Shift::VK {
         vkCmdEndRendering(m_buffer);
     }
 
-    CommandBuffer::TextureTrackedState& CommandBuffer::ResolveTextureState(Texture& texture) {
-        for (auto& [tex, state] : m_textureStates) {
-            if (tex == &texture) { return state; }
-        }
-        //! Initialize from tetxure's last submitted state
-        return m_textureStates.emplace_back(
-            &texture, TextureTrackedState{texture.VK_GetSubmittedLayout(), texture.VK_GetSubmittedStage()}).second;
-    }
-
-    CommandBuffer::TextureTrackedState CommandBuffer::PeekTextureState(const Texture& texture) const {
-        for (const auto& [tex, state] : m_textureStates) {
-            if (tex == &texture) { return state; }
-        }
-        return {texture.VK_GetSubmittedLayout(), texture.VK_GetSubmittedStage()};
-    }
-
     VkImageSubresourceRange CommandBuffer::WholeImageRange(const Texture& texture) {
         //! Derive the barrier aspect from the texture's real aspect
         //! VK_REMAINING_* covers every mip and array layer
@@ -531,15 +483,14 @@ namespace Shift::VK {
         return subresourceRange;
     }
 
-    void CommandBuffer::VK_TransitionMipRange(const Texture& texture, uint32_t baseLevel, uint32_t levelCount,
-                                           VkImageLayout oldLayout, VkImageLayout newLayout,
-                                           VkPipelineStageFlags2 srcStage, VkPipelineStageFlags2 dstStage) const {
-        VK_TransferImageLayout(
-            texture.VK_GetImage(),
+    void CommandBuffer::TransitionMipRange(const Texture& texture, uint32_t baseLevel, uint32_t levelCount,
+                                           EResourceLayout oldLayout, EResourceLayout newLayout,
+                                           EPipelineStageFlags srcStage, EPipelineStageFlags dstStage) const {
+        TextureBarrier(texture,
+            MakeTextureDependency(oldLayout, srcStage, newLayout, dstStage),
             oldLayout, newLayout,
-            srcStage, dstStage,
-            VkImageSubresourceRange{
-                .aspectMask = Util::ShiftToVKTextureAspect(texture.GetAspect()),
+            TextureSubresourceRange{
+                .aspect = texture.GetAspect(),
                 .baseMipLevel = baseLevel,
                 .levelCount = levelCount,
                 .baseArrayLayer = 0,
@@ -547,100 +498,82 @@ namespace Shift::VK {
             });
     }
 
-    void CommandBuffer::TransitionTexture(Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags) {
+    void CommandBuffer::TextureBarrier(const Texture& texture, const MemoryDependency& dependency,
+                                       EResourceLayout oldLayout, EResourceLayout newLayout,
+                                       const TextureSubresourceRange& range) const {
         //! Barriers can only be done by a primary buffer, as secondaries run only after beginrenderpass
         //! where transitions are forbidden
         assert(!m_isSecondary);
 
-        const VkImageLayout dstLayout = Util::ShiftToVKResourceLayout(newLayout);
-        const VkPipelineStageFlags2 dstStage = Util::ShiftToVKPipelineStageFlags2(newStageFlags);
-
-        TextureTrackedState& trackedState = ResolveTextureState(texture);
-
-        //! Early exit as no layout to change
-        if (trackedState.layout == dstLayout && trackedState.stage == dstStage) {
-            return;
-        }
-
-        VK_TransferImageLayout(
-            texture.VK_GetImage(),
-            trackedState.layout,
-            dstLayout,
-            trackedState.stage,
-            dstStage,
-            WholeImageRange(texture)
-        );
-
-        trackedState = {dstLayout, dstStage};
+        //! Same-queue barrier, no ownership changes hands, so both families are IGNORED
+        VK_SetPipelineBarrierImage(
+            Util::CreateImageMemoryBarrier2(
+                texture.VK_GetImage(),
+                Util::ShiftToVKResourceLayout(oldLayout), Util::ShiftToVKResourceLayout(newLayout),
+                Util::ShiftToVKPipelineStageFlags2(dependency.srcStage), Util::ShiftToVKAccessFlags2(dependency.srcAccess),
+                Util::ShiftToVKPipelineStageFlags2(dependency.dstStage), Util::ShiftToVKAccessFlags2(dependency.dstAccess),
+                VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
+                Util::ShiftToVKSubresourceRange(range)),
+            0);
     }
 
-    void CommandBuffer::ReleaseQueueOwnership(Texture& texture, EPoolQueueType dstQueue,
-                                              EResourceLayout dstLayout, EPipelineStageFlags dstStage) {
+    bool CommandBuffer::NeedsOwnershipTransfer(EPoolQueueType dstQueue) const {
+        return m_device->GetQueueFamilyIndex(m_poolType) != m_device->GetQueueFamilyIndex(dstQueue);
+    }
+
+    void CommandBuffer::ReleaseQueueOwnership(Texture& texture, EResourceLayout oldLayout, EPipelineStageFlags oldStage,
+                                              EPoolQueueType dstQueue, EResourceLayout dstLayout, EPipelineStageFlags dstStage) {
         assert(!m_isSecondary);
+        assert(NeedsOwnershipTransfer(dstQueue) && "Same family: the caller transitions instead");
 
         const uint32_t srcFamily = m_device->GetQueueFamilyIndex(m_poolType);
         const uint32_t dstFamily = m_device->GetQueueFamilyIndex(dstQueue);
 
-        //! Nothing to hand over when both queue are on 1 family
-        if (srcFamily == dstFamily) {
-            TransitionTexture(texture, dstLayout, dstStage);
-            return;
-        }
-
-        const VkImageLayout newLayout = Util::ShiftToVKResourceLayout(dstLayout);
-        const VkPipelineStageFlags2 acquireStage = Util::ShiftToVKPipelineStageFlags2(dstStage);
-
-        //! The handoff and the post-release state both need the pre-release one
-        const TextureTrackedState trackedState = ResolveTextureState(texture);
-        const VkImageLayout oldLayout = trackedState.layout;
-        const VkPipelineStageFlags2 srcStage = trackedState.stage;
-
         //! Release queue ownership, no dst stages are here as they are on the other queue
+        const MemoryDependency release = MakeTextureDependency(oldLayout, oldStage, dstLayout, EPipelineStageFlags::NoneBit);
         VK_SetPipelineBarrierImage(
             Util::CreateImageMemoryBarrier2(
                 texture.VK_GetImage(),
-                oldLayout, newLayout,
-                srcStage, VK_PIPELINE_STAGE_2_NONE,
+                Util::ShiftToVKResourceLayout(oldLayout), Util::ShiftToVKResourceLayout(dstLayout),
+                Util::ShiftToVKPipelineStageFlags2(release.srcStage), Util::ShiftToVKAccessFlags2(release.srcAccess),
+                Util::ShiftToVKPipelineStageFlags2(release.dstStage), Util::ShiftToVKAccessFlags2(release.dstAccess),
                 srcFamily, dstFamily,
                 WholeImageRange(texture)),
             0);
 
-        m_recordedHandoffs.push_back(QueueOwnershipHandoff{
+        m_recordedHandoffs.push_back(QueueOwnershipHandoffPayload{
             .texture = &texture,
-            .srcFamily = srcFamily,
-            .dstFamily = dstFamily,
+            .srcQueue = m_poolType,
+            .dstQueue = dstQueue,
             .oldLayout = oldLayout,
-            .newLayout = newLayout,
-            .dstStage = acquireStage
+            .newLayout = dstLayout,
+            .dstStage = dstStage
         });
-
-        //! For the rest of THIS recording has the correct stage and layout but it is left
-        //! kind of useless as the other queue will soon get it
-        ResolveTextureState(texture) = {newLayout, VK_PIPELINE_STAGE_2_NONE};
     }
 
-    void CommandBuffer::AcquireQueueOwnership(const QueueOwnershipHandoff& handoff) {
+    void CommandBuffer::AcquireQueueOwnership(const QueueOwnershipHandoffPayload& handoff) {
         assert(!m_isSecondary);
         assert(handoff.texture != nullptr);
         //! The acquire half only completes the transfer when it executes on the destination
         //! family's queue. Recorded anywhere else it is a no-op that also consumes the handoff
-        assert(handoff.dstFamily == m_device->GetQueueFamilyIndex(m_poolType));
+        const uint32_t srcFamily = m_device->GetQueueFamilyIndex(handoff.srcQueue);
+        const uint32_t dstFamily = m_device->GetQueueFamilyIndex(handoff.dstQueue);
+        assert(dstFamily == m_device->GetQueueFamilyIndex(m_poolType));
 
-        //! Acquire image based on stored data
+        //! Acquire image based on stored data, no src stages are here as they were on the other queue
+        const MemoryDependency acquire = MakeTextureDependency(handoff.oldLayout, EPipelineStageFlags::NoneBit, handoff.newLayout, handoff.dstStage);
         VK_SetPipelineBarrierImage(
             Util::CreateImageMemoryBarrier2(
                 handoff.texture->VK_GetImage(),
-                handoff.oldLayout, handoff.newLayout,
-                VK_PIPELINE_STAGE_2_NONE, handoff.dstStage,
-                handoff.srcFamily, handoff.dstFamily,
+                Util::ShiftToVKResourceLayout(handoff.oldLayout), Util::ShiftToVKResourceLayout(handoff.newLayout),
+                Util::ShiftToVKPipelineStageFlags2(acquire.srcStage), Util::ShiftToVKAccessFlags2(acquire.srcAccess),
+                Util::ShiftToVKPipelineStageFlags2(acquire.dstStage), Util::ShiftToVKAccessFlags2(acquire.dstAccess),
+                srcFamily, dstFamily,
                 WholeImageRange(*handoff.texture)),
             0);
-
-        //! Log the texture
-        ResolveTextureState(*handoff.texture) = {handoff.newLayout, handoff.dstStage};
     }
 
-    std::vector<QueueOwnershipHandoff> CommandBuffer::TakeRecordedHandoffs() {
+    std::vector<QueueOwnershipHandoffPayload> CommandBuffer::TakeRecordedHandoffs() {
         return std::move(m_recordedHandoffs);
     }
 
@@ -767,8 +700,6 @@ namespace Shift::VK {
         assert((texture.GetUsageFlags() & ETextureUsageFlags::TransferSrc) != ETextureUsageFlags::None &&
                "GenerateMips blits OUT of the image, so it must carry TransferSrc usage");
 
-        const VkImageLayout vkFinalLayout = Util::ShiftToVKResourceLayout(finalLayout);
-        const VkPipelineStageFlags2 vkFinalStage = Util::ShiftToVKPipelineStageFlags2(finalStage);
         const uint32_t levels = texture.GetMipCount();
 
         int32_t w = static_cast<int32_t>(texture.GetWidth());
@@ -785,9 +716,9 @@ namespace Shift::VK {
         };
 
         for (uint32_t level = 1; level < levels; ++level) {
-            VK_TransitionMipRange(texture, level - 1, 1,
-           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-           VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT, VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT);
+            TransitionMipRange(texture, level - 1, 1,
+                EResourceLayout::TransferDstOptimal, EResourceLayout::TransferSrcOptimal,
+                EPipelineStageFlags::AllTransferBit, EPipelineStageFlags::AllTransferBit);
 
             const int32_t nextW = std::max(w >> 1, 1);
             const int32_t nextH = std::max(h >> 1, 1);
@@ -808,16 +739,13 @@ namespace Shift::VK {
 
         //! Last level is always dst optimal while others are src as they helped gen the other mips
         if (levels > 1) {
-            VK_TransitionMipRange(texture, 0, levels - 1,
-                               VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, vkFinalLayout,
-                               VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT, vkFinalStage);
+            TransitionMipRange(texture, 0, levels - 1,
+                EResourceLayout::TransferSrcOptimal, finalLayout,
+                EPipelineStageFlags::AllTransferBit, finalStage);
         }
-        VK_TransitionMipRange(texture, levels - 1, 1,
-                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, vkFinalLayout,
-                           VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT, vkFinalStage);
-
-        //! TODO: [FEATURE, DX12] Log just the texture for now, not all subresources
-        ResolveTextureState(texture) = {vkFinalLayout, vkFinalStage};
+        TransitionMipRange(texture, levels - 1, 1,
+            EResourceLayout::TransferDstOptimal, finalLayout,
+            EPipelineStageFlags::AllTransferBit, finalStage);
     }
 
 } // Shift::VK
