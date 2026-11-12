@@ -276,6 +276,8 @@ namespace Shift::Graphics {
             CheckCritical(viewportHDR != nullptr, "The viewport HDR target does not resolve!");
 
             gEncoder->PushDebugGroup("ViewportPass", {0.30f, 0.65f, 0.35f, 1.0f}, true);
+            //! PreExpose in basepass reads the auto exposure written by the last frame reduce
+            m_postProcessSystem.GetAutoExposureSystem().DeclareExposureRead(*gEncoder, EPipelineStageFlags::FragmentShaderBit);
             // gContext.TransitionTexture(m_SRHI.GetSwapchain().GetSwapchainTexture(imageIndex), EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
             gEncoder->TransitionTexture(*viewportHDR, EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
             gEncoder->TransitionTexture(*m_viewportDepth, EResourceLayout::DepthStencilAttachmentOptimal, EPipelineStageFlags::EarlyFragmentTestsBit);

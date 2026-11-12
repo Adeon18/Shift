@@ -102,12 +102,8 @@ namespace Shift::Graphics {
 
     void AutoExposureSystem::RecordBuild(RenderContextEncoder& encoder, const Pipeline& pipeline, Buffer& histogram, Buffer& exposure, const AutoExposureInputs& inputs) const {
         encoder.PushDebugGroup("AEBuild", {0.1f, 0.9f, 0.8f, 1.0f}, true);
-        encoder.BufferBarrier({&histogram, 0}, histogram.GetSize(), {
-            .srcStage = EPipelineStageFlags::ComputeShaderBit,
-            .srcAccess = EAccessFlags::ShaderStorageWriteBit,
-            .dstStage = EPipelineStageFlags::ComputeShaderBit,
-            .dstAccess = EAccessFlags::ShaderStorageReadBit | EAccessFlags::ShaderStorageWriteBit
-        });
+        encoder.TransitionBuffer(histogram, EPipelineStageFlags::ComputeShaderBit, EAccessFlags::ShaderStorageReadBit | EAccessFlags::ShaderStorageWriteBit);
+        encoder.TransitionBuffer(exposure, EPipelineStageFlags::ComputeShaderBit, EAccessFlags::ShaderStorageReadBit);
 
         encoder.BindComputePipeline(pipeline);
         encoder.BindResourceSet(pipeline, GlobalResourceSet::SET_INDEX, inputs.globalSet);
@@ -124,18 +120,9 @@ namespace Shift::Graphics {
     void AutoExposureSystem::RecordReduce(RenderContextEncoder& encoder, const Pipeline& pipeline, Buffer& histogram, Buffer& exposure, const AutoExposureInputs& inputs) const {
         encoder.PushDebugGroup("AEReduce", {0.44f, 0.9f, 0.20f, 1.0f}, true);
 
-        encoder.BufferBarrier({&histogram, 0}, histogram.GetSize(), {
-            .srcStage = EPipelineStageFlags::ComputeShaderBit,
-            .srcAccess = EAccessFlags::ShaderStorageWriteBit,
-            .dstStage = EPipelineStageFlags::ComputeShaderBit,
-            .dstAccess = EAccessFlags::ShaderStorageReadBit | EAccessFlags::ShaderStorageWriteBit
-        });
-        encoder.BufferBarrier({&exposure, 0}, exposure.GetSize(), {
-            .srcStage = EPipelineStageFlags::ComputeShaderBit | EPipelineStageFlags::FragmentShaderBit,
-            .srcAccess = EAccessFlags::NoneBit,
-            .dstStage = EPipelineStageFlags::ComputeShaderBit,
-            .dstAccess = EAccessFlags::NoneBit
-        });
+        //! We read and zero out histogram, and read and override exposure
+        encoder.TransitionBuffer(histogram, EPipelineStageFlags::ComputeShaderBit, EAccessFlags::ShaderStorageReadBit | EAccessFlags::ShaderStorageWriteBit);
+        encoder.TransitionBuffer(exposure, EPipelineStageFlags::ComputeShaderBit, EAccessFlags::ShaderStorageReadBit | EAccessFlags::ShaderStorageWriteBit);
 
         encoder.BindComputePipeline(pipeline);
         const GPU::HistogramReducePushConstants ps{
@@ -150,13 +137,6 @@ namespace Shift::Graphics {
         encoder.SetPushConstants(pipeline, &ps, sizeof(GPU::HistogramReducePushConstants), 0);
         encoder.Dispatch(DispatchConfig{1, 1, 1});
 
-        encoder.BufferBarrier({&exposure, 0}, exposure.GetSize(), {
-            .srcStage = EPipelineStageFlags::ComputeShaderBit,
-            .srcAccess = EAccessFlags::ShaderStorageWriteBit,
-            .dstStage = EPipelineStageFlags::ComputeShaderBit | EPipelineStageFlags::FragmentShaderBit,
-            .dstAccess = EAccessFlags::ShaderStorageReadBit
-        });
-
         encoder.PopDebugGroup();
     }
 
@@ -165,11 +145,17 @@ namespace Shift::Graphics {
         return exposure != nullptr ? exposure->GetDeviceAddress() : 0;
     }
 
+    void AutoExposureSystem::DeclareExposureRead(RenderContextEncoder& encoder, EPipelineStageFlags stage) const {
+        Buffer* exposure = m_bufferManager->Get(m_exposure);
+        CheckCriticalEmptyReturn(exposure != nullptr, "The auto-exposure buffer does not resolve!");
+        encoder.TransitionBuffer(*exposure, stage, EAccessFlags::ShaderStorageReadBit);
+    }
+
     BufferCaptureTarget AutoExposureSystem::GetHistogramCaptureTarget() const {
-        return {m_bufferManager->Get(m_histogram), HISTOGRAM_BYTES, EPipelineStageFlags::ComputeShaderBit, EAccessFlags::ShaderStorageWriteBit};
+        return {m_bufferManager->Get(m_histogram), HISTOGRAM_BYTES};
     }
 
     BufferCaptureTarget AutoExposureSystem::GetExposureCaptureTarget() const {
-        return {m_bufferManager->Get(m_exposure), EXPOSURE_BYTES, EPipelineStageFlags::ComputeShaderBit, EAccessFlags::ShaderStorageWriteBit};
+        return {m_bufferManager->Get(m_exposure), EXPOSURE_BYTES};
     }
 }

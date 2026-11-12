@@ -102,12 +102,7 @@ namespace Shift::Graphics {
         const BufferOpDescriptor destination{readback, 0u};
 
         encoder->CopyTextureToBuffer(source, destination);
-        encoder->BufferBarrier(destination, byteSize, {
-            .srcStage = EPipelineStageFlags::CopyBit,
-            .srcAccess = EAccessFlags::TransferWriteBit,
-            .dstStage = EPipelineStageFlags::HostBit,
-            .dstAccess = EAccessFlags::HostReadBit
-        });
+        encoder->TransitionBuffer(*readback, EPipelineStageFlags::HostBit, EAccessFlags::HostReadBit);
         encoder->TransitionTexture(texture, target.finalLayout, target.finalStage);
 
         if (!gContext.EndCmds()) {
@@ -229,20 +224,10 @@ namespace Shift::Graphics {
         const BufferOpDescriptor source{target.buffer, 0u};
         const BufferOpDescriptor destination{readback.get(), 0u};
 
-        //! A host wait is not enough and we need to make the writes visible
-        encoder->BufferBarrier(source, target.size, {
-            .srcStage = target.lastWriteStage,
-            .srcAccess = target.lastWriteAccess,
-            .dstStage = EPipelineStageFlags::CopyBit,
-            .dstAccess = EAccessFlags::TransferReadBit
-        });
+        //! Copy has a barrier
         encoder->CopyBufferToBuffer(source, destination, static_cast<uint32_t>(target.size));
-        encoder->BufferBarrier(destination, target.size, {
-            .srcStage = EPipelineStageFlags::CopyBit,
-            .srcAccess = EAccessFlags::TransferWriteBit,
-            .dstStage = EPipelineStageFlags::HostBit,
-            .dstAccess = EAccessFlags::HostReadBit
-        });
+        //! A host wait is not enough and we need to make the writes visible
+        encoder->TransitionBuffer(*readback, EPipelineStageFlags::HostBit, EAccessFlags::HostReadBit);
 
         if (!gContext.EndCmds()) {
             Log(Error, "CaptureSystem: failed to end the capture command buffer");

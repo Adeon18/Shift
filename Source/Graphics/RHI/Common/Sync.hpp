@@ -81,6 +81,16 @@ namespace Shift {
     };
     DEFINE_ENUM_CLASS_BITWISE_OPERATORS(EAccessFlags);
 
+    //! Every access that writes memory
+    inline constexpr EAccessFlags ACCESS_ALL_WRITE_MASK =
+        EAccessFlags::ShaderWriteBit |
+        EAccessFlags::ColorAttachmentWriteBit |
+        EAccessFlags::DepthStencilAttachmentWriteBit |
+        EAccessFlags::TransferWriteBit |
+        EAccessFlags::HostWriteBit |
+        EAccessFlags::MemoryWriteBit |
+        EAccessFlags::ShaderStorageWriteBit;
+
     //! The elements that every barrier form uses, buffer, texture (+layout) and global
     struct MemoryDependency {
         EPipelineStageFlags srcStage = EPipelineStageFlags::NoneBit;
@@ -107,6 +117,21 @@ namespace Shift {
 
         EResourceLayout layout = EResourceLayout::Undefined;
         EPipelineStageFlags stage = EPipelineStageFlags::TopOfPipeBit;
+    };
+
+    //! TODO: [CONSPECT] A buffer's state as of its last successful submit, whole buffer. Same rules as TextureSyncState
+    //! Since buffers have no layouts, we need to store both read and write states, as:
+    //! 1. For a read, we need to wait for a write. 2. For a write, we need mem dep for a write before to order and if write after read - need exec dependency so that data is know overriden
+    //! For textures, the layout handles this, as a layout change always means 1 or 2 behaviour from above - hence a barrier is needed and the read after read is ofc a no-barrier
+    //! and this is too the reason we can infer stage from layout!
+    class BufferSyncState {
+        template<typename API> friend class ResourceStateTracker;
+        //! NoneBit while the GPU never wrote the buffer
+        EPipelineStageFlags writeStage = EPipelineStageFlags::NoneBit;
+        EAccessFlags writeAccess = EAccessFlags::NoneBit;
+        //! Every read since that write, it is OR-ED into the read stages as the next write has to wait for all of them
+        EPipelineStageFlags readStages = EPipelineStageFlags::NoneBit;
+        EAccessFlags readAccess = EAccessFlags::NoneBit;
     };
 } // Shift
 

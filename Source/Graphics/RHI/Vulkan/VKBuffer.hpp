@@ -39,6 +39,10 @@ namespace Shift::VK {
         //! \param size bytes to invalidate, WHOLE_SIZE for the rest of the allocation
         void InvalidateForHostRead(uint64_t offset = 0, uint64_t size = VK_WHOLE_SIZE) const;
 
+        //! Committed state, written by the state tracker only
+        [[nodiscard]] BufferSyncState& GetSyncStateMutable() { return m_syncState; }
+        [[nodiscard]] const BufferSyncState& GetSyncState() const { return m_syncState; }
+
         //! Fill buffer with data, works on MAPPED BUFFERS ONLY
         //! \tparam T data type
         //! \param data data
@@ -65,6 +69,8 @@ namespace Shift::VK {
         bool valid = false;
 
         BufferDescriptor m_desc{};
+
+        BufferSyncState m_syncState;
     };
 
     //! TODO [BUG/OPTIMIZATION/CLEANUP] Look at vmaCopyMemoryToAllocation()

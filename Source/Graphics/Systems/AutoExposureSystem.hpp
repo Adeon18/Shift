@@ -38,6 +38,10 @@ namespace Shift::Graphics {
 
         [[nodiscard]] uint64_t GetExposureRef() const;
 
+        //! TODO [ARCHITECTURE]: THIS IS FUCKING STUPID, like man, but idont wanna write a rendergraph
+        //! Every pass reading the exposure declares it here, at its own stage
+        void DeclareExposureRead(RenderContextEncoder& encoder, EPipelineStageFlags stage) const;
+
         [[nodiscard]] BufferCaptureTarget GetHistogramCaptureTarget() const;
         [[nodiscard]] BufferCaptureTarget GetExposureCaptureTarget() const;
 

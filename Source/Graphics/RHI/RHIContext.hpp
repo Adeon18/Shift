@@ -110,28 +110,29 @@ namespace Shift {
         void EndRenderPass();
 
         ///! ------------------- Copy Buffer Commands ------------------- !///
+        //! All of these implicitly call the tracker to do auto state transsitions
 
         //! Copy buffer data to another buffer
         //! \param srcBuf buffer + offset into the buffer
         //! \param dstBuf buffer + offset into the buffer
         //! \param size size to copy
-        void CopyBufferToBuffer(const BufferOpDescriptor& srcBuf, const BufferOpDescriptor& dstBuf, uint32_t size) const;
+        void CopyBufferToBuffer(const BufferOpDescriptor& srcBuf, const BufferOpDescriptor& dstBuf, uint32_t size);
 
         //! Fill a buffer range with a repeated 32-bit value, no staging buffer. A transfer write
         //! \param dstBuf buffer + offset into the buffer, offset a multiple of 4
         //! \param size bytes to fill, a multiple of 4
         //! \param value the 32-bit pattern, e.g. std::bit_cast<uint32_t>(1.0f)
-        void FillBuffer(const BufferOpDescriptor& dstBuf, uint64_t size, uint32_t value) const;
+        void FillBuffer(const BufferOpDescriptor& dstBuf, uint64_t size, uint32_t value);
 
         //! Copy buffer data to a texture
         //! \param srcBuf buffer + offset into the buffer
         //! \param dstTex texture + size to copy + offset + subresource range
-        void CopyBufferToTexture(const BufferOpDescriptor& srcBuf, const TextureCopyDescriptor& dstTex) const;
+        void CopyBufferToTexture(const BufferOpDescriptor& srcBuf, const TextureCopyDescriptor& dstTex);
 
         //! Copy texture to buffer
         //! \param srcTex texture + size to copy + offset + subresource range (levelCount must be 1)
         //! \param dstBuf buffer + offset into the buffer
-        void CopyTextureToBuffer(const TextureCopyDescriptor& srcTex, const BufferOpDescriptor& dstBuf) const;
+        void CopyTextureToBuffer(const TextureCopyDescriptor& srcTex, const BufferOpDescriptor& dstBuf);
 
         ///! ------------------- Rendering Buffer Commands ------------------- !///
 
@@ -181,7 +182,7 @@ namespace Shift {
         //! \param dispatchConf thread group counts
         void Dispatch(const DispatchConfig& dispatchConf) const;
 
-        //! Self explanatory, tracks nothing
+        //! Raw barrier, tracks nothing. Prefer TransitionBuffer
         //! \param buffer buffer + offset into the buffer
         //! \param size bytes covered by the dependency
         //! \param dependency the four scopes to order
@@ -218,6 +219,10 @@ namespace Shift {
 
         //! Non const texture because recording a transition may change the texture state down the road as it logs the ptr
         void TransitionTexture(Texture& texture, EResourceLayout newLayout, EPipelineStageFlags newStageFlags);
+
+        //! Declare how the next commands use this buffer, a barrier is recorded only when that use needs one.
+        //! Auto track states
+        void TransitionBuffer(Buffer& buffer, EPipelineStageFlags stage, EAccessFlags access);
 
         //! Release ownership of this texture from the queue family
         void ReleaseQueueOwnership(Texture& texture, EContextType dstContext, EResourceLayout dstLayout, EPipelineStageFlags dstStage);
@@ -342,28 +347,32 @@ namespace Shift {
     }
 
     template<ValidAPI API>
-    void RHIEncoder<API>::CopyBufferToBuffer(const BufferOpDescriptor &srcBuf,
-        const BufferOpDescriptor &dstBuf, uint32_t size) const
+    void RHIEncoder<API>::CopyBufferToBuffer(const BufferOpDescriptor &srcBuf, const BufferOpDescriptor &dstBuf, uint32_t size)
     {
+        TransitionBuffer(*srcBuf.buffer, EPipelineStageFlags::CopyBit, EAccessFlags::TransferReadBit);
+        TransitionBuffer(*dstBuf.buffer, EPipelineStageFlags::CopyBit, EAccessFlags::TransferWriteBit);
         m_boundCB->CopyBufferToBuffer(srcBuf, dstBuf, size);
     }
 
     template<ValidAPI API>
-    void RHIEncoder<API>::FillBuffer(const BufferOpDescriptor& dstBuf, uint64_t size, uint32_t value) const {
+    void RHIEncoder<API>::FillBuffer(const BufferOpDescriptor& dstBuf, uint64_t size, uint32_t value) {
+        //! All transfer covers copy and clear
+        TransitionBuffer(*dstBuf.buffer, EPipelineStageFlags::AllTransferBit, EAccessFlags::TransferWriteBit);
         m_boundCB->FillBuffer(dstBuf, size, value);
     }
 
     template<ValidAPI API>
-    void RHIEncoder<API>::CopyBufferToTexture(const BufferOpDescriptor &srcBuf,
-        const TextureCopyDescriptor &dstTex) const
+    void RHIEncoder<API>::CopyBufferToTexture(const BufferOpDescriptor &srcBuf, const TextureCopyDescriptor &dstTex)
     {
+        TransitionBuffer(*srcBuf.buffer, EPipelineStageFlags::CopyBit, EAccessFlags::TransferReadBit);
         m_boundCB->CopyBufferToTexture(srcBuf, dstTex);
     }
 
     template<ValidAPI API>
     void RHIEncoder<API>::CopyTextureToBuffer(const TextureCopyDescriptor &srcTex,
-        const BufferOpDescriptor &dstBuf) const
+        const BufferOpDescriptor &dstBuf)
     {
+        TransitionBuffer(*dstBuf.buffer, EPipelineStageFlags::CopyBit, EAccessFlags::TransferWriteBit);
         m_boundCB->CopyTextureToBuffer(srcTex, dstBuf);
     }
 
@@ -560,6 +569,11 @@ namespace Shift {
         EPipelineStageFlags newStageFlags)
     {
         m_tracker->TransitionTexture(*m_boundCB, texture, newLayout, newStageFlags);
+    }
+
+    template<ValidAPI API>
+    void RHIEncoder<API>::TransitionBuffer(Buffer& buffer, EPipelineStageFlags stage, EAccessFlags access) {
+        m_tracker->TransitionBuffer(*m_boundCB, buffer, stage, access);
     }
 
     template<ValidAPI API>

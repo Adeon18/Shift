@@ -32,8 +32,6 @@ namespace Shift::Graphics {
     struct BufferCaptureTarget {
         Buffer* buffer = nullptr;
         uint64_t size = 0;
-        EPipelineStageFlags lastWriteStage = EPipelineStageFlags::NoneBit;
-        EAccessFlags lastWriteAccess = EAccessFlags::NoneBit;
     };
 
     //! Reads a texture back to the CPU and writes it out
