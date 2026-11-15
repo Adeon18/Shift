@@ -317,7 +317,7 @@ namespace Shift::Graphics {
 
             //! This transitions the HDR target
             const PostProcessInputs postInputs{
-                .frameConstantsRef = m_frameConstants.SlotAddress(frameSlot),
+                .frameConstantsRef = m_frameConstants.SlotRef(frameSlot),
                 .hdrColor = *viewportHDR,
                 .hdrColorSlot = m_viewportHDR.slotIdx,
                 .deltaTime = engineData.dt,
@@ -328,7 +328,7 @@ namespace Shift::Graphics {
             CheckCritical(m_postProcessSystem.Record(*gEncoder, postInputs), "Failed to record the post-process chain!");
 
             const SelectionBoxInputs selectionInputs{
-                .frameConstantsRef = m_frameConstants.SlotAddress(frameSlot),
+                .frameConstantsRef = m_frameConstants.SlotRef(frameSlot),
                 .color = settings.selectionColor,
                 .bracketFraction = settings.selectionBracketFraction,
                 .output = *viewportTexture
@@ -338,7 +338,7 @@ namespace Shift::Graphics {
             if (settings.showLightIcons) {
                 const GPU::FrameConstants* slotConstants = m_frameConstants.Slot(frameSlot);
                 const LightIconInputs lightIconInputs{
-                    .frameConstantsRef = m_frameConstants.SlotAddress(frameSlot),
+                    .frameConstantsRef = m_frameConstants.SlotRef(frameSlot),
                     .lightCount = slotConstants != nullptr ? slotConstants->lightCount : 0u,
                     .iconPixelSize = settings.lightIconPixelSize,
                     .output = *viewportTexture
@@ -511,15 +511,15 @@ namespace Shift::Graphics {
         frameConstantsPtr->autoExposureEnabled = settings.autoExposureEnabled ? 1u : 0u;
         frameConstantsPtr->exposureRef = m_postProcessSystem.GetAutoExposureSystem().GetExposureRef();
 
-        frameConstantsPtr->positionsRef = m_meshManager.GetStreamAddress(MeshManager::Positions);
-        frameConstantsPtr->normalsRef = m_meshManager.GetStreamAddress(MeshManager::Normals);
-        frameConstantsPtr->tangentsRef = m_meshManager.GetStreamAddress(MeshManager::Tangents);
-        frameConstantsPtr->uvsRef = m_meshManager.GetStreamAddress(MeshManager::UVs);
+        frameConstantsPtr->positionsRef = m_meshManager.GetStreamRef(MeshManager::Positions);
+        frameConstantsPtr->normalsRef = m_meshManager.GetStreamRef(MeshManager::Normals);
+        frameConstantsPtr->tangentsRef = m_meshManager.GetStreamRef(MeshManager::Tangents);
+        frameConstantsPtr->uvsRef = m_meshManager.GetStreamRef(MeshManager::UVs);
 
-        frameConstantsPtr->objectBufferRef = m_objectData.SlotAddress(frameSlot);
-        frameConstantsPtr->submeshInstanceBufferRef = m_submeshInstances.SlotAddress(frameSlot);
-        frameConstantsPtr->materialBufferRef = m_materialData.SlotAddress(frameSlot);
-        frameConstantsPtr->lightBufferRef = m_lightData.SlotAddress(frameSlot);
+        frameConstantsPtr->objectBufferRef = m_objectData.SlotRef(frameSlot);
+        frameConstantsPtr->submeshInstanceBufferRef = m_submeshInstances.SlotRef(frameSlot);
+        frameConstantsPtr->materialBufferRef = m_materialData.SlotRef(frameSlot);
+        frameConstantsPtr->lightBufferRef = m_lightData.SlotRef(frameSlot);
     }
 
     void Renderer::UploadObjectData(GPU::ObjectData *objectDataPtr) {
@@ -553,7 +553,7 @@ namespace Shift::Graphics {
 
     bool Renderer::RecordDrawItems(RenderContextEncoder& encoder, uint32_t frameSlot, GPU::EDebugViewMode debugViewMode) {
         const std::vector<DrawItem>& items = m_renderScene.GetDrawItems();
-        const uint64_t frameConstantsRef = m_frameConstants.SlotAddress(frameSlot);
+        const uint64_t frameConstantsRef = m_frameConstants.SlotRef(frameSlot);
         const bool debugView = debugViewMode != GPU::EDebugViewMode::Lit;
 
         PipelineHandle boundHandle{};

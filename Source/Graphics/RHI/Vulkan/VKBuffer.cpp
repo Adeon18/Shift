@@ -68,7 +68,7 @@ namespace Shift::VK {
         bufCreateInfo.size = m_desc.size;
         bufCreateInfo.usage = BufferTypeToUsageFlags(m_desc.type);
         //! Enable BDA
-        if (m_desc.isDeviceAddressable) {
+        if (m_desc.isShaderAddressable) {
             bufCreateInfo.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
         }
 
@@ -100,19 +100,24 @@ namespace Shift::VK {
         //! This thing is actually so cool now that I know that it exists
         vmaSetAllocationName(m_device->GetAllocator(), m_allocation, m_desc.name.c_str());
 
-        if (m_desc.isDeviceAddressable) {
+        if (m_desc.isShaderAddressable) {
             VkBufferDeviceAddressInfo addressInfo{ VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
             addressInfo.buffer = m_buffer;
             m_deviceAddress = vkGetBufferDeviceAddress(m_device->Get(), &addressInfo);
         }
     }
 
-    uint64_t Buffer::GetDeviceAddress() const {
-        if (!m_desc.isDeviceAddressable) {
-            Log(Error, "GetDeviceAddress on buffer '{}', which was not created with isDeviceAddressable flag", m_desc.name);
+    uint64_t Buffer::GetShaderRef(uint64_t byteOffset) const {
+        if (!IsShaderAddressable()) {
+            Log(Error, "GetShaderRef on buffer '{}', which is not shader addressable", m_desc.name);
             return 0;
         }
-        return m_deviceAddress;
+        //! Ideally vk should be fine without this, but since dx12 requires it, better to unify
+        if (!IsValidShaderRefOffset(m_desc.size, byteOffset)) {
+            Log(Error, "GetShaderRef on buffer '{}' (size {}) with offset {}: must be in range, fit 32 bits and be {}-byte aligned",
+                m_desc.name, m_desc.size, byteOffset, SHADER_REF_OFFSET_ALIGNMENT);
+        }
+        return m_deviceAddress + byteOffset;
     }
 
     void *Buffer::Map() {

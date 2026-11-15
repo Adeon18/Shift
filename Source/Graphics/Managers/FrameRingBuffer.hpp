@@ -5,6 +5,7 @@
 #ifndef SHIFT_FRAMERINGBUFFER_HPP
 #define SHIFT_FRAMERINGBUFFER_HPP
 
+#include <array>
 #include <cstring>
 #include <string>
 #include <utility>
@@ -23,9 +24,9 @@ namespace Shift::Graphics {
                FRAME_RING_SLOT_ALIGNMENT;
     }
 
-    //! One host-visible, persistently-mapped, device-addressable buffer carved into one slot per
+    //! One host-visible, persistently-mapped, shader-addressable buffer carved into one slot per
     //! frame in flight. The renderer rewrites the slot belonging to the frame it is recording and
-    //! hands that slot's address to the shaders
+    //! hands that slot's ref to the shaders
     //!
     //! A slot may only be written after RHI::BeginFrame() has
     //! returned for that frame.
@@ -49,7 +50,7 @@ namespace Shift::Graphics {
             desc.name = std::move(name);
             //! Uniform for now, and I think forewer??
             desc.type = EBufferType::Uniform;
-            desc.isDeviceAddressable = true;
+            desc.isShaderAddressable = true;
 
             m_handle = buffers.CreateBuffer(desc);
             Buffer* buffer = buffers.Get(m_handle);
@@ -60,9 +61,11 @@ namespace Shift::Graphics {
             CheckCritical(m_mapped != nullptr,
                           "Frame ring buffer is not persistently mapped, so it cannot be written per frame");
 
-            m_baseAddress = buffer->GetDeviceAddress();
-            CheckCritical(m_baseAddress != 0,
-                          "Frame ring buffer reported address 0, so no shader could reach it");
+            CheckCritical(buffer->IsShaderAddressable(), "Frame ring buffer is not shader addressable, so no shader could reach it");
+            //! Fix them once
+            for (uint32_t slot = 0; slot < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++slot) {
+                m_slotRefs[slot] = buffer->GetShaderRef(slot * m_slotStride);
+            }
 
             std::memset(m_mapped, 0, desc.size);
 
@@ -85,10 +88,10 @@ namespace Shift::Graphics {
             return reinterpret_cast<const T*>(m_mapped + frameSlot * m_slotStride);
         }
 
-        //! The GPUBufferRef this slot is reached by. Esentially BDA to pass to the shader
-        [[nodiscard]] uint64_t SlotAddress(uint32_t frameSlot) const {
+        //! The GPUBufferRef this slot is reached by. The buffer produces it as the ref is not BDA in dx12
+        [[nodiscard]] uint64_t SlotRef(uint32_t frameSlot) const {
             if (!InRange(frameSlot)) { return 0; }
-            return m_baseAddress + frameSlot * m_slotStride;
+            return m_slotRefs[frameSlot];
         }
 
     private:
@@ -102,7 +105,7 @@ namespace Shift::Graphics {
         BufferHandle m_handle{};
         //! Persistemntly mapped
         uint8_t* m_mapped = nullptr;
-        uint64_t m_baseAddress = 0;
+        std::array<uint64_t, Conf::SHIFT_MAX_FRAMES_IN_FLIGHT> m_slotRefs{};
 
         uint64_t m_slotStride = 0;
         uint32_t m_elementsPerSlot = 0;

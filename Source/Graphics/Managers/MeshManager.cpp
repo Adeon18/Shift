@@ -51,18 +51,18 @@ namespace Shift::Graphics {
             BufferDescriptor desc;
             desc.name = StreamName(stream);
             //! These a vtx for now as buffer contructor adds trsnfer support there
-            //! These are reached by ptr reegardless but I will let it be as it looks correct anyway
+            //! These are reached by shader ref regardless but I will let it be as it looks correct anyway
             desc.type = EBufferType::Vertex;
             desc.size = static_cast<uint64_t>(StreamStride(stream)) * Conf::MAX_SCENE_VERTICES;
-            desc.isDeviceAddressable = true;
+            desc.isShaderAddressable = true;
 
             m_streams[i] = m_buffers->CreateBuffer(desc);
 
             Buffer* buffer = m_buffers->Get(m_streams[i]);
             CheckCritical(buffer != nullptr, "Merged vertex stream handle did not resolve!");
             CheckCritical(buffer->IsValid(), "Failed to allocate a merged vertex stream!");
-            CheckCritical(buffer->GetDeviceAddress() != 0,
-                          "A merged vertex stream reported address 0, so no shader could pull from it!");
+            CheckCritical(buffer->IsShaderAddressable(),
+                          "A merged vertex stream is not shader addressable, so no shader could pull from it!");
         }
 
         {
@@ -186,11 +186,11 @@ namespace Shift::Graphics {
         return m_pool.Insert(mesh);
     }
 
-    uint64_t MeshManager::GetStreamAddress(EStream stream) const {
+    uint64_t MeshManager::GetStreamRef(EStream stream) const {
         if (stream >= StreamCount) { return 0; }
 
         const Buffer* buffer = m_buffers->Get(m_streams[stream]);
-        return buffer ? buffer->GetDeviceAddress() : 0;
+        return buffer ? buffer->GetShaderRef() : 0;
     }
 
     Buffer* MeshManager::GetIndexBuffer() const {

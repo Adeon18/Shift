@@ -57,8 +57,8 @@ namespace Shift::Graphics {
         [[nodiscard]] const Mesh* Get(MeshHandle handle) const { return m_pool.Get(handle); }
         [[nodiscard]] bool IsValid(MeshHandle handle) const { return m_pool.IsValid(handle); }
 
-        //! Device adress for frame constants
-        [[nodiscard]] uint64_t GetStreamAddress(EStream stream) const;
+        //! The GPUBufferRef, for frame constants
+        [[nodiscard]] uint64_t GetStreamRef(EStream stream) const;
 
         //! There can only be one
         [[nodiscard]] Buffer* GetIndexBuffer() const;

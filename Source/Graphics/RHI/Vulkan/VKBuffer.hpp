@@ -21,8 +21,11 @@ namespace Shift::VK {
         [[nodiscard]] uint64_t GetSize() const { return m_desc.size; }
         [[nodiscard]] const char* GetName() const { return m_desc.name.c_str(); }
 
-        //! Buffer Device Address, 0 if buffer does not have one.
-        [[nodiscard]] uint64_t GetDeviceAddress() const;
+        [[nodiscard]] bool IsShaderAddressable() const { return m_desc.isShaderAddressable && valid; }
+
+        //! The GPUBufferRef for a byte offset into this buffer, BDA + offset here
+        //! \param byteOffset must pass IsValidShaderRefOffset, logs an error otherwise
+        [[nodiscard]] uint64_t GetShaderRef(uint64_t byteOffset = 0) const;
 
         //! Get the mapped buffer ptr, only works for mapped buffers at creation, or after calling Map!
         //! \return The mapped buffer pointer, nullptr if not mapped

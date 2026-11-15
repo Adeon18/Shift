@@ -65,13 +65,13 @@ namespace Shift::Graphics {
             .size = HISTOGRAM_BYTES,
             .name = "AutoExposureHistogram",
             .type = EBufferType::Storage,
-            .isDeviceAddressable = true
+            .isShaderAddressable = true
         });
         m_exposure = m_bufferManager->CreateBuffer({
             .size = EXPOSURE_BYTES,
             .name = "AutoExposureValue",
             .type = EBufferType::Storage,
-            .isDeviceAddressable = true
+            .isShaderAddressable = true
         });
         Buffer* histogram = m_bufferManager->Get(m_histogram);
         Buffer* exposure = m_bufferManager->Get(m_exposure);
@@ -108,8 +108,8 @@ namespace Shift::Graphics {
         encoder.BindComputePipeline(pipeline);
         encoder.BindResourceSet(pipeline, GlobalResourceSet::SET_INDEX, inputs.globalSet);
         const GPU::HistogramBuildPushConstants ps{
-            .histogramRef = histogram.GetDeviceAddress(),
-            .exposureRef = exposure.GetDeviceAddress(),
+            .histogramRef = histogram.GetShaderRef(),
+            .exposureRef = exposure.GetShaderRef(),
             .hdrColorTex = inputs.hdrColorSlot,
         };
         encoder.SetPushConstants(pipeline, &ps, sizeof(GPU::HistogramBuildPushConstants), 0);
@@ -126,8 +126,8 @@ namespace Shift::Graphics {
 
         encoder.BindComputePipeline(pipeline);
         const GPU::HistogramReducePushConstants ps{
-            .histogramRef = histogram.GetDeviceAddress(),
-            .exposureRef = exposure.GetDeviceAddress(),
+            .histogramRef = histogram.GetShaderRef(),
+            .exposureRef = exposure.GetShaderRef(),
             .pixelCount = inputs.height * inputs.width,
             .deltaTime = inputs.deltaTime,
             .adaptationSpeed = inputs.adaptationSpeed,
@@ -142,7 +142,7 @@ namespace Shift::Graphics {
 
     uint64_t AutoExposureSystem::GetExposureRef() const {
         const Buffer* exposure = m_bufferManager->Get(m_exposure);
-        return exposure != nullptr ? exposure->GetDeviceAddress() : 0;
+        return exposure != nullptr ? exposure->GetShaderRef() : 0;
     }
 
     void AutoExposureSystem::DeclareExposureRead(RenderContextEncoder& encoder, EPipelineStageFlags stage) const {
