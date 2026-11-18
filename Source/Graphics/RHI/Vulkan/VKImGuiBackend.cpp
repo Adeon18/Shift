@@ -7,7 +7,7 @@
 #include "VKCommandBuffer.hpp"
 
 #include "Utility/Vulkan/VKUtilRHI.hpp"
-#include "Utility/Logging/LogMacros.hpp"
+#include "Graphics/RHI/Common/Log.hpp"
 
 namespace Shift::VK {
 
@@ -28,7 +28,7 @@ namespace Shift::VK {
 
         // Validation/Error Checking
         info.CheckVkResultFn = [](VkResult err) {
-            if (err != VK_SUCCESS) Log(Error, "ImGui Vulkan Error: {}\n", static_cast<uint32_t>(err));
+            if (err != VK_SUCCESS) SRHI_LOG(Error, "ImGui Vulkan Error: {}\n", static_cast<uint32_t>(err));
         };
 
         info.UseDynamicRendering = true;

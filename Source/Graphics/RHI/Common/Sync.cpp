@@ -1,6 +1,6 @@
 #include "Sync.hpp"
 
-#include "Utility/Logging/LogMacros.hpp"
+#include "Graphics/RHI/Common/Log.hpp"
 
 namespace Shift {
     EAccessFlags LayoutToSrcAccess(EResourceLayout layout) {
@@ -21,7 +21,7 @@ namespace Shift {
                 //! Nothing to wait for, the presentation engine's read is ordered by the semaphore
                 return EAccessFlags::NoneBit;
             default:
-                Log(Error, "Unsupported source layout!");
+                SRHI_LOG(Error, "Unsupported source layout!");
                 return EAccessFlags::NoneBit;
         }
     }
@@ -42,7 +42,7 @@ namespace Shift {
             case EResourceLayout::Present:
                 return EAccessFlags::NoneBit;
             default:
-                Log(Error, "Unsupported destination layout!");
+                SRHI_LOG(Error, "Unsupported destination layout!");
                 return EAccessFlags::NoneBit;
         }
     }

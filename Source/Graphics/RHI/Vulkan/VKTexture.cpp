@@ -33,7 +33,7 @@ namespace Shift::VK {
         allocCreateInfo.priority = 1.0f;
 
         if ( VkCheck(vmaCreateImage(m_device->GetAllocator(), &imageInfo, &allocCreateInfo, &m_image, &m_allocation, &m_allocationInfo)) ) {
-            Log(Warning, "Failed to allocate VkImage!");
+            SRHI_LOG(Warning, "Failed to allocate VkImage!");
             valid = false;
             return;
         }

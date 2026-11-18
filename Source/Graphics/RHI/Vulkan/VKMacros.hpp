@@ -9,7 +9,7 @@
 
 #include "Utility/Vulkan/VKInclude.hpp"
 
-#include "Utility/Logging/LogMacros.hpp"
+#include "Graphics/RHI/Common/Log.hpp"
 
 namespace Shift::VK {
     //! Taken from: https://gist.github.com/Pikachuxxxx/1bfb4a5eca2593fbf0dc409953ad9bde
@@ -56,12 +56,5 @@ namespace Shift::VK {
 #define VkCheck(Func) Func != VK_SUCCESS
 #define VkNullCheck(Handle) Handle != VK_NULL_HANDLE
 #define VkCheckV(Func, ResultVar) VkResult ResultVar = Func; (ResultVar) != VK_SUCCESS
-
-//! Vk function that returns ReturnErr at failure, Verbose Logs
-#define VkFuncCheckReturnV(Func, Message, ReturnErr, LogLevel) \
-    VkResult res = Func;                                       \
-    if (res != VK_SUCCESS) {                                   \
-        LogVerbose##LogLevel(Message, ReturnErr)               \
-    } else{}                                                   \
 
 #endif //SHIFT_VKMACROS_HPP

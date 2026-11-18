@@ -6,15 +6,15 @@
 #include <array>
 
 #include "VKFence.hpp"
-#include "Utility/Assertions.hpp"
+#include "Graphics/RHI/Common/Log.hpp"
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 #include "Utility/Vulkan/VKUtilRHI.hpp"
 
 namespace Shift::VK {
     Swapchain::Swapchain(const Device *device, const WindowSurface* windowSurface, uint32_t width, uint32_t height): m_device(device), m_windowSurface(windowSurface) {
         FillSwapchainDescription(width, height);
-        CheckCriticalEmptyReturn(CreateSwapChain(), "Failed to create swapchain!");
-        CheckCriticalEmptyReturn(CreateImageViews(), "Failed to create image views!");
+        SRHI_CHECK_CRITICAL_EMPTY_RETURN(CreateSwapChain(), "Failed to create swapchain!");
+        SRHI_CHECK_CRITICAL_EMPTY_RETURN(CreateImageViews(), "Failed to create image views!");
 
         m_valid = VkNullCheck(m_swapChain);
     }
@@ -78,7 +78,7 @@ namespace Shift::VK {
         createInfo.oldSwapchain = oldSwapchain;
 
         if ( VkCheckV(vkCreateSwapchainKHR(m_device->Get(), &createInfo, nullptr, &m_swapChain), res) ) {
-            Log(Critical, "Failed to create VkImageView!");
+            SRHI_LOG(Critical, "Failed to create VkImageView!");
             return false;
         }
 
@@ -115,7 +115,7 @@ namespace Shift::VK {
             desc.textureAspect = ETextureAspect::Color;
             desc.name = "SwapchainImage[" + std::to_string(i) + "]";
 
-            m_swapChainTextures[i] = Core::CreateUnique<Texture>(
+            m_swapChainTextures[i] = RHI::CreateUnique<Texture>(
                 m_device, m_swapChainImages[i], VK_IMAGE_VIEW_TYPE_2D, desc);
 
             if (!m_swapChainTextures[i]->IsValid()) {
@@ -135,7 +135,7 @@ namespace Shift::VK {
             return UINT32_MAX;
         }
         else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-            Log(Error, "Failed to recreate swapchain! Code: {}", static_cast<int>(result));
+            SRHI_LOG(Error, "Failed to recreate swapchain! Code: {}", static_cast<int>(result));
             return UINT32_MAX;
         }
 
@@ -145,9 +145,9 @@ namespace Shift::VK {
     bool Swapchain::Recreate(uint32_t width, uint32_t height) {
         vkDeviceWaitIdle(m_device->Get());
         FillSwapchainDescription(width, height);
-        CheckCritical(CreateSwapChain(), "Failed to create swapchain!");
-        CheckCritical(CreateImageViews(), "Failed to create image views!");
-        Log(Info, "Recreated Swapchain");
+        SRHI_CHECK_CRITICAL(CreateSwapChain(), "Failed to create swapchain!");
+        SRHI_CHECK_CRITICAL(CreateImageViews(), "Failed to create image views!");
+        SRHI_LOG(Info, "Recreated Swapchain");
         return true;
     }
 
@@ -200,7 +200,7 @@ namespace Shift::VK {
             return true;
         }
         if (result != VK_SUCCESS) {
-            spdlog::error("Failed to recreate swapchain! Code: {}", static_cast<int>(result));
+            SRHI_LOG(Error, "Failed to recreate swapchain! Code: {}", static_cast<int>(result));
             return false;
         }
         return true;

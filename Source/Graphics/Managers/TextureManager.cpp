@@ -9,6 +9,8 @@
 #include <array>
 #include <functional>
 #include <utility>
+#include "Utility/Assertions.hpp"
+#include "Core/Memory.hpp"
 
 namespace Shift::Graphics {
     namespace {

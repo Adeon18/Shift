@@ -1,12 +1,12 @@
 #include "VKWindowSurface.hpp"
 
 #include "VKMacros.hpp"
-#include "Utility/Logging/LogMacros.hpp"
+#include "Graphics/RHI/Common/Log.hpp"
 
 namespace Shift::VK {
     WindowSurface::WindowSurface(VkInstance ins, GLFWwindow *win): m_instance(ins) {
         if ( VkCheck(glfwCreateWindowSurface(ins, win, nullptr, &m_surface)) ) {
-            Log(Critical, "Failed to create WindowSurface");
+            SRHI_LOG(Critical, "Failed to create WindowSurface");
             return;
         }
         m_valid = true;

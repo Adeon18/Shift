@@ -1,7 +1,7 @@
 #ifndef SHIFT_VKSWAPCHAIN_HPP
 #define SHIFT_VKSWAPCHAIN_HPP
 
-#include "Core/Memory.hpp"
+#include "Graphics/RHI/Common/Memory.hpp"
 
 #include "Utility/Vulkan/VKUtilCore.hpp"
 
@@ -79,7 +79,7 @@ namespace Shift::VK {
         Util::SwapChainSupportDetails m_swapChainSupportDetails;
 
         //! Texture stores duplicated VkImage data as well as Image Views and the state of the resource
-        mutable std::vector<Core::UniquePtr<Texture>> m_swapChainTextures;
+        mutable std::vector<RHI::UniquePtr<Texture>> m_swapChainTextures;
         std::vector<VkImage> m_swapChainImages;
 
         bool m_valid = false;

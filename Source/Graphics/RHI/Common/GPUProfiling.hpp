@@ -14,7 +14,7 @@
 
 namespace Shift {
     //! One resolved GPU timing range. Backend-agnostic so the same result type is
-    //! exposed regardless of the RHI backend. Results lag by SHIFT_MAX_FRAMES_IN_FLIGHT frames
+    //! exposed regardless of the RHI backend. Results lag by MAX_FRAMES_IN_FLIGHT frames
     struct GPUTimeRange {
         std::string name;
         //! Tint for the timing UI. Only filled when debug range exists

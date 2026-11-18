@@ -2,6 +2,7 @@
 // Created by otrush on 6/28/2026.
 //
 #include "PipelineManager.hpp"
+#include "Utility/Logging/LogMacros.hpp"
 
 namespace Shift::Graphics {
     void PipelineManager::Init(RenderBackend* rhi, ShaderManager* shaderManager) {

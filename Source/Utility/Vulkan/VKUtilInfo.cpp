@@ -1,6 +1,6 @@
 #include "VKUtilInfo.hpp"
 
-#include "Utility/Logging/LogMacros.hpp"
+#include "Graphics/RHI/Common/Log.hpp"
 
 namespace Shift::VK::Util {
     VkImageMemoryBarrier2 CreateImageMemoryBarrier2(

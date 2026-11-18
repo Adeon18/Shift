@@ -89,7 +89,7 @@ namespace Shift::VK {
         allocCreateInfo.flags = BufferTypeToAllocFlags(m_desc.type);
 
         if ( VkCheck(vmaCreateBuffer(m_device->GetAllocator(), &bufCreateInfo, &allocCreateInfo, &m_buffer, &m_allocation, &m_allocationInfo)) ) {
-            Log(Error, "Failed to create/allocate VkBuffer!");
+            SRHI_LOG(Error, "Failed to create/allocate VkBuffer!");
             valid = false;
             return;
         }
@@ -109,12 +109,12 @@ namespace Shift::VK {
 
     uint64_t Buffer::GetShaderRef(uint64_t byteOffset) const {
         if (!IsShaderAddressable()) {
-            Log(Error, "GetShaderRef on buffer '{}', which is not shader addressable", m_desc.name);
+            SRHI_LOG(Error, "GetShaderRef on buffer '{}', which is not shader addressable", m_desc.name);
             return 0;
         }
         //! Ideally vk should be fine without this, but since dx12 requires it, better to unify
         if (!IsValidShaderRefOffset(m_desc.size, byteOffset)) {
-            Log(Error, "GetShaderRef on buffer '{}' (size {}) with offset {}: must be in range, fit 32 bits and be {}-byte aligned",
+            SRHI_LOG(Error, "GetShaderRef on buffer '{}' (size {}) with offset {}: must be in range, fit 32 bits and be {}-byte aligned",
                 m_desc.name, m_desc.size, byteOffset, SHADER_REF_OFFSET_ALIGNMENT);
         }
         return m_deviceAddress + byteOffset;
@@ -122,7 +122,7 @@ namespace Shift::VK {
 
     void *Buffer::Map() {
         if ( VkCheck(vmaMapMemory(m_device->GetAllocator(), m_allocation, &m_allocationInfo.pMappedData)) ) {
-            Log(Error, "Failed to map buffer: {}", m_desc.name);
+            SRHI_LOG(Error, "Failed to map buffer: {}", m_desc.name);
             return nullptr;
         }
         return m_allocationInfo.pMappedData;
@@ -134,7 +134,7 @@ namespace Shift::VK {
 
     void Buffer::InvalidateForHostRead(uint64_t offset, uint64_t size) const {
         if ( VkCheck(vmaInvalidateAllocation(m_device->GetAllocator(), m_allocation, offset, size)) ) {
-            Log(Error, "Failed to invalidate buffer '{}' for a host read", m_desc.name);
+            SRHI_LOG(Error, "Failed to invalidate buffer '{}' for a host read", m_desc.name);
         }
     }
 

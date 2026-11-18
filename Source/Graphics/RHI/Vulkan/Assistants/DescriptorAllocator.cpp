@@ -114,7 +114,7 @@ namespace Shift::VK {
         //! The bindless pool is fixed-size and not recycled, so there is no second attempt
         if (fromBindlessPool) {
             if (ds == VK_NULL_HANDLE) {
-                Log(Error, "Failed to allocate a descriptor set from the bindless pool. It is sized for {} set(s)", Conf::MAX_BINDLESS_SETS);
+                SRHI_LOG(Error, "Failed to allocate a descriptor set from the bindless pool. It is sized for {} set(s)", Conf::MAX_BINDLESS_SETS);
             }
             return ds;
         }
@@ -129,7 +129,7 @@ namespace Shift::VK {
             ds = m_device->AllocateDescriptorSet(allocInfo, &result);
 
             if ( VkCheck(result) ) {
-                Log(Error, "Error allocating a descriptor set from the descriptor pool");
+                SRHI_LOG(Error, "Error allocating a descriptor set from the descriptor pool");
                 ds = VK_NULL_HANDLE;
                 return ds;
             }

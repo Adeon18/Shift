@@ -4,6 +4,7 @@
 
 #ifndef SHIFT_RHIDEFERREDEXECUTOR_HPP
 #define SHIFT_RHIDEFERREDEXECUTOR_HPP
+#include <functional>
 #include <mutex>
 
 #include "RHIContext.hpp"

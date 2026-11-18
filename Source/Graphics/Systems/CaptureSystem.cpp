@@ -12,6 +12,7 @@
 #include "stb_image_write.h"
 
 #include "Utility/Logging/LogMacros.hpp"
+#include "Core/Memory.hpp"
 
 namespace Shift::Graphics {
     namespace {

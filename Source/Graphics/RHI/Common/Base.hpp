@@ -7,7 +7,7 @@
 
 #include <type_traits>
 
-#include "Utility/EnumFlags.hpp"
+#include "Graphics/RHI/Common/EnumFlags.hpp"
 
 namespace Shift {
     //! 1:1 with Vulkan

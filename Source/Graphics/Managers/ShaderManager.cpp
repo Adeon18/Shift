@@ -8,6 +8,8 @@
 #include "Graphics/RHI/RHIContext.hpp"
 #include "Utility/FileWatcher/FileWatcher.hpp"
 #include "Utility/UtilStandard.hpp"
+#include "Utility/Assertions.hpp"
+#include "Core/Memory.hpp"
 
 namespace Shift::Graphics {
     void ShaderManager::Init(RenderBackendInterface* backend, const std::string &shaderRootFolder) {

@@ -7,7 +7,7 @@
 namespace Shift {
     void RHIDeferredExecutor::DeferExecute(TimelineSemaphore *timeline, uint64_t value, Callback fn) {
         if (!fn) {
-            Log(Warning, "No function passed to RHIDeferredExecutor!");
+            SRHI_LOG(Warning, "No function passed to RHIDeferredExecutor!");
             return;
         }
 
@@ -22,7 +22,7 @@ namespace Shift {
 
     void RHIDeferredExecutor::DeferExecuteToFrame(uint64_t frameIdx, Callback fn) {
         if (!fn) {
-            Log(Warning, "No function passed to RHIDeferredExecutor!");
+            SRHI_LOG(Warning, "No function passed to RHIDeferredExecutor!");
             return;
         }
 

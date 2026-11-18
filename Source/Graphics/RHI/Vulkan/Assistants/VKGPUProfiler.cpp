@@ -6,7 +6,7 @@
 
 #include "Graphics/RHI/Vulkan/VKDevice.hpp"
 #include "Graphics/RHI/Vulkan/VKMacros.hpp"
-#include "Utility/Logging/LogMacros.hpp"
+#include "Graphics/RHI/Common/Log.hpp"
 
 namespace Shift::VK {
 
@@ -22,7 +22,7 @@ namespace Shift::VK {
 
         m_pool = m_device->CreateQueryPool(info);
         if (!(VkNullCheck(m_pool))) {
-            Log(Error, "Failed to create timestamp query pool");
+            SRHI_LOG(Error, "Failed to create timestamp query pool");
             return;
         }
 

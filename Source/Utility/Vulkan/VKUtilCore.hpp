@@ -11,7 +11,7 @@
 #include <optional>
 #include <span>
 
-#include "Utility/Logging/LogMacros.hpp"
+#include "Graphics/RHI/Common/Log.hpp"
 #include "Utility/Vulkan/VKInclude.hpp"
 #include "Graphics/RHI/Common/Capabilities.hpp"
 

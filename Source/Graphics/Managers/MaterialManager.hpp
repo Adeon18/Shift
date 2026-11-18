@@ -12,7 +12,7 @@
 #include <vector>
 
 #include "Loaders/ModelLoader/IModelLoader.hpp"
-#include "Utility/EnumFlags.hpp"
+#include "Graphics/RHI/Common/EnumFlags.hpp"
 
 #include "Graphics/Shared/GPUShared.h"
 

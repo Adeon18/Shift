@@ -4,6 +4,7 @@
 #include "GlobalResourceSet.hpp"
 
 #include "Config/EngineConfig.hpp"
+#include "Utility/Assertions.hpp"
 
 namespace Shift::Graphics {
 

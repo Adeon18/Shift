@@ -17,6 +17,7 @@
 #include "BufferRangeAllocator.hpp"
 #include "GenerationalPool.hpp"
 #include "MeshHandle.hpp"
+#include "Core/Memory.hpp"
 
 namespace Shift::Graphics {
     struct MeshSubmesh {

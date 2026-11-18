@@ -46,21 +46,21 @@ namespace Shift::VK::Util {
                 ) {
             switch (messageSeverity) {
                 case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-                    Log(Trace, "Validation layer: {}", pCallbackData->pMessage);
+                    SRHI_LOG(Trace, "Validation layer: {}", pCallbackData->pMessage);
                     break;
                 case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
                     s_validationInfos.fetch_add(1, std::memory_order_relaxed);
-                    Log(Info, "Validation layer: {}", pCallbackData->pMessage);
+                    SRHI_LOG(Info, "Validation layer: {}", pCallbackData->pMessage);
                     break;
                 case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
                     s_validationWarnings.fetch_add(1, std::memory_order_relaxed);
                     RecordValidationMessage("warning", pCallbackData->pMessage);
-                    Log(Warn, "Validation layer: {}", pCallbackData->pMessage);
+                    SRHI_LOG(Warning, "Validation layer: {}", pCallbackData->pMessage);
                     break;
                 case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
                     s_validationErrors.fetch_add(1, std::memory_order_relaxed);
                     RecordValidationMessage("error", pCallbackData->pMessage);
-                    Log(Error, "Validation layer: {}", pCallbackData->pMessage);
+                    SRHI_LOG(Error, "Validation layer: {}", pCallbackData->pMessage);
                     break;
                 default:
                     break;
@@ -79,7 +79,7 @@ namespace Shift::VK::Util {
         vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
         bool allSupported = true;
-        Log(Trace, "Checking Vulkan validation layer support...");
+        SRHI_LOG(Trace, "Checking Vulkan validation layer support...");
 
         for (const char* layerName : VALIDATION_LAYERS) {
             bool found = std::any_of(
@@ -87,7 +87,7 @@ namespace Shift::VK::Util {
                 [&](const VkLayerProperties& p) { return strcmp(p.layerName, layerName) == 0; }
             );
 
-            Log(Trace, std::string(" -> ") + layerName + (found ? ": Available" : ": MISSING"));
+            SRHI_LOG(Trace, " -> {}: {}", layerName, found ? "Available" : "MISSING");
             if (!found) allSupported = false;
         }
         return allSupported;
@@ -164,7 +164,7 @@ namespace Shift::VK::Util {
     }
 
     bool CheckForGLFWExtensionPresense(const char** glfwExtensions, uint32_t glfwExtensionCount, const std::vector<VkExtensionProperties>& vkExtensions) {
-        Log(Trace, "GLFW extension support:");
+        SRHI_LOG(Trace, "GLFW extension support:");
         bool allExtSupported = true;
         for (uint32_t i = 0; i < glfwExtensionCount; ++i) {
             bool present = false;
@@ -174,21 +174,21 @@ namespace Shift::VK::Util {
                     break;
                 }
             }
-            Log(Trace, "-> " + std::string{glfwExtensions[i]} + ((present) ? ": Supported" : ": Not Supported"));
+            SRHI_LOG(Trace, "-> {}: {}", glfwExtensions[i], present ? "Supported" : "Not Supported");
             if (!present) { allExtSupported = false; }
         }
         return allExtSupported;
     }
 
     void PrintAvailibleVkExtensions(const std::vector<VkExtensionProperties>& vkExtensions) {
-        Log(Trace, "Available Vk extensions:");
+        SRHI_LOG(Trace, "Available Vk extensions:");
         for (const auto& extension : vkExtensions) {
-            Log(Trace, "-> " + std::string{extension.extensionName});
+            SRHI_LOG(Trace, "-> {}", extension.extensionName);
         }
     }
 
     void PrintAvailablePhysicalDevices(const std::vector<VkPhysicalDevice>& devices) {
-        Log(Trace, "Available Devices: ");
+        SRHI_LOG(Trace, "Available Devices: ");
         for (const auto& device : devices) {
             PrintDeviceName(device, "-> ");
         }
@@ -197,7 +197,7 @@ namespace Shift::VK::Util {
     void PrintDeviceName(VkPhysicalDevice device, std::string prefix) {
         VkPhysicalDeviceProperties deviceProperties;
         vkGetPhysicalDeviceProperties(device, &deviceProperties);
-        Log(Trace, prefix + deviceProperties.deviceName);
+        SRHI_LOG(Trace, "{}{}", prefix, deviceProperties.deviceName);
     }
 
     bool CheckDeviceExtensionSupport(VkPhysicalDevice device, const std::vector<const char*>& desiredExtensions) {
@@ -210,7 +210,7 @@ namespace Shift::VK::Util {
         for (const auto& e : available) required.erase(e.extensionName);
 
         if (!required.empty()) {
-            for (const auto& m : required) Log(Trace, std::string("Missing device extension: ") + m);
+            for (const auto& m : required) SRHI_LOG(Trace, "Missing device extension: {}", m);
             return false;
         }
         return true;
@@ -330,13 +330,13 @@ namespace Shift::VK::Util {
             if (graphicsFlags & VK_QUEUE_COMPUTE_BIT) {
                 indices.computeFamily = graphics;
             } else {
-                Log(Warn, "forceUnifiedQueues: graphics family {} has no compute support, keeping the separate compute family", graphics);
+                SRHI_LOG(Warning, "forceUnifiedQueues: graphics family {} has no compute support, keeping the separate compute family", graphics);
             }
 
             if (canPresent(graphics)) {
                 indices.presentFamily = graphics;
             } else {
-                Log(Warn, "forceUnifiedQueues: graphics family {} cannot present, keeping the separate present family", graphics);
+                SRHI_LOG(Warning, "forceUnifiedQueues: graphics family {} cannot present, keeping the separate present family", graphics);
             }
         }
 
@@ -369,14 +369,14 @@ namespace Shift::VK::Util {
 
         auto describe = [&](const char* role, const std::optional<uint32_t>& family) {
             if (!family.has_value()) {
-                Log(Trace, "  {:<9} family: <none>", role);
+                SRHI_LOG(Trace, "  {:<9} family: <none>", role);
                 return;
             }
             const auto& props = families[*family];
-            Log(Trace, "  {:<9} family {} (flags 0x{:X}, {} queue(s))", role, *family, props.queueFlags, props.queueCount);
+            SRHI_LOG(Trace, "  {:<9} family {} (flags 0x{:X}, {} queue(s))", role, *family, props.queueFlags, props.queueCount);
         };
 
-        Log(Trace, "Resolved queue families ({} available):", count);
+        SRHI_LOG(Trace, "Resolved queue families ({} available):", count);
         describe("graphics", indices.graphicsFamily);
         describe("present", indices.presentFamily);
         describe("compute", indices.computeFamily);
@@ -388,7 +388,7 @@ namespace Shift::VK::Util {
             const auto& granularity = families[*indices.transferFamily].minImageTransferGranularity;
             const bool isUnitGranularity = granularity.width == 1 && granularity.height == 1 && granularity.depth == 1;
             if (!isUnitGranularity) {
-                Log(Warn, "Transfer family {} has minImageTransferGranularity ({}, {}, {}): partial image copies on it must be aligned to that",
+                SRHI_LOG(Warning, "Transfer family {} has minImageTransferGranularity ({}, {}, {}): partial image copies on it must be aligned to that",
                     *indices.transferFamily, granularity.width, granularity.height, granularity.depth);
             }
         }

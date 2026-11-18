@@ -6,6 +6,7 @@
 
 #include "spdlog/spdlog.h"
 
+#include "Graphics/RHI/Common/Log.hpp"
 #include "Utility/FileWatcher/FileWatcher.hpp"
 
 #include "Graphics/UI/ViewportPanel.hpp"
@@ -18,10 +19,27 @@
 #include "Graphics/UI/MaterialsPanel.hpp"
 
 #include "Graphics/ScenePicker.hpp"
+#include "Utility/Logging/LogMacros.hpp"
 
 namespace Shift {
+    namespace {
+        void ForwardRHILog(RHI::ELogLevel level, std::string_view message) {
+            spdlog::level::level_enum spdLevel = spdlog::level::info;
+            switch (level) {
+                case RHI::ELogLevel::Trace: spdLevel = spdlog::level::trace; break;
+                case RHI::ELogLevel::Debug: spdLevel = spdlog::level::debug; break;
+                case RHI::ELogLevel::Info: spdLevel = spdlog::level::info; break;
+                case RHI::ELogLevel::Warning: spdLevel = spdlog::level::warn; break;
+                case RHI::ELogLevel::Error: spdLevel = spdlog::level::err; break;
+                case RHI::ELogLevel::Critical: spdLevel = spdlog::level::critical; break;
+            }
+            spdlog::log(spdLevel, "{}", message);
+        }
+    }
+
     bool ShiftEngine::Init(const EngineDescriptor& desc) {
         spdlog::set_level(spdlog::level::trace);
+        RHI::SetLogCallback(ForwardRHILog);
 
         Util::FileWatcher::Get().Init();
         m_window = std::make_unique<Shift::ShiftWindow>(desc.width, desc.height, desc.windowName, desc.windowVisible);

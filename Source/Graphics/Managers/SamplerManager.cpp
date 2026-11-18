@@ -5,6 +5,7 @@
 
 #include "Config/EngineConfig.hpp"
 #include "Graphics/Shared/GPUShared.h"
+#include "Utility/Assertions.hpp"
 
 namespace Shift::Graphics {
     namespace {

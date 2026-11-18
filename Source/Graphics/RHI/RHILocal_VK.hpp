@@ -20,18 +20,18 @@
 #include "Graphics/RHI/Vulkan/Assistants/DescriptorAllocator.hpp"
 
 #include "Graphics/RHI/Common/Capabilities.hpp"
-#include "Utility/Assertions.hpp"
-#include "Core/Memory.hpp"
+#include "Graphics/RHI/Common/Log.hpp"
+#include "Graphics/RHI/Common/Memory.hpp"
 
 namespace Shift {
     //! Note, this should be included only after both RHI Data and RHI::VUlkan have been defined
     template<> struct RHILocal<RHI::Vulkan> {
-        Core::UniquePtr<VK::Instance> instance;
-        Core::UniquePtr<VK::Device> device;
-        Core::UniquePtr<VK::WindowSurface> surface;
-        Core::UniquePtr<VK::Swapchain> swapchain;
+        RHI::UniquePtr<VK::Instance> instance;
+        RHI::UniquePtr<VK::Device> device;
+        RHI::UniquePtr<VK::WindowSurface> surface;
+        RHI::UniquePtr<VK::Swapchain> swapchain;
 
-        mutable Core::UniquePtr<VK::DescriptorAllocator> descAllocator;
+        mutable RHI::UniquePtr<VK::DescriptorAllocator> descAllocator;
         VK::DescriptorLayoutCache descLayoutCache;
 
         //! Backend bring-up hook: constructs the Vulkan instance/surface/device/
@@ -41,16 +41,16 @@ namespace Shift {
             const uint32_t appVersion = VK_MAKE_VERSION(appInfo.appVersionMajor, appInfo.appVersionMinor, appInfo.appVersionPatch);
             const uint32_t engineVersion = VK_MAKE_VERSION(appInfo.engineVersionMajor, appInfo.engineVersionMinor, appInfo.engineVersionPatch);
 
-            instance = Core::CreateUnique<VK::Instance>(appInfo.appName, appVersion, appInfo.engineName, engineVersion, features);
-            CheckCritical(instance->IsValid(), "Failed to create VK instance!");
-            surface = Core::CreateUnique<VK::WindowSurface>(instance->Get(), window);
-            CheckCritical(surface->IsValid(), "Failed to create VK surface!");
-            device = Core::CreateUnique<VK::Device>(*instance, surface->Get(), features);
-            CheckCritical(device->IsValid(), "Failed to create VK device!");
+            instance = RHI::CreateUnique<VK::Instance>(appInfo.appName, appVersion, appInfo.engineName, engineVersion, features);
+            SRHI_CHECK_CRITICAL(instance->IsValid(), "Failed to create VK instance!");
+            surface = RHI::CreateUnique<VK::WindowSurface>(instance->Get(), window);
+            SRHI_CHECK_CRITICAL(surface->IsValid(), "Failed to create VK surface!");
+            device = RHI::CreateUnique<VK::Device>(*instance, surface->Get(), features);
+            SRHI_CHECK_CRITICAL(device->IsValid(), "Failed to create VK device!");
             descLayoutCache.Init(device.get());
-            descAllocator = Core::CreateUnique<VK::DescriptorAllocator>(device.get());
-            swapchain = Core::CreateUnique<VK::Swapchain>(device.get(), surface.get(), width, height);
-            CheckCritical(swapchain->IsValid(), "Failed to create VK swapchain!");
+            descAllocator = RHI::CreateUnique<VK::DescriptorAllocator>(device.get());
+            swapchain = RHI::CreateUnique<VK::Swapchain>(device.get(), surface.get(), width, height);
+            SRHI_CHECK_CRITICAL(swapchain->IsValid(), "Failed to create VK swapchain!");
 
             return true;
         }

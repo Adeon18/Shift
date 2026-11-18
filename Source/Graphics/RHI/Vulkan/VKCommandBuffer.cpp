@@ -14,7 +14,7 @@
 #include "VKSemaphore.hpp"
 #include "VKTexture.hpp"
 
-#include "Config/EngineConfig.hpp"
+#include "Graphics/RHI/Common/RHIConfig.hpp"
 
 namespace Shift::VK {
     CommandPool::CommandPool(const Device *device, EPoolQueueType type): m_device {device}, m_type {type} {
@@ -41,7 +41,7 @@ namespace Shift::VK {
         allocInfo.commandBufferCount = 1;
 
         if ( VkCheck(vkAllocateCommandBuffers(m_device->Get(), &allocInfo, &m_buffer)) ) {
-            Log(Error, "Failed to create VkCommandBuffer!");
+            SRHI_LOG(Error, "Failed to create VkCommandBuffer!");
             m_buffer = VK_NULL_HANDLE;
             return;
         }
@@ -50,7 +50,7 @@ namespace Shift::VK {
         //! Secondaries are draw-only as their work is inside the primary's ranges, transfer/compute
         //! queues have no spec-guaranteed timestamp support. But compute is woth adding in the future
         if (m_poolType == EPoolQueueType::Graphics && !m_isSecondary) {
-            m_profiler.Init(m_device, Conf::MAX_GPU_TIME_RANGES_PER_FRAME);
+            m_profiler.Init(m_device, RHI::MAX_GPU_TIME_RANGES_PER_FRAME);
         }
     }
 
@@ -119,7 +119,7 @@ namespace Shift::VK {
 
         auto info = Util::CreateBeginCommandBufferInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr);
         if ( VkCheckV(vkBeginCommandBuffer(m_buffer, &info), res) ) {
-            Log(Error, "Failed to begin primary command buffer! Code: %d", static_cast<int>(res));
+            SRHI_LOG(Error, "Failed to begin primary command buffer! Code: %d", static_cast<int>(res));
             return false;
         }
 
@@ -157,7 +157,7 @@ namespace Shift::VK {
 
         auto info = Util::CreateBeginCommandBufferInfo(VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT | VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, &inheritanceInfo);
         if ( VkCheckV(vkBeginCommandBuffer(m_buffer, &info), res) ) {
-            Log(Error, "Failed to begin secondary command buffer! Code: %d", static_cast<int>(res));
+            SRHI_LOG(Error, "Failed to begin secondary command buffer! Code: %d", static_cast<int>(res));
             return false;
         }
 
@@ -166,7 +166,7 @@ namespace Shift::VK {
 
     bool CommandBuffer::End() const {
         if ( VkCheckV(vkEndCommandBuffer(m_buffer), res)) {
-            Log(Error, "Failed to end command buffer! Code: %d", static_cast<int>(res));
+            SRHI_LOG(Error, "Failed to end command buffer! Code: %d", static_cast<int>(res));
             return false;
         }
         return true;
@@ -354,12 +354,12 @@ namespace Shift::VK {
                 submitQueue = m_device->GetComputeQueue();
                 break;
             default:
-                Log(Error, "Invalid pool type!");
+                SRHI_LOG(Error, "Invalid pool type!");
                 return false;
         }
 
         if (int res = vkQueueSubmit(submitQueue, 1, &info, nullptr); res != VK_SUCCESS) {
-            Log(Error, "Failed to submit to queue! Code: {}", res);
+            SRHI_LOG(Error, "Failed to submit to queue! Code: {}", res);
             return false;
         }
 
@@ -409,7 +409,7 @@ namespace Shift::VK {
     void CommandBuffer::SetPushConstants(const Pipeline& pipeline, const void* data, uint32_t size, uint32_t offset) const {
         const std::optional<PushConstantRange>& range = pipeline.GetDescriptor().pushConstants;
         if (!range) {
-            Log(Error, "SetPushConstants on pipeline '{}', which declares no push-constant range", pipeline.GetDescriptor().name);
+            SRHI_LOG(Error, "SetPushConstants on pipeline '{}', which declares no push-constant range", pipeline.GetDescriptor().name);
             return;
         }
         //! Offset that is assed is relative to defined push constant range offset

@@ -1,21 +1,21 @@
 #include "VKInstance.hpp"
 
 #include "Utility/Vulkan/VKUtilCore.hpp"
-#include "Config/EngineConfig.hpp"
+#include "Graphics/RHI/Common/RHIConfig.hpp"
 
 namespace Shift::VK {
     Instance::Instance(const std::string& appName, uint32_t appVersion, const std::string& engName, uint32_t engVersion, const RHIRequiredFeatures& required)
     {
         if (VkCheck(volkInitialize())) {
-            Log(Critical, "Failed to initialize Volk!");
+            SRHI_LOG(Critical, "Failed to initialize Volk!");
             return;
         }
 
         //! TODO: THIS IS STUPID
         if (required.VK_enableValidationLayers && !Util::CheckValidationLayerSupport()) {
-            LogVerbose(Error, "Validation layers requested but not available!");
+            SRHI_LOG(Error, "Validation layers requested but not available!");
             if (required.VK_enableValidationLayers) {
-                LogVerbose(Critical, "Validation layers are REQUIRED but missing. Aborting.");
+                SRHI_LOG(Critical, "Validation layers are REQUIRED but missing. Aborting.");
                 return;
             }
         }
@@ -27,7 +27,7 @@ namespace Shift::VK {
         appInfo.applicationVersion = appVersion;
         appInfo.pEngineName = engName.c_str();
         appInfo.engineVersion = engVersion;
-        appInfo.apiVersion = Conf::VULKAN_VERSION; // Vulkan 1.3 baseline
+        appInfo.apiVersion = RHI::VULKAN_VERSION; // Vulkan 1.3 baseline
 
         // Get required instance extensions (GLFW + debug if validation enabled)
         auto extensions = Util::GetRequiredInstanceExtensions(required);
@@ -75,16 +75,16 @@ namespace Shift::VK {
         // Create the Vulkan instance
         VkResult result = vkCreateInstance(&createInfo, nullptr, &m_instance);
         if (result != VK_SUCCESS) {
-            LogVerbose(Critical, "Failed to create Vulkan instance!");
+            SRHI_LOG(Critical, "Failed to create Vulkan instance!");
             return;
         }
 
         volkLoadInstance(m_instance);
 
-        Log(
+        SRHI_LOG(
             Info,
             "Running Vulkan {}",
-            std::to_string(VK_VERSION_MAJOR(Conf::VULKAN_VERSION)) + std::string(".") + std::to_string(VK_VERSION_MINOR(Conf::VULKAN_VERSION))
+            std::to_string(VK_VERSION_MAJOR(RHI::VULKAN_VERSION)) + std::string(".") + std::to_string(VK_VERSION_MINOR(RHI::VULKAN_VERSION))
         );
 
 
@@ -105,7 +105,7 @@ namespace Shift::VK {
         Util::FillDebugMessengerCreateInfo(createInfo);
 
         if (VkCheck(vkCreateDebugUtilsMessengerEXT(m_instance, &createInfo, nullptr, &m_debugMessenger))) {
-            LogVerbose(Critical, "Failed to set up a debug messenger!");
+            SRHI_LOG(Critical, "Failed to set up a debug messenger!");
             return false;
         }
 

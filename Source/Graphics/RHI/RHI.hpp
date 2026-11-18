@@ -108,14 +108,14 @@ namespace Shift {
         RHILocal<API> m_local;
         HandleCreator m_handleCreator;
 
-        std::array<RHIContext<API>, Conf::SHIFT_MAX_FRAMES_IN_FLIGHT> m_graphicsContexts;
+        std::array<RHIContext<API>, RHI::MAX_FRAMES_IN_FLIGHT> m_graphicsContexts;
         struct SecondaryContextData {
             bool inUse = false;
             bool submittedToPrimary = false;
             uint32_t id = 0;
         };
 
-        std::array<std::vector<RHIContext<API>>, Conf::SHIFT_MAX_FRAMES_IN_FLIGHT> m_secondaryGraphicsContexts;
+        std::array<std::vector<RHIContext<API>>, RHI::MAX_FRAMES_IN_FLIGHT> m_secondaryGraphicsContexts;
         std::unordered_map<RHIContext<API>*, SecondaryContextData> m_secondaryGraphicsContextData;
         std::mutex m_secondaryPoolMutex;
 
@@ -131,9 +131,9 @@ namespace Shift {
         uint64_t m_currentFrameGlobalIndex = 0;
 
         //! Timeline semaphores per queue type
-        Core::UniquePtr<TimelineSemaphore> m_timelineGraphics;
-        Core::UniquePtr<TimelineSemaphore> m_timelineTransfer;
-        Core::UniquePtr<TimelineSemaphore> m_timelineCompute;
+        RHI::UniquePtr<TimelineSemaphore> m_timelineGraphics;
+        RHI::UniquePtr<TimelineSemaphore> m_timelineTransfer;
+        RHI::UniquePtr<TimelineSemaphore> m_timelineCompute;
 
         std::atomic<uint64_t> m_timelineGraphicsValue{0};
         std::atomic<uint64_t> m_timelineTransferValue{0};
@@ -141,18 +141,18 @@ namespace Shift {
 
         //! Graphics-timeline value each frame slot's last submit will reach, snapshotted in
         //! EndFrame. Each next use of the FIF slot waits exactly on its own value
-        std::array<uint64_t, Conf::SHIFT_MAX_FRAMES_IN_FLIGHT> m_frameSlotGraphicsValue{};
+        std::array<uint64_t, RHI::MAX_FRAMES_IN_FLIGHT> m_frameSlotGraphicsValue{};
 
         //! To be able to wait on presentation
-        std::vector<Core::UniquePtr<Fence>> m_presentFences;
+        std::vector<RHI::UniquePtr<Fence>> m_presentFences;
 
         //! This is wrong implementation, with this we can wait until pixels appear in screen but NOT for presentation
         // std::vector<uint64_t> m_imagePresentIds;
         // uint64_t m_globalPresentId = 0;
 
         //! Swapchain-related semaphores
-        std::array<Core::UniquePtr<BinarySemaphore>, Conf::SHIFT_MAX_FRAMES_IN_FLIGHT> m_imageAvailable;
-        std::vector<Core::UniquePtr<BinarySemaphore>> m_renderFinished;
+        std::array<RHI::UniquePtr<BinarySemaphore>, RHI::MAX_FRAMES_IN_FLIGHT> m_imageAvailable;
+        std::vector<RHI::UniquePtr<BinarySemaphore>> m_renderFinished;
 
         //! Last completed frame's GPU timing ranges, refreshed in BeginFrame
         std::vector<GPUTimeRange> m_lastFrameGPUTimeRanges;
@@ -177,47 +177,47 @@ namespace Shift {
         };
 
         //! Native backend bring-up lives behind a per-API hook
-        CheckCritical(m_local.InitBackend(window, width, height, appInfo, requiredFeatures), "Failed to initialize the main backend handles!");
+        SRHI_CHECK_CRITICAL(m_local.InitBackend(window, width, height, appInfo, requiredFeatures), "Failed to initialize the main backend handles!");
 
-        for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
-            CheckCritical(m_graphicsContexts[i].Init(&m_local, EContextType::Graphics, false), "Failed to create Graphics Context in flight!");
+        for (uint32_t i = 0; i < RHI::MAX_FRAMES_IN_FLIGHT; ++i) {
+            SRHI_CHECK_CRITICAL(m_graphicsContexts[i].Init(&m_local, EContextType::Graphics, false), "Failed to create Graphics Context in flight!");
             m_graphicsContexts[i].GetCommandBuffer().SetDebugName(("GraphicsPrimaryCB[" + std::to_string(i) + "]").c_str());
         }
 
-        for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
-            m_secondaryGraphicsContexts[i].resize(Conf::MAX_SECONDARY_CONTEXTS);
+        for (uint32_t i = 0; i < RHI::MAX_FRAMES_IN_FLIGHT; ++i) {
+            m_secondaryGraphicsContexts[i].resize(RHI::MAX_SECONDARY_CONTEXTS);
             for (uint32_t j = 0; j < m_secondaryGraphicsContexts[i].size(); ++j) {
                 m_secondaryGraphicsContexts[i][j].Init(&m_local, EContextType::Graphics, true);
                 m_secondaryGraphicsContexts[i][j].GetCommandBuffer().SetDebugName(("SecondaryGraphicsCB[" + std::to_string(i) + "][" + std::to_string(j) + "]").c_str());
                 m_secondaryGraphicsContextData[&m_secondaryGraphicsContexts[i][j]].inUse = false;
                 m_secondaryGraphicsContextData[&m_secondaryGraphicsContexts[i][j]].submittedToPrimary = false;
-                m_secondaryGraphicsContextData[&m_secondaryGraphicsContexts[i][j]].id = Conf::MAX_SECONDARY_CONTEXTS * i + j;
+                m_secondaryGraphicsContextData[&m_secondaryGraphicsContexts[i][j]].id = RHI::MAX_SECONDARY_CONTEXTS * i + j;
             }
         }
 
-        CheckCritical(m_computeContext.Init(&m_local, EContextType::Compute, false), "Failed to create Compute Context!");
+        SRHI_CHECK_CRITICAL(m_computeContext.Init(&m_local, EContextType::Compute, false), "Failed to create Compute Context!");
         m_computeContext.GetCommandBuffer().SetDebugName("ComputeCB");
 
-        CheckCritical(m_transferContext.Init(&m_local, EContextType::Transfer, false), "Failed to create Transfer Context!");
+        SRHI_CHECK_CRITICAL(m_transferContext.Init(&m_local, EContextType::Transfer, false), "Failed to create Transfer Context!");
         m_transferContext.GetCommandBuffer().SetDebugName("TransferCB");
 
-        CheckCritical(m_captureContext.Init(&m_local, EContextType::Graphics, false), "Failed to create Capture Context!");
+        SRHI_CHECK_CRITICAL(m_captureContext.Init(&m_local, EContextType::Graphics, false), "Failed to create Capture Context!");
         m_captureContext.GetCommandBuffer().SetDebugName("CaptureCB");
 
         uint32_t imageCount = m_local.swapchain->GetImages().size();
         m_renderFinished.clear();
         for(uint32_t i = 0; i < imageCount; i++) {
-            auto& sem = m_renderFinished.emplace_back(Core::CreateUnique<BinarySemaphore>(m_local.device.get()));
-            CheckCritical(sem->IsValid(), "Failed to create render semaphore");
+            auto& sem = m_renderFinished.emplace_back(RHI::CreateUnique<BinarySemaphore>(m_local.device.get()));
+            SRHI_CHECK_CRITICAL(sem->IsValid(), "Failed to create render semaphore");
             sem->SetDebugName(("RenderFinished[" + std::to_string(i) + "]").c_str());
-            auto& fence = m_presentFences.emplace_back(Core::CreateUnique<Fence>(m_local.device.get(), true));
-            CheckCritical(fence->IsValid(), "Failed to create present wait fence");
+            auto& fence = m_presentFences.emplace_back(RHI::CreateUnique<Fence>(m_local.device.get(), true));
+            SRHI_CHECK_CRITICAL(fence->IsValid(), "Failed to create present wait fence");
             fence->SetDebugName(("PresentFence[" + std::to_string(i) + "]").c_str());
         }
 
-        for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
-            m_imageAvailable[i] = Core::CreateUnique<BinarySemaphore>(m_local.device.get());
-            CheckCritical(m_imageAvailable[i]->IsValid(), "Failed Init Acquire Sem");
+        for (uint32_t i = 0; i < RHI::MAX_FRAMES_IN_FLIGHT; ++i) {
+            m_imageAvailable[i] = RHI::CreateUnique<BinarySemaphore>(m_local.device.get());
+            SRHI_CHECK_CRITICAL(m_imageAvailable[i]->IsValid(), "Failed Init Acquire Sem");
             m_imageAvailable[i]->SetDebugName(("ImageAvailable[" + std::to_string(i) + "]").c_str());
         }
 
@@ -225,9 +225,9 @@ namespace Shift {
         // m_imagePresentIds.resize(m_local.swapchain.GetImages().size(), 0);
         // m_globalPresentId = 0;
 
-        m_timelineCompute = Core::CreateUnique<TimelineSemaphore>(m_local.device.get(), 0);
-        m_timelineGraphics = Core::CreateUnique<TimelineSemaphore>(m_local.device.get(), 0);
-        m_timelineTransfer = Core::CreateUnique<TimelineSemaphore>(m_local.device.get(), 0);
+        m_timelineCompute = RHI::CreateUnique<TimelineSemaphore>(m_local.device.get(), 0);
+        m_timelineGraphics = RHI::CreateUnique<TimelineSemaphore>(m_local.device.get(), 0);
+        m_timelineTransfer = RHI::CreateUnique<TimelineSemaphore>(m_local.device.get(), 0);
 
         //! Named sync objects make sync-validation output name the offender (F-DEBUGMARKERS)
         m_timelineCompute->SetDebugName("TimelineCompute");
@@ -261,11 +261,11 @@ namespace Shift {
         m_timelineGraphics.reset();
         m_timelineCompute.reset();
 
-        for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
+        for (uint32_t i = 0; i < RHI::MAX_FRAMES_IN_FLIGHT; ++i) {
             m_graphicsContexts[i].Destroy();
         }
 
-        for (uint32_t i = 0; i < Conf::SHIFT_MAX_FRAMES_IN_FLIGHT; ++i) {
+        for (uint32_t i = 0; i < RHI::MAX_FRAMES_IN_FLIGHT; ++i) {
             for (auto& ctx : m_secondaryGraphicsContexts[i]) {
                 ctx.Destroy();
             }
@@ -286,7 +286,7 @@ namespace Shift {
         //! Post-mortem summary: by this point every teardown leak report has been counted by the
         //! validation sink, so a non-zero error count here means the run was NOT clean (F-VALSINK)
         const ValidationStats validationStats = GetValidationStats();
-        Log(Info, "Validation summary: {} error(s), {} warning(s)", validationStats.errorCount, validationStats.warningCount);
+        SRHI_LOG(Info, "Validation summary: {} error(s), {} warning(s)", validationStats.errorCount, validationStats.warningCount);
     }
 
     template<ValidAPI API>
@@ -334,8 +334,8 @@ namespace Shift {
             m_renderFinished.clear();
 
             for(uint32_t i = 0; i < newImageCount; i++) {
-                auto& sem = m_renderFinished.emplace_back(Core::CreateUnique<BinarySemaphore>(m_local.device.get()));
-                CheckCritical(sem->IsValid(), "Failed to recreate render semaphore");
+                auto& sem = m_renderFinished.emplace_back(RHI::CreateUnique<BinarySemaphore>(m_local.device.get()));
+                SRHI_CHECK_CRITICAL(sem->IsValid(), "Failed to recreate render semaphore");
                 sem->SetDebugName(("RenderFinished[" + std::to_string(i) + "]").c_str());
             }
         }
@@ -367,7 +367,7 @@ namespace Shift {
         //! Remember the graphics-timeline value this frame's final submit will reach
         m_frameSlotGraphicsValue[m_currentFrame] = m_timelineGraphicsValue.load(std::memory_order_acquire);
 
-        m_currentFrame = (m_currentFrame + 1) % Conf::SHIFT_MAX_FRAMES_IN_FLIGHT;
+        m_currentFrame = (m_currentFrame + 1) % RHI::MAX_FRAMES_IN_FLIGHT;
         ++m_currentFrameGlobalIndex;
     }
 
@@ -383,7 +383,7 @@ namespace Shift {
             }
         }
 
-        Log(Warning, "Failed to acquire secondary graphics context!");
+        SRHI_LOG(Warning, "Failed to acquire secondary graphics context!");
         return nullptr;
     }
 

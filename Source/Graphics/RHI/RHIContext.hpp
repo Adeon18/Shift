@@ -21,10 +21,10 @@
 #include "Common/Shader.hpp"
 #include "Common/RenderPass.hpp"
 #include "Common/GPUProfiling.hpp"
-#include "Config/EngineConfig.hpp"
+#include "Graphics/RHI/Common/RHIConfig.hpp"
 
 #include "Utility/UtilStandard.hpp"
-#include "Utility/Assertions.hpp"
+#include "Graphics/RHI/Common/Log.hpp"
 
 namespace Shift {
     namespace RHI {
@@ -276,11 +276,11 @@ namespace Shift {
 
         RHILocal<API>* m_local = nullptr;
         RHIEncoder<API> m_encoder;
-        Core::UniquePtr<ResourceStateTracker<API>> m_tracker;
+        RHI::UniquePtr<ResourceStateTracker<API>> m_tracker;
         //! Stored release payloads from FlushPending acquires
         std::vector<SubmitTimelinePayload> m_acquireWaits;
-        Core::UniquePtr<CommandBuffer> m_cmdBuffer;
-        Core::UniquePtr<CommandPool> m_cmdPool;
+        RHI::UniquePtr<CommandBuffer> m_cmdBuffer;
+        RHI::UniquePtr<CommandPool> m_cmdPool;
         EContextType m_type = EContextType::Graphics;
         bool m_isSecondary = false;
     };
@@ -292,13 +292,13 @@ namespace Shift {
         m_local = local;
         m_type = type;
         m_isSecondary = secondary;
-        m_cmdPool = Core::CreateUnique<CommandPool>(m_local->device.get(), GetQueueType(m_type));
-        CheckCritical(m_cmdPool->IsValid(), "Failed to initialize command pool");
+        m_cmdPool = RHI::CreateUnique<CommandPool>(m_local->device.get(), GetQueueType(m_type));
+        SRHI_CHECK_CRITICAL(m_cmdPool->IsValid(), "Failed to initialize command pool");
 
-        m_cmdBuffer = Core::CreateUnique<CommandBuffer>(m_local->device.get(), m_local->instance.get(), *m_cmdPool, m_isSecondary);
-        CheckCritical(m_cmdBuffer->IsValid(), "Failed to init command buffer!");
+        m_cmdBuffer = RHI::CreateUnique<CommandBuffer>(m_local->device.get(), m_local->instance.get(), *m_cmdPool, m_isSecondary);
+        SRHI_CHECK_CRITICAL(m_cmdBuffer->IsValid(), "Failed to init command buffer!");
 
-        m_tracker = Core::CreateUnique<ResourceStateTracker<RHI::Vulkan>>();
+        m_tracker = RHI::CreateUnique<ResourceStateTracker<RHI::Vulkan>>();
         m_encoder = RHIEncoder<RHI::Vulkan>{m_cmdBuffer.get(), m_tracker.get()};
 
         return true;

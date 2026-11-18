@@ -2,7 +2,7 @@
 #include <string>
 #include <utility>
 
-#include "Config/EngineConfig.hpp"
+#include "Graphics/RHI/Common/RHIConfig.hpp"
 
 #include "../Common/Capabilities.hpp"
 
@@ -10,7 +10,7 @@
 
 #include "VKMacros.hpp"
 
-#include "Utility/Assertions.hpp"
+#include "Graphics/RHI/Common/Log.hpp"
 
 namespace Shift::VK {
     namespace {
@@ -23,7 +23,7 @@ namespace Shift::VK {
             VkPhysicalDeviceMemoryProperties memProps{};
             vkGetPhysicalDeviceMemoryProperties(device, &memProps);
 
-            Log(Trace, "Device memory ({} heap(s), {} type(s)):", memProps.memoryHeapCount, memProps.memoryTypeCount);
+            SRHI_LOG(Trace, "Device memory ({} heap(s), {} type(s)):", memProps.memoryHeapCount, memProps.memoryTypeCount);
 
             VkDeviceSize largestDeviceLocalHeap = 0;
             for (uint32_t i = 0; i < memProps.memoryHeapCount; ++i) {
@@ -32,7 +32,7 @@ namespace Shift::VK {
                 if (isDeviceLocal) {
                     largestDeviceLocalHeap = std::max(largestDeviceLocalHeap, heap.size);
                 }
-                Log(Trace, "  heap {}: {:.0f} MiB{}", i, static_cast<double>(heap.size) / BYTES_PER_MIB,
+                SRHI_LOG(Trace, "  heap {}: {:.0f} MiB{}", i, static_cast<double>(heap.size) / BYTES_PER_MIB,
                     isDeviceLocal ? " [DEVICE_LOCAL]" : "");
             }
 
@@ -64,16 +64,16 @@ namespace Shift::VK {
                         std::max(largestHostVisibleDeviceLocal, memProps.memoryHeaps[type.heapIndex].size);
                 }
 
-                Log(Trace, "  type {}: heap {} ({})", i, type.heapIndex, decoded);
+                SRHI_LOG(Trace, "  type {}: heap {} ({})", i, type.heapIndex, decoded);
             }
 
             if (largestHostVisibleDeviceLocal == 0) {
-                Log(Trace, "  no DEVICE_LOCAL|HOST_VISIBLE type: CPU writes to VRAM must go through a staging copy");
+                SRHI_LOG(Trace, "  no DEVICE_LOCAL|HOST_VISIBLE type: CPU writes to VRAM must go through a staging copy");
             } else if (largestDeviceLocalHeap == 0) {
-                Log(Trace, "  CPU-writable memory window: {:.0f} MiB, on a heap not flagged device-local",
+                SRHI_LOG(Trace, "  CPU-writable memory window: {:.0f} MiB, on a heap not flagged device-local",
                     static_cast<double>(largestHostVisibleDeviceLocal) / BYTES_PER_MIB);
             } else {
-                Log(Trace, "  CPU-writable VRAM window: {:.0f} MiB of {:.0f} MiB device-local{}",
+                SRHI_LOG(Trace, "  CPU-writable VRAM window: {:.0f} MiB of {:.0f} MiB device-local{}",
                     static_cast<double>(largestHostVisibleDeviceLocal) / BYTES_PER_MIB,
                     static_cast<double>(largestDeviceLocalHeap) / BYTES_PER_MIB,
                     largestHostVisibleDeviceLocal >= largestDeviceLocalHeap ? " (all of it - resizable BAR)" : "");
@@ -82,10 +82,10 @@ namespace Shift::VK {
     }
 
     Device::Device(const Instance &inst, VkSurfaceKHR surface, const RHIRequiredFeatures& deviceFeatures): m_required{deviceFeatures} {
-        CheckCriticalEmptyReturn(PickPhysicalDevice(inst.Get(), surface, m_required), "Failed to pick the physical device!");
-        CheckCriticalEmptyReturn(FillCapabilitiesAndBuildFeatureChain(m_required, surface), "Failed to satisfly required device features!");
-        CheckCriticalEmptyReturn(CreateLogicalDevice(surface), "Failed to create logical device!");
-        CheckCriticalEmptyReturn(CreateAllocator(inst.Get()), "Failed to create the allocator!");
+        SRHI_CHECK_CRITICAL_EMPTY_RETURN(PickPhysicalDevice(inst.Get(), surface, m_required), "Failed to pick the physical device!");
+        SRHI_CHECK_CRITICAL_EMPTY_RETURN(FillCapabilitiesAndBuildFeatureChain(m_required, surface), "Failed to satisfly required device features!");
+        SRHI_CHECK_CRITICAL_EMPTY_RETURN(CreateLogicalDevice(surface), "Failed to create logical device!");
+        SRHI_CHECK_CRITICAL_EMPTY_RETURN(CreateAllocator(inst.Get()), "Failed to create the allocator!");
 
         m_valid = true;
     }
@@ -236,7 +236,7 @@ namespace Shift::VK {
         //! Hard-fail if requested & unsupported
         auto require_or_fail = [&](const char* name, const RHICommonFeature& feat)->bool {
             if (feat.requested && !feat.supported) {
-                LogVerbose(Critical, std::string("Requested feature not supported by physical device: ") + name);
+                SRHI_LOG(Critical, "Requested feature not supported by physical device: {}", name);
                 return false;
             }
             return true;
@@ -321,7 +321,7 @@ namespace Shift::VK {
     bool Device::CreateLogicalDevice(VkSurfaceKHR surface) {
         //! And here we actually may force same queues
         m_queueFamilyIndices = Util::FindQueueFamilies(m_physicalDevice, surface, m_required.VK_forceUnifiedQueues);
-        CheckExit(m_queueFamilyIndices.isComplete());
+        SRHI_CHECK_EXIT(m_queueFamilyIndices.isComplete());
         Util::LogQueueFamilySelection(m_physicalDevice, m_queueFamilyIndices);
         LogMemoryHeaps(m_physicalDevice);
 
@@ -358,7 +358,7 @@ namespace Shift::VK {
 
         // Validate extensions are present on device
         if (!Util::CheckDeviceExtensionSupport(m_physicalDevice, deviceExtensions)) {
-            LogVerbose(Critical, "Required device extension missing on chosen physical device.");
+            SRHI_LOG(Critical, "Required device extension missing on chosen physical device.");
             return false;
         }
 
@@ -385,7 +385,7 @@ namespace Shift::VK {
     #endif
 
         if (VkCheck(vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device))) {
-            LogVerbose(Critical, "Failed to create logical device!");
+            SRHI_LOG(Critical, "Failed to create logical device!");
             return false;
         }
 
@@ -398,7 +398,7 @@ namespace Shift::VK {
         vkGetDeviceQueue(m_device, m_queueFamilyIndices.computeFamily.value(), 0, &m_computeQueue);
         vkGetDeviceQueue(m_device, m_queueFamilyIndices.transferFamily.value(), 0, &m_transferQueue);
 
-        Log(
+        SRHI_LOG(
             Info,
             " Device: {}. Vulkan {}. Driver version {}.",
             m_caps.version.deviceName,
@@ -413,7 +413,7 @@ namespace Shift::VK {
         uint32_t deviceCount = 0;
         vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
         if (deviceCount == 0) {
-            LogVerbose(Critical, "Failed to find GPUs with Vulkan support!");
+            SRHI_LOG(Critical, "Failed to find GPUs with Vulkan support!");
             return false;
         }
 
@@ -438,17 +438,17 @@ namespace Shift::VK {
             m_caps.version.driverVersion = m_deviceProperties.driverVersion;
             m_caps.version.deviceName = std::string(m_deviceProperties.deviceName).empty() ? m_deviceProperties.deviceName : std::string("Unknown");
         } else {
-            LogVerbose(Critical, "Failed to find a suitable GPU!");
+            SRHI_LOG(Critical, "Failed to find a suitable GPU!");
             return false;
         }
 
         // basic timestamp checks (kept from your code)
         if (m_deviceProperties.limits.timestampPeriod == 0) {
-            LogVerbose(Critical, "GPU does not support timestamp queries!");
+            SRHI_LOG(Critical, "GPU does not support timestamp queries!");
             return false;
         }
         if (!m_deviceProperties.limits.timestampComputeAndGraphics) {
-            LogVerbose(Critical, "GPU does not support timestamp queries for all queue families!");
+            SRHI_LOG(Critical, "GPU does not support timestamp queries for all queue families!");
             return false;
         }
 
@@ -458,7 +458,7 @@ namespace Shift::VK {
     VkImageView Device::CreateImageView(const VkImageViewCreateInfo& info) const {
         VkImageView imageView;
         if (VkCheck(vkCreateImageView(m_device, &info, nullptr, &imageView))) {
-            Log(Error, "Failed to create VkImageView!");
+            SRHI_LOG(Error, "Failed to create VkImageView!");
             return VK_NULL_HANDLE;
         }
 
@@ -468,7 +468,7 @@ namespace Shift::VK {
     VkFence Device::CreateFence(const VkFenceCreateInfo& info) const {
         VkFence fence;
         if (VkCheck(vkCreateFence(m_device, &info, nullptr, &fence))) {
-            Log(Error, "Failed to create VkFence!");
+            SRHI_LOG(Error, "Failed to create VkFence!");
             return VK_NULL_HANDLE;
         }
         return fence;
@@ -481,7 +481,7 @@ namespace Shift::VK {
     VkSemaphore Device::CreateSemaphore(const VkSemaphoreCreateInfo &info) const {
         VkSemaphore semaphore;
         if ( VkCheck(vkCreateSemaphore(m_device, &info, nullptr, &semaphore)) ) {
-            Log(Error, "Failed to create Binary VkSemaphore!");
+            SRHI_LOG(Error, "Failed to create Binary VkSemaphore!");
             return VK_NULL_HANDLE;
         }
         return semaphore;
@@ -497,7 +497,7 @@ namespace Shift::VK {
         //! and presentation queues we retrieved.Each command pool can only allocate command buffers that are
         //! submitted on a single type of queue.We're going to record commands for drawing, which is why we've chosen the graphics queue family.
         if ( VkCheck(vkCreateCommandPool(m_device, &info, nullptr, &vkPool)) ) {
-            Log(Error, "Failed to create VkCommandPool!");
+            SRHI_LOG(Error, "Failed to create VkCommandPool!");
             return VK_NULL_HANDLE;
         }
 
@@ -511,7 +511,7 @@ namespace Shift::VK {
     VkRenderPass Device::CreateRenderPass(const VkRenderPassCreateInfo &info) const {
         VkRenderPass pass;
         if (VkCheck(vkCreateRenderPass(m_device, &info, nullptr, &pass)) ) {
-            Log(Error, "Failed to create VkRenderPass!");
+            SRHI_LOG(Error, "Failed to create VkRenderPass!");
             return VK_NULL_HANDLE;
         }
 
@@ -525,7 +525,7 @@ namespace Shift::VK {
     VkShaderModule Device::CreateShaderModule(const VkShaderModuleCreateInfo& info) const {
         VkShaderModule shaderModule;
         if ( VkCheck(vkCreateShaderModule(m_device, &info, nullptr, &shaderModule)) ) {
-            Log(Error, "Failed to create VkShaderModule!");
+            SRHI_LOG(Error, "Failed to create VkShaderModule!");
             return VK_NULL_HANDLE;
         }
 
@@ -539,7 +539,7 @@ namespace Shift::VK {
     VkPipeline Device::CreateGraphicsPipeline(const VkGraphicsPipelineCreateInfo &info) const {
         VkPipeline pipeline;
         if ( VkCheck(vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &info, nullptr, &pipeline)) ) {
-            Log(Error, "Failed to create VkPipeline!");
+            SRHI_LOG(Error, "Failed to create VkPipeline!");
             return VK_NULL_HANDLE;
         }
         return pipeline;
@@ -548,7 +548,7 @@ namespace Shift::VK {
     VkPipeline Device::CreateComputePipeline(const VkComputePipelineCreateInfo &info) const {
         VkPipeline pipeline;
         if ( VkCheck(vkCreateComputePipelines(m_device, VK_NULL_HANDLE, 1, &info, nullptr, &pipeline)) ) {
-            Log(Error, "Failed to create compute VkPipeline!");
+            SRHI_LOG(Error, "Failed to create compute VkPipeline!");
             return VK_NULL_HANDLE;
         }
         return pipeline;
@@ -561,7 +561,7 @@ namespace Shift::VK {
     VkPipelineLayout Device::CreatePipelineLayout(const VkPipelineLayoutCreateInfo& info) const {
         VkPipelineLayout pipelineLayout;
         if ( VkCheck(vkCreatePipelineLayout(m_device, &info, nullptr, &pipelineLayout)) ) {
-            Log(Error, "Failed to create VkPipelineLayout!");
+            SRHI_LOG(Error, "Failed to create VkPipelineLayout!");
             return VK_NULL_HANDLE;
         }
         return pipelineLayout;
@@ -573,7 +573,7 @@ namespace Shift::VK {
     VkDescriptorSetLayout Device::CreateDescriptorSetLayout(const VkDescriptorSetLayoutCreateInfo &info) const {
         VkDescriptorSetLayout layout;
         if ( VkCheck(vkCreateDescriptorSetLayout(m_device, &info, nullptr, &layout)) ) {
-            Log(Error, "Failed to create VkDescriptorSetLayout!");
+            SRHI_LOG(Error, "Failed to create VkDescriptorSetLayout!");
             return VK_NULL_HANDLE;
         }
 
@@ -587,7 +587,7 @@ namespace Shift::VK {
     VkDescriptorPool Device::CreateDescriptorPool(const VkDescriptorPoolCreateInfo &info) const {
         VkDescriptorPool pool;
         if ( VkCheck(vkCreateDescriptorPool(m_device, &info, nullptr, &pool)) ) {
-            Log(Error, "Failed to create VkDescriptorPool!");
+            SRHI_LOG(Error, "Failed to create VkDescriptorPool!");
             return VK_NULL_HANDLE;
         }
         return pool;
@@ -641,13 +641,13 @@ namespace Shift::VK {
             allocatorCreateInfo.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
         }
         allocatorCreateInfo.pVulkanFunctions = &vulkanFunctions;
-        allocatorCreateInfo.vulkanApiVersion = Conf::VULKAN_VERSION;
+        allocatorCreateInfo.vulkanApiVersion = RHI::VULKAN_VERSION;
         allocatorCreateInfo.physicalDevice = m_physicalDevice;
         allocatorCreateInfo.device = m_device;
         allocatorCreateInfo.instance = instance;
 
         if ( VkCheck(vmaCreateAllocator(&allocatorCreateInfo, &m_allocator)) ) {
-            LogVerbose(Critical, "Failed to create the VMA Allocator");
+            SRHI_LOG(Critical, "Failed to create the VMA Allocator");
             return false;
         }
 
@@ -661,7 +661,7 @@ namespace Shift::VK {
     VkSampler Device::CreateImageSampler(const VkSamplerCreateInfo &info) const {
         VkSampler sampler;
         if ( VkCheck(vkCreateSampler(m_device, &info, nullptr, &sampler))) {
-            Log(Error, "Failed to create VkSampler!");
+            SRHI_LOG(Error, "Failed to create VkSampler!");
             return VK_NULL_HANDLE;
         }
         return sampler;
@@ -695,7 +695,7 @@ namespace Shift::VK {
     VkFramebuffer Device::CreateFrameBuffer(const VkFramebufferCreateInfo& info) const {
         VkFramebuffer buf;
         if ( VkCheck(vkCreateFramebuffer(m_device, &info, nullptr, &buf)) ) {
-            Log(Error, "Failed to create VkFramebuffer!");
+            SRHI_LOG(Error, "Failed to create VkFramebuffer!");
             return VK_NULL_HANDLE;
         }
         return buf;
@@ -709,7 +709,7 @@ namespace Shift::VK {
         VkQueryPool pool;
 
         if ( VkCheck(vkCreateQueryPool(m_device, &info, nullptr, &pool)) ) {
-            Log(Error, "Failed to create VkQueryPool!");
+            SRHI_LOG(Error, "Failed to create VkQueryPool!");
             return VK_NULL_HANDLE;
         }
         return pool;

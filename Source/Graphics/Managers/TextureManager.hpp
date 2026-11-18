@@ -17,6 +17,7 @@
 #include "Graphics/RHI/RHI.hpp"
 #include "GenerationalPool.hpp"
 #include "GlobalResourceSet.hpp"
+#include "Core/Memory.hpp"
 
 namespace Shift::Graphics {
 

@@ -1,19 +1,10 @@
 #ifndef SHIFT_ENGINECONFIG_HPP
 #define SHIFT_ENGINECONFIG_HPP
 
-//! DO NOT DELETE
-#ifdef SHIFT_VULKAN_BACKEND
-#include "Utility/Vulkan/VKInclude.hpp"
+#include "Graphics/RHI/Common/RHIConfig.hpp"
 
 namespace Shift::Conf {
-    static constexpr uint32_t VULKAN_VERSION = VK_API_VERSION_1_3;
-}
-#endif
-
-namespace Shift::Conf {
-    static constexpr uint32_t MAX_SECONDARY_CONTEXTS = 6;
-
-    static constexpr uint32_t SHIFT_MAX_FRAMES_IN_FLIGHT = 2;
+    static constexpr uint32_t SHIFT_MAX_FRAMES_IN_FLIGHT = RHI::MAX_FRAMES_IN_FLIGHT;
     static constexpr uint32_t MAX_BINDLESS_IMAGES = 8192u;
     static constexpr uint32_t MAX_BINDLESS_SAMPLERS = 8u;
     static constexpr uint32_t MAX_BINDLESS_SETS = 1u;
@@ -29,9 +20,6 @@ namespace Shift::Conf {
     static constexpr uint32_t MAX_SCENE_MATERIALS = 1024u;
     //! LightData is 64B
     static constexpr uint32_t MAX_SCENE_LIGHTS = 256u;
-
-    //! Max named GPU timing ranges recorded per frame. Two timestamps per range
-    static constexpr uint32_t MAX_GPU_TIME_RANGES_PER_FRAME = 64u;
 }
 // shift
 
