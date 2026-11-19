@@ -5,9 +5,8 @@
 #ifndef SHIFT_VKINSTANCE_HPP
 #define SHIFT_VKINSTANCE_HPP
 
+#include <span>
 #include <string>
-
-#include "GLFW/glfw3.h"
 
 #include "VKMacros.hpp"
 
@@ -21,7 +20,8 @@ namespace Shift::VK {
         //! \param appVersion The application version
         //! \param engName The name of the Engine (Always Shift)
         //! \param engVersion The engine version
-        Instance(const std::string& appName, uint32_t appVersion, const std::string& engName, uint32_t engVersion, const RHIRequiredFeatures& required);
+        //! \param surfaceExtensions Instance extensions the window surface needs, empty when headless
+        Instance(const std::string& appName, uint32_t appVersion, const std::string& engName, uint32_t engVersion, const RHIRequiredFeatures& required, std::span<const char* const> surfaceExtensions);
         Instance(const Instance&)=delete;
         Instance& operator=(const Instance&)=delete;
 

@@ -11,8 +11,6 @@
 #include "VKSemaphore.hpp"
 #include "VKTexture.hpp"
 
-#include "Window/ShiftWindow.hpp"
-
 namespace Shift::VK {
     struct SwapchainDescription {
         VkSurfaceFormatKHR surfaceFormat;

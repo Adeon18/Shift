@@ -1,15 +1,20 @@
 #ifndef SHIFT_VKWINDOWSURFACE_H
 #define SHIFT_VKWINDOWSURFACE_H
 
+#include <vector>
+
 #include "Utility/Vulkan/VKInclude.hpp"
-#include <GLFW/glfw3.h>
+#include "Graphics/RHI/Common/NativeWindow.hpp"
 
 namespace Shift::VK {
     class WindowSurface {
     public:
-        WindowSurface(VkInstance ins, GLFWwindow* win);
+        WindowSurface(VkInstance ins, const NativeWindow& window);
         WindowSurface(const WindowSurface&) = delete;
         WindowSurface& operator=(const WindowSurface&) = delete;
+
+        //! Instance extensions a surface on this platform needs
+        [[nodiscard]] static std::vector<const char*> GetInstanceExtensions(EPlatform platform);
 
         [[nodiscard]] VkSurfaceKHR Get() const { return m_surface; }
 

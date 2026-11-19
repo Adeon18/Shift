@@ -1,6 +1,6 @@
 #include "VKImGuiBackend.hpp"
 
-#include "Graphics/UI/imgui/imgui_impl_vulkan.h"
+#include "imgui_impl_vulkan.h"
 
 #include "VKSampler.hpp"
 #include "VKTexture.hpp"

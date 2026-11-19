@@ -2,6 +2,13 @@
 
 #include <utility>
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
+#endif
+
 namespace Shift {
 
     void ShiftWindow::InitWindow() {
@@ -43,6 +50,18 @@ namespace Shift {
 
         m_width = width;
         m_height = height;
+    }
+
+    NativeWindow ShiftWindow::GetNativeWindow() const {
+#ifdef _WIN32
+        return NativeWindow{
+            .platform = EPlatform::Win32,
+            .window = glfwGetWin32Window(m_window),
+            .instance = GetModuleHandleW(nullptr),
+        };
+#else
+        return {};
+#endif
     }
 
     ShiftWindow::~ShiftWindow() {

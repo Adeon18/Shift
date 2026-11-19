@@ -22,6 +22,7 @@
 #include "Graphics/RHI/Common/Capabilities.hpp"
 #include "Graphics/RHI/Common/Log.hpp"
 #include "Graphics/RHI/Common/Memory.hpp"
+#include "Graphics/RHI/Common/NativeWindow.hpp"
 
 namespace Shift {
     //! Note, this should be included only after both RHI Data and RHI::VUlkan have been defined
@@ -36,19 +37,19 @@ namespace Shift {
 
         //! Backend bring-up hook: constructs the Vulkan instance/surface/device/
         //! descriptor allocator/swapchain. Every backend's RHILocal specialization is expected to expose this same signature.
-        bool InitBackend(GLFWwindow* window, uint32_t width, uint32_t height,
-                         const RHIAppInfo& appInfo, const RHIRequiredFeatures& features) {
+        bool InitBackend(const NativeWindow& window, uint32_t width, uint32_t height, const RHIAppInfo& appInfo, const RHIBindlessCapacity& bindless, const RHIRequiredFeatures& features) {
             const uint32_t appVersion = VK_MAKE_VERSION(appInfo.appVersionMajor, appInfo.appVersionMinor, appInfo.appVersionPatch);
             const uint32_t engineVersion = VK_MAKE_VERSION(appInfo.engineVersionMajor, appInfo.engineVersionMinor, appInfo.engineVersionPatch);
 
-            instance = RHI::CreateUnique<VK::Instance>(appInfo.appName, appVersion, appInfo.engineName, engineVersion, features);
+            const std::vector<const char*> surfaceExtensions = VK::WindowSurface::GetInstanceExtensions(window.platform);
+            instance = RHI::CreateUnique<VK::Instance>(appInfo.appName, appVersion, appInfo.engineName, engineVersion, features, surfaceExtensions);
             SRHI_CHECK_CRITICAL(instance->IsValid(), "Failed to create VK instance!");
             surface = RHI::CreateUnique<VK::WindowSurface>(instance->Get(), window);
             SRHI_CHECK_CRITICAL(surface->IsValid(), "Failed to create VK surface!");
             device = RHI::CreateUnique<VK::Device>(*instance, surface->Get(), features);
             SRHI_CHECK_CRITICAL(device->IsValid(), "Failed to create VK device!");
             descLayoutCache.Init(device.get());
-            descAllocator = RHI::CreateUnique<VK::DescriptorAllocator>(device.get());
+            descAllocator = RHI::CreateUnique<VK::DescriptorAllocator>(device.get(), bindless);
             swapchain = RHI::CreateUnique<VK::Swapchain>(device.get(), surface.get(), width, height);
             SRHI_CHECK_CRITICAL(swapchain->IsValid(), "Failed to create VK swapchain!");
 

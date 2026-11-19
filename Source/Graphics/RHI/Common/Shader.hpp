@@ -38,7 +38,7 @@ namespace Shift {
 
     struct ShaderDescriptor {
         EShaderType type = EShaderType::Fragment;
-        //! TODO: [FEATURE] probably not path but opcode here when I integrate slang
+        //! Only a debug name to the RHI, which takes bytecode
         std::string path = "";
         std::string entry = "main";
     };
@@ -50,7 +50,6 @@ namespace Shift {
 
     template<typename Shader>
     concept IShader =
-        std::constructible_from<Shader, const Device*, const ShaderDescriptor&> &&
         std::constructible_from<Shader, const Device* , std::span<uint8_t> /*data*/, const ShaderDescriptor&> &&
         !std::is_trivially_destructible_v<Shader> &&
     requires (Shader InputShader, EShaderType type) {

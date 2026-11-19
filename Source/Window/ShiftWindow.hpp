@@ -6,6 +6,7 @@
 #include <string>
 
 #include "Input/Mouse.hpp"
+#include "Graphics/RHI/Common/NativeWindow.hpp"
 
 namespace Shift {
 	class ShiftWindow {
@@ -62,6 +63,7 @@ namespace Shift {
         void ProcessResize() { m_shoudProcessResize = false; }
 
         [[nodiscard]] GLFWwindow* GetHandle() const { return m_window; }
+        [[nodiscard]] NativeWindow GetNativeWindow() const;
         [[nodiscard]] uint32_t GetWidth() const { return m_width; }
         [[nodiscard]] uint32_t GetHeight() const { return m_height; }
         //! Whether this window was created on screen. False means an automated run, not a session

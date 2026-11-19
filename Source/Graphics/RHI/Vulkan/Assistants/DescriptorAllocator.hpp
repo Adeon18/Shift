@@ -4,6 +4,7 @@
 #include <span>
 #include <vector>
 
+#include "Graphics/RHI/Common/Capabilities.hpp"
 #include "Graphics/RHI/Common/Pipeline.hpp"
 #include "Graphics/RHI/Vulkan/VKDevice.hpp"
 
@@ -31,11 +32,15 @@ namespace Shift::VK {
                 { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 0.5f }
         };
 
+#ifdef SHIFT_RHI_IMGUI
         const std::vector<PoolSizeRatio> IMGUI_POOL_RATIOS = {
             { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.0f }
         };
+#endif
 
         static constexpr uint32_t SET_LIMIT_PER_POOL = 4096u;
+        //! One global bindless set
+        static constexpr uint32_t BINDLESS_SET_COUNT = 1u;
 
         //! We have minimal pools and sets so we can allow this
         static constexpr VkDescriptorPoolCreateFlags GENERAL_POOL_FLAGS = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
@@ -44,7 +49,7 @@ namespace Shift::VK {
         //! \param device
         //! \param initialSets The base amount of pool descriptor size
         //! \param poolRatios The descriptor type ration setup from PoolSizeRatio
-        DescriptorAllocator(const Device* device, uint32_t initialSets = 4);
+        DescriptorAllocator(const Device* device, const RHIBindlessCapacity& bindless, uint32_t initialSets = 4);
         DescriptorAllocator(const DescriptorAllocator&) = delete;
         DescriptorAllocator& operator=(const DescriptorAllocator&) = delete;
 
@@ -59,7 +64,9 @@ namespace Shift::VK {
         // \return The descriptor pool
         VkDescriptorPool GetPool();
 
+#ifdef SHIFT_RHI_IMGUI
         [[nodiscard]] VkDescriptorPool GetImGuiPool() const { return m_imguiPool; }
+#endif
         [[nodiscard]] VkDescriptorPool GetBindlessPool() const { return m_bindlessPool; }
 
         /// Allocate a descriptor set
@@ -81,9 +88,11 @@ namespace Shift::VK {
         std::vector<VkDescriptorPool> m_fullPools;
         std::vector<VkDescriptorPool> m_readyPools;
 
+#ifdef SHIFT_RHI_IMGUI
         //! Created with VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT
         VkDescriptorPool m_imguiPool = VK_NULL_HANDLE;
-        //! Sized for the global set's arrays (images and samplers), UPDATE_AFTER_BIND, MAX_BINDLESS_SETS sets
+#endif
+        //! Sized for the global set's arrays (images and samplers), UPDATE_AFTER_BIND, BINDLESS_SET_COUNT sets
         VkDescriptorPool m_bindlessPool = VK_NULL_HANDLE;
 
         uint32_t m_setsPerPool = 1u;

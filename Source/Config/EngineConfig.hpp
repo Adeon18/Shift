@@ -7,7 +7,6 @@ namespace Shift::Conf {
     static constexpr uint32_t SHIFT_MAX_FRAMES_IN_FLIGHT = RHI::MAX_FRAMES_IN_FLIGHT;
     static constexpr uint32_t MAX_BINDLESS_IMAGES = 8192u;
     static constexpr uint32_t MAX_BINDLESS_SAMPLERS = 8u;
-    static constexpr uint32_t MAX_BINDLESS_SETS = 1u;
 
     //! Capacity of vertex streams
     //! rn: positions 24 MB + normals 24 MB + tangents 32 MB + uvs 16 MB

@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <concepts>
 #include <array>
+#include <cassert>
 #include <iterator>
 #include <vector>
 
@@ -23,7 +24,6 @@
 #include "Common/GPUProfiling.hpp"
 #include "Graphics/RHI/Common/RHIConfig.hpp"
 
-#include "Utility/UtilStandard.hpp"
 #include "Graphics/RHI/Common/Log.hpp"
 
 namespace Shift {

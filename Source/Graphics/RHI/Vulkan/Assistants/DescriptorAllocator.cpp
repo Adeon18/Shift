@@ -1,10 +1,8 @@
 #include "DescriptorAllocator.hpp"
 
-#include "Config/EngineConfig.hpp"
-
 
 namespace Shift::VK {
-    DescriptorAllocator::DescriptorAllocator(const Device* device, uint32_t initialSets) {
+    DescriptorAllocator::DescriptorAllocator(const Device* device, const RHIBindlessCapacity& bindless, uint32_t initialSets) {
         m_device = device;
 
         for (auto r: DEFAULT_SIZE_CONFIG) {
@@ -17,19 +15,20 @@ namespace Shift::VK {
 
         m_readyPools.push_back(newPool);
 
+#ifdef SHIFT_RHI_IMGUI
         std::vector<PoolSizeRatio> imguiRatios;
         for (auto r: IMGUI_POOL_RATIOS) {
             imguiRatios.push_back(r);
         }
         //! Extra beefy pool for imgui
         m_imguiPool = CreatePool(500, imguiRatios, VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT);
+#endif
 
         std::vector<PoolSizeRatio> bindlessPoolRatios {
-            PoolSizeRatio{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, Conf::MAX_BINDLESS_IMAGES},
-            PoolSizeRatio{VK_DESCRIPTOR_TYPE_SAMPLER, Conf::MAX_BINDLESS_SAMPLERS}
+            PoolSizeRatio{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, static_cast<float>(bindless.maxImages)},
+            PoolSizeRatio{VK_DESCRIPTOR_TYPE_SAMPLER, static_cast<float>(bindless.maxSamplers)}
         };
-        //! We can have multiple bindless sets
-        m_bindlessPool = CreatePool(Conf::MAX_BINDLESS_SETS, bindlessPoolRatios, VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT);
+        m_bindlessPool = CreatePool(BINDLESS_SET_COUNT, bindlessPoolRatios, VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT);
     }
 
     DescriptorAllocator::~DescriptorAllocator() {
@@ -43,7 +42,9 @@ namespace Shift::VK {
         }
         m_fullPools.clear();
 
+#ifdef SHIFT_RHI_IMGUI
         m_device->DestroyDescriptorPool(m_imguiPool);
+#endif
         m_device->DestroyDescriptorPool(m_bindlessPool);
     }
 
@@ -114,7 +115,7 @@ namespace Shift::VK {
         //! The bindless pool is fixed-size and not recycled, so there is no second attempt
         if (fromBindlessPool) {
             if (ds == VK_NULL_HANDLE) {
-                SRHI_LOG(Error, "Failed to allocate a descriptor set from the bindless pool. It is sized for {} set(s)", Conf::MAX_BINDLESS_SETS);
+                SRHI_LOG(Error, "Failed to allocate a descriptor set from the bindless pool. It is sized for {} set(s)", BINDLESS_SET_COUNT);
             }
             return ds;
         }

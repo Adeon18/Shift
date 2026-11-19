@@ -7,6 +7,7 @@
 
 #include <atomic>
 
+#include "Common/NativeWindow.hpp"
 #include "RHIContext.hpp"
 #include "RHIDeferredExecutor.hpp"
 
@@ -34,7 +35,7 @@ namespace Shift {
             RenderHardwareInterface* m_backend = nullptr;
         };
         //! requiredFeatures defaults to the backend's standard set; tests override it
-        bool Init(GLFWwindow* window, uint32_t width, uint32_t height, const std::string& appName, const std::string& appVersion, const std::string& engineName, const std::string& engineVersion, const RHIRequiredFeatures& requiredFeatures = API::requiredFeatures);
+        bool Init(const NativeWindow& window, uint32_t width, uint32_t height, const RHIAppInfo& appInfo, const RHIBindlessCapacity& bindless, const RHIRequiredFeatures& requiredFeatures = API::requiredFeatures);
 
         //! Wait for GPU to complete work before deleting stuff
         void WaitForGPU();
@@ -159,25 +160,13 @@ namespace Shift {
     };
 
     template<ValidAPI API>
-    bool RenderHardwareInterface<API>::Init(GLFWwindow *window, uint32_t width, uint32_t height,
-        const std::string &appName, const std::string &appVersion, const std::string &engineName,
-        const std::string &engineVersion, const RHIRequiredFeatures& requiredFeatures)
+    bool RenderHardwareInterface<API>::Init(const NativeWindow& window, uint32_t width, uint32_t height, const RHIAppInfo& appInfo, const RHIBindlessCapacity& bindless, const RHIRequiredFeatures& requiredFeatures)
     {
 
         m_handleCreator = HandleCreator{this};
 
-        const Util::VersionTriple appV = Util::ParseVersionTriple(appVersion);
-        const Util::VersionTriple engV = Util::ParseVersionTriple(engineVersion);
-
-        const RHIAppInfo appInfo{
-            .appName = appName,
-            .appVersionMajor = appV.uMajor, .appVersionMinor = appV.uMinor, .appVersionPatch = appV.uPatch,
-            .engineName = engineName,
-            .engineVersionMajor = engV.uMajor, .engineVersionMinor = engV.uMinor, .engineVersionPatch = engV.uPatch,
-        };
-
         //! Native backend bring-up lives behind a per-API hook
-        SRHI_CHECK_CRITICAL(m_local.InitBackend(window, width, height, appInfo, requiredFeatures), "Failed to initialize the main backend handles!");
+        SRHI_CHECK_CRITICAL(m_local.InitBackend(window, width, height, appInfo, bindless, requiredFeatures), "Failed to initialize the main backend handles!");
 
         for (uint32_t i = 0; i < RHI::MAX_FRAMES_IN_FLIGHT; ++i) {
             SRHI_CHECK_CRITICAL(m_graphicsContexts[i].Init(&m_local, EContextType::Graphics, false), "Failed to create Graphics Context in flight!");

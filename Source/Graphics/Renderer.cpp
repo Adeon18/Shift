@@ -9,6 +9,8 @@
 #include <cmath>
 #include <cstring>
 
+#include "Config/EngineConfig.hpp"
+#include "Utility/UtilStandard.hpp"
 #include "Graphics/Culling.hpp"
 #include "Graphics/RHI/Vulkan/VKImGuiBackend.hpp"
 #include "Scene/SceneImport.hpp"
@@ -67,7 +69,17 @@ namespace Shift::Graphics {
     bool Renderer::Init(ShiftScene& scene, const std::optional<RHIRequiredFeatures>& featuresOverride) {
 
         const RHIRequiredFeatures requiredFeatures = featuresOverride.value_or(ShiftSelectedAPI::requiredFeatures);
-        CheckCritical(m_renderBackend.Init(m_window.GetHandle(), m_window.GetWidth(), m_window.GetHeight(), "TestApp", "1.0.0", "Shift", "2.0.0", requiredFeatures), "Failed to initialize RHI!");
+        const RHIAppInfo appInfo{
+            .appName = "ShiftEditor",
+            .appVersionMajor = 1, .appVersionMinor = 0, .appVersionPatch = 0,
+            .engineName = "Shift",
+            .engineVersionMajor = 2, .engineVersionMinor = 0, .engineVersionPatch = 0,
+        };
+        const RHIBindlessCapacity bindless{
+            .maxImages = Conf::MAX_BINDLESS_IMAGES,
+            .maxSamplers = Conf::MAX_BINDLESS_SAMPLERS,
+        };
+        CheckCritical(m_renderBackend.Init(m_window.GetNativeWindow(), m_window.GetWidth(), m_window.GetHeight(), appInfo, bindless, requiredFeatures), "Failed to initialize RHI!");
 
         RenderBackendInterface* rbi = m_renderBackend.CreateInterface();
 

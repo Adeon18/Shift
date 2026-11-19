@@ -4,9 +4,9 @@
 #include "Utility/Vulkan/VKUtilInfo.hpp"
 #include "Utility/Vulkan/VKUtilRHI.hpp"
 #include <algorithm>
-#include <iostream>
 #include <array>
-#include <winsock2.h>
+#include <cassert>
+#include <iostream>
 
 #include "VKBuffer.hpp"
 #include "VKPipeline.hpp"

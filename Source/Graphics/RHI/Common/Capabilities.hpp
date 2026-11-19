@@ -72,8 +72,7 @@ namespace Shift {
         bool VK_forceUnifiedQueues      = false;
     };
 
-    //! Backend-agnostic application identity passed to the RHI at bring-up. The RHI parses
-    //! the user-facing version strings into components here
+    //! Backend-agnostic application identity passed to the RHI at bring-up
     struct RHIAppInfo {
         std::string appName;
         uint32_t    appVersionMajor = 1;
@@ -84,6 +83,12 @@ namespace Shift {
         uint32_t    engineVersionMajor = 1;
         uint32_t    engineVersionMinor = 0;
         uint32_t    engineVersionPatch = 0;
+    };
+
+    //! Backend pool sizes for shader-indexed descriptor arrays
+    struct RHIBindlessCapacity {
+        uint32_t maxImages = 0;
+        uint32_t maxSamplers = 0;
     };
 
     struct RHILimits {

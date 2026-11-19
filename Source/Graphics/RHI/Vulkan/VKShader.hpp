@@ -6,13 +6,10 @@
 #include "VKDevice.hpp"
 #include "Graphics/RHI/Common/Shader.hpp"
 
-#include "Utility/UtilStandard.hpp"
-
 namespace Shift::VK {
     class Shader {
         friend VK::Pipeline;
     public:
-        Shader(const Device* device, const ShaderDescriptor& des);
         Shader(const Device* device, std::span<uint8_t> bytecode, const ShaderDescriptor& des);
         Shader(const Shader&)=delete;
         Shader& operator=(const Shader&)=delete;

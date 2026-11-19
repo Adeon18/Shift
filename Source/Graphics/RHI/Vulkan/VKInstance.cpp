@@ -4,7 +4,7 @@
 #include "Graphics/RHI/Common/RHIConfig.hpp"
 
 namespace Shift::VK {
-    Instance::Instance(const std::string& appName, uint32_t appVersion, const std::string& engName, uint32_t engVersion, const RHIRequiredFeatures& required)
+    Instance::Instance(const std::string& appName, uint32_t appVersion, const std::string& engName, uint32_t engVersion, const RHIRequiredFeatures& required, std::span<const char* const> surfaceExtensions)
     {
         if (VkCheck(volkInitialize())) {
             SRHI_LOG(Critical, "Failed to initialize Volk!");
@@ -29,8 +29,7 @@ namespace Shift::VK {
         appInfo.engineVersion = engVersion;
         appInfo.apiVersion = RHI::VULKAN_VERSION; // Vulkan 1.3 baseline
 
-        // Get required instance extensions (GLFW + debug if validation enabled)
-        auto extensions = Util::GetRequiredInstanceExtensions(required);
+        auto extensions = Util::GetRequiredInstanceExtensions(required, surfaceExtensions);
 
         // Instance create info
         VkInstanceCreateInfo createInfo{};

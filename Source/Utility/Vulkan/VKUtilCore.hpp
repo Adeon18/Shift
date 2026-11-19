@@ -51,11 +51,8 @@ namespace Shift::VK::Util {
     //! Build required device extension list from RHIRequiredFeatures
     std::vector<const char*> ResolveDeviceExtensions(const RHIRequiredFeatures& required);
 
-    //! Instance-level required extensions (GLFW + optional debug)
-    std::vector<const char*> GetRequiredInstanceExtensions(const RHIRequiredFeatures& required);
-
-    //! Check GLFW extensions presence helper (keeps behavior)
-    bool CheckForGLFWExtensionPresense(const char** glfwExtensions, uint32_t glfwExtensionCount, const std::vector<VkExtensionProperties>& vkExtensions);
+    //! Instance-level required extensions (surface + optional debug)
+    std::vector<const char*> GetRequiredInstanceExtensions(const RHIRequiredFeatures& required, std::span<const char* const> surfaceExtensions);
     void PrintAvailibleVkExtensions(const std::vector<VkExtensionProperties>& vkExtensions);
 
     //! Physical device utilities - now accept required capabilities as argument where needed

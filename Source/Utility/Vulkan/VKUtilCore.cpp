@@ -5,8 +5,6 @@
 #include <bit>
 #include <mutex>
 
-#include "GLFW/glfw3.h"
-
 namespace Shift::VK::Util {
     const std::vector<const char*> VALIDATION_LAYERS = {
         "VK_LAYER_KHRONOS_validation"
@@ -129,12 +127,8 @@ namespace Shift::VK::Util {
         return result;
     }
 
-    // Build instance extension list from GLFW plus debug if requested
-    std::vector<const char*> GetRequiredInstanceExtensions(const RHIRequiredFeatures& required) {
-        uint32_t glfwExtensionCount = 0;
-        const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
-        std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+    std::vector<const char*> GetRequiredInstanceExtensions(const RHIRequiredFeatures& required, std::span<const char* const> surfaceExtensions) {
+        std::vector<const char*> extensions(surfaceExtensions.begin(), surfaceExtensions.end());
 
         if (required.VK_enableValidationLayers) {
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -161,23 +155,6 @@ namespace Shift::VK::Util {
 
         PrintAvailibleVkExtensions(available); // logging
         return extensions;
-    }
-
-    bool CheckForGLFWExtensionPresense(const char** glfwExtensions, uint32_t glfwExtensionCount, const std::vector<VkExtensionProperties>& vkExtensions) {
-        SRHI_LOG(Trace, "GLFW extension support:");
-        bool allExtSupported = true;
-        for (uint32_t i = 0; i < glfwExtensionCount; ++i) {
-            bool present = false;
-            for (auto& ext : vkExtensions) {
-                if (strcmp(ext.extensionName, glfwExtensions[i]) == 0) {
-                    present = true;
-                    break;
-                }
-            }
-            SRHI_LOG(Trace, "-> {}: {}", glfwExtensions[i], present ? "Supported" : "Not Supported");
-            if (!present) { allExtSupported = false; }
-        }
-        return allExtSupported;
     }
 
     void PrintAvailibleVkExtensions(const std::vector<VkExtensionProperties>& vkExtensions) {

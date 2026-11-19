@@ -31,11 +31,40 @@ FetchContent_MakeAvailable(doctest)
 FetchContent_MakeAvailable(entt)
 
 # ----------------------------------------------------------------------------
+# shift_imgui: vendored Dear ImGui + its Vulkan renderer backend, shared by the
+# shift-rhi and shift. The GLFW platform half stays in shift_core
+set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/Source/Graphics/UI/imgui)
+add_library(shift_imgui STATIC
+        ${IMGUI_DIR}/imgui.cpp
+        ${IMGUI_DIR}/imgui_demo.cpp
+        ${IMGUI_DIR}/imgui_draw.cpp
+        ${IMGUI_DIR}/imgui_tables.cpp
+        ${IMGUI_DIR}/imgui_widgets.cpp
+        ${IMGUI_DIR}/imgui_impl_vulkan.cpp
+)
+target_include_directories(shift_imgui PUBLIC ${IMGUI_DIR})
+target_compile_definitions(shift_imgui PUBLIC VK_NO_PROTOTYPES IMGUI_IMPL_VULKAN_USE_VOLK)
+target_link_libraries(shift_imgui PUBLIC volk)
+
+# ----------------------------------------------------------------------------
+# shift_rhi: the standalone RHI, linked by the engine with the ImGui backend on
+set(SHIFT_RHI_IMGUI ON CACHE BOOL "" FORCE)
+set(SHIFT_RHI_IMGUI_TARGET shift_imgui CACHE STRING "" FORCE)
+add_subdirectory(Source/Graphics/RHI)
+
+# ----------------------------------------------------------------------------
 # shift_core: the whole engine as a static library.
 # The Shift app and shift_tests are thin executables on top of it
 # ----------------------------------------------------------------------------
 file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/Source/*.cpp)
 list(REMOVE_ITEM SOURCES ${PROJECT_SOURCE_DIR}/Source/AppDefault.cpp)
+# Built by shift_rhi / shift_imgui instead, ideally should be inlt the rhi folder
+file(GLOB_RECURSE NOT_CORE_SOURCES
+        ${PROJECT_SOURCE_DIR}/Source/Graphics/RHI/*.cpp
+        ${PROJECT_SOURCE_DIR}/Source/Utility/Vulkan/*.cpp
+)
+get_target_property(IMGUI_SOURCES shift_imgui SOURCES)
+list(REMOVE_ITEM SOURCES ${NOT_CORE_SOURCES} ${IMGUI_SOURCES})
 
 set(VENDORED_SOURCES
         ${PROJECT_SOURCE_DIR}/Vendor/local/mikktspace.c
@@ -44,20 +73,12 @@ set(VENDORED_SOURCES
 
 add_library(shift_core STATIC ${SOURCES} ${VENDORED_SOURCES})
 target_compile_features(shift_core PUBLIC cxx_std_20)
-# PUBLIC on purpose: these defines shape headers (backend selection, volk prototypes,
-# VMA mode), so every consumer (engine exe, tests) must compile with the same set
+# PUBLIC on purpose: these defines shape headers, so every consumer (engine exe, tests)
+# compiles with the same set. The backend/volk/VMA defines come PUBLIC from shift_rhi
 target_compile_definitions(
         shift_core
         PUBLIC
         SHIFT_ROOT="${PROJECT_SOURCE_DIR}"
-        SHIFT_VALIDATION=1
-        SHIFT_VULKAN_BACKEND
-
-        VK_NO_PROTOTYPES
-        IMGUI_IMPL_VULKAN_USE_VOLK
-        # Since we use volk, VMA requiires this
-        VMA_STATIC_VULKAN_FUNCTIONS=0
-        VMA_DYNAMIC_VULKAN_FUNCTIONS=0
         _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
 
         GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -117,7 +138,7 @@ if (WIN32)
   target_link_libraries(shift_core PUBLIC
       glm::glm
       glfw
-      volk
+      shift_rhi
       spdlog::spdlog
       Threads::Threads
       fastgltf::fastgltf
@@ -157,8 +178,7 @@ elseif (UNIX)
     target_link_libraries(shift_core PUBLIC
         glm::glm
         glfw
-        volk
-        imgui
+        shift_rhi
         spdlog::spdlog
         ${Vulkan_LIBRARIES}
         fastgltf::fastgltf
