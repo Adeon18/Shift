@@ -102,9 +102,32 @@ namespace Shift {
     }
 
     template<>
-    inline void RenderHardwareInterface<RHI::Vulkan>::WaitForImagePresent(uint32_t imageIndex) {
-        m_presentFences[imageIndex]->Wait();
-        m_presentFences[imageIndex]->Reset();
+    inline EAcquireResult RenderHardwareInterface<RHI::Vulkan>::AcquireFrameImage(FrameImage& out) {
+        VK::BinarySemaphore* imageAvailable = m_local.imageAvailable[m_currentFrame].get();
+        bool outOfDate = false;
+        const uint32_t imageIdx = m_local.swapchain->AquireNextImage(*imageAvailable, &outOfDate);
+        if (outOfDate) {
+            return EAcquireResult::NeedsResize;
+        }
+        if (imageIdx == UINT32_MAX) {
+            return EAcquireResult::Failed;
+        }
+
+        m_local.lastAcquireSemaphore = imageAvailable;
+        //! This image's previous present must be done with its semaphores
+        m_local.presentFences[imageIdx]->Wait();
+        m_local.presentFences[imageIdx]->Reset();
+
+        Texture& texture = m_local.swapchain->GetSwapchainTexture(imageIdx);
+        //! Wait on color attachment output rather than last frame's bottom of the pipe - this caused me hella bugs
+        ResourceStateTracker<RHI::Vulkan>::OnSwapchainAcquire(texture, VK::BinarySemaphore::WAIT_STAGE);
+        out = FrameImage{&texture, imageIdx};
+        return EAcquireResult::Ok;
+    }
+
+    template<>
+    inline bool RenderHardwareInterface<RHI::Vulkan>::Present(const FrameImage& image, bool* needsResize) {
+        return m_local.swapchain->Present(*m_local.renderFinished[image.index], image.index, needsResize, *m_local.presentFences[image.index]);
     }
 
 } // Shift

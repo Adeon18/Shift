@@ -159,8 +159,9 @@ namespace Shift::Graphics {
         [[nodiscard]] const std::vector<GPUTimeRange>& GetLastFrameGPUTimeRanges() const { return m_renderBackend.GetLastFrameGPUTimeRanges(); }
 
     private:
-        [[nodiscard]] uint32_t AquireImage(bool *success);
-        [[nodiscard]] bool PresentFinalImage(uint32_t imageIndex);
+        //! False when there's no image this frame, *success false only on failure
+        [[nodiscard]] bool AquireImage(FrameImage& out, bool* success);
+        [[nodiscard]] bool PresentFinalImage(const FrameImage& image);
         void FillFrameConstants(GPU::FrameConstants* frameConstantsPtr, const EngineData& engineData, const RendererSettings& settings, uint32_t frameSlot);
 
         void UploadObjectData(GPU::ObjectData* objectDataPtr);

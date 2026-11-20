@@ -45,8 +45,9 @@ namespace Shift {
         HandleCreator* CreateInterface() { return &m_handleCreator; }
 
         [[nodiscard]] Swapchain& GetSwapchain() { return *m_local.swapchain; }
-        [[nodiscard]] uint32_t SwapchainAquireImage(bool* wasChanged);
-        [[nodiscard]] bool SwapchainPresent(uint32_t imageIdx, bool* isOld);
+        [[nodiscard]] EAcquireResult AcquireFrameImage(FrameImage& out);
+        //! Pass the image to the SubmitCmds that last writes it before presenting
+        [[nodiscard]] bool Present(const FrameImage& image, bool* needsResize);
         [[nodiscard]] bool ResizeSwapchain(uint32_t width, uint32_t height);
 
         void EndFrame();
@@ -63,13 +64,10 @@ namespace Shift {
         //! Start-of-frame work for the slot about to be recorded
         void BeginFrame();
 
-        BinarySemaphore* GetSwapchainAcquireSemaphore(uint32_t imageIdx) { return m_imageAvailable[imageIdx].get(); }
-        BinarySemaphore* GetSwapchainRenderFinishedSemaphore(uint32_t imageIdx) { return m_renderFinished[imageIdx].get(); }
-
         RHIContext<API>* AcquireSecondaryGraphicsContext();
         void ExecuteSecondaryGraphicsContexts(std::span<RHIContext<API>*> secondaries, RHIContext<API>::SubmitTimelinePayload releasePayload);
 
-        //! Waits until the swapchain binary semaprhores are released
+        //! Waits until this frame slot's previous submit is done
         void WaitForGraphicsContext();
 
         ///! ------------------- Queue ownership handoffs (F-QFOT) ------------------- !///
@@ -79,8 +77,6 @@ namespace Shift {
 
         //! Block until every transfer submitted so far has completed on the GPU
         void WaitForTransferIdle() { m_timelineTransfer->Wait(m_timelineTransferValue.load(std::memory_order_acquire)); }
-
-        void WaitForImagePresent(uint32_t imageIndex);
 
         RHIContext<API>::SubmitTimelinePayload GetTransferWaitPayload();
         RHIContext<API>::SubmitTimelinePayload ReserveTransferSignalPayload();
@@ -144,17 +140,6 @@ namespace Shift {
         //! EndFrame. Each next use of the FIF slot waits exactly on its own value
         std::array<uint64_t, RHI::MAX_FRAMES_IN_FLIGHT> m_frameSlotGraphicsValue{};
 
-        //! To be able to wait on presentation
-        std::vector<RHI::UniquePtr<Fence>> m_presentFences;
-
-        //! This is wrong implementation, with this we can wait until pixels appear in screen but NOT for presentation
-        // std::vector<uint64_t> m_imagePresentIds;
-        // uint64_t m_globalPresentId = 0;
-
-        //! Swapchain-related semaphores
-        std::array<RHI::UniquePtr<BinarySemaphore>, RHI::MAX_FRAMES_IN_FLIGHT> m_imageAvailable;
-        std::vector<RHI::UniquePtr<BinarySemaphore>> m_renderFinished;
-
         //! Last completed frame's GPU timing ranges, refreshed in BeginFrame
         std::vector<GPUTimeRange> m_lastFrameGPUTimeRanges;
     };
@@ -193,27 +178,6 @@ namespace Shift {
         SRHI_CHECK_CRITICAL(m_captureContext.Init(&m_local, EContextType::Graphics, false), "Failed to create Capture Context!");
         m_captureContext.GetCommandBuffer().SetDebugName("CaptureCB");
 
-        uint32_t imageCount = m_local.swapchain->GetImages().size();
-        m_renderFinished.clear();
-        for(uint32_t i = 0; i < imageCount; i++) {
-            auto& sem = m_renderFinished.emplace_back(RHI::CreateUnique<BinarySemaphore>(m_local.device.get()));
-            SRHI_CHECK_CRITICAL(sem->IsValid(), "Failed to create render semaphore");
-            sem->SetDebugName(("RenderFinished[" + std::to_string(i) + "]").c_str());
-            auto& fence = m_presentFences.emplace_back(RHI::CreateUnique<Fence>(m_local.device.get(), true));
-            SRHI_CHECK_CRITICAL(fence->IsValid(), "Failed to create present wait fence");
-            fence->SetDebugName(("PresentFence[" + std::to_string(i) + "]").c_str());
-        }
-
-        for (uint32_t i = 0; i < RHI::MAX_FRAMES_IN_FLIGHT; ++i) {
-            m_imageAvailable[i] = RHI::CreateUnique<BinarySemaphore>(m_local.device.get());
-            SRHI_CHECK_CRITICAL(m_imageAvailable[i]->IsValid(), "Failed Init Acquire Sem");
-            m_imageAvailable[i]->SetDebugName(("ImageAvailable[" + std::to_string(i) + "]").c_str());
-        }
-
-        // m_imagePresentIds.clear();
-        // m_imagePresentIds.resize(m_local.swapchain.GetImages().size(), 0);
-        // m_globalPresentId = 0;
-
         m_timelineCompute = RHI::CreateUnique<TimelineSemaphore>(m_local.device.get(), 0);
         m_timelineGraphics = RHI::CreateUnique<TimelineSemaphore>(m_local.device.get(), 0);
         m_timelineTransfer = RHI::CreateUnique<TimelineSemaphore>(m_local.device.get(), 0);
@@ -233,18 +197,7 @@ namespace Shift {
 
         m_local.ClearPendingAcquires();
 
-        m_local.swapchain.reset();
-
-        for (auto& sem: m_imageAvailable) {
-            sem.reset();
-        }
-        for (auto& sem: m_renderFinished) {
-            sem.reset();
-        }
-
-        for (auto& fence: m_presentFences) {
-            fence.reset();
-        }
+        m_local.DestroySwapchain();
 
         m_timelineTransfer.reset();
         m_timelineGraphics.reset();
@@ -299,44 +252,8 @@ namespace Shift {
     }
 
     template<ValidAPI API>
-    uint32_t RenderHardwareInterface<API>::SwapchainAquireImage(bool *wasChanged) {
-        const uint32_t imageIdx = m_local.swapchain->AquireNextImage(*m_imageAvailable[m_currentFrame], wasChanged);
-        if (imageIdx != UINT32_MAX) {
-            //! Wait on color attachment output rather than last frame's bottom of the pipe
-            ResourceStateTracker<API>::OnSwapchainAcquire(m_local.swapchain->GetSwapchainTexture(imageIdx), BinarySemaphore::WAIT_STAGE);
-        }
-        return imageIdx;
-    }
-
-    template<ValidAPI API>
     bool RenderHardwareInterface<API>::ResizeSwapchain(uint32_t width, uint32_t height) {
-        if (!m_local.swapchain->Recreate(width, height)) {
-            return false;
-        }
-
-        uint32_t newImageCount = m_local.swapchain->GetImages().size();
-
-        if (m_renderFinished.size() != newImageCount) {
-            for (auto& sem : m_renderFinished) {
-                sem.reset();
-            }
-            m_renderFinished.clear();
-
-            for(uint32_t i = 0; i < newImageCount; i++) {
-                auto& sem = m_renderFinished.emplace_back(RHI::CreateUnique<BinarySemaphore>(m_local.device.get()));
-                SRHI_CHECK_CRITICAL(sem->IsValid(), "Failed to recreate render semaphore");
-                sem->SetDebugName(("RenderFinished[" + std::to_string(i) + "]").c_str());
-            }
-        }
-        return true;
-    }
-
-
-    template<ValidAPI API>
-    bool RenderHardwareInterface<API>::SwapchainPresent(uint32_t imageIdx, bool *isOld) {
-        // uint64_t nextId = ++m_globalPresentId;
-        // m_imagePresentIds[imageIdx] = nextId;
-        return m_local.swapchain->Present(*m_renderFinished[imageIdx], imageIdx, isOld, *m_presentFences[imageIdx]);
+        return m_local.RecreateSwapchain(width, height);
     }
 
     template<ValidAPI API>

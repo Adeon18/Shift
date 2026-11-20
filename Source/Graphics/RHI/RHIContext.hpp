@@ -261,9 +261,8 @@ namespace Shift {
         using SubmitTimelinePayload = Shift::SubmitTimelinePayload;
 
         //! Also waits on every timeline point FlushPendingAcquires stored for this recording
-        [[nodiscard]] bool SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads, std::span<SubmitTimelinePayload> sigSemPayloads);
-
-        [[nodiscard]] bool SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads, std::span<SubmitTimelinePayload> sigSemPayloads, std::span<BinarySemaphore*> waitBinSems, std::span<BinarySemaphore*> sigBinSems);
+        //! presentImage: the aqcuired image this sumbit writes
+        [[nodiscard]] bool SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads, std::span<SubmitTimelinePayload> sigSemPayloads, const FrameImage* presentImage = nullptr);
 
         //! Call after BeginCmds, before using any handed-off texture from another queue as ut records the acquire half of every
         //! pending handoff addressed to this context's queue. This recording's submit waits their release
@@ -273,6 +272,9 @@ namespace Shift {
 
     private:
         EPoolQueueType GetQueueType(EContextType type);
+
+        //! Backend hook, adds the frame image present sync to the submit
+        [[nodiscard]] bool SubmitToQueue(std::span<TimelineSemaphore*> waitSems, std::span<uint64_t> waitVals, std::span<TimelineSemaphore*> sigSems, std::span<uint64_t> sigVals, const FrameImage* presentImage);
 
         RHILocal<API>* m_local = nullptr;
         RHIEncoder<API> m_encoder;
@@ -302,6 +304,20 @@ namespace Shift {
         m_encoder = RHIEncoder<RHI::Vulkan>{m_cmdBuffer.get(), m_tracker.get()};
 
         return true;
+    }
+
+    template<>
+    inline bool RHIContext<RHI::Vulkan>::SubmitToQueue(std::span<TimelineSemaphore*> waitSems, std::span<uint64_t> waitVals,
+        std::span<TimelineSemaphore*> sigSems, std::span<uint64_t> sigVals, const FrameImage* presentImage)
+    {
+        if (presentImage == nullptr) {
+            return m_cmdBuffer->Submit(waitSems, waitVals, sigSems, sigVals);
+        }
+
+        std::array<VK::BinarySemaphore*, 1> imageAvailable{m_local->lastAcquireSemaphore};
+        std::array<VK::BinarySemaphore*, 1> renderFinished{m_local->renderFinished[presentImage->index].get()};
+        assert(imageAvailable[0] != nullptr);
+        return m_cmdBuffer->Submit(waitSems, waitVals, sigSems, sigVals, imageAvailable, renderFinished);
     }
 
     template<ValidAPI API>
@@ -475,15 +491,7 @@ namespace Shift {
     }
 
     template<ValidAPI API>
-    bool RHIContext<API>::SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads, std::span<SubmitTimelinePayload> sigSemPayloads)
-    {
-        return SubmitCmds(waitSemPayloads, sigSemPayloads, {}, {});
-    }
-
-    template<ValidAPI API>
-    bool RHIContext<API>::SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads,
-        std::span<SubmitTimelinePayload> sigSemPayloads, std::span<BinarySemaphore*> waitBinSems,
-        std::span<BinarySemaphore*> sigBinSems)
+    bool RHIContext<API>::SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads, std::span<SubmitTimelinePayload> sigSemPayloads, const FrameImage* presentImage)
     {
         assert(!m_isSecondary);
 
@@ -511,7 +519,7 @@ namespace Shift {
             sigVals.push_back(p.value);
         }
 
-        if (!m_cmdBuffer->Submit(waitSems, waitVals, sigSems, sigVals, waitBinSems, sigBinSems)) {
+        if (!SubmitToQueue(waitSems, waitVals, sigSems, sigVals, presentImage)) {
             return false;
         }
 

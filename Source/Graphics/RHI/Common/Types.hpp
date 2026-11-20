@@ -34,7 +34,6 @@ namespace Shift {
     using Texture = VK::Texture;
     using ResourceSet = VK::ResourceSet;
     using Fence = VK::Fence;
-    using BinarySemaphore = VK::BinarySemaphore;
     using TimelineSemaphore = VK::TimelineSemaphore;
     using Swapchain = VK::Swapchain;
     using WindowSurface = VK::WindowSurface;

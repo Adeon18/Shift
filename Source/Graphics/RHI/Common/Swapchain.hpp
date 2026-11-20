@@ -6,6 +6,7 @@
 #define SHIFT_SWAPCHAIN_HPP
 
 #include <concepts>
+#include <cstdint>
 #include <type_traits>
 
 #include "Base.hpp"
@@ -13,17 +14,28 @@
 #include "TextureFormat.hpp"
 
 namespace Shift {
-    //! The interface for a swapchain, has a lot of input variables, might be simpler for older APIs
+    //! The swapchain image a frame writes. Valid from acquire until presenta, should NOT BE CACHED!!!!
+    //! Index is the imaghe index, not all backends use this
+    struct FrameImage {
+        Texture* texture = nullptr;
+        uint32_t index = UINT32_MAX;
+    };
+
+    enum class EAcquireResult {
+        Ok,
+        NeedsResize,
+        Failed
+    };
+
+    //! Acquire/present are per-backend so they are not here.
     //! Not trivially-destructible!
     //! \tparam Swapchain
     template<typename Swapchain>
     concept ISwapchain =
         std::constructible_from<Swapchain, const Device *, const WindowSurface*, uint32_t /*width*/, uint32_t /*height*/> &&
         !std::is_trivially_destructible_v<Swapchain> &&
-    requires(Swapchain InputSwapchain, const BinarySemaphore& InputSemaphore, uint64_t timeout, const Fence& InputFence, uint32_t width, uint32_t height, uint32_t imageIdx, bool* isOld, bool* wasChanged) {
-        { InputSwapchain.AquireNextImage(InputSemaphore, wasChanged, timeout) } -> std::same_as<uint32_t>;
+    requires(Swapchain InputSwapchain, uint32_t width, uint32_t height, uint32_t imageIdx) {
         { InputSwapchain.Recreate(width, height) } -> std::same_as<bool>;
-        { InputSwapchain.Present(InputSemaphore, imageIdx, isOld, InputFence) } -> std::same_as<bool>;
         { InputSwapchain.GetExtent() } -> std::same_as<Extent2D>;
         { InputSwapchain.GetViewport() } -> std::same_as<Viewport>;
         { InputSwapchain.GetFormat() } -> std::same_as<ETextureFormat>;

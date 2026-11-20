@@ -144,7 +144,6 @@ namespace Shift {
             EPoolQueueType InputQueueType,
             EResourceLayout InputLayout,
             EPipelineStageFlags InputStage,
-            std::span<BinarySemaphore*> InputBinSemaphoreSpan,
             std::span<TimelineSemaphore*> InputTimeSemaphoreSpan,
             std::span<uint64_t> InputTimeSemaphoreCounter,
             std::span<BufferOpDescriptor> InputBufferOpDescs,
@@ -167,7 +166,6 @@ namespace Shift {
         //!{ InputBuffer.EndRenderPass() } -> std::same_as<void>;
         { InputBuffer.ExecuteSecondaryBuffers(InputCommandBuffers) } -> std::same_as<void>;
         { InputBuffer.Submit(InputTimeSemaphoreSpan, InputTimeSemaphoreCounter, InputTimeSemaphoreSpan, InputTimeSemaphoreCounter) } -> std::same_as<bool>;
-        { InputBuffer.Submit(InputTimeSemaphoreSpan, InputTimeSemaphoreCounter, InputTimeSemaphoreSpan, InputTimeSemaphoreCounter, InputBinSemaphoreSpan, InputBinSemaphoreSpan) } -> std::same_as<bool>;
         { InputBuffer.CopyBufferToBuffer(InputBufferOpDesc, InputBufferOpDesc, size) } -> std::same_as<void>;
         { InputBuffer.CopyBufferToTexture(InputBufferOpDesc, InputTextureCopyDesc) } -> std::same_as<void>;
         { InputBuffer.CopyTextureToBuffer(InputTextureCopyDesc, InputBufferOpDesc) } -> std::same_as<void>;

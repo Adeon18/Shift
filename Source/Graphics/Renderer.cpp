@@ -173,7 +173,7 @@ namespace Shift::Graphics {
         gContext.EndCmds();
         std::array waitPayloads{m_renderBackend.GetTransferWaitPayload()};
         std::array sigPayloads2{m_renderBackend.ReserveGraphicsSignalPayload()};
-        CheckCritical(gContext.SubmitCmds(waitPayloads, sigPayloads2, {}, {}), "Failed to submit graphics context!");
+        CheckCritical(gContext.SubmitCmds(waitPayloads, sigPayloads2), "Failed to submit graphics context!");
 
         m_renderBackend.WaitForGPU();
         m_textureManager->FreeStagingBuffers();
@@ -261,14 +261,12 @@ namespace Shift::Graphics {
         UploadLightData(lightData);
         FillFrameConstants(frameConstants, engineData, settings, frameSlot);
 
-        uint32_t imageIndex = UINT32_MAX;
+        FrameImage frameImage{};
         if (shouldRenderMainWindow) {
             bool aquireSuccess = true;
-            imageIndex = AquireImage(&aquireSuccess);
-            if (imageIndex == UINT32_MAX) {
+            if (!AquireImage(frameImage, &aquireSuccess)) {
                 return aquireSuccess;
             }
-            m_renderBackend.WaitForImagePresent(imageIndex);
         }
 
         RenderContext& gContext = m_renderBackend.GetGraphicsContext();
@@ -363,7 +361,7 @@ namespace Shift::Graphics {
         if (shouldRenderMainWindow) {
             gEncoder->PushDebugGroup("UIPass", {0.35f, 0.55f, 0.90f, 1.0f}, true);
             // 1. Transition Swapchain to WRITE
-            gEncoder->TransitionTexture(m_renderBackend.GetSwapchain().GetSwapchainTexture(imageIndex), EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
+            gEncoder->TransitionTexture(*frameImage.texture, EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
 
             // 2. Setup UI Render Pass
             RenderPassDescriptor uiPass;
@@ -373,7 +371,7 @@ namespace Shift::Graphics {
             });
             uiPass.extent = m_renderBackend.GetSwapchain().GetExtent();
 
-            std::array swapchainImages{&m_renderBackend.GetSwapchain().GetSwapchainTexture(imageIndex)};
+            std::array swapchainImages{frameImage.texture};
             gEncoder->BeginRenderPass(uiPass, swapchainImages, std::nullopt);
 
             if (editor) {
@@ -382,7 +380,7 @@ namespace Shift::Graphics {
 
             gEncoder->EndRenderPass();
 
-            gEncoder->TransitionTexture(m_renderBackend.GetSwapchain().GetSwapchainTexture(imageIndex), EResourceLayout::Present, EPipelineStageFlags::BottomOfPipeBit);
+            gEncoder->TransitionTexture(*frameImage.texture, EResourceLayout::Present, EPipelineStageFlags::BottomOfPipeBit);
             gEncoder->PopDebugGroup();
         }
 
@@ -392,13 +390,10 @@ namespace Shift::Graphics {
 
         std::array waitPayloads{m_renderBackend.GetTransferWaitPayload()};
         std::array sigPayloads{m_renderBackend.ReserveGraphicsSignalPayload()};
+        const FrameImage* presentImage = shouldRenderMainWindow ? &frameImage : nullptr;
+        CheckCritical(gContext.SubmitCmds(waitPayloads, sigPayloads, presentImage), "Failed to submit graphics context!");
         if (shouldRenderMainWindow) {
-            std::array imgAcquirePayload{m_renderBackend.GetSwapchainAcquireSemaphore(m_renderBackend.GetCurrentFrame())};
-            std::array renderFinishedPayload{m_renderBackend.GetSwapchainRenderFinishedSemaphore(imageIndex)};
-            CheckCritical(gContext.SubmitCmds(waitPayloads, sigPayloads, imgAcquirePayload, renderFinishedPayload), "Failed to submit graphics context!");
-            CheckCritical(PresentFinalImage(imageIndex), "Failed to present final image!");
-        } else {
-            CheckCritical(gContext.SubmitCmds(waitPayloads, sigPayloads, {}, {}), "Failed to submit graphics context!");
+            CheckCritical(PresentFinalImage(frameImage), "Failed to present final image!");
         }
 
 
@@ -499,9 +494,9 @@ namespace Shift::Graphics {
         });
     }
 
-    bool Renderer::PresentFinalImage(uint32_t imageIndex) {
+    bool Renderer::PresentFinalImage(const FrameImage& image) {
         bool isOld = false;
-        bool success = m_renderBackend.SwapchainPresent(imageIndex, &isOld);
+        bool success = m_renderBackend.Present(image, &isOld);
         if (!success) { return false; }
 
         if (isOld || m_window.ShouldProcessResize()) {
@@ -612,22 +607,20 @@ namespace Shift::Graphics {
         return true;
     }
 
-    uint32_t Renderer::AquireImage(bool *success) {
-        bool changed = false;
-        uint32_t imageIndex = m_renderBackend.SwapchainAquireImage(&changed);
-
-        if (changed) {
-            if (!m_renderBackend.ResizeSwapchain(m_window.GetWidth(), m_window.GetHeight())) {
-                *success = false;
-            }
-            return UINT32_MAX;
+    bool Renderer::AquireImage(FrameImage& out, bool* success) {
+        switch (m_renderBackend.AcquireFrameImage(out)) {
+            case EAcquireResult::Ok:
+                return true;
+            case EAcquireResult::NeedsResize:
+                if (!m_renderBackend.ResizeSwapchain(m_window.GetWidth(), m_window.GetHeight())) {
+                    *success = false;
+                }
+                return false;
+            case EAcquireResult::Failed:
+                break;
         }
-
-        if (imageIndex == UINT32_MAX) {
-            *success = false;
-        }
-
-        return imageIndex;
+        *success = false;
+        return false;
     }
 
 } // shift::gfx
