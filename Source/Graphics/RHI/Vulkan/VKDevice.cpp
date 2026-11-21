@@ -220,6 +220,7 @@ namespace Shift::VK {
         m_caps.limits.maxTextureArrayLayers = props.limits.maxImageArrayLayers;
         m_caps.limits.maxVertexAttributes = props.limits.maxVertexInputAttributes;
         m_caps.limits.maxColorAttachments = props.limits.maxColorAttachments;
+        m_caps.limits.maxPushConstantsSize = props.limits.maxPushConstantsSize;
         m_caps.limits.maxComputeWorkGroupCount[0] = props.limits.maxComputeWorkGroupCount[0];
         m_caps.limits.maxComputeWorkGroupCount[1] = props.limits.maxComputeWorkGroupCount[1];
         m_caps.limits.maxComputeWorkGroupCount[2] = props.limits.maxComputeWorkGroupCount[2];

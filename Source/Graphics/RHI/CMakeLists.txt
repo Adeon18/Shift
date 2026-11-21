@@ -48,8 +48,39 @@ if (SHIFT_RHI_IMGUI)
     target_link_libraries(shift_rhi PUBLIC ${SHIFT_RHI_IMGUI_TARGET})
 endif()
 
+# Sample shaders, compiled at build time: <name>.vs.spv / <name>.ps.spv from mainVS / mainPS
+set(SHIFT_RHI_SLANGC "${slang_binaries_SOURCE_DIR}/bin/slangc${CMAKE_EXECUTABLE_SUFFIX}")
+set(SHIFT_RHI_SAMPLE_SHADERS_OUT ${CMAKE_CURRENT_BINARY_DIR}/SampleShaders)
+file(GLOB SHIFT_RHI_SAMPLE_SHADERS ${CMAKE_CURRENT_SOURCE_DIR}/Samples/Shaders/*.slang)
+set(SHIFT_RHI_SAMPLE_SPIRV)
+foreach(shader ${SHIFT_RHI_SAMPLE_SHADERS})
+    get_filename_component(name ${shader} NAME_WE)
+    foreach(stage IN ITEMS vs ps)
+        if (stage STREQUAL "vs")
+            set(entry mainVS)
+            set(slangStage vertex)
+        else()
+            set(entry mainPS)
+            set(slangStage fragment)
+        endif()
+        set(output ${SHIFT_RHI_SAMPLE_SHADERS_OUT}/${name}.${stage}.spv)
+        add_custom_command(
+                OUTPUT ${output}
+                COMMAND ${CMAKE_COMMAND} -E make_directory ${SHIFT_RHI_SAMPLE_SHADERS_OUT}
+                COMMAND ${SHIFT_RHI_SLANGC} ${shader} -entry ${entry} -stage ${slangStage}
+                        -target spirv -profile glsl_450 -emit-spirv-directly -fvk-use-scalar-layout -matrix-layout-row-major
+                        -o ${output}
+                DEPENDS ${shader}
+                VERBATIM
+        )
+        list(APPEND SHIFT_RHI_SAMPLE_SPIRV ${output})
+    endforeach()
+endforeach()
+add_custom_target(shift_rhi_sample_shaders DEPENDS ${SHIFT_RHI_SAMPLE_SPIRV})
+
 # Sample runner, headless
 add_executable(shift_rhi_samples ${SHIFT_RHI_RUNNER_SOURCES})
+add_dependencies(shift_rhi_samples shift_rhi_sample_shaders)
 target_link_libraries(shift_rhi_samples PRIVATE shift_rhi)
 target_include_directories(shift_rhi_samples PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Runner
@@ -59,4 +90,5 @@ target_include_directories(shift_rhi_samples PRIVATE
 target_compile_definitions(shift_rhi_samples PRIVATE
         SHIFT_RHI_GOLDENS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Samples/Goldens"
         SHIFT_RHI_REPORT_HTML="${CMAKE_CURRENT_SOURCE_DIR}/Report/report.html"
+        SHIFT_RHI_SAMPLE_SHADERS_DIR="${SHIFT_RHI_SAMPLE_SHADERS_OUT}"
 )

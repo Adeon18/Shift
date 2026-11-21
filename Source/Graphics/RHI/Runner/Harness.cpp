@@ -4,6 +4,8 @@
 #include <array>
 #include <cmath>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 
 #include "stb_image.h"
 #include "stb_image_write.h"
@@ -40,6 +42,17 @@ namespace Shift::Samples {
             }
             return rgb;
         }
+
+        RHI::UniquePtr<Shader> LoadShader(RenderBackend& rhi, const char* shaderName, EShaderType type) {
+            const std::filesystem::path path = std::filesystem::path(SHIFT_RHI_SAMPLE_SHADERS_DIR) /
+                (std::string(shaderName) + (type == EShaderType::Vertex ? ".vs.spv" : ".ps.spv"));
+            std::ifstream file(path, std::ios::binary);
+            std::vector<uint8_t> bytecode{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+            if (bytecode.empty()) {
+                return nullptr;
+            }
+            return RHI::UniquePtr<Shader>{rhi.CreateInterface()->CreateShader(bytecode, {.type = type, .path = path.string()})};
+        }
     }
 
     bool SubmitAndWait(RenderBackend& rhi, RenderContext& context) {
@@ -52,6 +65,89 @@ namespace Shift::Samples {
         }
         rhi.WaitForGPU();
         return true;
+    }
+
+    RenderContextEncoder* BeginGraphicsCmds(RenderBackend& rhi) {
+        RenderContext& context = rhi.GetGraphicsContext();
+        context.ResetCmds();
+        if (!context.BeginCmds()) {
+            return nullptr;
+        }
+        return context.CreateCommandEncoder();
+    }
+
+    RHI::UniquePtr<Texture> CreateColorTarget(const SampleContext& ctx) {
+        return RHI::UniquePtr<Texture>{ctx.rhi.CreateInterface()->CreateTexture({
+            .width = ctx.width,
+            .height = ctx.height,
+            .format = SAMPLE_COLOR_FORMAT,
+            .usageFlags = ETextureUsageFlags::ColorAttachment | ETextureUsageFlags::TransferSrc,
+            .name = "SampleTarget",
+        })};
+    }
+
+    GraphicsPipeline CreateGraphicsPipeline(RenderBackend& rhi, const char* shaderName, PipelineDescriptor desc) {
+        GraphicsPipeline out;
+        out.vertex = LoadShader(rhi, shaderName, EShaderType::Vertex);
+        out.fragment = LoadShader(rhi, shaderName, EShaderType::Fragment);
+        if (!out.vertex || !out.fragment || !out.vertex->IsValid() || !out.fragment->IsValid()) {
+            return out;
+        }
+
+        desc.name = shaderName;
+        desc.colorBlendConfig.attachments = {{.format = SAMPLE_COLOR_FORMAT}};
+        out.pipeline.reset(rhi.CreateInterface()->CreatePipeline(desc, {
+            {EShaderType::Vertex, out.vertex.get()},
+            {EShaderType::Fragment, out.fragment.get()},
+        }));
+        return out;
+    }
+
+    RHI::UniquePtr<Buffer> CreateFilledBuffer(RenderBackend& rhi, EBufferType type, std::span<const std::byte> data, const char* name) {
+        RHI::UniquePtr<Buffer> buffer{rhi.CreateInterface()->CreateBuffer({.size = data.size(), .name = name, .type = type})};
+        RHI::UniquePtr<Buffer> staging{rhi.CreateInterface()->CreateBuffer({.size = data.size(), .name = "SampleStaging", .type = EBufferType::Staging})};
+        if (!buffer->IsValid() || !staging->IsValid() || staging->GetMapped() == nullptr) {
+            return nullptr;
+        }
+        std::memcpy(staging->GetMapped(), data.data(), data.size());
+
+        RenderContextEncoder* encoder = BeginGraphicsCmds(rhi);
+        if (encoder == nullptr) {
+            return nullptr;
+        }
+        encoder->CopyBufferToBuffer({staging.get(), 0u}, {buffer.get(), 0u}, static_cast<uint32_t>(data.size()));
+        if (!SubmitAndWait(rhi, rhi.GetGraphicsContext())) {
+            return nullptr;
+        }
+        return buffer;
+    }
+
+    void BeginColorPass(RenderContextEncoder& encoder, Texture& target, const UClearColor& clear) {
+        const uint32_t width = target.GetWidth();
+        const uint32_t height = target.GetHeight();
+
+        encoder.TransitionTexture(target, EResourceLayout::ColorAttachmentOptimal, EPipelineStageFlags::ColorAttachmentOutputBit);
+        RenderPassDescriptor pass;
+        pass.extent = {width, height};
+        pass.colorAttachments.push_back({
+            .loadOperation = EAttachmentLoadOperation::Clear,
+            .clearValue = {.color = clear},
+        });
+        std::array targets{&target};
+        encoder.BeginRenderPass(pass, targets, std::nullopt);
+        encoder.SetViewport({0.0f, static_cast<float>(height), static_cast<float>(width), -static_cast<float>(height), 0.0f, 1.0f});
+        encoder.SetScissor({{0, 0}, {width, height}});
+    }
+
+    SampleOutput SubmitAndReadback(RenderBackend& rhi, Texture& target) {
+        if (!SubmitAndWait(rhi, rhi.GetGraphicsContext())) {
+            return {.error = "submit failed"};
+        }
+        SampleOutput out{.image = ReadbackTexture(rhi, target)};
+        if (!out.image.IsValid()) {
+            out.error = "readback failed";
+        }
+        return out;
     }
 
     SampleImage ReadbackTexture(RenderBackend& rhi, Texture& texture) {

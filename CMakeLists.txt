@@ -110,6 +110,9 @@ add_test(NAME shift_tests COMMAND shift_tests)
 # A regression that deadlocks (the executor's old under-lock callbacks) must fail, not hang
 set_tests_properties(shift_tests PROPERTIES TIMEOUT 300)
 
+add_test(NAME shift_rhi_samples COMMAND shift_rhi_samples --out ${CMAKE_BINARY_DIR}/rhi_report)
+set_tests_properties(shift_rhi_samples PROPERTIES TIMEOUT 300)
+
 if (WIN32)
   message(STATUS "CREATING BUILD FOR WINDOWS")
 

@@ -37,6 +37,7 @@ namespace Shift {
         { InputSet.UpdateUBO(bind, InputBuffer, size, offset) } -> std::same_as<void>;
         { InputSet.UpdateTexture(bind, arrElement, InputTexture) } -> std::same_as<void>;
         { InputSet.UpdateSampler(bind, arrElement, InputSampler) } -> std::same_as<void>;
+        { InputSet.Apply() } -> std::same_as<void>;
     };
 }
 
