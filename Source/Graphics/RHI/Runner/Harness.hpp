@@ -33,7 +33,6 @@ namespace Shift::Samples {
     //! Device-local buffer filled by a staging copy on its own submit
     [[nodiscard]] RHI::UniquePtr<Buffer> CreateFilledBuffer(RenderBackend& rhi, EBufferType type, std::span<const std::byte> data, const char* name);
 
-    //! Viewport is flipped to y-up NDC
     void BeginColorPass(RenderContextEncoder& encoder, Texture& target, const UClearColor& clear = SAMPLE_CLEAR_COLOR);
 
     //! Ends the graphics cmds, submits, waits and reads the target back

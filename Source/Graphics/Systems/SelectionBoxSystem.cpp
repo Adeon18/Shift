@@ -74,7 +74,7 @@ namespace Shift::Graphics {
 
         encoder.SetScissor({{0, 0}, {width, height}});
         //! TODO: [REFACTOR] I should probably put this somewhere
-        encoder.SetViewport({0.0f, static_cast<float>(height), static_cast<float>(width), -static_cast<float>(height), 0.0f, 1.0f});
+        encoder.SetViewport({0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f});
 
         encoder.BindGraphicsPipeline(*pipeline);
 

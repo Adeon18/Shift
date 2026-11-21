@@ -309,9 +309,8 @@ namespace Shift::Graphics {
             gEncoder->BeginRenderPass(renderPass, colorTextures, m_viewportDepth);
 
             const Rect2D scissor = {{0, 0}, {viewportHDR->GetWidth(), viewportHDR->GetHeight()}};
-            const Viewport viewport = {0.0f, static_cast<float>(viewportHDR->GetHeight()),
-                                       static_cast<float>(viewportHDR->GetWidth()),
-                                       -static_cast<float>(viewportHDR->GetHeight()), 0.0f, 1.0f};
+            const Viewport viewport = {0.0f, 0.0f, static_cast<float>(viewportHDR->GetWidth()),
+                                       static_cast<float>(viewportHDR->GetHeight()), 0.0f, 1.0f};
             gEncoder->SetScissor(scissor);
             gEncoder->SetViewport(viewport);
 

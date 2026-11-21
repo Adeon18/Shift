@@ -578,7 +578,8 @@ namespace Shift::VK {
     }
 
     void CommandBuffer::SetViewport(Viewport viewport) const {
-        VkViewport v = VkViewport{viewport.x, viewport.y, viewport.width, viewport.height, viewport.minDepth, viewport.maxDepth};
+        //! Callers use y-up NDC (D3D12/Metal), so a negative height flips Vulkan's y-down NDC to match
+        VkViewport v = VkViewport{viewport.x, viewport.y + viewport.height, viewport.width, -viewport.height, viewport.minDepth, viewport.maxDepth};
         vkCmdSetViewport(m_buffer, 0, 1, &v);
     }
 

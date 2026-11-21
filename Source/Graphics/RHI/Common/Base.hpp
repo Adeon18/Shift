@@ -55,6 +55,7 @@ namespace Shift {
         Extent3D extent;
     };
 
+    //! NDC is y-up on every backend
     struct Viewport {
         float x;
         float y;
