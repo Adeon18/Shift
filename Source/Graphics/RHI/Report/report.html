@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shift RHI Samples</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --panel: #ffffff; --text: #1d1d1f; --muted: #6b6b70; --line: #deded9;
+    --pass: #1f7a3a; --fail: #b3261e; --updated: #8a5a00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151517; --panel: #1f1f22; --text: #ececec; --muted: #9a9aa0; --line: #333338;
+            --pass: #5cc27a; --fail: #ff7a70; --updated: #e0b04a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px 16px; background: var(--bg); color: var(--text);
+         font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .meta { color: var(--muted); margin-bottom: 16px; }
+  .filters button { font: inherit; padding: 4px 12px; margin-right: 6px; border: 1px solid var(--line);
+                    background: var(--panel); color: var(--text); border-radius: 6px; cursor: pointer; }
+  .filters button.active { border-color: var(--text); }
+  .grid { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0; }
+  .chip { padding: 2px 8px; border-radius: 4px; font-size: 12px; color: #fff; text-decoration: none; }
+  .passed { background: var(--pass); } .failed { background: var(--fail); } .updated { background: var(--updated); }
+  .sample { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+  .sample h2 { font-size: 15px; margin: 0 0 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .numbers { color: var(--muted); font-size: 12px; }
+  pre { white-space: pre-wrap; word-break: break-word; margin: 8px 0; font-size: 12px; color: var(--fail); }
+  .images { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
+  figure { margin: 0; } figcaption { color: var(--muted); font-size: 12px; }
+  img { width: 100%; height: auto; border: 1px solid var(--line); display: block; image-rendering: pixelated; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Shift RHI Samples</h1>
+  <div class="meta" id="meta">No results.js next to this page.</div>
+  <div class="filters">
+    <button data-filter="all" class="active">All</button>
+    <button data-filter="failed">Failed</button>
+    <button data-filter="passed">Passed</button>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div id="samples"></div>
+</main>
+<script src="results.js"></script>
+<script>
+  const results = window.SHIFT_RESULTS;
+  let filter = "all";
+
+  function el(tag, props, children) {
+    const node = Object.assign(document.createElement(tag), props || {});
+    (children || []).forEach(c => node.append(c));
+    return node;
+  }
+
+  function figure(caption, src) {
+    return el("figure", {}, [el("a", {href: src}, [el("img", {src, alt: caption})]), el("figcaption", {textContent: caption})]);
+  }
+
+  function render() {
+    if (!results) return;
+    const failed = results.samples.filter(s => s.status === "failed").length;
+    document.getElementById("meta").textContent =
+      `${results.backend} · ${results.device} · ${results.width}×${results.height} · ` +
+      `${results.samples.length} samples, ${failed} failed · ${results.totalMs.toFixed(0)} ms`;
+
+    const grid = document.getElementById("grid");
+    const list = document.getElementById("samples");
+    grid.replaceChildren();
+    list.replaceChildren();
+
+    for (const s of results.samples) {
+      grid.append(el("a", {className: `chip ${s.status}`, href: `#${s.name}`, textContent: s.name}));
+      if (filter !== "all" && s.status !== filter) continue;
+
+      const flip = s.flipMean >= 0 ? `FLIP ${s.flipMean.toFixed(5)} / ${s.threshold}` : "no FLIP";
+      const images = [];
+      if (s.output) images.push(figure("output", s.output));
+      if (s.golden) images.push(figure("golden", s.golden));
+      if (s.diff) images.push(figure("FLIP error", s.diff));
+
+      list.append(el("section", {className: "sample", id: s.name}, [
+        el("h2", {}, [el("span", {className: `chip ${s.status}`, textContent: s.status}), s.name]),
+        el("div", {className: "numbers",
+                   textContent: `${flip} · run ${s.runMs.toFixed(1)} ms · png ${s.pngMs.toFixed(1)} ms · flip ${s.flipMs.toFixed(1)} ms`}),
+        s.message ? el("pre", {textContent: s.message}) : "",
+        el("div", {className: "images"}, images),
+      ]));
+    }
+  }
+
+  document.querySelectorAll(".filters button").forEach(b => b.addEventListener("click", () => {
+    filter = b.dataset.filter;
+    document.querySelectorAll(".filters button").forEach(x => x.classList.toggle("active", x === b));
+    render();
+  }));
+  render();
+</script>
+</body>
+</html>

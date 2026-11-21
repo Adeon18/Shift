@@ -107,12 +107,12 @@ namespace Shift::VK::Util {
         createInfo.pUserData = nullptr;
     }
 
-    std::vector<const char *> ResolveDeviceExtensions(const RHIRequiredFeatures &required)
+    std::vector<const char *> ResolveDeviceExtensions(const RHIRequiredFeatures &required, bool presentation)
     {
         std::vector<const char*> result;
 
         // swapchain is still an extension
-        if (required.VK_requireSwapchain) result.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+        if (presentation) result.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
         if (required.VK_presentWait) result.push_back(VK_KHR_PRESENT_WAIT_EXTENSION_NAME);
         if (required.VK_presentWait) result.push_back(VK_KHR_PRESENT_ID_EXTENSION_NAME);
         if (required.VK_maintenance1) {
@@ -424,16 +424,15 @@ namespace Shift::VK::Util {
         if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) score += 1000;
         else if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) score += 500;
 
+        const bool presentation = surface != VK_NULL_HANDLE;
+
         // Queue checks
-        if (!FindQueueFamilies(device, surface, required.VK_forceUnifiedQueues).isComplete()) return 0;
+        if (!FindQueueFamilies(device, surface, required.VK_forceUnifiedQueues).isComplete(presentation)) return 0;
 
         // Device extensions
-        if (!CheckDeviceExtensionSupport(device, ResolveDeviceExtensions(required))) return 0;
+        if (!CheckDeviceExtensionSupport(device, ResolveDeviceExtensions(required, presentation))) return 0;
 
-        // Swapchain support if requested
-        if (required.VK_requireSwapchain) {
-            if (!QuerySwapChainSupport(device, surface).isComplete()) return 0;
-        }
+        if (presentation && !QuerySwapChainSupport(device, surface).isComplete()) return 0;
 
         // Now query feature support for the requested features and hard-fail at selection time if missing.
         // We'll query a minimal set of features via features2 and its pNext chain.

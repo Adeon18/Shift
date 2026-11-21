@@ -76,6 +76,11 @@ namespace Shift {
     }
 
     template<>
+    inline const RHICapabilities& RenderHardwareInterface<RHI::Vulkan>::GetCapabilities() const {
+        return m_local.device->GetCapabilities();
+    }
+
+    template<>
     inline Pipeline* RenderHardwareInterface<RHI::Vulkan>::HandleCreator::CreatePipeline(const PipelineDescriptor &desc,
         const std::vector<ShaderStageDesc> &shaders)
     {

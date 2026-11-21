@@ -8,6 +8,11 @@ file(GLOB_RECURSE SHIFT_RHI_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/../../Utility/Vulkan/*.cpp
 )
+file(GLOB SHIFT_RHI_RUNNER_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/Runner/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/Samples/*.cpp
+)
+list(REMOVE_ITEM SHIFT_RHI_SOURCES ${SHIFT_RHI_RUNNER_SOURCES})
 if (NOT SHIFT_RHI_IMGUI)
     list(FILTER SHIFT_RHI_SOURCES EXCLUDE REGEX "VKImGuiBackend\\.cpp$")
 endif()
@@ -42,3 +47,16 @@ if (SHIFT_RHI_IMGUI)
     target_compile_definitions(shift_rhi PUBLIC SHIFT_RHI_IMGUI)
     target_link_libraries(shift_rhi PUBLIC ${SHIFT_RHI_IMGUI_TARGET})
 endif()
+
+# Sample runner, headless
+add_executable(shift_rhi_samples ${SHIFT_RHI_RUNNER_SOURCES})
+target_link_libraries(shift_rhi_samples PRIVATE shift_rhi)
+target_include_directories(shift_rhi_samples PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Runner
+        ${CMAKE_CURRENT_SOURCE_DIR}/Samples
+        ${CMAKE_CURRENT_SOURCE_DIR}/Vendor
+)
+target_compile_definitions(shift_rhi_samples PRIVATE
+        SHIFT_RHI_GOLDENS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Samples/Goldens"
+        SHIFT_RHI_REPORT_HTML="${CMAKE_CURRENT_SOURCE_DIR}/Report/report.html"
+)

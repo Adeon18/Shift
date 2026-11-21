@@ -320,8 +320,9 @@ namespace Shift::VK {
 
     bool Device::CreateLogicalDevice(VkSurfaceKHR surface) {
         //! And here we actually may force same queues
+        const bool presentation = surface != VK_NULL_HANDLE;
         m_queueFamilyIndices = Util::FindQueueFamilies(m_physicalDevice, surface, m_required.VK_forceUnifiedQueues);
-        SRHI_CHECK_EXIT(m_queueFamilyIndices.isComplete());
+        SRHI_CHECK_EXIT(m_queueFamilyIndices.isComplete(presentation));
         Util::LogQueueFamilySelection(m_physicalDevice, m_queueFamilyIndices);
         LogMemoryHeaps(m_physicalDevice);
 
@@ -337,7 +338,7 @@ namespace Shift::VK {
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
         std::set<uint32_t> uniqueQueueFamilies;
         uniqueQueueFamilies.insert(m_queueFamilyIndices.graphicsFamily.value());
-        if (m_queueFamilyIndices.presentFamily.value() != m_queueFamilyIndices.graphicsFamily.value())
+        if (presentation && m_queueFamilyIndices.presentFamily.value() != m_queueFamilyIndices.graphicsFamily.value())
             uniqueQueueFamilies.insert(m_queueFamilyIndices.presentFamily.value());
         if (m_queueFamilyIndices.computeFamily.value() != m_queueFamilyIndices.graphicsFamily.value())
             uniqueQueueFamilies.insert(m_queueFamilyIndices.computeFamily.value());
@@ -354,7 +355,7 @@ namespace Shift::VK {
         }
 
         // Resolve device extensions (minimal for 1.3 baseline)
-        auto deviceExtensions = Util::ResolveDeviceExtensions(m_required);
+        auto deviceExtensions = Util::ResolveDeviceExtensions(m_required, presentation);
 
         // Validate extensions are present on device
         if (!Util::CheckDeviceExtensionSupport(m_physicalDevice, deviceExtensions)) {
@@ -394,7 +395,9 @@ namespace Shift::VK {
 
         // Pull queues
         vkGetDeviceQueue(m_device, m_queueFamilyIndices.graphicsFamily.value(), 0, &m_graphicsQueue);
-        vkGetDeviceQueue(m_device, m_queueFamilyIndices.presentFamily.value(), 0, &m_presentQueue);
+        if (presentation) {
+            vkGetDeviceQueue(m_device, m_queueFamilyIndices.presentFamily.value(), 0, &m_presentQueue);
+        }
         vkGetDeviceQueue(m_device, m_queueFamilyIndices.computeFamily.value(), 0, &m_computeQueue);
         vkGetDeviceQueue(m_device, m_queueFamilyIndices.transferFamily.value(), 0, &m_transferQueue);
 

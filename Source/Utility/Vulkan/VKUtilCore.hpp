@@ -25,8 +25,9 @@ namespace Shift::VK::Util {
         std::optional<uint32_t> presentFamily;
         std::optional<uint32_t> transferFamily;
 
-        bool isComplete() const {
-            return graphicsFamily.has_value() && presentFamily.has_value()
+        //! Headless devices have no present family
+        bool isComplete(bool presentation = true) const {
+            return graphicsFamily.has_value() && (presentFamily.has_value() || !presentation)
                    && transferFamily.has_value() && computeFamily.has_value();
         }
     };
@@ -49,7 +50,7 @@ namespace Shift::VK::Util {
     void FillDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 
     //! Build required device extension list from RHIRequiredFeatures
-    std::vector<const char*> ResolveDeviceExtensions(const RHIRequiredFeatures& required);
+    std::vector<const char*> ResolveDeviceExtensions(const RHIRequiredFeatures& required, bool presentation);
 
     //! Instance-level required extensions (surface + optional debug)
     std::vector<const char*> GetRequiredInstanceExtensions(const RHIRequiredFeatures& required, std::span<const char* const> surfaceExtensions);

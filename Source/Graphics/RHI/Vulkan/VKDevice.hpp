@@ -151,6 +151,7 @@ namespace Shift::VK {
         [[nodiscard]] VkDevice Get() const { return m_device; }
         [[nodiscard]] VkPhysicalDevice GetPhysicalDevice() const { return m_physicalDevice; }
         [[nodiscard]] VkPhysicalDeviceProperties GetDeviceProperties() const { return m_deviceProperties; }
+        [[nodiscard]] const RHICapabilities& GetCapabilities() const { return m_caps; }
         [[nodiscard]] VmaAllocator GetAllocator() const { return m_allocator; }
         [[nodiscard]] VkQueue GetGraphicsQueue() const { return m_graphicsQueue; }
         [[nodiscard]] VkQueue GetPresentQueue() const { return m_presentQueue; }

@@ -60,7 +60,6 @@ namespace Shift {
         bool VK_enableValidationLayers      = false;
         //! Programmatically enable the validation layer's synchronization validation
         bool VK_syncValidation          = false;
-        bool VK_requireSwapchain        = false;
         bool VK_hostQueryReset = false;
         bool VK_presentWait = false;
         bool VK_maintenance1 = false;

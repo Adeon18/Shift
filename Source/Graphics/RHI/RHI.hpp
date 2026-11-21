@@ -44,6 +44,8 @@ namespace Shift {
         //! Handle creator is an API for the RHI for mosty managers
         HandleCreator* CreateInterface() { return &m_handleCreator; }
 
+        [[nodiscard]] const RHICapabilities& GetCapabilities() const;
+
         [[nodiscard]] Swapchain& GetSwapchain() { return *m_local.swapchain; }
         [[nodiscard]] EAcquireResult AcquireFrameImage(FrameImage& out);
         //! Pass the image to the SubmitCmds that last writes it before presenting
