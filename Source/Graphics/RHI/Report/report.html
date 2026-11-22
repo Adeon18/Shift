@@ -6,99 +6,241 @@
 <title>Shift RHI Samples</title>
 <style>
   :root {
-    --bg: #f6f6f4; --panel: #ffffff; --text: #1d1d1f; --muted: #6b6b70; --line: #deded9;
-    --pass: #1f7a3a; --fail: #b3261e; --updated: #8a5a00;
+    --bg: #f6f6f4; --panel: #ffffff; --text: #1d1d1f; --muted: #6b6b70; --line: #deded9; --thumb: #e9e9e5;
+    --pass: #1f7a3a; --fail: #b3261e; --fail-bg: rgba(179, 38, 30, 0.08); --updated: #8a5a00; --none: #8a8a90;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #151517; --panel: #1f1f22; --text: #ececec; --muted: #9a9aa0; --line: #333338;
-            --pass: #5cc27a; --fail: #ff7a70; --updated: #e0b04a; }
+    :root { --bg: #151517; --panel: #1f1f22; --text: #ececec; --muted: #9a9aa0; --line: #333338; --thumb: #2a2a2e;
+            --pass: #5cc27a; --fail: #ff7a70; --fail-bg: rgba(255, 122, 112, 0.10); --updated: #e0b04a; --none: #6a6a70; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; padding: 24px 16px; background: var(--bg); color: var(--text);
          font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  main { max-width: 1200px; margin: 0 auto; }
-  h1 { font-size: 20px; margin: 0 0 4px; }
-  .meta { color: var(--muted); margin-bottom: 16px; }
-  .filters button { font: inherit; padding: 4px 12px; margin-right: 6px; border: 1px solid var(--line);
+  main { max-width: 1600px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 8px; }
+  .mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12px; }
+  .runs { margin-bottom: 12px; display: grid; gap: 4px; }
+  .run { color: var(--muted); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .run b { color: var(--text); }
+  .run .bad { color: var(--fail); }
+
+  .filters { margin-bottom: 12px; }
+  .filters button { font: inherit; padding: 4px 12px; margin: 0 6px 6px 0; border: 1px solid var(--line);
                     background: var(--panel); color: var(--text); border-radius: 6px; cursor: pointer; }
   .filters button.active { border-color: var(--text); }
-  .grid { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0; }
-  .chip { padding: 2px 8px; border-radius: 4px; font-size: 12px; color: #fff; text-decoration: none; }
-  .passed { background: var(--pass); } .failed { background: var(--fail); } .updated { background: var(--updated); }
-  .sample { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-  .sample h2 { font-size: 15px; margin: 0 0 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .numbers { color: var(--muted); font-size: 12px; }
-  pre { white-space: pre-wrap; word-break: break-word; margin: 8px 0; font-size: 12px; color: var(--fail); }
-  .images { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
-  figure { margin: 0; } figcaption { color: var(--muted); font-size: 12px; }
-  img { width: 100%; height: auto; border: 1px solid var(--line); display: block; image-rendering: pixelated; }
+
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 11px; font-weight: 600;
+           color: #fff; white-space: nowrap; }
+  @media (prefers-color-scheme: dark) { .badge { color: #111; } }
+  .badge.passed { background: var(--pass); } .badge.failed { background: var(--fail); }
+  .badge.updated { background: var(--updated); } .badge.none { background: var(--none); }
+  .badges { display: flex; gap: 4px; flex-wrap: wrap; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; cursor: pointer;
+          text-align: left; padding: 0; font: inherit; color: inherit; display: flex; flex-direction: column; }
+  .tile:hover, .tile:focus-visible { border-color: var(--text); outline: none; }
+  .tile.failed { border: 2px solid var(--fail); background: var(--fail-bg); }
+  .thumb { aspect-ratio: 16 / 9; background: var(--thumb); overflow: hidden; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .tile-body { padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
+  .tile-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .reason { color: var(--fail); word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical; overflow: hidden; }
+
+  dialog { width: min(1400px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--line);
+           border-radius: 10px; background: var(--panel); color: var(--text); }
+  dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
+  .dlg-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--line);
+              position: sticky; top: 0; background: var(--panel); z-index: 1; }
+  .dlg-head h2 { margin: 0; flex: 1; font-size: 15px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .dlg-head button { font: inherit; padding: 4px 10px; border: 1px solid var(--line); background: var(--panel);
+                     color: var(--text); border-radius: 6px; cursor: pointer; }
+  .dlg-body { padding: 14px; display: grid; gap: 16px; }
+  .backend h3 { font-size: 14px; margin: 0 0 6px; display: flex; gap: 8px; align-items: center; }
+  .numbers { color: var(--muted); margin-bottom: 8px; }
+  pre { white-space: pre-wrap; word-break: break-word; margin: 0 0 8px; color: var(--fail);
+        background: var(--fail-bg); padding: 8px 10px; border-radius: 6px; }
+  .images { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 10px; }
+  figure { margin: 0; } figcaption { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  figure img { width: 100%; height: auto; border: 1px solid var(--line); display: block; image-rendering: pixelated; }
+  .empty { color: var(--muted); }
 </style>
 </head>
 <body>
 <main>
   <h1>Shift RHI Samples</h1>
-  <div class="meta" id="meta">No results.js next to this page.</div>
-  <div class="filters">
-    <button data-filter="all" class="active">All</button>
-    <button data-filter="failed">Failed</button>
-    <button data-filter="passed">Passed</button>
-  </div>
+  <div class="runs" id="runs">No results yet: run shift_rhi_samples.</div>
+  <div class="filters" id="filters"></div>
   <div class="grid" id="grid"></div>
-  <div id="samples"></div>
 </main>
-<script src="results.js"></script>
+
+<dialog id="detail">
+  <div class="dlg-head">
+    <h2 id="dlg-title"></h2>
+    <button id="dlg-prev" title="Previous (←)">←</button>
+    <button id="dlg-next" title="Next (→)">→</button>
+    <button id="dlg-close" title="Close (Esc)">✕</button>
+  </div>
+  <div class="dlg-body" id="dlg-body"></div>
+</dialog>
+
+<!-- Each backend's run writes its own folder; a backend that never ran just fails to load -->
+<script src="vulkan/results.js"></script>
+<script src="dx12/results.js"></script>
 <script>
-  const results = window.SHIFT_RESULTS;
+  const BACKENDS = [["Vulkan", "VK"], ["DX12", "DX12"]];
+  const runs = window.SHIFT_RESULTS || {};
+  const ran = BACKENDS.filter(([key]) => runs[key]);
+
+  // One row per sample name, in ladder order, holding each backend's result (or nothing when it did not run)
+  const samples = [];
+  for (const [key] of ran) {
+    for (const r of runs[key].samples) {
+      let row = samples.find(s => s.name === r.name);
+      if (!row) samples.push(row = {name: r.name, golden: "", results: {}});
+      row.results[key] = r;
+      row.golden ||= r.golden;
+    }
+  }
+
+  // Anything that did not pass (failed, not implemented, ...) counts as failed
+  const statusOf = r => !r ? "none" : (r.status === "passed" || r.status === "updated") ? r.status : "failed";
+  const rowFailed = s => ran.some(([key]) => statusOf(s.results[key]) === "failed");
+  const rowPassed = s => ran.every(([key]) => ["passed", "updated"].includes(statusOf(s.results[key])));
+  const flipText = r => r && r.flipMean >= 0 ? `FLIP ${r.flipMean.toFixed(5)} / ${r.threshold}` : "";
+  const firstLine = text => (text || "").split("\n")[0];
   let filter = "all";
 
   function el(tag, props, children) {
     const node = Object.assign(document.createElement(tag), props || {});
-    (children || []).forEach(c => node.append(c));
+    (children || []).forEach(c => c !== null && c !== undefined && node.append(c));
     return node;
   }
 
-  function figure(caption, src) {
-    return el("figure", {}, [el("a", {href: src}, [el("img", {src, alt: caption})]), el("figcaption", {textContent: caption})]);
+  function badge(key, label, r) {
+    const status = statusOf(r);
+    const mark = {passed: "✓", updated: "↻", failed: "✗", none: "–"}[status];
+    return el("span", {className: `badge ${status}`, title: status === "none" ? `${key} did not run` : `${key}: ${status}`,
+                       textContent: `${label} ${mark}`});
   }
+  const badges = s => el("span", {className: "badges"}, BACKENDS.map(([key, label]) => badge(key, label, s.results[key])));
 
-  function render() {
-    if (!results) return;
-    const failed = results.samples.filter(s => s.status === "failed").length;
-    document.getElementById("meta").textContent =
-      `${results.backend} · ${results.device} · ${results.width}×${results.height} · ` +
-      `${results.samples.length} samples, ${failed} failed · ${results.totalMs.toFixed(0)} ms`;
-
-    const grid = document.getElementById("grid");
-    const list = document.getElementById("samples");
-    grid.replaceChildren();
-    list.replaceChildren();
-
-    for (const s of results.samples) {
-      grid.append(el("a", {className: `chip ${s.status}`, href: `#${s.name}`, textContent: s.name}));
-      if (filter !== "all" && s.status !== filter) continue;
-
-      const flip = s.flipMean >= 0 ? `FLIP ${s.flipMean.toFixed(5)} / ${s.threshold}` : "no FLIP";
-      const images = [];
-      if (s.output) images.push(figure("output", s.output));
-      if (s.golden) images.push(figure("golden", s.golden));
-      if (s.diff) images.push(figure("FLIP error", s.diff));
-
-      list.append(el("section", {className: "sample", id: s.name}, [
-        el("h2", {}, [el("span", {className: `chip ${s.status}`, textContent: s.status}), s.name]),
-        el("div", {className: "numbers",
-                   textContent: `${flip} · run ${s.runMs.toFixed(1)} ms · png ${s.pngMs.toFixed(1)} ms · flip ${s.flipMs.toFixed(1)} ms`}),
-        s.message ? el("pre", {textContent: s.message}) : "",
-        el("div", {className: "images"}, images),
-      ]));
+  function renderRuns() {
+    const box = document.getElementById("runs");
+    if (!ran.length) return;
+    box.replaceChildren();
+    for (const [key] of BACKENDS) {
+      const run = runs[key];
+      if (!run) {
+        box.append(el("div", {className: "run"}, [el("b", {textContent: key}), "not run yet"]));
+        continue;
+      }
+      const passed = run.samples.filter(r => statusOf(r) !== "failed").length;
+      const parts = [el("b", {textContent: key}), run.device || "no device", `${passed}/${run.samples.length} passed`,
+                     run.ranAtMs ? `ran ${new Date(run.ranAtMs).toLocaleString()}` : ""];
+      for (const [stage, st] of [["init", run.init], ["teardown", run.teardown]]) {
+        if (st && st.status !== "passed") parts.push(el("span", {className: "bad mono", textContent: `${stage}: ${firstLine(st.message)}`}));
+      }
+      box.append(el("div", {className: "run"}, parts.filter(Boolean).map(p => typeof p === "string" ? el("span", {textContent: p}) : p)));
     }
   }
 
-  document.querySelectorAll(".filters button").forEach(b => b.addEventListener("click", () => {
-    filter = b.dataset.filter;
-    document.querySelectorAll(".filters button").forEach(x => x.classList.toggle("active", x === b));
-    render();
-  }));
-  render();
+  function renderFilters() {
+    const filters = document.getElementById("filters");
+    filters.replaceChildren();
+    const count = {all: samples.length, failed: samples.filter(rowFailed).length, passed: samples.filter(rowPassed).length};
+    for (const [key, label] of [["all", "All"], ["failed", "Failed"], ["passed", "Passed"]]) {
+      const b = el("button", {className: key === filter ? "active" : "", textContent: `${label} (${count[key]})`});
+      b.addEventListener("click", () => { filter = key; renderFilters(); renderGrid(); });
+      filters.append(b);
+    }
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById("grid");
+    grid.replaceChildren();
+    for (const s of samples) {
+      if (filter === "failed" && !rowFailed(s)) continue;
+      if (filter === "passed" && !rowPassed(s)) continue;
+      const output = ran.map(([key]) => s.results[key]?.output).find(Boolean);
+      const src = output || s.golden;
+      const failing = ran.find(([key]) => statusOf(s.results[key]) === "failed");
+      const reason = failing ? `${failing[1]}: ${firstLine(s.results[failing[0]].message) || "failed"}` : "";
+      const tile = el("button", {className: `tile ${failing ? "failed" : ""}`}, [
+        el("div", {className: "thumb"}, src ? [el("img", {src, alt: "", loading: "lazy"})] : []),
+        el("div", {className: "tile-body"}, [
+          el("span", {className: "tile-name", textContent: s.name}),
+          badges(s),
+          reason ? el("div", {className: "reason mono", textContent: reason, title: reason}) : null,
+        ]),
+      ]);
+      tile.addEventListener("click", () => { location.hash = s.name; });
+      grid.append(tile);
+    }
+    if (!grid.children.length) grid.append(el("div", {className: "empty", textContent: "Nothing matches this filter."}));
+  }
+
+  function figure(caption, src) {
+    return el("figure", {}, [el("a", {href: src, target: "_blank"}, [el("img", {src, alt: caption})]),
+                             el("figcaption", {textContent: caption})]);
+  }
+
+  const dialog = document.getElementById("detail");
+  let current = -1;
+
+  function openDetail(index) {
+    const s = samples[index];
+    current = index;
+    document.getElementById("dlg-title").replaceChildren(s.name, badges(s));
+
+    // Golden and every backend's output side by side, then each backend's own numbers, message and FLIP error
+    const compare = [];
+    if (s.golden) compare.push(figure("golden", s.golden));
+    for (const [key] of ran) if (s.results[key]?.output) compare.push(figure(`${key} output`, s.results[key].output));
+    const sections = [compare.length ? el("div", {className: "images"}, compare) : el("div", {className: "empty", textContent: "No images."})];
+
+    for (const [key, label] of ran) {
+      const r = s.results[key];
+      if (!r) continue;
+      const numbers = [flipText(r)];
+      if (r.runMs > 0) numbers.push(`run ${r.runMs.toFixed(1)} ms · png ${r.pngMs.toFixed(1)} ms · flip ${r.flipMs.toFixed(1)} ms`);
+      sections.push(el("section", {className: "backend"}, [
+        el("h3", {}, [key, badge(key, label, r)]),
+        el("div", {className: "numbers", textContent: numbers.filter(Boolean).join(" · ")}),
+        r.message ? el("pre", {className: "mono", textContent: r.message}) : null,
+        r.diff ? el("div", {className: "images"}, [figure(`${key} FLIP error`, r.diff)]) : null,
+      ]));
+    }
+    document.getElementById("dlg-body").replaceChildren(...sections);
+    document.getElementById("dlg-prev").disabled = index === 0;
+    document.getElementById("dlg-next").disabled = index === samples.length - 1;
+    if (!dialog.open) dialog.showModal();
+  }
+
+  function onHash() {
+    const index = samples.findIndex(s => s.name === decodeURIComponent(location.hash.slice(1)));
+    if (index >= 0) openDetail(index);
+    else if (dialog.open) dialog.close();
+  }
+
+  const go = i => { if (samples[i]) location.hash = samples[i].name; };
+  document.getElementById("dlg-prev").addEventListener("click", () => go(current - 1));
+  document.getElementById("dlg-next").addEventListener("click", () => go(current + 1));
+  document.getElementById("dlg-close").addEventListener("click", () => dialog.close());
+  dialog.addEventListener("click", e => { if (e.target === dialog) dialog.close(); });
+  dialog.addEventListener("close", () => { if (location.hash) history.replaceState(null, "", location.pathname); });
+  document.addEventListener("keydown", e => {
+    if (!dialog.open) return;
+    if (e.key === "ArrowLeft") go(current - 1);
+    if (e.key === "ArrowRight") go(current + 1);
+  });
+
+  renderRuns();
+  renderFilters();
+  renderGrid();
+  window.addEventListener("hashchange", onHash);
+  onHash();
 </script>
 </body>
 </html>

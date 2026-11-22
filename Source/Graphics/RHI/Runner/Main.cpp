@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -21,7 +23,7 @@ namespace {
         bool updateGoldens = false;
         uint32_t width = 1920;
         uint32_t height = 1080;
-        std::filesystem::path out = "rhi_report";
+        std::filesystem::path out = SHIFT_RHI_REPORT_DIR;
     };
 
     bool ParseOptions(int argc, char** argv, Options& options) {
@@ -52,6 +54,39 @@ namespace {
         return std::string("not implemented: ") + e.function;
     }
 
+    //! Every backend writes into one report, its own <out>/<backend>/ and the shared <out>/golden/
+    std::string BackendFolder() {
+        std::string folder = ShiftSelectedAPI::Name;
+        std::ranges::transform(folder, folder.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return folder;
+    }
+
+    //! Copied for every sample, so the report shows the target even when nothing rendered
+    std::string CopyGolden(const Options& options, const std::string& name) {
+        if (options.updateGoldens) {
+            return {};
+        }
+        std::error_code ec;
+        const std::string golden = "golden/" + name + ".png";
+        const std::filesystem::path goldenPath = std::filesystem::path(SHIFT_RHI_GOLDENS_DIR) / (name + ".png");
+        if (!std::filesystem::copy_file(goldenPath, options.out / golden, std::filesystem::copy_options::overwrite_existing, ec)) {
+            return {};
+        }
+        return golden;
+    }
+
+    SampleResult MakeResult(const Options& options, const Sample& sample) {
+        return {.name = sample.name, .threshold = sample.flipThreshold, .golden = CopyGolden(options, sample.name)};
+    }
+
+    std::string ValidationText(const ValidationStats& stats) {
+        std::string text = std::to_string(stats.errorCount) + " validation error(s), " + std::to_string(stats.warningCount) + " warning(s)";
+        for (const std::string& message : stats.lastMessages) {
+            text += "\n" + message;
+        }
+        return text;
+    }
+
     //! The counters are process-global, so whatever a throw cut short is wiped by the next reset unless read here
     ValidationStats TryGetValidationStats() {
         try {
@@ -66,12 +101,28 @@ namespace {
     }
 
     void AppendValidation(SampleResult& result, const ValidationStats& stats) {
-        result.status = EStatus::Failed;
-        std::string text = std::to_string(stats.errorCount) + " validation error(s), " + std::to_string(stats.warningCount) + " warning(s)";
-        for (const std::string& message : stats.lastMessages) {
-            text += "\n" + message;
+        if (result.status != EStatus::NotImplemented) {
+            result.status = EStatus::Failed;
         }
+        const std::string text = ValidationText(stats);
         result.message += result.message.empty() ? text : "\n" + text;
+    }
+
+    void AppendValidation(StageResult& stage, const ValidationStats& stats) {
+        if (stats.errorCount + stats.warningCount == 0) {
+            return;
+        }
+        if (stage.status != EStatus::NotImplemented) {
+            stage.status = EStatus::Failed;
+        }
+        const std::string text = ValidationText(stats);
+        stage.message += stage.message.empty() ? text : "\n" + text;
+    }
+
+    void SetNotImplemented(StageResult& stage, const RHINotImplemented& e) {
+        stage.status = EStatus::NotImplemented;
+        stage.missing = e.function;
+        stage.message = NotImplementedMessage(e);
     }
 
     void CompareWithGolden(const Options& options, const Sample& sample, const SampleImage& image, bool validationClean, SampleResult& result) {
@@ -94,10 +145,6 @@ namespace {
             result.message = "no golden at " + goldenPath.string() + ", run with --update-goldens to create it";
             return;
         }
-        std::error_code ec;
-        if (std::filesystem::copy_file(goldenPath, options.out / (result.name + "_golden.png"), std::filesystem::copy_options::overwrite_existing, ec)) {
-            result.golden = result.name + "_golden.png";
-        }
 
         const auto flipStart = std::chrono::steady_clock::now();
         const ImageComparison comparison = CompareImages(golden, image);
@@ -115,14 +162,14 @@ namespace {
         }
 
         result.message = "FLIP mean " + std::to_string(comparison.flipMean) + " > " + std::to_string(sample.flipThreshold);
-        result.diff = result.name + "_diff.png";
+        result.diff = BackendFolder() + "/" + result.name + "_diff.png";
         if (!WritePNG(options.out / result.diff, comparison.errorMap)) {
             result.diff.clear();
         }
     }
 
     SampleResult RunSample(const Options& options, RenderBackend& rhi, const Sample& sample) {
-        SampleResult result{.name = sample.name, .threshold = sample.flipThreshold};
+        SampleResult result = MakeResult(options, sample);
         SampleContext context{rhi, options.width, options.height};
 
         SampleOutput output;
@@ -136,6 +183,8 @@ namespace {
             result.runMs = MsSince(runStart);
             stats = GetValidationStats();
         } catch (const RHINotImplemented& e) {
+            result.status = EStatus::NotImplemented;
+            result.missing = e.function;
             result.message = NotImplementedMessage(e);
             const ValidationStats raised = TryGetValidationStats();
             if (raised.errorCount + raised.warningCount > 0) {
@@ -148,7 +197,7 @@ namespace {
         if (!output.error.empty()) {
             result.message = output.error;
         } else {
-            result.output = result.name + ".png";
+            result.output = BackendFolder() + "/" + result.name + ".png";
             const auto pngStart = std::chrono::steady_clock::now();
             if (!WritePNG(options.out / result.output, output.image)) {
                 result.output.clear();
@@ -195,15 +244,21 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    //! Only this backend's previous run is cleared, the other backend's results stay
     std::error_code ec;
-    std::filesystem::create_directories(options.out, ec);
+    std::filesystem::remove_all(options.out / BackendFolder(), ec);
+    std::filesystem::create_directories(options.out / BackendFolder(), ec);
+    if (!ec) {
+        std::filesystem::create_directories(options.out / "golden", ec);
+    }
     if (ec) {
         std::fprintf(stderr, "Cannot create '%s': %s\n", options.out.string().c_str(), ec.message().c_str());
         return 1;
     }
 
     const auto totalStart = std::chrono::steady_clock::now();
-    RunReport report{.backend = ShiftSelectedAPI::Name, .width = options.width, .height = options.height};
+    const auto ranAt = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
+    RunReport report{.backend = ShiftSelectedAPI::Name, .width = options.width, .height = options.height, .ranAtMs = ranAt.count()};
 
     RHIRequiredFeatures features = ShiftSelectedAPI::requiredFeatures;
     features.VK_syncValidation = true;
@@ -211,73 +266,81 @@ int main(int argc, char** argv) {
 
     RenderBackend rhi;
     bool initialized = false;
-    std::string initError;
-    ValidationStats init;
     try {
         ResetValidationStats();
         initialized = rhi.Init(NativeWindow{}, options.width, options.height, appInfo, {.maxImages = 16, .maxSamplers = 16}, features);
-        init = GetValidationStats();
+        AppendValidation(report.init, GetValidationStats());
         if (initialized) {
             report.device = rhi.GetCapabilities().version.deviceName;
+        } else {
+            report.init.status = EStatus::Failed;
+            report.init.message = report.init.message.empty() ? "RHI init failed" : "RHI init failed\n" + report.init.message;
         }
     } catch (const RHINotImplemented& e) {
-        initError = NotImplementedMessage(e);
-        init = TryGetValidationStats();
+        SetNotImplemented(report.init, e);
+        AppendValidation(report.init, TryGetValidationStats());
     }
 
-    if (initialized && initError.empty()) {
+    const bool initThrew = report.init.status == EStatus::NotImplemented;
+    if (initialized && !initThrew) {
         for (const Sample* sample : selected) {
             report.samples.push_back(RunSample(options, rhi, *sample));
         }
     } else {
         for (const Sample* sample : selected) {
-            report.samples.push_back({.name = sample->name, .message = initError.empty() ? "RHI init failed" : initError});
+            SampleResult result = MakeResult(options, *sample);
+            result.status = initThrew ? EStatus::NotImplemented : EStatus::Failed;
+            result.missing = report.init.missing;
+            result.message = initThrew ? report.init.message : "RHI init failed";
+            report.samples.push_back(std::move(result));
         }
     }
 
-    std::string teardownError;
-    ValidationStats teardown;
     try {
         ResetValidationStats();
         if (initialized) {
             rhi.Destroy();
         }
-        teardown = GetValidationStats();
+        AppendValidation(report.teardown, GetValidationStats());
     } catch (const RHINotImplemented& e) {
-        teardownError = NotImplementedMessage(e);
-        teardown = TryGetValidationStats();
+        SetNotImplemented(report.teardown, e);
+        AppendValidation(report.teardown, TryGetValidationStats());
     }
     report.totalMs = MsSince(totalStart);
 
-    if (!WriteReport(options.out, report)) {
+    if (!WriteReport(options.out / BackendFolder(), report)) {
         std::fprintf(stderr, "Failed to write results.js\n");
     }
     if (!std::filesystem::copy_file(SHIFT_RHI_REPORT_HTML, options.out / "report.html", std::filesystem::copy_options::overwrite_existing, ec)) {
         std::fprintf(stderr, "Failed to copy report.html: %s\n", ec.message().c_str());
     }
 
+    const auto statusName = [](EStatus status) {
+        switch (status) {
+            case EStatus::Passed: return "PASS";
+            case EStatus::Updated: return "UPDATED";
+            case EStatus::NotImplemented: return "NOTIMPL";
+            case EStatus::Failed: return "FAIL";
+        }
+        return "FAIL";
+    };
+
     int failed = 0;
-    if (init.errorCount + init.warningCount > 0) {
-        std::printf("FAIL     init: %llu validation error(s), %llu warning(s)\n",
-                    static_cast<unsigned long long>(init.errorCount), static_cast<unsigned long long>(init.warningCount));
+    if (report.init.status != EStatus::Passed) {
+        std::printf("%-8s init: %s\n", statusName(report.init.status), report.init.message.c_str());
         ++failed;
     }
     for (const SampleResult& result : report.samples) {
-        const char* status = result.status == EStatus::Passed ? "PASS" : result.status == EStatus::Updated ? "UPDATED" : "FAIL";
+        const char* status = statusName(result.status);
         std::printf("%-8s %-24s run %8.2f ms  png %7.2f ms  flip %8.2f ms  mean %.6f\n",
                     status, result.name.c_str(), result.runMs, result.pngMs, result.flipMs, result.flipMean);
         if (!result.message.empty()) {
             std::printf("         %s\n", result.message.c_str());
         }
-        failed += result.status == EStatus::Failed ? 1 : 0;
+        failed += result.status == EStatus::Failed || result.status == EStatus::NotImplemented ? 1 : 0;
     }
-    if (!teardownError.empty()) {
-        std::printf("FAIL     teardown: %s\n", teardownError.c_str());
-        ++failed;
-    }
-    if (teardown.errorCount + teardown.warningCount > 0) {
-        std::printf("FAIL     teardown: %llu validation error(s), %llu warning(s)\n",
-                    static_cast<unsigned long long>(teardown.errorCount), static_cast<unsigned long long>(teardown.warningCount));
+    if (report.teardown.status != EStatus::Passed) {
+        std::printf("%-8s teardown: %s\n", statusName(report.teardown.status), report.teardown.message.c_str());
         ++failed;
     }
     std::printf("%zu sample(s), %d failed, %.1f ms total. Report: %s\n", report.samples.size(), failed, report.totalMs,

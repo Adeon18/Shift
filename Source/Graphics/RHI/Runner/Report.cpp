@@ -30,8 +30,14 @@ namespace Shift::Samples {
                 case EStatus::Passed: return "passed";
                 case EStatus::Failed: return "failed";
                 case EStatus::Updated: return "updated";
+                case EStatus::NotImplemented: return "notimpl";
             }
             return "failed";
+        }
+
+        std::string Stage(const StageResult& stage) {
+            return std::string("{\"status\": ") + Quote(StatusName(stage.status)) + ", \"message\": " + Quote(stage.message) +
+                   ", \"missing\": " + Quote(stage.missing) + "}";
         }
     }
 
@@ -41,10 +47,12 @@ namespace Shift::Samples {
             return false;
         }
 
-        file << "window.SHIFT_RESULTS = {\n";
+        file << "(window.SHIFT_RESULTS = window.SHIFT_RESULTS || {})[" << Quote(report.backend) << "] = {\n";
         file << "  \"backend\": " << Quote(report.backend) << ",\n";
         file << "  \"device\": " << Quote(report.device) << ",\n";
-        file << std::format("  \"width\": {},\n  \"height\": {},\n  \"totalMs\": {:.1f},\n", report.width, report.height, report.totalMs);
+        file << std::format("  \"width\": {},\n  \"height\": {},\n  \"totalMs\": {:.1f},\n  \"ranAtMs\": {},\n", report.width, report.height, report.totalMs, report.ranAtMs);
+        file << "  \"init\": " << Stage(report.init) << ",\n";
+        file << "  \"teardown\": " << Stage(report.teardown) << ",\n";
         file << "  \"samples\": [\n";
         for (size_t i = 0; i < report.samples.size(); ++i) {
             const SampleResult& s = report.samples[i];
@@ -52,6 +60,7 @@ namespace Shift::Samples {
             file << "\"name\": " << Quote(s.name);
             file << ", \"status\": " << Quote(StatusName(s.status));
             file << ", \"message\": " << Quote(s.message);
+            file << ", \"missing\": " << Quote(s.missing);
             file << std::format(", \"runMs\": {:.2f}, \"flipMs\": {:.2f}, \"pngMs\": {:.2f}", s.runMs, s.flipMs, s.pngMs);
             file << std::format(", \"flipMean\": {:.6f}, \"threshold\": {:.4f}", s.flipMean, s.threshold);
             file << ", \"output\": " << Quote(s.output);
