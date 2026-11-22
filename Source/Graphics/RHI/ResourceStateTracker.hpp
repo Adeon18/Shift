@@ -13,6 +13,9 @@
 #ifdef SHIFT_VULKAN_BACKEND
 #include "Vulkan/VKRHI_Impl.hpp"
 #endif
+#ifdef SHIFT_DX12_BACKEND
+#include "DX12/DX12RHI_Impl.hpp"
+#endif
 
 namespace Shift {
     //! Every mip and array layer of the texture

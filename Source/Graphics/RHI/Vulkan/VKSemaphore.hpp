@@ -74,8 +74,7 @@ namespace Shift::VK {
         VkSemaphore m_semaphore = VK_NULL_HANDLE;
     };
 
-    ASSERT_INTERFACE(ISemaphore, BinarySemaphore);
-    ASSERT_INTERFACE(ISemaphore, TimelineSemaphore);
+    ASSERT_INTERFACE(ITimelineSemaphore, TimelineSemaphore);
 } // Shift::VK
 
 #endif //SHIFT_VKSEMAPHORE_HPP

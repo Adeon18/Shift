@@ -38,6 +38,16 @@ namespace Shift::VK {
     };
     ASSERT_INTERFACE(ICommandPool, CommandPool);
 
+    //! A released texture waiting for its acquire half on dstQueue
+    struct QueueOwnershipHandoffPayload {
+        Texture* texture = nullptr;
+        EPoolQueueType srcQueue = EPoolQueueType::Graphics;
+        EPoolQueueType dstQueue = EPoolQueueType::Graphics;
+        EResourceLayout oldLayout = EResourceLayout::Undefined;
+        EResourceLayout newLayout = EResourceLayout::Undefined;
+        EPipelineStageFlags dstStage = EPipelineStageFlags::NoneBit;
+    };
+
     class CommandBuffer {
         friend VK::ImGuiBackend;
     public:
@@ -106,11 +116,10 @@ namespace Shift::VK {
 
         [[nodiscard]] EPoolQueueType GetPoolType() const { return m_poolType; }
 
-        //! False when this queue and dstQueue share a family, as then we just need a regular barrier
+        //! False when this queue and dstQueue share a family, as then a regular barrier is enough
         [[nodiscard]] bool NeedsOwnershipTransfer(EPoolQueueType dstQueue) const;
 
-        //! Record the release half from the given current state, and log the dst acquire half so RHI could
-        //! poll it in a global buffer and other queues could do acquire barriers from this logged data.
+        //! Record the release half from the given current state and log the acquire half for dstQueue.
         //! Only for different families, see NeedsOwnershipTransfer
         void ReleaseQueueOwnership(Texture& texture, EResourceLayout oldLayout, EPipelineStageFlags oldStage,
                                    EPoolQueueType dstQueue, EResourceLayout dstLayout, EPipelineStageFlags dstStage);
@@ -118,8 +127,7 @@ namespace Shift::VK {
         //! Record the acquire half from the data that ReleaseQueueOwnership logged on the other queue
         void AcquireQueueOwnership(const QueueOwnershipHandoffPayload& handoff);
 
-        //! Take the queue ownership transfer handoffs for this recording.
-        //! Take and not Get because we are doing std::move
+        //! This recording's logged acquire halves, valid once it is submitted
         [[nodiscard]] std::vector<QueueOwnershipHandoffPayload> TakeRecordedHandoffs();
 
         void ExecuteSecondaryBuffers(std::span<CommandBuffer*> secondaryBuffs) const;
@@ -181,15 +189,15 @@ namespace Shift::VK {
 
         ///! ------------------- Rendering Buffer Commands ------------------- !///
 
-        //! Bind a single vertex buffer
+        //! Bind a single vertex buffer, Vulkan's stride is in the pipeline so it is unused here
         //! \param buffers buffer + offset into the buffer
         //! \param bindIdx bind idx
-        void BindVertexBuffer(const BufferOpDescriptor& buffer, uint32_t bindIdx) const;
+        void BindVertexBuffer(const Pipeline& pipeline, const BufferOpDescriptor& buffer, uint32_t bindIdx) const;
 
         //! Bind a range of vertex buffers
         //! \param buffers span of buffers + offsets into the buffers
         //! \param firstBind bind idx for the first buffer
-        void BindVertexBuffers(std::span<BufferOpDescriptor> buffers, uint32_t firstBind) const;
+        void BindVertexBuffers(const Pipeline& pipeline, std::span<BufferOpDescriptor> buffers, uint32_t firstBind) const;
 
         //! Bind an index buffer
         //! TODO: Add support for buffer indice sizes, current default and only type is uint16
@@ -248,14 +256,6 @@ namespace Shift::VK {
 
         ///! ------------------- Mics Buffer Commands ------------------- !///
 
-        //! Blit the texture into the other texture. Each side names one mip level and the layout
-        //! that level is currently in
-        //! \param srcTexture source texture + its current layout
-        //! \param dstTexture destination texture + its current layout
-        //! \param blitRegion blit operation description
-        //! \param filter blit filter
-        void BlitTexture(const TextureBlitData& srcTexture, const TextureBlitData& dstTexture, const TextureBlitRegion& blitRegion, EFilterMode filter) const;
-
         //! Generate mips for the shole image and transition it to final layout and final stage
         void GenerateMips(Texture& texture, EResourceLayout finalLayout, EPipelineStageFlags finalStage,
                           EFilterMode filter = EFilterMode::Linear);
@@ -289,6 +289,16 @@ namespace Shift::VK {
         //! Every mip and array layer of the texture
         [[nodiscard]] static VkImageSubresourceRange WholeImageRange(const Texture& texture);
 
+        [[nodiscard]] static uint32_t BufferRowLength(const TextureCopyDescriptor& copy);
+
+        //! Blit the texture into the other texture. Each side names one mip level and the layout
+        //! that level is currently in
+        //! \param srcTexture source texture + its current layout
+        //! \param dstTexture destination texture + its current layout
+        //! \param blitRegion blit operation description
+        //! \param filter blit filter
+        void BlitTexture(const TextureBlitData& srcTexture, const TextureBlitData& dstTexture, const TextureBlitRegion& blitRegion, EFilterMode filter) const;
+
         //! Transition texture but for separate mip levels, UNTRACKED!!!!
         //! TODO [FEATURE, DX12] Track the subresources and not resources
         void TransitionMipRange(const Texture& texture, uint32_t baseLevel, uint32_t levelCount,
@@ -302,14 +312,14 @@ namespace Shift::VK {
 
         VkCommandBuffer m_buffer = VK_NULL_HANDLE;
 
-        //! Queue ownership handoffs
-        std::vector<QueueOwnershipHandoffPayload> m_recordedHandoffs;
-
         //! GPU timing - VK-based ofc
         GPUProfiler m_profiler;
 
         //! Timed open ddebug group tracking
         std::vector<uint8_t> m_debugGroupTimed;
+
+        //! Queue ownership handoffs of the current recording
+        std::vector<QueueOwnershipHandoffPayload> m_recordedHandoffs;
 
         EPoolQueueType m_poolType = EPoolQueueType::Graphics;
         bool m_isSecondary = false;

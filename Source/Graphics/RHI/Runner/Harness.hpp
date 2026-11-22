@@ -27,7 +27,7 @@ namespace Shift::Samples {
 
     [[nodiscard]] RHI::UniquePtr<Texture> CreateColorTarget(const SampleContext& ctx);
 
-    //! Loads <shaderName>.vs.spv and .ps.spv and sets the color attachment format
+    //! Loads the built <shaderName>.vs / .ps bytecode and sets the color attachment format
     [[nodiscard]] GraphicsPipeline CreateGraphicsPipeline(RenderBackend& rhi, const char* shaderName, PipelineDescriptor desc);
 
     //! Device-local buffer filled by a staging copy on its own submit

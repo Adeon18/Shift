@@ -5,12 +5,19 @@
 #ifndef SHIFT_COMMANDBUFFER_HPP
 #define SHIFT_COMMANDBUFFER_HPP
 
+#include <algorithm>
 #include <concepts>
+#include <cstdint>
+#include <cstring>
 #include <optional>
 #include <type_traits>
 #include <span>
+#include <vector>
 
 #include "Base.hpp"
+#include "Capabilities.hpp"
+#include "GPUProfiling.hpp"
+#include "RenderPass.hpp"
 #include "Types.hpp"
 #include "Texture.hpp"
 #include "Sampler.hpp"
@@ -73,7 +80,38 @@ namespace Shift {
         Extent3D size;
         Offset3D offset;
         TextureSubresourceRange subresourceRange;
+        //! Bytes between rows on the buffer side, 0 = tightly packed. RHI::GetTextureCopyFootprint gives the one the device needs
+        uint32_t bufferRowPitch = 0;
     };
+
+    //! The buffer layout a texture copy needs on this device, rows are rowPitch bytes apart
+    struct TextureCopyFootprint {
+        uint32_t rowSize = 0;
+        uint32_t rowPitch = 0;
+        uint32_t rows = 0;
+        uint64_t size = 0;
+    };
+
+    namespace RHIDetail {
+        inline void CopyRows(uint8_t* dst, size_t dstPitch, const uint8_t* src, size_t srcPitch, size_t rowSize, size_t rows) {
+            for (size_t row = 0; row < rows; ++row) {
+                std::memcpy(dst + row * dstPitch, src + row * srcPitch, rowSize);
+            }
+        }
+    } // RHIDetail
+
+    //! Tight rows into a buffer laid out by the footprint, as many whole rows as src holds
+    inline void CopyToFootprint(void* dst, const TextureCopyFootprint& footprint, std::span<const uint8_t> src) {
+        const size_t rows = std::min<size_t>(footprint.rows, src.size() / footprint.rowSize);
+        RHIDetail::CopyRows(static_cast<uint8_t*>(dst), footprint.rowPitch, src.data(), footprint.rowSize, footprint.rowSize, rows);
+    }
+
+    //! A buffer laid out by the footprint back into tight rows
+    inline std::vector<uint8_t> CopyFromFootprint(const void* src, const TextureCopyFootprint& footprint) {
+        std::vector<uint8_t> tight(size_t(footprint.rowSize) * footprint.rows);
+        RHIDetail::CopyRows(tight.data(), footprint.rowSize, static_cast<const uint8_t*>(src), footprint.rowPitch, footprint.rowSize, footprint.rows);
+        return tight;
+    }
 
     //! The region struct for blitting a texture (useful for mipmapping)
     //! Both subresources name exactly ONE mip level: baseMipLevel is it, levelCount must be 1
@@ -96,17 +134,6 @@ namespace Shift {
         Compute,
     };
 
-    //! A released texture waiting for its acquire half on dstQueue.
-    //! The backend maps queues to whatever it needs ( I guess this is vk only but whatever lol)
-    struct QueueOwnershipHandoffPayload {
-        Texture* texture = nullptr;
-        EPoolQueueType srcQueue = EPoolQueueType::Graphics;
-        EPoolQueueType dstQueue = EPoolQueueType::Graphics;
-        EResourceLayout oldLayout = EResourceLayout::Undefined;
-        EResourceLayout newLayout = EResourceLayout::Undefined;
-        EPipelineStageFlags dstStage = EPipelineStageFlags::NoneBit;
-    };
-
     enum class ECommandBufferType {
         Default,
         Flight
@@ -121,11 +148,9 @@ namespace Shift {
 
     template<typename CommandBuffer>
     concept ICommandBuffer =
-        std::constructible_from<CommandBuffer, const Device* /*device*/, const Instance* /*ins*/, const CommandPool& /*commandPool*/, bool /*isSecondary*/> &&
         std::destructible<CommandBuffer> &&
     requires(
             CommandBuffer InputBuffer,
-            const RenderPass& InputPass,
             const BufferOpDescriptor& InputBufferOpDesc,
             const TextureCopyDescriptor& InputTextureCopyDesc,
             const Pipeline& InputPipeline,
@@ -136,12 +161,8 @@ namespace Shift {
             const MemoryDependency& InputMemoryDependency,
             const Viewport& InputViewport,
             const Rect2D& InputScissor,
-            const TextureBlitData& InputTextureBlitData,
-            const TextureBlitRegion& InputBlitRegion,
             Texture& InputTexture,
             const TextureSubresourceRange& InputSubresourceRange,
-            const QueueOwnershipHandoffPayload& InputHandoff,
-            EPoolQueueType InputQueueType,
             EResourceLayout InputLayout,
             EPipelineStageFlags InputStage,
             std::span<TimelineSemaphore*> InputTimeSemaphoreSpan,
@@ -150,6 +171,14 @@ namespace Shift {
             std::span<ResourceSet> InputResourceSets,
             std::span<CommandBuffer*> InputCommandBuffers,
             const SecondaryBufferBeginPayload& secondaryBufferBeginPayload,
+            const RenderPassDescriptor& InputPassDesc,
+            std::span<Texture*> InputColorTextures,
+            std::span<const EResourceLayout> InputColorLayouts,
+            std::optional<Texture*> InputDepthTexture,
+            const char* InputName,
+            const DebugLabelColor& InputColor,
+            const void* InputData,
+            bool timed,
             uint32_t firstBindPosition,
             uint32_t size,
             uint32_t fillValue,
@@ -157,14 +186,14 @@ namespace Shift {
             EIndexSize indexSize
     ) {
         //! Basic
+        { CONCEPT_CONST_VAR(CommandBuffer, InputBuffer).IsValid() } -> std::same_as<bool>;
+        { CONCEPT_CONST_VAR(CommandBuffer, InputBuffer).SetDebugName(InputName) } -> std::same_as<void>;
         { InputBuffer.Begin() } -> std::same_as<bool>;
         { InputBuffer.BeginSecondary(secondaryBufferBeginPayload) } -> std::same_as<bool>;
         { InputBuffer.End() } -> std::same_as<bool>;
         { InputBuffer.Reset() } -> std::same_as<void>;
-        //! These are per-backend specific
-        //!{ InputBuffer.BeginRenderPass(InputPass) } -> std::same_as<void>;
-        //!{ InputBuffer.EndRenderPass() } -> std::same_as<void>;
         { InputBuffer.ExecuteSecondaryBuffers(InputCommandBuffers) } -> std::same_as<void>;
+        { CONCEPT_CONST_VAR(CommandBuffer, InputBuffer).GetPoolType() } -> std::same_as<EPoolQueueType>;
         { InputBuffer.Submit(InputTimeSemaphoreSpan, InputTimeSemaphoreCounter, InputTimeSemaphoreSpan, InputTimeSemaphoreCounter) } -> std::same_as<bool>;
         { InputBuffer.CopyBufferToBuffer(InputBufferOpDesc, InputBufferOpDesc, size) } -> std::same_as<void>;
         { InputBuffer.CopyBufferToTexture(InputBufferOpDesc, InputTextureCopyDesc) } -> std::same_as<void>;
@@ -173,9 +202,12 @@ namespace Shift {
         { InputBuffer.FillBuffer(InputBufferOpDesc, size, fillValue) } -> std::same_as<void>;
         //{ InputBuffer.CopyTextureToTexture(InputTextureCopyDesc, InputTextureCopyDesc) } -> std::same_as<void>; // TODO: [FEATURE] Check
         //! Rendering
+        { InputBuffer.BeginRenderPass(InputPassDesc, InputColorTextures, InputColorLayouts, InputDepthTexture, InputLayout) } -> std::same_as<void>;
+        { InputBuffer.EndRenderPass() } -> std::same_as<void>;
         { InputBuffer.BindGraphicsPipeline(InputPipeline) } -> std::same_as<void>;
-        { InputBuffer.BindVertexBuffer(InputBufferOpDesc, firstBindPosition) } -> std::same_as<void>;
-        { InputBuffer.BindVertexBuffers(InputBufferOpDescs, firstBindPosition) } -> std::same_as<void>;
+        { InputBuffer.SetPushConstants(InputPipeline, InputData, size, size) } -> std::same_as<void>;
+        { InputBuffer.BindVertexBuffer(InputPipeline, InputBufferOpDesc, firstBindPosition) } -> std::same_as<void>;
+        { InputBuffer.BindVertexBuffers(InputPipeline, InputBufferOpDescs, firstBindPosition) } -> std::same_as<void>;
         { InputBuffer.BindIndexBuffer(InputBufferOpDesc, indexSize) } -> std::same_as<void>;
         { InputBuffer.BindResourceSet(InputPipeline, firstBindPosition, InputResourceSet) } -> std::same_as<void>;
         //!{ InputBuffer.BindResourceSets(InputPipeline, firstBindPosition, InputResourceSets) } -> std::same_as<void>; // Dynamic offsets will be pulled out of my fucking ass
@@ -187,13 +219,16 @@ namespace Shift {
         //! Misc
         { InputBuffer.SetViewport(InputViewport) } -> std::same_as<void>;
         { InputBuffer.SetScissor(InputScissor) } -> std::same_as<void>;
-        { InputBuffer.BlitTexture(InputTextureBlitData, InputTextureBlitData, InputBlitRegion, filter) } -> std::same_as<void>;
         { InputBuffer.GenerateMips(InputTexture, InputLayout, InputStage, filter) } -> std::same_as<void>;
+        //! Debug + timing
+        { InputBuffer.PushDebugGroup(InputName, InputColor, timed) } -> std::same_as<void>;
+        { InputBuffer.PopDebugGroup() } -> std::same_as<void>;
+        { InputBuffer.InsertDebugLabel(InputName, InputColor) } -> std::same_as<void>;
+        { InputBuffer.PushTimeRange(InputName) } -> std::same_as<void>;
+        { InputBuffer.PopTimeRange() } -> std::same_as<void>;
+        { InputBuffer.CollectTimeRanges() } -> std::same_as<std::vector<GPUTimeRange>>;
         //! Barriers
         { InputBuffer.TextureBarrier(InputTexture, InputMemoryDependency, InputLayout, InputLayout, InputSubresourceRange) } -> std::same_as<void>;
-        { CONCEPT_CONST_VAR(CommandBuffer, InputBuffer).NeedsOwnershipTransfer(InputQueueType) } -> std::same_as<bool>;
-        { InputBuffer.ReleaseQueueOwnership(InputTexture, InputLayout, InputStage, InputQueueType, InputLayout, InputStage) } -> std::same_as<void>;
-        { InputBuffer.AcquireQueueOwnership(InputHandoff) } -> std::same_as<void>;
     };
 
     template<typename CommandPool>

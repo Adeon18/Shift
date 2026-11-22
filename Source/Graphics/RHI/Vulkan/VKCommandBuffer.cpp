@@ -61,7 +61,6 @@ namespace Shift::VK {
 
     void CommandBuffer::Reset() {
         m_debugGroupTimed.clear();
-        //! Handoffs go to 1 recording
         m_recordedHandoffs.clear();
         vkResetCommandBuffer(m_buffer, 0);
     }
@@ -114,7 +113,6 @@ namespace Shift::VK {
         assert(!m_isSecondary);
 
         m_debugGroupTimed.clear();
-        //! Handoffs go to 1 recording
         m_recordedHandoffs.clear();
 
         auto info = Util::CreateBeginCommandBufferInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr);
@@ -133,7 +131,6 @@ namespace Shift::VK {
         assert(m_isSecondary);
 
         m_debugGroupTimed.clear();
-        //! Handoffs go to 1 recording
         m_recordedHandoffs.clear();
 
         std::vector<VkFormat> colorFormats;
@@ -186,6 +183,16 @@ namespace Shift::VK {
         vkCmdFillBuffer(m_buffer, dstBuf.buffer->VK_Get(), dstBuf.offset, size, value);
     }
 
+    uint32_t CommandBuffer::BufferRowLength(const TextureCopyDescriptor& copy) {
+        //! Vulkan counts the row in texels, 0 = tightly packed
+        if (copy.bufferRowPitch == 0) {
+            return 0;
+        }
+        const uint32_t texelSize = BytesPerPixel(copy.texture->GetFormat());
+        assert(texelSize != 0 && copy.bufferRowPitch % texelSize == 0 && "bufferRowPitch must be whole texels of a known format");
+        return copy.bufferRowPitch / texelSize;
+    }
+
     void CommandBuffer::CopyBufferToTexture(const BufferOpDescriptor& srcBuf, const TextureCopyDescriptor& dstTex) const {
         const TextureSubresourceRange& range = dstTex.subresourceRange;
 
@@ -194,7 +201,7 @@ namespace Shift::VK {
 
         VkBufferImageCopy region{};
         region.bufferOffset = 0;
-        region.bufferRowLength = 0;
+        region.bufferRowLength = BufferRowLength(dstTex);
         region.bufferImageHeight = 0;
 
         region.imageSubresource.aspectMask = Util::ShiftToVKTextureAspect(range.aspect);
@@ -222,8 +229,7 @@ namespace Shift::VK {
         assert(range.levelCount == 1 && "CopyTextureToBuffer reads a single mip level per call");
         VkBufferImageCopy region{};
         region.bufferOffset = dstBuf.offset;
-        //! 0-s essentially make the buffer pick the size to fit image tightly
-        region.bufferRowLength = 0;
+        region.bufferRowLength = BufferRowLength(srcTex);
         region.bufferImageHeight = 0;
         region.imageSubresource.aspectMask = Util::ShiftToVKTextureAspect(range.aspect);
         region.imageSubresource.mipLevel = range.baseMipLevel;
@@ -367,7 +373,7 @@ namespace Shift::VK {
     }
 
 
-    void CommandBuffer::BindVertexBuffer(const BufferOpDescriptor& buffer, uint32_t bindIdx) const {
+    void CommandBuffer::BindVertexBuffer(const Pipeline&, const BufferOpDescriptor& buffer, uint32_t bindIdx) const {
         std::vector<VkDeviceSize> offsets{static_cast<VkDeviceSize>(buffer.offset)};
         std::vector<VkBuffer> buffers{buffer.buffer->VK_Get()};
         vkCmdBindVertexBuffers(
@@ -378,7 +384,7 @@ namespace Shift::VK {
                 offsets.data());
     }
 
-    void CommandBuffer::BindVertexBuffers(std::span<BufferOpDescriptor> buffers, uint32_t firstBind) const {
+    void CommandBuffer::BindVertexBuffers(const Pipeline&, std::span<BufferOpDescriptor> buffers, uint32_t firstBind) const {
         std::vector<VkBuffer> buffs;
         std::vector<VkDeviceSize> offsets;
 
@@ -551,6 +557,10 @@ namespace Shift::VK {
         });
     }
 
+    std::vector<QueueOwnershipHandoffPayload> CommandBuffer::TakeRecordedHandoffs() {
+        return std::move(m_recordedHandoffs);
+    }
+
     void CommandBuffer::AcquireQueueOwnership(const QueueOwnershipHandoffPayload& handoff) {
         assert(!m_isSecondary);
         assert(handoff.texture != nullptr);
@@ -571,10 +581,6 @@ namespace Shift::VK {
                 srcFamily, dstFamily,
                 WholeImageRange(*handoff.texture)),
             0);
-    }
-
-    std::vector<QueueOwnershipHandoffPayload> CommandBuffer::TakeRecordedHandoffs() {
-        return std::move(m_recordedHandoffs);
     }
 
     void CommandBuffer::SetViewport(Viewport viewport) const {

@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <functional>
 #include <utility>
 #include "Utility/Assertions.hpp"
@@ -361,12 +362,15 @@ namespace Shift::Graphics {
                 raw.data.size(), raw.width, raw.height, raw.channels, imageSize);
         }
 
+        const TextureCopyFootprint footprint = m_rhi->GetTextureCopyFootprint(texture.GetFormat(), raw.width, raw.height);
+        assert(footprint.rowSize == raw.width * raw.channels && "the texture's format must match the loaded channels");
+
         Buffer* stagingBuf = m_backend->CreateBuffer(BufferDescriptor{
-            .size = imageSize,
+            .size = footprint.size,
             .name = "Staging",
             .type = EBufferType::Staging
         });
-        memcpy(stagingBuf->GetMapped(), raw.data.data(), availableBytes);
+        CopyToFootprint(stagingBuf->GetMapped(), footprint, std::span<const uint8_t>(raw.data).first(availableBytes));
 
         //! Here we handle level 0 only as we need graphics queue to gen mips
         TextureSubresourceRange subresourceRange{};
@@ -379,7 +383,7 @@ namespace Shift::Graphics {
         encoder.TransitionTexture(texture, EResourceLayout::TransferDstOptimal, EPipelineStageFlags::AllTransferBit);
         encoder.CopyBufferToTexture(
             BufferOpDescriptor{stagingBuf, 0},
-            TextureCopyDescriptor{&texture, Extent3D{texture.GetWidth(), texture.GetHeight(), texture.GetDepth()}, Offset3D{}, subresourceRange});
+            TextureCopyDescriptor{&texture, Extent3D{texture.GetWidth(), texture.GetHeight(), texture.GetDepth()}, Offset3D{}, subresourceRange, footprint.rowPitch});
 
         //! The upload runs on the transfer queue but every reader is a shader on the graphics
         //! one, so the image is handed over here rather than merely transitioned. This is the

@@ -16,21 +16,6 @@
 
 namespace Shift::Graphics {
     namespace {
-        //! Add a new format here whenever needed
-        uint32_t BytesPerPixel(ETextureFormat format) {
-            switch (format) {
-                case ETextureFormat::R8G8B8A8_UNORM:
-                case ETextureFormat::R8G8B8A8_SRGB:
-                case ETextureFormat::B8G8R8A8_UNORM:
-                case ETextureFormat::B8G8R8A8_SRGB:
-                    return 4;
-                case ETextureFormat::R16G16B16A16_SFLOAT:
-                    return 8;
-                default:
-                    return 0;
-            }
-        }
-
         bool IsBGRA(ETextureFormat format) {
             return format == ETextureFormat::B8G8R8A8_UNORM || format == ETextureFormat::B8G8R8A8_SRGB;
         }
@@ -59,19 +44,19 @@ namespace Shift::Graphics {
             return out;
         }
 
-        const uint64_t byteSize = static_cast<uint64_t>(width) * height * bytesPerPixel;
+        const TextureCopyFootprint footprint = m_backend->GetTextureCopyFootprint(texture.GetFormat(), width, height);
 
         //! Wait for other commands
         m_backend->WaitForGPU();
 
         BufferDescriptor readbackDesc;
-        readbackDesc.size = byteSize;
+        readbackDesc.size = footprint.size;
         readbackDesc.name = "CaptureReadback";
         readbackDesc.type = EBufferType::Readback;
 
         Buffer* readback = m_backend->CreateInterface()->CreateBuffer(readbackDesc);
         if (!readback || !readback->IsValid()) {
-            Log(Error, "CaptureSystem: failed to create a {} byte readback buffer", byteSize);
+            Log(Error, "CaptureSystem: failed to create a {} byte readback buffer", footprint.size);
             delete readback;
             return out;
         }
@@ -98,7 +83,8 @@ namespace Shift::Graphics {
                 .levelCount = 1u,
                 .baseArrayLayer = 0u,
                 .layerCount = 1u
-            }
+            },
+            .bufferRowPitch = footprint.rowPitch
         };
         const BufferOpDescriptor destination{readback, 0u};
 
@@ -122,7 +108,7 @@ namespace Shift::Graphics {
 
         m_backend->WaitForGPU();
         //! Make writes visible
-        readback->InvalidateForHostRead(0, byteSize);
+        readback->InvalidateForHostRead(0, footprint.size);
 
         const void* mapped = readback->GetMapped();
         if (mapped == nullptr) {
@@ -134,8 +120,7 @@ namespace Shift::Graphics {
         out.width = width;
         out.height = height;
         out.format = texture.GetFormat();
-        out.pixels.resize(static_cast<size_t>(byteSize));
-        std::memcpy(out.pixels.data(), mapped, static_cast<size_t>(byteSize));
+        out.pixels = CopyFromFootprint(mapped, footprint);
 
         delete readback;
         return out;

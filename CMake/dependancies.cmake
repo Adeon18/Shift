@@ -125,6 +125,16 @@ if (NOT TARGET Slang::Slang)
     endif()
 endif()
 
+# DXC for the DX12 sample shaders (slangc -dxc-path), v1.9.2609. Validator built in since v1.8.2502, so no dxil.dll needed
+if (SHIFT_RHI_BACKEND STREQUAL "DX12")
+    FetchContent_Declare(
+            dxc
+            URL https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.9.2609/dxc_2026_09_29.zip
+            URL_HASH SHA256=ad31b1fc8443175d204f77a611fdb3ef2ec42759bdc2f1167368de24a4a7e7f1
+    )
+    FetchContent_MakeAvailable(dxc)
+endif()
+
 # ------------ volk ------------
 FetchContent_Declare(
         volk

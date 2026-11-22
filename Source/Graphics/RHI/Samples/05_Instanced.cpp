@@ -41,7 +41,7 @@ namespace Shift::Samples {
         BeginColorPass(*encoder, *target);
         encoder->BindGraphicsPipeline(*pipeline.pipeline);
         std::array<BufferOpDescriptor, 2> buffers{{{vertices.get(), 0u}, {instances.get(), 0u}}};
-        encoder->BindVertexBuffers(buffers, 0);
+        encoder->BindVertexBuffers(*pipeline.pipeline, buffers, 0);
         encoder->Draw({.vertexCount = 3, .instanceCount = GRID * GRID});
         encoder->EndRenderPass();
 

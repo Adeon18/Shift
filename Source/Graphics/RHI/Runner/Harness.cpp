@@ -45,7 +45,7 @@ namespace Shift::Samples {
 
         RHI::UniquePtr<Shader> LoadShader(RenderBackend& rhi, const char* shaderName, EShaderType type) {
             const std::filesystem::path path = std::filesystem::path(SHIFT_RHI_SAMPLE_SHADERS_DIR) /
-                (std::string(shaderName) + (type == EShaderType::Vertex ? ".vs.spv" : ".ps.spv"));
+                (std::string(shaderName) + (type == EShaderType::Vertex ? ".vs" : ".ps") + SHIFT_RHI_SAMPLE_SHADER_EXT);
             std::ifstream file(path, std::ios::binary);
             std::vector<uint8_t> bytecode{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
             if (bytecode.empty()) {
@@ -158,10 +158,10 @@ namespace Shift::Samples {
 
         const uint32_t width = texture.GetWidth();
         const uint32_t height = texture.GetHeight();
-        const uint64_t byteSize = uint64_t(width) * height * 4;
+        const TextureCopyFootprint footprint = rhi.GetTextureCopyFootprint(texture.GetFormat(), width, height);
 
         RHI::UniquePtr<Buffer> readback{rhi.CreateInterface()->CreateBuffer({
-            .size = byteSize,
+            .size = footprint.size,
             .name = "SampleReadback",
             .type = EBufferType::Readback,
         })};
@@ -187,7 +187,8 @@ namespace Shift::Samples {
                 .levelCount = 1u,
                 .baseArrayLayer = 0u,
                 .layerCount = 1u
-            }
+            },
+            .bufferRowPitch = footprint.rowPitch
         };
         encoder->CopyTextureToBuffer(source, {readback.get(), 0u});
         encoder->TransitionBuffer(*readback, EPipelineStageFlags::HostBit, EAccessFlags::HostReadBit);
@@ -196,7 +197,7 @@ namespace Shift::Samples {
             return out;
         }
 
-        readback->InvalidateForHostRead(0, byteSize);
+        readback->InvalidateForHostRead(0, footprint.size);
         const void* mapped = readback->GetMapped();
         if (mapped == nullptr) {
             return out;
@@ -204,8 +205,7 @@ namespace Shift::Samples {
 
         out.width = width;
         out.height = height;
-        out.rgba.resize(static_cast<size_t>(byteSize));
-        std::memcpy(out.rgba.data(), mapped, out.rgba.size());
+        out.rgba = CopyFromFootprint(mapped, footprint);
         return out;
     }
 

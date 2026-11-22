@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "Graphics/RHI/Common/NotImplemented.hpp"
 #include "Harness.hpp"
 #include "Report.hpp"
 #include "Sample.hpp"
@@ -45,6 +46,19 @@ namespace {
             }
         }
         return true;
+    }
+
+    std::string NotImplementedMessage(const RHINotImplemented& e) {
+        return std::string("not implemented: ") + e.function;
+    }
+
+    //! The counters are process-global, so whatever a throw cut short is wiped by the next reset unless read here
+    ValidationStats TryGetValidationStats() {
+        try {
+            return GetValidationStats();
+        } catch (const RHINotImplemented&) {
+            return {};
+        }
     }
 
     double MsSince(std::chrono::steady_clock::time_point start) {
@@ -111,13 +125,24 @@ namespace {
         SampleResult result{.name = sample.name, .threshold = sample.flipThreshold};
         SampleContext context{rhi, options.width, options.height};
 
-        ResetValidationStats();
-        const auto runStart = std::chrono::steady_clock::now();
-        const SampleOutput output = sample.run(context);
-        rhi.WaitForGPU();
-        rhi.FlushAllDeferredCallbacks();
-        result.runMs = MsSince(runStart);
-        const ValidationStats stats = GetValidationStats();
+        SampleOutput output;
+        ValidationStats stats;
+        try {
+            ResetValidationStats();
+            const auto runStart = std::chrono::steady_clock::now();
+            output = sample.run(context);
+            rhi.WaitForGPU();
+            rhi.FlushAllDeferredCallbacks();
+            result.runMs = MsSince(runStart);
+            stats = GetValidationStats();
+        } catch (const RHINotImplemented& e) {
+            result.message = NotImplementedMessage(e);
+            const ValidationStats raised = TryGetValidationStats();
+            if (raised.errorCount + raised.warningCount > 0) {
+                AppendValidation(result, raised);
+            }
+            return result;
+        }
         const bool validationClean = stats.errorCount + stats.warningCount == 0;
 
         if (!output.error.empty()) {
@@ -185,25 +210,43 @@ int main(int argc, char** argv) {
     const RHIAppInfo appInfo{.appName = "ShiftRHISamples", .engineName = "Shift"};
 
     RenderBackend rhi;
-    ResetValidationStats();
-    const bool initialized = rhi.Init(NativeWindow{}, options.width, options.height, appInfo, {.maxImages = 16, .maxSamplers = 16}, features);
-    const ValidationStats init = GetValidationStats();
-    if (initialized) {
-        report.device = rhi.GetCapabilities().version.deviceName;
+    bool initialized = false;
+    std::string initError;
+    ValidationStats init;
+    try {
+        ResetValidationStats();
+        initialized = rhi.Init(NativeWindow{}, options.width, options.height, appInfo, {.maxImages = 16, .maxSamplers = 16}, features);
+        init = GetValidationStats();
+        if (initialized) {
+            report.device = rhi.GetCapabilities().version.deviceName;
+        }
+    } catch (const RHINotImplemented& e) {
+        initError = NotImplementedMessage(e);
+        init = TryGetValidationStats();
+    }
+
+    if (initialized && initError.empty()) {
         for (const Sample* sample : selected) {
             report.samples.push_back(RunSample(options, rhi, *sample));
         }
     } else {
         for (const Sample* sample : selected) {
-            report.samples.push_back({.name = sample->name, .message = "RHI init failed"});
+            report.samples.push_back({.name = sample->name, .message = initError.empty() ? "RHI init failed" : initError});
         }
     }
 
-    ResetValidationStats();
-    if (initialized) {
-        rhi.Destroy();
+    std::string teardownError;
+    ValidationStats teardown;
+    try {
+        ResetValidationStats();
+        if (initialized) {
+            rhi.Destroy();
+        }
+        teardown = GetValidationStats();
+    } catch (const RHINotImplemented& e) {
+        teardownError = NotImplementedMessage(e);
+        teardown = TryGetValidationStats();
     }
-    const ValidationStats teardown = GetValidationStats();
     report.totalMs = MsSince(totalStart);
 
     if (!WriteReport(options.out, report)) {
@@ -227,6 +270,10 @@ int main(int argc, char** argv) {
             std::printf("         %s\n", result.message.c_str());
         }
         failed += result.status == EStatus::Failed ? 1 : 0;
+    }
+    if (!teardownError.empty()) {
+        std::printf("FAIL     teardown: %s\n", teardownError.c_str());
+        ++failed;
     }
     if (teardown.errorCount + teardown.warningCount > 0) {
         std::printf("FAIL     teardown: %llu validation error(s), %llu warning(s)\n",

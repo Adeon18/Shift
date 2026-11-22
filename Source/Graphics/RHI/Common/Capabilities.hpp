@@ -97,6 +97,8 @@ namespace Shift {
         uint32_t maxTextureArrayLayers = 0;
         uint32_t maxVertexAttributes = 0;
         uint32_t maxPushConstantsSize = 0;
+        //! Row pitch alignment for buffer<->texture copies: D3D12 requires 256, Vulkan reports its optimal-pitch hint
+        uint32_t textureCopyRowPitchAlignment = 0;
         uint32_t maxSamplerAnisotropy = 0;
         uint32_t maxColorAttachments = 0;
         uint32_t maxComputeWorkGroupCount[3] = {0,0,0};

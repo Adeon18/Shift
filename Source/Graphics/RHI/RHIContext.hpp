@@ -56,9 +56,8 @@ namespace Shift {
         };
     } // RHI
 
-    // For now:D
     template<typename T>
-    concept ValidAPI = std::same_as<T, RHI::Vulkan>;
+    concept ValidAPI = std::same_as<T, RHI::Vulkan> || std::same_as<T, RHI::DX12>;
 
     //! A semaphore plus the value to wait for or signal, depending on
     //! which side of a submit it is handed to. Used in RHILocal and Global
@@ -77,6 +76,11 @@ namespace Shift {
 #include "RHILocal_VK.hpp"
 #include "Utility/Vulkan/VKUtilRHI.hpp"
 #include "Utility/Vulkan/VKUtilInfo.hpp"
+#endif
+
+#ifdef SHIFT_DX12_BACKEND
+#include "DX12/DX12RHI_Impl.hpp"
+#include "DX12/RHILocal_DX12.hpp"
 #endif
 
 #include "ResourceStateTracker.hpp"
@@ -136,14 +140,16 @@ namespace Shift {
         ///! ------------------- Rendering Buffer Commands ------------------- !///
 
         //! Bind a single vertex buffer
+        //! \param pipeline pipeline whose vertex input declares the binding, not used here, needed for dx12
         //! \param buffer buffer + offset into the buffer
         //! \param bindIdx bind idx
-        void BindVertexBuffer(const BufferOpDescriptor& buffer, uint32_t bindIdx) const;
+        void BindVertexBuffer(const Pipeline& pipeline, const BufferOpDescriptor& buffer, uint32_t bindIdx) const;
 
         //! Bind a range of vertex buffers
+        //! \param pipeline pipeline whose vertex input declares the bindings
         //! \param buffers span of buffers + offsets into the buffers
         //! \param firstBind bind idx for the first buffer
-        void BindVertexBuffers(std::span<BufferOpDescriptor> buffers, uint32_t firstBind) const;
+        void BindVertexBuffers(const Pipeline& pipeline, std::span<BufferOpDescriptor> buffers, uint32_t firstBind) const;
 
         //! Bind an index buffer
         //! \param buffer buffer + offset into the buffer
@@ -189,13 +195,6 @@ namespace Shift {
 
         ///! ------------------- Mics Buffer Commands ------------------- !///
 
-        //! Blit the texture into the other texture
-        //! \param srcTexture source texture with sizes and extents
-        //! \param dstTexture destination texture with sizes and extents
-        //! \param blitRegion blit operation description
-        //! \param filter blit filter
-        void BlitTexture(const TextureBlitData& srcTexture, const TextureBlitData& dstTexture, const TextureBlitRegion& blitRegion, EFilterMode filter) const;
-
         //! Set viewport, we don't support multiple
         //! \param viewport Viewport struct
         void SetViewport(const Viewport& viewport) const;
@@ -223,7 +222,7 @@ namespace Shift {
         //! Auto track states
         void TransitionBuffer(Buffer& buffer, EPipelineStageFlags stage, EAccessFlags access);
 
-        //! Release ownership of this texture from the queue family
+        //! Hand this texture to another queue. Backend-defined, Vulkan records a queue family ownership release
         void ReleaseQueueOwnership(Texture& texture, EContextType dstContext, EResourceLayout dstLayout, EPipelineStageFlags dstStage);
 
         //! Generate mips for the whole image and transition it to final layout and final stage.
@@ -263,8 +262,8 @@ namespace Shift {
         //! presentImage: the aqcuired image this sumbit writes
         [[nodiscard]] bool SubmitCmds(std::span<SubmitTimelinePayload> waitSemPayloads, std::span<SubmitTimelinePayload> sigSemPayloads, const FrameImage* presentImage = nullptr);
 
-        //! Call after BeginCmds, before using any handed-off texture from another queue as ut records the acquire half of every
-        //! pending handoff addressed to this context's queue. This recording's submit waits their release
+        //! Call after BeginCmds, before using a texture another queue handed to this one. Backend-defined, Vulkan records
+        //! the acquire halves addressed to this queue and makes this recording's submit wait their release
         void FlushPendingAcquires();
 
         void ExecuteSecondaryGraphicsContexts(std::span<CommandBuffer*> secondaryBuffs) const;
@@ -278,7 +277,7 @@ namespace Shift {
         RHILocal<API>* m_local = nullptr;
         RHIEncoder<API> m_encoder;
         RHI::UniquePtr<ResourceStateTracker<API>> m_tracker;
-        //! Stored release payloads from FlushPending acquires
+        //! Timeline waits the backend owes this recording's submit, filled by FlushPendingAcquires
         std::vector<SubmitTimelinePayload> m_acquireWaits;
         RHI::UniquePtr<CommandBuffer> m_cmdBuffer;
         RHI::UniquePtr<CommandPool> m_cmdPool;
@@ -287,37 +286,6 @@ namespace Shift {
     };
 
 
-
-    template<>
-    inline bool RHIContext<RHI::Vulkan>::Init(RHILocal<RHI::Vulkan> *local, EContextType type, bool secondary) {
-        m_local = local;
-        m_type = type;
-        m_isSecondary = secondary;
-        m_cmdPool = RHI::CreateUnique<CommandPool>(m_local->device.get(), GetQueueType(m_type));
-        SRHI_CHECK_CRITICAL(m_cmdPool->IsValid(), "Failed to initialize command pool");
-
-        m_cmdBuffer = RHI::CreateUnique<CommandBuffer>(m_local->device.get(), m_local->instance.get(), *m_cmdPool, m_isSecondary);
-        SRHI_CHECK_CRITICAL(m_cmdBuffer->IsValid(), "Failed to init command buffer!");
-
-        m_tracker = RHI::CreateUnique<ResourceStateTracker<RHI::Vulkan>>();
-        m_encoder = RHIEncoder<RHI::Vulkan>{m_cmdBuffer.get(), m_tracker.get()};
-
-        return true;
-    }
-
-    template<>
-    inline bool RHIContext<RHI::Vulkan>::SubmitToQueue(std::span<TimelineSemaphore*> waitSems, std::span<uint64_t> waitVals,
-        std::span<TimelineSemaphore*> sigSems, std::span<uint64_t> sigVals, const FrameImage* presentImage)
-    {
-        if (presentImage == nullptr) {
-            return m_cmdBuffer->Submit(waitSems, waitVals, sigSems, sigVals);
-        }
-
-        std::array<VK::BinarySemaphore*, 1> imageAvailable{m_local->lastAcquireSemaphore};
-        std::array<VK::BinarySemaphore*, 1> renderFinished{m_local->renderFinished[presentImage->index].get()};
-        assert(imageAvailable[0] != nullptr);
-        return m_cmdBuffer->Submit(waitSems, waitVals, sigSems, sigVals, imageAvailable, renderFinished);
-    }
 
     template<ValidAPI API>
     void RHIContext<API>::Destroy() {
@@ -392,14 +360,14 @@ namespace Shift {
     }
 
     template<ValidAPI API>
-    void RHIEncoder<API>::BindVertexBuffer(const BufferOpDescriptor &buffer, uint32_t bindIdx) const {
-        m_boundCB->BindVertexBuffer(buffer, bindIdx);
+    void RHIEncoder<API>::BindVertexBuffer(const Pipeline& pipeline, const BufferOpDescriptor &buffer, uint32_t bindIdx) const {
+        m_boundCB->BindVertexBuffer(pipeline, buffer, bindIdx);
     }
 
     template<ValidAPI API>
-    void RHIEncoder<API>::BindVertexBuffers(std::span<BufferOpDescriptor> buffers,
+    void RHIEncoder<API>::BindVertexBuffers(const Pipeline& pipeline, std::span<BufferOpDescriptor> buffers,
         uint32_t firstBind) const {
-        m_boundCB->BindVertexBuffers(buffers, firstBind);
+        m_boundCB->BindVertexBuffers(pipeline, buffers, firstBind);
     }
 
     template<ValidAPI API>
@@ -445,13 +413,6 @@ namespace Shift {
     template<ValidAPI API>
     void RHIEncoder<API>::BufferBarrier(const BufferOpDescriptor& buffer, uint64_t size, const MemoryDependency& dependency) const {
         m_boundCB->BufferBarrier(buffer, size, dependency);
-    }
-
-    template<ValidAPI API>
-    void RHIEncoder<API>::BlitTexture(const TextureBlitData &srcTexture, const TextureBlitData &dstTexture,
-        const TextureBlitRegion &blitRegion, EFilterMode filter) const
-    {
-        m_boundCB->BlitTexture(srcTexture, dstTexture, blitRegion, filter);
     }
 
     template<ValidAPI API>
@@ -525,30 +486,7 @@ namespace Shift {
         //! Only succesfull submit reaches this, texture's state has been updated
         m_tracker->CommitSubmitted();
 
-        //! We take the pending handoffs only on the succesful submit
-        auto handoffs = m_cmdBuffer->TakeRecordedHandoffs();
-        if (!handoffs.empty()) {
-            //! A release is useless without a timeline point the acquirer can wait on.
-            //! So, any timeline semaphore will do here but to keep it consistent, its the first one and we submit the first one to always be
-            //! the one the Flush pending acquires function returns. This works because when we submit the next CB, we need
-            //! to wait on the resources from the prev CB to be done in order to acquire their ownership
-            assert(!sigSemPayloads.empty());
-            const SubmitTimelinePayload& releasePoint = sigSemPayloads.front();
-            m_local->QueuePendingAcquires(std::move(handoffs), releasePoint.semaphore, releasePoint.value);
-        }
-
         return true;
-    }
-
-    template<ValidAPI API>
-    void RHIContext<API>::FlushPendingAcquires() {
-        assert(!m_isSecondary);
-        for (const auto& pending : m_local->TakePendingAcquires(m_cmdBuffer->GetPoolType())) {
-            m_cmdBuffer->AcquireQueueOwnership(pending.handoff);
-            m_tracker->SetState(*pending.handoff.texture, pending.handoff.newLayout, pending.handoff.dstStage);
-            //! Store acquire waits to add them to submit so the user does not have to do that shit
-            m_acquireWaits.push_back(SubmitTimelinePayload{pending.releaseSemaphore, pending.releaseValue});
-        }
     }
 
     template<ValidAPI API>
@@ -584,22 +522,6 @@ namespace Shift {
     }
 
     template<ValidAPI API>
-    void RHIEncoder<API>::ReleaseQueueOwnership(Texture& texture, EContextType dstContext,
-        EResourceLayout dstLayout, EPipelineStageFlags dstStage)
-    {
-        const EPoolQueueType dstQueue = ToPoolQueueType(dstContext);
-        //! Ignore same fanily stuff
-        if (!m_boundCB->NeedsOwnershipTransfer(dstQueue)) {
-            m_tracker->TransitionTexture(*m_boundCB, texture, dstLayout, dstStage);
-            return;
-        }
-
-        m_boundCB->ReleaseQueueOwnership(texture, m_tracker->GetLayout(texture), m_tracker->GetStage(texture), dstQueue, dstLayout, dstStage);
-        //! The rest of this recording should see the release state so that is what this call does
-        m_tracker->SetState(texture, dstLayout, EPipelineStageFlags::NoneBit);
-    }
-
-    template<ValidAPI API>
     void RHIEncoder<API>::GenerateMips(Texture& texture, EResourceLayout finalLayout,
         EPipelineStageFlags finalStage, EFilterMode filter)
     {
@@ -614,5 +536,14 @@ namespace Shift {
     }
 
 } // Shift
+
+//! Backend member specializations, the template is complete by now
+#ifdef SHIFT_VULKAN_BACKEND
+#include "RHIContext_VK.hpp"
+#endif
+
+#ifdef SHIFT_DX12_BACKEND
+#include "DX12/RHIContext_DX12.hpp"
+#endif
 
 #endif //SHIFT_RHICONTEXT_HPP

@@ -19,7 +19,6 @@ namespace Shift {
         class Swapchain;
         class WindowSurface;
         class Sampler;
-        class RenderPass;
         class Instance;
         class CommandBuffer;
         class CommandPool;
@@ -33,17 +32,41 @@ namespace Shift {
     using Buffer = VK::Buffer;
     using Texture = VK::Texture;
     using ResourceSet = VK::ResourceSet;
-    using Fence = VK::Fence;
     using TimelineSemaphore = VK::TimelineSemaphore;
     using Swapchain = VK::Swapchain;
-    using WindowSurface = VK::WindowSurface;
-    using Instance = VK::Instance;
     using Sampler = VK::Sampler;
-    using RenderPass = VK::RenderPass;
     using CommandBuffer = VK::CommandBuffer;
     using CommandPool = VK::CommandPool;
     using Device = VK::Device;
     using ImGuiBackend = VK::ImGuiBackend;
+#endif
+
+#ifdef SHIFT_DX12_BACKEND
+    namespace DX12 {
+        class Shader;
+        class Pipeline;
+        class Buffer;
+        class Texture;
+        class ResourceSet;
+        class TimelineSemaphore;
+        class Swapchain;
+        class Sampler;
+        class CommandBuffer;
+        class CommandPool;
+        class Device;
+    } // DX12
+
+    using Shader = DX12::Shader;
+    using Pipeline = DX12::Pipeline;
+    using Buffer = DX12::Buffer;
+    using Texture = DX12::Texture;
+    using ResourceSet = DX12::ResourceSet;
+    using TimelineSemaphore = DX12::TimelineSemaphore;
+    using Swapchain = DX12::Swapchain;
+    using Sampler = DX12::Sampler;
+    using CommandBuffer = DX12::CommandBuffer;
+    using CommandPool = DX12::CommandPool;
+    using Device = DX12::Device;
 #endif
 
 } // Shift

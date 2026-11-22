@@ -6,6 +6,7 @@
 #define SHIFT_SRHI_HPP
 
 #include <atomic>
+#include <numeric>
 
 #include "Common/NativeWindow.hpp"
 #include "RHIContext.hpp"
@@ -45,6 +46,18 @@ namespace Shift {
         HandleCreator* CreateInterface() { return &m_handleCreator; }
 
         [[nodiscard]] const RHICapabilities& GetCapabilities() const;
+
+        //! The buffer layout a 2D buffer<->texture copy needs on this device, fill or read the buffer with it
+        //! It is this complex as it has to support the stupid d3d12 256-byte row rule
+        [[nodiscard]] TextureCopyFootprint GetTextureCopyFootprint(ETextureFormat format, uint32_t width, uint32_t height) const {
+            const uint32_t texelSize = BytesPerPixel(format);
+            assert(texelSize != 0 && "the format has no known texel size");
+            //! Whole texels on every backend, on top of the device's alignment
+            const uint32_t alignment = std::lcm(std::max(GetCapabilities().limits.textureCopyRowPitchAlignment, 1u), texelSize);
+            const uint32_t rowSize = width * texelSize;
+            const uint32_t rowPitch = (rowSize + alignment - 1) / alignment * alignment;
+            return {rowSize, rowPitch, height, uint64_t(rowPitch) * height};
+        }
 
         [[nodiscard]] Swapchain& GetSwapchain() { return *m_local.swapchain; }
         [[nodiscard]] EAcquireResult AcquireFrameImage(FrameImage& out);
@@ -197,8 +210,6 @@ namespace Shift {
 
         m_deferredExecutor.FlushAllDeferredCallbacks();
 
-        m_local.ClearPendingAcquires();
-
         m_local.DestroySwapchain();
 
         m_timelineTransfer.reset();
@@ -219,13 +230,7 @@ namespace Shift {
         m_computeContext.Destroy();
         m_captureContext.Destroy();
 
-        m_local.descLayoutCache.Destroy();
-        m_local.descAllocator.reset();
-
-        m_local.surface.reset();
-
-        m_local.device.reset();
-        m_local.instance.reset();
+        m_local.DestroyBackend();
 
         //! Post-mortem summary: by this point every teardown leak report has been counted by the
         //! validation sink, so a non-zero error count here means the run was NOT clean (F-VALSINK)
@@ -380,12 +385,15 @@ namespace Shift {
 
 
 #ifdef SHIFT_VULKAN_BACKEND
-    using RenderBackend = RenderHardwareInterface<RHI::Vulkan>;
-    using RenderContext = RHIContext<RHI::Vulkan>;
-    using RenderContextEncoder = RHIEncoder<RHI::Vulkan>;
-    using RenderBackendInterface = RenderHardwareInterface<RHI::Vulkan>::HandleCreator;
     using ShiftSelectedAPI = RHI::Vulkan;
 #endif
+#ifdef SHIFT_DX12_BACKEND
+    using ShiftSelectedAPI = RHI::DX12;
+#endif
+    using RenderBackend = RenderHardwareInterface<ShiftSelectedAPI>;
+    using RenderContext = RHIContext<ShiftSelectedAPI>;
+    using RenderContextEncoder = RHIEncoder<ShiftSelectedAPI>;
+    using RenderBackendInterface = RenderHardwareInterface<ShiftSelectedAPI>::HandleCreator;
 } // Shift
 
 //! Backend-specific member specializations live in their own header).
@@ -393,6 +401,9 @@ namespace Shift {
 //! now, and we just add specific template functions for specific API
 #ifdef SHIFT_VULKAN_BACKEND
 #include "RHI_VK.hpp"
+#endif
+#ifdef SHIFT_DX12_BACKEND
+#include "DX12/RHI_DX12.hpp"
 #endif
 
 #endif //SHIFT_SRHI_HPP

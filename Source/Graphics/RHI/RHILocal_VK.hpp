@@ -131,23 +131,32 @@ namespace Shift {
             lastAcquireSemaphore = nullptr;
         }
 
+        void DestroyBackend() {
+            ClearPendingAcquires();
+            descLayoutCache.Destroy();
+            descAllocator.reset();
+            surface.reset();
+            device.reset();
+            instance.reset();
+        }
+
         ///! =============== Queue ownership handoffs ================ !///
 
         //! A released image waiting for its acquire half, plus the timeline point the releasing
         //! submit signals.
         struct PendingAcquire {
-            QueueOwnershipHandoffPayload handoff;
+            VK::QueueOwnershipHandoffPayload handoff;
             VK::TimelineSemaphore* releaseSemaphore = nullptr;
             uint64_t releaseValue = 0;
         };
 
         //! Store the acquires from a CB globally into RHI local. Each CB (context) calls this at submit
         //! if handoffs is not empty
-        void QueuePendingAcquires(std::vector<QueueOwnershipHandoffPayload> handoffs,
+        void QueuePendingAcquires(std::vector<VK::QueueOwnershipHandoffPayload> handoffs,
                                   VK::TimelineSemaphore* releaseSemaphore, uint64_t releaseValue) {
             std::lock_guard<std::mutex> lock(pendingAcquireMutex);
             pendingAcquires.reserve(pendingAcquires.size() + handoffs.size());
-            for (QueueOwnershipHandoffPayload& handoff : handoffs) {
+            for (VK::QueueOwnershipHandoffPayload& handoff : handoffs) {
                 pendingAcquires.push_back(PendingAcquire{std::move(handoff), releaseSemaphore, releaseValue});
             }
         }

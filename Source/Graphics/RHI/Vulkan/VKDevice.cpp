@@ -221,6 +221,8 @@ namespace Shift::VK {
         m_caps.limits.maxVertexAttributes = props.limits.maxVertexInputAttributes;
         m_caps.limits.maxColorAttachments = props.limits.maxColorAttachments;
         m_caps.limits.maxPushConstantsSize = props.limits.maxPushConstantsSize;
+        //! A perf hint, Vulkan itself only needs whole texels
+        m_caps.limits.textureCopyRowPitchAlignment = static_cast<uint32_t>(props.limits.optimalBufferCopyRowPitchAlignment);
         m_caps.limits.maxComputeWorkGroupCount[0] = props.limits.maxComputeWorkGroupCount[0];
         m_caps.limits.maxComputeWorkGroupCount[1] = props.limits.maxComputeWorkGroupCount[1];
         m_caps.limits.maxComputeWorkGroupCount[2] = props.limits.maxComputeWorkGroupCount[2];

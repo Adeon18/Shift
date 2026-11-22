@@ -30,7 +30,7 @@ namespace Shift::Samples {
         encoder->TransitionBuffer(*indices, EPipelineStageFlags::IndexInputBit, EAccessFlags::IndexReadBit);
         BeginColorPass(*encoder, *target);
         encoder->BindGraphicsPipeline(*pipeline.pipeline);
-        encoder->BindVertexBuffer({vertices.get(), 0u}, 0);
+        encoder->BindVertexBuffer(*pipeline.pipeline, {vertices.get(), 0u}, 0);
         encoder->BindIndexBuffer({indices.get(), 0u}, EIndexSize::UInt16);
         encoder->DrawIndexed({.indexCount = static_cast<uint32_t>(INDICES.size())});
         encoder->EndRenderPass();

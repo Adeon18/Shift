@@ -32,7 +32,6 @@ namespace Shift {
     //! \tparam Swapchain
     template<typename Swapchain>
     concept ISwapchain =
-        std::constructible_from<Swapchain, const Device *, const WindowSurface*, uint32_t /*width*/, uint32_t /*height*/> &&
         !std::is_trivially_destructible_v<Swapchain> &&
     requires(Swapchain InputSwapchain, uint32_t width, uint32_t height, uint32_t imageIdx) {
         { InputSwapchain.Recreate(width, height) } -> std::same_as<bool>;

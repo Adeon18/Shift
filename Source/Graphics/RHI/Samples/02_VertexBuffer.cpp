@@ -37,7 +37,7 @@ namespace Shift::Samples {
         encoder->TransitionBuffer(*vertices, EPipelineStageFlags::VertexAttributeInputBit, EAccessFlags::VertexAttributeReadBit);
         BeginColorPass(*encoder, *target);
         encoder->BindGraphicsPipeline(*pipeline.pipeline);
-        encoder->BindVertexBuffer({vertices.get(), 0u}, 0);
+        encoder->BindVertexBuffer(*pipeline.pipeline, {vertices.get(), 0u}, 0);
         encoder->Draw({.vertexCount = static_cast<uint32_t>(VERTICES.size())});
         encoder->EndRenderPass();
 

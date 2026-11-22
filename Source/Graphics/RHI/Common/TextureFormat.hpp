@@ -198,6 +198,21 @@ namespace Shift {
         ASTC_12x12_UNORM_BLOCK = 183,
         ASTC_12x12_SRGB_BLOCK = 184
     };
+
+    //! Bytes per texel of the formats, 0 = not handled yet
+    inline uint32_t BytesPerPixel(ETextureFormat format) {
+        switch (format) {
+            case ETextureFormat::R8G8B8A8_UNORM:
+            case ETextureFormat::R8G8B8A8_SRGB:
+            case ETextureFormat::B8G8R8A8_UNORM:
+            case ETextureFormat::B8G8R8A8_SRGB:
+                return 4;
+            case ETextureFormat::R16G16B16A16_SFLOAT:
+                return 8;
+            default:
+                return 0;
+        }
+    }
 } // Shift
 
 #endif //SHIFT_TEXTUREFORMAT_HPP

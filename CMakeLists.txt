@@ -18,7 +18,19 @@ endif()
 project(${NAME} VERSION 0.23.0)
 
 
+set(SHIFT_RHI_BACKEND "Vulkan" CACHE STRING "RHI backend: Vulkan or DX12")
+set_property(CACHE SHIFT_RHI_BACKEND PROPERTY STRINGS Vulkan DX12)
+
 include(CMake/dependancies.cmake)
+
+# The engine is Vulkan-only for now, a DX12 build is the standalone RHI and its sample runner
+if (SHIFT_RHI_BACKEND STREQUAL "DX12")
+    add_subdirectory(Source/Graphics/RHI)
+    enable_testing()
+    add_test(NAME shift_rhi_samples COMMAND shift_rhi_samples --out ${CMAKE_BINARY_DIR}/rhi_report)
+    set_tests_properties(shift_rhi_samples PROPERTIES TIMEOUT 300)
+    return()
+endif()
 
 FetchContent_MakeAvailable(glfw)
 FetchContent_MakeAvailable(glm)
