@@ -1,0 +1,54 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_POLICY_VERSION_MINIMUM": "3.5"
+      },
+      "vendor": {
+        "jetbrains.com/clion": {
+          "toolchain": "Visual Studio"
+        }
+      }
+    },
+    {
+      "name": "Debug-VK",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/cmake-build-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "SHIFT_RHI_BACKEND": "Vulkan"
+      }
+    },
+    {
+      "name": "Release-VK",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/cmake-build-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SHIFT_RHI_BACKEND": "Vulkan"
+      }
+    },
+    {
+      "name": "Debug-DX12",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/cmake-build-dx12-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "SHIFT_RHI_BACKEND": "DX12"
+      }
+    },
+    {
+      "name": "Release-DX12",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/cmake-build-dx12-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SHIFT_RHI_BACKEND": "DX12"
+      }
+    }
+  ]
+}

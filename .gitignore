@@ -51,3 +51,7 @@ cmake-build*/
 *.exe
 *.out
 *.app
+
+# RHI sample runs write their results next to the report page
+Source/Graphics/RHI/Report/vulkan/
+Source/Graphics/RHI/Report/dx12/

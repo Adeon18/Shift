@@ -119,8 +119,7 @@ target_include_directories(shift_rhi_samples PRIVATE
 )
 target_compile_definitions(shift_rhi_samples PRIVATE
         SHIFT_RHI_GOLDENS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Samples/Goldens"
-        SHIFT_RHI_REPORT_HTML="${CMAKE_CURRENT_SOURCE_DIR}/Report/report.html"
-        SHIFT_RHI_REPORT_DIR="${SHIFT_RHI_REPORT_DIR}"
+        SHIFT_RHI_REPORT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Report"
         SHIFT_RHI_SAMPLE_SHADERS_DIR="${SHIFT_RHI_SAMPLE_SHADERS_OUT}"
         SHIFT_RHI_SAMPLE_SHADER_EXT="${SHIFT_RHI_SAMPLE_SHADER_EXT}"
 )

@@ -21,16 +21,13 @@ project(${NAME} VERSION 0.23.0)
 set(SHIFT_RHI_BACKEND "Vulkan" CACHE STRING "RHI backend: Vulkan or DX12")
 set_property(CACHE SHIFT_RHI_BACKEND PROPERTY STRINGS Vulkan DX12)
 
-# Every backend's sample run writes into this one report
-set(SHIFT_RHI_REPORT_DIR "${CMAKE_SOURCE_DIR}/cmake-build-debug/rhi_report" CACHE PATH "Shared RHI sample report folder")
-
 include(CMake/dependancies.cmake)
 
 # The engine is Vulkan-only for now, a DX12 build is the standalone RHI and its sample runner
 if (SHIFT_RHI_BACKEND STREQUAL "DX12")
     add_subdirectory(Source/Graphics/RHI)
     enable_testing()
-    add_test(NAME shift_rhi_samples COMMAND shift_rhi_samples --out ${SHIFT_RHI_REPORT_DIR})
+    add_test(NAME shift_rhi_samples COMMAND shift_rhi_samples)
     set_tests_properties(shift_rhi_samples PROPERTIES TIMEOUT 300)
     return()
 endif()
@@ -125,7 +122,7 @@ add_test(NAME shift_tests COMMAND shift_tests)
 # A regression that deadlocks (the executor's old under-lock callbacks) must fail, not hang
 set_tests_properties(shift_tests PROPERTIES TIMEOUT 300)
 
-add_test(NAME shift_rhi_samples COMMAND shift_rhi_samples --out ${SHIFT_RHI_REPORT_DIR})
+add_test(NAME shift_rhi_samples COMMAND shift_rhi_samples)
 set_tests_properties(shift_rhi_samples PROPERTIES TIMEOUT 300)
 
 if (WIN32)

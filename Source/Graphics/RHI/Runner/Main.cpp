@@ -23,8 +23,9 @@ namespace {
         bool updateGoldens = false;
         uint32_t width = 1920;
         uint32_t height = 1080;
-        std::filesystem::path out = SHIFT_RHI_REPORT_DIR;
     };
+
+    const std::filesystem::path REPORT_DIR = SHIFT_RHI_REPORT_DIR;
 
     bool ParseOptions(int argc, char** argv, Options& options) {
         for (int i = 1; i < argc; ++i) {
@@ -40,10 +41,8 @@ namespace {
                 options.width = static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 10));
             } else if (arg == "--height" && hasValue) {
                 options.height = static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 10));
-            } else if (arg == "--out" && hasValue) {
-                options.out = argv[++i];
             } else {
-                std::fprintf(stderr, "Unknown argument '%s'\n Usage: shift_rhi_samples [--list] [--filter <substr>] [--update-goldens] [--width N] [--height N] [--out <dir>]\n", arg.c_str());
+                std::fprintf(stderr, "Unknown argument '%s'\n Usage: shift_rhi_samples [--list] [--filter <substr>] [--update-goldens] [--width N] [--height N]\n", arg.c_str());
                 return false;
             }
         }
@@ -54,29 +53,26 @@ namespace {
         return std::string("not implemented: ") + e.function;
     }
 
-    //! Every backend writes into one report, its own <out>/<backend>/ and the shared <out>/golden/
+    //! Every backend writes into one report, next to report.html in <report>/<backend>/
     std::string BackendFolder() {
         std::string folder = ShiftSelectedAPI::Name;
         std::ranges::transform(folder, folder.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         return folder;
     }
 
-    //! Copied for every sample, so the report shows the target even when nothing rendered
-    std::string CopyGolden(const Options& options, const std::string& name) {
-        if (options.updateGoldens) {
-            return {};
-        }
+    //! Relative to report.html, so the report shows the target even when nothing rendered
+    std::string GoldenPath(const std::string& name) {
         std::error_code ec;
-        const std::string golden = "golden/" + name + ".png";
-        const std::filesystem::path goldenPath = std::filesystem::path(SHIFT_RHI_GOLDENS_DIR) / (name + ".png");
-        if (!std::filesystem::copy_file(goldenPath, options.out / golden, std::filesystem::copy_options::overwrite_existing, ec)) {
+        const std::filesystem::path golden = std::filesystem::path(SHIFT_RHI_GOLDENS_DIR) / (name + ".png");
+        if (!std::filesystem::exists(golden, ec)) {
             return {};
         }
-        return golden;
+        const std::filesystem::path relative = std::filesystem::relative(golden, SHIFT_RHI_REPORT_DIR, ec);
+        return ec ? std::string{} : relative.generic_string();
     }
 
-    SampleResult MakeResult(const Options& options, const Sample& sample) {
-        return {.name = sample.name, .threshold = sample.flipThreshold, .golden = CopyGolden(options, sample.name)};
+    SampleResult MakeResult(const Sample& sample) {
+        return {.name = sample.name, .threshold = sample.flipThreshold, .golden = GoldenPath(sample.name)};
     }
 
     std::string ValidationText(const ValidationStats& stats) {
@@ -163,13 +159,13 @@ namespace {
 
         result.message = "FLIP mean " + std::to_string(comparison.flipMean) + " > " + std::to_string(sample.flipThreshold);
         result.diff = BackendFolder() + "/" + result.name + "_diff.png";
-        if (!WritePNG(options.out / result.diff, comparison.errorMap)) {
+        if (!WritePNG(REPORT_DIR / result.diff, comparison.errorMap)) {
             result.diff.clear();
         }
     }
 
     SampleResult RunSample(const Options& options, RenderBackend& rhi, const Sample& sample) {
-        SampleResult result = MakeResult(options, sample);
+        SampleResult result = MakeResult(sample);
         SampleContext context{rhi, options.width, options.height};
 
         SampleOutput output;
@@ -199,7 +195,7 @@ namespace {
         } else {
             result.output = BackendFolder() + "/" + result.name + ".png";
             const auto pngStart = std::chrono::steady_clock::now();
-            if (!WritePNG(options.out / result.output, output.image)) {
+            if (!WritePNG(REPORT_DIR / result.output, output.image)) {
                 result.output.clear();
             }
             result.pngMs = MsSince(pngStart);
@@ -246,13 +242,10 @@ int main(int argc, char** argv) {
 
     //! Only this backend's previous run is cleared, the other backend's results stay
     std::error_code ec;
-    std::filesystem::remove_all(options.out / BackendFolder(), ec);
-    std::filesystem::create_directories(options.out / BackendFolder(), ec);
-    if (!ec) {
-        std::filesystem::create_directories(options.out / "golden", ec);
-    }
+    std::filesystem::remove_all(REPORT_DIR / BackendFolder(), ec);
+    std::filesystem::create_directories(REPORT_DIR / BackendFolder(), ec);
     if (ec) {
-        std::fprintf(stderr, "Cannot create '%s': %s\n", options.out.string().c_str(), ec.message().c_str());
+        std::fprintf(stderr, "Cannot create '%s': %s\n", REPORT_DIR.string().c_str(), ec.message().c_str());
         return 1;
     }
 
@@ -288,7 +281,7 @@ int main(int argc, char** argv) {
         }
     } else {
         for (const Sample* sample : selected) {
-            SampleResult result = MakeResult(options, *sample);
+            SampleResult result = MakeResult(*sample);
             result.status = initThrew ? EStatus::NotImplemented : EStatus::Failed;
             result.missing = report.init.missing;
             result.message = initThrew ? report.init.message : "RHI init failed";
@@ -308,11 +301,8 @@ int main(int argc, char** argv) {
     }
     report.totalMs = MsSince(totalStart);
 
-    if (!WriteReport(options.out / BackendFolder(), report)) {
+    if (!WriteReport(REPORT_DIR / BackendFolder(), report)) {
         std::fprintf(stderr, "Failed to write results.js\n");
-    }
-    if (!std::filesystem::copy_file(SHIFT_RHI_REPORT_HTML, options.out / "report.html", std::filesystem::copy_options::overwrite_existing, ec)) {
-        std::fprintf(stderr, "Failed to copy report.html: %s\n", ec.message().c_str());
     }
 
     const auto statusName = [](EStatus status) {
@@ -344,6 +334,6 @@ int main(int argc, char** argv) {
         ++failed;
     }
     std::printf("%zu sample(s), %d failed, %.1f ms total. Report: %s\n", report.samples.size(), failed, report.totalMs,
-                std::filesystem::absolute(options.out / "report.html").string().c_str());
+                std::filesystem::absolute(REPORT_DIR / "report.html").string().c_str());
     return failed == 0 ? 0 : 1;
 }
