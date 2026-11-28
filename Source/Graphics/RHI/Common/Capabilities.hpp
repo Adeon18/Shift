@@ -7,11 +7,12 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace Shift {
     //! Snapshot of everything the API's debug/validation layer has reported since process start
-    //! The counters live in static storage inside the active backend, so they survive RHI shutdown
+    //! The counters live in static storage in Common/Validation.cpp, so they survive RHI shutdown
     struct ValidationStats {
         uint64_t errorCount = 0;
         uint64_t warningCount = 0;
@@ -20,7 +21,11 @@ namespace Shift {
         std::vector<std::string> lastMessages;
     };
 
-    //! Defined by the active backend (Vulkan: the debug-utils messenger sink in VKUtilCore.cpp)
+    enum class EValidationSeverity : uint8_t { Info, Warning, Error };
+
+    //! Every backend's debug callback maps its severity and reports here
+    void ReportValidationMessage(EValidationSeverity severity, std::string_view message);
+
     [[nodiscard]] ValidationStats GetValidationStats();
     //! Zero the counters and drop the stored messages (test isolation)
     void ResetValidationStats();
